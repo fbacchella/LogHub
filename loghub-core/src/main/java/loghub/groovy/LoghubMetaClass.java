@@ -48,7 +48,7 @@ public abstract class LoghubMetaClass<T> extends DelegatingMetaClass {
             return invokeTypedMethod(object, method);
         } else {
             logger.info("Unhandled invoke {} {}: {}", object::getClass, () -> methodName, () -> arguments.length);
-            assert false: String.format("Unhandled invoke %s %s %s", object.getClass(), methodName, Arrays.toString(arguments));
+            assert false : String.format("Unhandled invoke %s %s %s", object.getClass(), methodName, Arrays.toString(arguments));
             return super.invokeMethod(object, methodName, arguments);
         }
     }
@@ -81,13 +81,13 @@ public abstract class LoghubMetaClass<T> extends DelegatingMetaClass {
 
     protected Object invokeMethod(Object object, GroovyMethods method, Object argument) {
         logger.info("Unhandled invoke {} {} {}", object::getClass, () -> method.groovyMethod, () -> argument);
-        assert false: String.format("Unhandled invoke %s %s: %s", object.getClass(), method, argument.getClass());
+        assert false : String.format("Unhandled invoke %s %s: %s", object.getClass(), method, argument.getClass());
         return super.invokeMethod(object, method.groovyMethod, new Object[] { argument });
     }
 
     protected Object invokeMethod(Object object, GroovyMethods method) {
         logger.info("Unhandled invoke {} {}", object::getClass, () -> method.groovyMethod);
-        assert false: String.format("Unhandled invoke %s %s", object.getClass(), method);
+        assert false : String.format("Unhandled invoke %s %s", object.getClass(), method);
         return super.invokeMethod(object, method.groovyMethod, new Object[] { });
     }
 

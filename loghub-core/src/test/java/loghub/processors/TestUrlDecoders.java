@@ -68,7 +68,7 @@ public class TestUrlDecoders {
         Event e = factory.newEvent();
         e.put("userAgent", "%__");
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(t));
-        Assert.assertEquals("ERROR", status.status.get(status.status.size() -1));
+        Assert.assertEquals("ERROR", status.status.get(status.status.size() - 1));
         Assert.assertEquals("%__", e.get("userAgent"));
     }
 
@@ -82,12 +82,12 @@ public class TestUrlDecoders {
         Event e = factory.newEvent();
         e.put("userAgent", "%__");
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(t));
-        Assert.assertEquals("CONTINUE", status.status.get(status.status.size() -1));
+        Assert.assertEquals("CONTINUE", status.status.get(status.status.size() - 1));
         Assert.assertEquals("%__", e.get("userAgent"));
     }
 
     @Test
-    public void test_loghub_processors_DecodeUrl() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.DecodeUrl"
                 , BeanChecks.BeanInfo.build("encoding", String.class)
                 , BeanChecks.BeanInfo.build("loop", Boolean.TYPE)

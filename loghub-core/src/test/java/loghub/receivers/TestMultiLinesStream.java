@@ -48,7 +48,7 @@ public class TestMultiLinesStream {
     private int port;
     private PriorityBlockingQueue queue;
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testSimple() throws IOException, InterruptedException {
         try (MultiLinesStream ignored = makeReceiver(i -> {}, Collections.emptyMap())){
             try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
@@ -64,7 +64,7 @@ public class TestMultiLinesStream {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testZeroSeparator() throws IOException, InterruptedException {
         try (MultiLinesStream ignored = makeReceiver(i -> i.setSeparator("\0"), Collections.emptyMap())){
             try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
@@ -82,7 +82,7 @@ public class TestMultiLinesStream {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testWithMerge() throws IOException, InterruptedException {
         try (MultiLinesStream ignored = makeReceiver(i -> { }, Collections.emptyMap())){
             try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
@@ -168,7 +168,7 @@ public class TestMultiLinesStream {
             Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));
         }
     }
-    
+
     private TcpLinesStream getReceiver(String host, int port) {
         TcpLinesStream.Builder builder = TcpLinesStream.getBuilder();
         builder.setHost(host);
@@ -177,7 +177,7 @@ public class TestMultiLinesStream {
     }
 
     @Test
-    public void test_loghub_receivers_MultiLinesStream() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.MultiLinesStream"
                               , BeanInfo.build("maxLength", Integer.TYPE)
                               , BeanInfo.build("separator", String.class)

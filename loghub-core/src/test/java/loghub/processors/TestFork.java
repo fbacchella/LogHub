@@ -54,7 +54,7 @@ public class TestFork {
         Pipeline ppl = new Pipeline(Collections.emptyList(), "main", null);
         event.inject(ppl, conf.mainQueue, true);
         Map<?, ?> boolMap = new HashMap<>(Map.of("a", true, "b", false));
-        Map<?, ?> intMap = new HashMap<>(Map.of("a", (byte)1, "b", (short)2, "c", 3, "d", 4L));
+        Map<?, ?> intMap = new HashMap<>(Map.of("a", (byte) 1, "b", (short) 2, "c", 3, "d", 4L));
         Map<?, ?> floatMap = new HashMap<>(Map.of("a", 1.0f, "b", 2.0));
         Map<?, ?> textMap = new HashMap<>(Map.of("a", 'a', "b", "b"));
         Map<?, ?> timeMap = new HashMap<>(Map.of("a", new Date(1), "b", Instant.ofEpochSecond(2, 3)));
@@ -98,13 +98,13 @@ public class TestFork {
         Assert.assertEquals(System.identityHashCode(inetAddress), System.identityHashCode(message.get("inetAddress")));
         Assert.assertEquals(System.identityHashCode(inetSocketAddress), System.identityHashCode(message.get("inetSocketAddress")));
         Assert.assertEquals(System.identityHashCode(inet6Address), System.identityHashCode(message.get("inet6Address")));
-        Assert.assertArrayEquals(new Boolean[]{true, false}, (Boolean[])event.get("arrayBool"));
-        Assert.assertArrayEquals(new Integer[]{1, 2}, (Integer[])event.get("arrayInt"));
-        Assert.assertArrayEquals(new Instant[]{Instant.ofEpochSecond(0)}, (Instant[])event.get("arrayInstant"));
+        Assert.assertArrayEquals(new Boolean[]{true, false}, (Boolean[]) event.get("arrayBool"));
+        Assert.assertArrayEquals(new Integer[]{1, 2}, (Integer[]) event.get("arrayInt"));
+        Assert.assertArrayEquals(new Instant[]{Instant.ofEpochSecond(0)}, (Instant[]) event.get("arrayInstant"));
     }
 
     @Test
-    public void test_loghub_processors_Forker() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Forker"
                               , BeanChecks.BeanInfo.build("destination", String.class)
                         );

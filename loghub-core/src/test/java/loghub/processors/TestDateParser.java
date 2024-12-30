@@ -298,7 +298,7 @@ public class TestDateParser {
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
-        Function<Instant, Number> tonumber = i -> 1.0 * (i.getEpochSecond()) + i.getNano()/1e9;
+        Function<Instant, Number> tonumber = i -> 1.0 * (i.getEpochSecond()) + i.getNano() / 1e9;
         resolve(parse, Instant.ofEpochSecond(155, 330000000), tonumber);
         resolve(parse, Instant.ofEpochSecond(155, 30), tonumber);
         resolve(parse, Instant.ofEpochSecond(-155, 330000000), tonumber);
@@ -432,7 +432,7 @@ public class TestDateParser {
     }
 
     @Test
-    public void test_loghub_processors_DateParser() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.DateParser"
                 , BeanChecks.BeanInfo.build("locale", Expression.class)
                 , BeanChecks.BeanInfo.build("timezone", Expression.class)

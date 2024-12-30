@@ -37,7 +37,7 @@ public class TestSyslogPriority {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void TestResolvedString() throws ProcessorException {
+    public void testResolvedString() throws ProcessorException {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         SyslogPriority sp = builder.build();
@@ -49,14 +49,14 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", "86");
         Assert.assertTrue(e.process(sp));
-        String severity = (String)((Map<String, Object>)e.get("message")).get("severity");
-        String facility = (String)((Map<String, Object>)e.get("message")).get("facility");
+        String severity = (String) ((Map<String, Object>) e.get("message")).get("severity");
+        String facility = (String) ((Map<String, Object>) e.get("message")).get("facility");
         Assert.assertEquals("informational", severity);
         Assert.assertEquals("security/authorization", facility);
     }
 
     @Test
-    public void TestResolvedStringInPlaceEcs() throws ProcessorException {
+    public void testResolvedStringInPlaceEcs() throws ProcessorException {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setInPlace(true);
         builder.setEcs(true);
@@ -82,7 +82,7 @@ public class TestSyslogPriority {
     }
 
     @Test
-    public void TestResolvedStringEcs() throws ProcessorException {
+    public void testResolvedStringEcs() throws ProcessorException {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         builder.setEcs(true);
@@ -103,7 +103,7 @@ public class TestSyslogPriority {
     }
 
     @Test
-    public void TestResolvedStringEcsOverflow() throws ProcessorException {
+    public void testResolvedStringEcsOverflow() throws ProcessorException {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         builder.setEcs(true);
@@ -125,7 +125,7 @@ public class TestSyslogPriority {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void TestNotResolvedString() throws ProcessorException {
+    public void testNotResolvedString() throws ProcessorException {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         builder.setResolve(false);
@@ -138,15 +138,15 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", "38");
         e.process(sp);
-        Number severity = (Number)((Map<String, Object>)e.get("message")).get("severity");
-        Number facility = (Number)((Map<String, Object>)e.get("message")).get("facility");
+        Number severity = (Number) ((Map<String, Object>) e.get("message")).get("severity");
+        Number facility = (Number) ((Map<String, Object>) e.get("message")).get("facility");
         Assert.assertEquals(6, severity);
         Assert.assertEquals(4, facility);
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void TestResolvedNumber() throws ProcessorException {
+    public void testResolvedNumber() throws ProcessorException {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         SyslogPriority sp = builder.build();
@@ -158,14 +158,14 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", 38);
         e.process(sp);
-        String severity = (String)((Map<String, Object>)e.get("message")).get("severity");
-        String facility = (String)((Map<String, Object>)e.get("message")).get("facility");
+        String severity = (String) ((Map<String, Object>) e.get("message")).get("severity");
+        String facility = (String) ((Map<String, Object>) e.get("message")).get("facility");
         Assert.assertEquals("informational", severity);
         Assert.assertEquals("security/authorization", facility);
     }
 
     @Test
-    public void TestResolvedStringOverflow() throws ProcessorException {
+    public void testResolvedStringOverflow() throws ProcessorException {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         builder.setEcs(false);
@@ -184,7 +184,7 @@ public class TestSyslogPriority {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void TestNotResolvedNumber() throws ProcessorException {
+    public void testNotResolvedNumber() throws ProcessorException {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         builder.setResolve(false);
@@ -197,14 +197,14 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", 38);
         e.process(sp);
-        Number severity = (Number)((Map<String, Object>)e.get("message")).get("severity");
-        Number facility = (Number)((Map<String, Object>)e.get("message")).get("facility");
+        Number severity = (Number) ((Map<String, Object>) e.get("message")).get("severity");
+        Number facility = (Number) ((Map<String, Object>) e.get("message")).get("facility");
         Assert.assertEquals(6, severity);
         Assert.assertEquals(4, facility);
     }
 
     @Test
-    public void TestNotMatch() {
+    public void testNotMatch() {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         SyslogPriority sp = builder.build();
@@ -219,7 +219,7 @@ public class TestSyslogPriority {
     }
 
     @Test
-    public void test_loghub_processors_SyslogPriority() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.SyslogPriority"
                               , BeanChecks.BeanInfo.build("facilities", BeanChecks.LSTRING)
                               , BeanChecks.BeanInfo.build("severities", BeanChecks.LSTRING)

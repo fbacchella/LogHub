@@ -81,7 +81,7 @@ public class NumberMetaClass extends LoghubMetaClass<Number> {
                 }
             }
             return value;
-        } else if (method == GroovyMethods.PLUS && argument instanceof CharSequence){
+        } else if (method == GroovyMethods.PLUS && argument instanceof CharSequence) {
             return arg1.toString() + argument;
         } else {
             return invokeMethod(arg1, method, argument);

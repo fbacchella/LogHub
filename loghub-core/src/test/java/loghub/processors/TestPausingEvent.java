@@ -95,7 +95,7 @@ public class TestPausingEvent {
         }
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void success() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
@@ -103,14 +103,14 @@ public class TestPausingEvent {
         onsucces = (e, v) -> {e.put("message", v); return true;};
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
         Assert.assertTrue(String.format("slept for %d ms",  end - started), end > started + 200);
         Assert.assertEquals(this, e.get("message"));
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void failed() throws InterruptedException {
         Stats.reset();
         todo = () -> future.setSuccess(Boolean.TRUE);
@@ -119,13 +119,12 @@ public class TestPausingEvent {
         SleepingProcessor sp = new SleepingProcessor();
         Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(1));
         sp.setFailure(assign);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(1, e.get("a"));
     }
 
-
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void exceptionFalse() throws InterruptedException {
         Stats.reset();
         todo = () -> future.setFailure(new RuntimeException());
@@ -134,25 +133,27 @@ public class TestPausingEvent {
         SleepingProcessor sp = new SleepingProcessor();
         Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(1));
         sp.setFailure(assign);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(1, e.get("a"));
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void exceptionException() throws InterruptedException {
         Stats.reset();
         todo = () -> future.setFailure(new RuntimeException());
-        onexception = (e, x) -> {try {
-            throw e.buildException("got it", x);
-        } catch (ProcessorException ex) {
-            throw new RuntimeException(ex);
-        }};
+        onexception = (e, x) -> {
+            try {
+                throw e.buildException("got it", x);
+            } catch (ProcessorException ex) {
+                throw new RuntimeException(ex);
+            }
+        };
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(1));
         sp.setException(assign);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(1, e.get("a"));
     }

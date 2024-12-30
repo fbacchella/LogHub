@@ -48,7 +48,7 @@ public class TestConfigurations {
     public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.Pipeline", "loghub.configuration","loghub.receivers.ZMQ", "loghub.Receiver", "loghub.processors.Forker", "loghub", "loghub.EventsProcessor");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.Pipeline", "loghub.configuration", "loghub.receivers.ZMQ", "loghub.Receiver", "loghub.processors.Forker", "loghub", "loghub.EventsProcessor");
     }
 
     @Test
@@ -136,8 +136,8 @@ public class TestConfigurations {
     @Test
     public void testComplexConf() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("test.conf", false);
-        for (String plName: new String[]{"main", "oneref", "groovy"}) {
-            Assert.assertTrue("pipeline '" + plName +"'not found", conf.namedPipeLine.containsKey(plName));
+        for (String plName : new String[]{"main", "oneref", "groovy"}) {
+            Assert.assertTrue("pipeline '" + plName + "'not found", conf.namedPipeLine.containsKey(plName));
         }
         Assert.assertEquals("input not found", 1, conf.receivers.size());
         Assert.assertEquals("ouput not found", 3, conf.senders.size());
@@ -251,13 +251,13 @@ public class TestConfigurations {
         Assert.assertTrue(props.namedPipeLine.containsKey("empty"));
     }
 
-    @Test(expected=ConfigException.class)
+    @Test(expected = ConfigException.class)
     public void testPipelineReuse() throws ConfigException, IOException {
-        String confile = "output $a | {\n" + 
-                        "    loghub.senders.Stdout { encoder: loghub.encoders.ToJson}\n" + 
-                        "}\n" + 
-                        "output $a | {\n" + 
-                        "    loghub.senders.Stdout { encoder: loghub.encoders.ToJson}\n" + 
+        String confile = "output $a | {\n" +
+                        "    loghub.senders.Stdout { encoder: loghub.encoders.ToJson}\n" +
+                        "}\n" +
+                        "output $a | {\n" +
+                        "    loghub.senders.Stdout { encoder: loghub.encoders.ToJson}\n" +
                         "}";
         Configuration.parse(new StringReader(confile));
     }
@@ -274,8 +274,8 @@ public class TestConfigurations {
     @Test
     public void testBadBean() throws ConfigException {
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
-            String confile = "pipeline[bad] {\n" + 
-                    "   loghub.processors.Identity {bad: true}\n" + 
+            String confile = "pipeline[bad] {\n" +
+                    "   loghub.processors.Identity {bad: true}\n" +
                     "}\n";
             Configuration.parse(new StringReader(confile));
         });
@@ -284,10 +284,10 @@ public class TestConfigurations {
 
     @Test
     public void testComplexPattern() throws ConfigException, IOException, InterruptedException {
-        String confile = "pipeline[pattern] {\n" + 
-                        "   [b] ==~ /a\\\n" + 
-                        "b\\d+/ ? [a]=1:[a]=2" + 
-                        "}\n" + 
+        String confile = "pipeline[pattern] {\n" +
+                        "   [b] ==~ /a\\\n" +
+                        "b\\d+/ ? [a]=1:[a]=2" +
+                        "}\n" +
                         "output $pattern | { loghub.senders.InMemorySender }";
 
         Properties conf = Tools.loadConf(new StringReader(confile));
@@ -347,8 +347,8 @@ public class TestConfigurations {
     @Test
     public void testBadCharset() throws ConfigException, IOException {
         try {
-            String confile = "input {\n" + 
-                            "    loghub.receivers.TimeSerie { decoder: loghub.decoders.StringCodec { charset: \"NONE\"}, frequency: 10 }\n" + 
+            String confile = "input {\n" +
+                            "    loghub.receivers.TimeSerie { decoder: loghub.decoders.StringCodec { charset: \"NONE\"}, frequency: 10 }\n" +
                             "} | $main\n";
             Configuration.parse(new StringReader(confile));
             Assert.fail("An exception was expected");
@@ -362,7 +362,7 @@ public class TestConfigurations {
     public void testInclude() throws ConfigException, IOException {
         Path confincludes = Paths.get(TestConfigurations.class.getClassLoader().getResource("includes").getFile());
         Path relativePath = Paths.get(".").toAbsolutePath().normalize().relativize(confincludes.normalize().toAbsolutePath());
-        for (String confile: new String[] {
+        for (String confile : new String[] {
                 String.format("includes: \"%s/?.conf\"", relativePath),
                 String.format("includes: [\"%s/?.conf\"]", relativePath),
                 String.format("includes: \"%s/?.conf\"", confincludes),
@@ -373,17 +373,17 @@ public class TestConfigurations {
         }) {
             logger.info("trying {}", confile);
             Properties p =  Configuration.parse(new StringReader(confile));
-            Assert.assertTrue((Boolean)p.get("a"));
-            Assert.assertTrue((Boolean)p.get("b"));
+            Assert.assertTrue((Boolean) p.get("a"));
+            Assert.assertTrue((Boolean) p.get("b"));
         }
-        
+
         ConfigException failed = Assert.assertThrows(ConfigException.class, () -> Configuration.parse(new StringReader(String.format("includes: \"%s/none.conf\"", relativePath))));
         Assert.assertEquals("No Configuration files found", failed.getMessage());
     }
 
     @Test
     public void testBadProperty() {
-        for (String confile: List.of(
+        for (String confile : List.of(
                 "queueDepth: 'a'",
                 "http.jwt: \"true\"",
                 "timezone: 1",
@@ -401,12 +401,12 @@ public class TestConfigurations {
                 "a: 0b1010", 10,
                 "a: true", true,
                 "a: 1.0", 1.0,
-                "a: [\"a\", \"b\"]", new String[]{"a","b"});
-        for (Map.Entry<String, Object> property: properties.entrySet()) {
+                "a: [\"a\", \"b\"]", new String[]{"a", "b"});
+        for (Map.Entry<String, Object> property : properties.entrySet()) {
             Properties props = Configuration.parse(new StringReader(property.getKey()));
             String message = "For " + property.getKey();
-            if (property.getValue().getClass().isArray()){
-                Assert.assertArrayEquals(message, (Object[])property.getValue(), (Object[])props.get("a"));
+            if (property.getValue().getClass().isArray()) {
+                Assert.assertArrayEquals(message, (Object[]) property.getValue(), (Object[]) props.get("a"));
             } else {
                 Assert.assertEquals(message, property.getValue(), props.get("a"));
             }
@@ -442,4 +442,3 @@ public class TestConfigurations {
     }
 
 }
-

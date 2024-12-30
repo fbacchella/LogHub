@@ -106,22 +106,22 @@ public class JmxService {
 
         public Configuration setProperty(String key, Object value) {
             switch(key) {
-            case "protocol": 
+            case "protocol":
                 protocol = value.toString().toLowerCase(Locale.ENGLISH);
                 break;
             case "providerPackages":
                 protocolProvider = value.toString().toLowerCase(Locale.ENGLISH);
                 break;
             case "port":
-                port = ((Number)value).intValue();
+                port = ((Number) value).intValue();
                 break;
-            case "hostname": 
+            case "hostname":
                 hostname = value.toString();
                 break;
-            case "jaasName": 
+            case "jaasName":
                 jaasName = value.toString();
                 break;
-            case "withSsl": 
+            case "withSsl":
                 withSsl = (Boolean) value;
                 break;
             case "sslContext":
@@ -229,9 +229,9 @@ public class JmxService {
         mbs = ManagementFactory.getPlatformMBeanServer();
 
         try {
-            conf.mbeans.forEach((k,v) -> {
+            conf.mbeans.forEach((k, v) -> {
                 try {
-                    mbs.registerMBean(v,k);
+                    mbs.registerMBean(v, k);
                     registered.add(k);
                 } catch (InstanceAlreadyExistsException
                                 | MBeanRegistrationException
@@ -250,7 +250,7 @@ public class JmxService {
         }
     }
 
-    private static ObjectName createMetricName(String type, String domain, String name, ObjectNameFactory donf, Pattern pipepattern ) {
+    private static ObjectName createMetricName(String type, String domain, String name, ObjectNameFactory donf, Pattern pipepattern) {
         ObjectName metricName;
         Matcher m = pipepattern.matcher(name);
         if (m.matches()) {

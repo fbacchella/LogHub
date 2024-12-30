@@ -87,7 +87,7 @@ public class TestPattern {
                 ),
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1100), "Thu, 01 Jan 1970 01:00:01.1 +0100"),
-                        Map.entry(Instant.ofEpochSecond(1,1_100_001), "Thu, 01 Jan 1970 01:00:01.001 +0100")
+                        Map.entry(Instant.ofEpochSecond(1, 1_100_001), "Thu, 01 Jan 1970 01:00:01.001 +0100")
                 ),
                 List.of()
         );
@@ -149,7 +149,7 @@ public class TestPattern {
     }
 
     @Test
-    public void TimeZoneFormatingUTC() {
+    public void timeZoneFormatingUTC() {
         ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(0), ZoneOffset.UTC);
         formatting(zdt, Locale.ENGLISH);
         formatting(zdt, Locale.FRANCE);
@@ -157,7 +157,7 @@ public class TestPattern {
         formatting(zdt.withZoneSameInstant(ZoneId.of("Europe/Paris")), Locale.ENGLISH);
         formatting(zdt.withZoneSameInstant(ZoneId.of("Europe/Paris")), Locale.FRANCE);
         formatting(zdt.withZoneSameInstant(ZoneId.of("Europe/Paris")), Locale.CHINESE);
-        formatting(zdt.withZoneSameInstant(ZoneOffset.ofHoursMinutesSeconds(1,2,3)), Locale.CHINESE);
+        formatting(zdt.withZoneSameInstant(ZoneOffset.ofHoursMinutesSeconds(1, 2, 3)), Locale.CHINESE);
     }
 
     private void formatting(ZonedDateTime zdt, Locale locale) {
@@ -207,8 +207,8 @@ public class TestPattern {
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "1970-01-01T01:00:01+01:00"),
                         Map.entry(Instant.ofEpochMilli(1001), "1970-01-01T01:00:01.001+01:00"),
-                        Map.entry(Instant.ofEpochSecond(1,1), "1970-01-01T01:00:01+01:00"),
-                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01T01:00:01.001+01:00")
+                        Map.entry(Instant.ofEpochSecond(1, 1), "1970-01-01T01:00:01+01:00"),
+                        Map.entry(Instant.ofEpochSecond(1, 1_000_001), "1970-01-01T01:00:01.001+01:00")
                 ),
                 List.of(
                         Map.entry("2024-05-03 12:56:29+01:00", "Failed to parse date \"2024-05-03 12:56:29+01:00\": Expected 'T' character but found ' '"),
@@ -225,8 +225,8 @@ public class TestPattern {
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "1970-01-01T01:00:01+01:00"),
                         Map.entry(Instant.ofEpochMilli(1001), "1970-01-01T01:00:01.001+01:00"),
-                        Map.entry(Instant.ofEpochSecond(1,1), "1970-01-01T01:00:01.000000001+01:00"),
-                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01T01:00:01.001000001+01:00")
+                        Map.entry(Instant.ofEpochSecond(1, 1), "1970-01-01T01:00:01.000000001+01:00"),
+                        Map.entry(Instant.ofEpochSecond(1, 1_000_001), "1970-01-01T01:00:01.001000001+01:00")
                 ),
                 List.of(
                 )
@@ -241,8 +241,8 @@ public class TestPattern {
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "1970-01-01T01:00:01+01:00"),
                         Map.entry(Instant.ofEpochMilli(1001), "1970-01-01T01:00:01+01:00"),
-                        Map.entry(Instant.ofEpochSecond(1,1), "1970-01-01T01:00:01+01:00"),
-                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01T01:00:01+01:00")
+                        Map.entry(Instant.ofEpochSecond(1, 1), "1970-01-01T01:00:01+01:00"),
+                        Map.entry(Instant.ofEpochSecond(1, 1_000_001), "1970-01-01T01:00:01+01:00")
                 ),
                 List.of(
                 )
@@ -258,8 +258,8 @@ public class TestPattern {
                         Map.entry(Instant.ofEpochMilli(1000), "1970-01-01X01:00:01+0100"),
                         Map.entry(Instant.ofEpochMilli(1001), "1970-01-01X01:00:01+0100"),
                         Map.entry(Instant.ofEpochMilli(1111), "1970-01-01X01:00:01.11+0100"),
-                        Map.entry(Instant.ofEpochSecond(1,1), "1970-01-01X01:00:01+0100"),
-                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01X01:00:01+0100")
+                        Map.entry(Instant.ofEpochSecond(1, 1), "1970-01-01X01:00:01+0100"),
+                        Map.entry(Instant.ofEpochSecond(1, 1_000_001), "1970-01-01X01:00:01+0100")
                 ),
                 List.of(
                 )
@@ -276,8 +276,8 @@ public class TestPattern {
                         Map.entry(Instant.ofEpochMilli(1000), "1970-01-01 01:00:01"),
                         Map.entry(Instant.ofEpochMilli(1001), "1970-01-01 01:00:01,001"),
                         Map.entry(Instant.ofEpochMilli(1111), "1970-01-01 01:00:01,111"),
-                        Map.entry(Instant.ofEpochSecond(1,1), "1970-01-01 01:00:01"),
-                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01 01:00:01,001")
+                        Map.entry(Instant.ofEpochSecond(1, 1), "1970-01-01 01:00:01"),
+                        Map.entry(Instant.ofEpochSecond(1, 1_000_001), "1970-01-01 01:00:01,001")
                 ),
                 List.of(
                 )
@@ -298,8 +298,8 @@ public class TestPattern {
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "1"),
                         Map.entry(Instant.ofEpochMilli(1001), "1.001"),
-                        Map.entry(Instant.ofEpochSecond(1,1), "1.000000001"),
-                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1.001000001")
+                        Map.entry(Instant.ofEpochSecond(1, 1), "1.000000001"),
+                        Map.entry(Instant.ofEpochSecond(1, 1_000_001), "1.001000001")
                 ),
                 List.of(
                         Map.entry("totor", "Not a number")
@@ -318,8 +318,8 @@ public class TestPattern {
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "1000"),
                         Map.entry(Instant.ofEpochMilli(1001), "1001"),
-                        Map.entry(Instant.ofEpochSecond(1,1), "1000"),
-                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1001")
+                        Map.entry(Instant.ofEpochSecond(1, 1), "1000"),
+                        Map.entry(Instant.ofEpochSecond(1, 1_000_001), "1001")
                 ),
                 List.of(
                         Map.entry("totor", "Not a number")
@@ -338,8 +338,8 @@ public class TestPattern {
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "1000000000"),
                         Map.entry(Instant.ofEpochMilli(1001), "1001000000"),
-                        Map.entry(Instant.ofEpochSecond(1,1), "1000000001"),
-                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1001000001")
+                        Map.entry(Instant.ofEpochSecond(1, 1), "1000000001"),
+                        Map.entry(Instant.ofEpochSecond(1, 1_000_001), "1001000001")
                 ),
                 List.of(
                         Map.entry("totor", "Not a number")

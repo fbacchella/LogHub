@@ -69,7 +69,7 @@ public abstract class NullOrMissingValue {
 
     @Override
     public int hashCode() {
-        return Objects.hash((Object)null);
+        return Objects.hash((Object) null);
     }
 
     @Override

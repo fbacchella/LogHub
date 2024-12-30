@@ -24,7 +24,7 @@ public class ZMQCheckedException extends Exception {
     }
 
     public static int checkCommand(int status, Socket s) throws ZMQCheckedException {
-        if (status < 0 ) {
+        if (status < 0) {
             throw new ZMQCheckedException(s.errno());
         } else {
             return status;
@@ -41,7 +41,7 @@ public class ZMQCheckedException extends Exception {
         } else if (e instanceof ZError.InstantiationException) {
             throw e;
         } else if (e instanceof ZMQException) {
-            error = ZMQ.Error.findByCode(((ZMQException)e).getErrorCode());
+            error = ZMQ.Error.findByCode(((ZMQException) e).getErrorCode());
         } else {
             throw new IllegalStateException("Unhandled ZMQ Exception", e);
         }

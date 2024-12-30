@@ -26,15 +26,15 @@ public class TestMacAddress {
 
     @Test
     public void testBytes() {
-        Assert.assertEquals(STANDARDFORMAT48, new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3, (byte)0x4F}).toString());
-        Assert.assertEquals(STANDARDFORMAT64, new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3, (byte)0x4F, (byte)0xAB, (byte)0xCD}).toString());
+        Assert.assertEquals(STANDARDFORMAT48, new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F}).toString());
+        Assert.assertEquals(STANDARDFORMAT64, new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F, (byte) 0xAB, (byte) 0xCD}).toString());
     }
 
     @Test
     public void testFailuresLength() {
         Assert.assertThrows(IllegalArgumentException.class, () -> new MacAddress("3D:F2:C9:A6:B3"));
-        Assert.assertThrows(IllegalArgumentException.class, () -> new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3}));
-        Assert.assertThrows(IllegalArgumentException.class, () -> new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3, (byte)0x4F, (byte)0xAB}));
+        Assert.assertThrows(IllegalArgumentException.class, () -> new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3}));
+        Assert.assertThrows(IllegalArgumentException.class, () -> new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F, (byte) 0xAB}));
     }
 
     @Test

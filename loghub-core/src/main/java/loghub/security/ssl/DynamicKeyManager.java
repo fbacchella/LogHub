@@ -30,7 +30,7 @@ public class DynamicKeyManager extends X509ExtendedKeyManager {
             return Arrays.stream(issuers)
                          .filter(trustedIssuers::contains)
                          .toArray(Principal[]::new);
-        } else if (trustedIssuers != null){
+        } else if (trustedIssuers != null) {
             return trustedIssuers.toArray(Principal[]::new);
         } else {
             return issuers;
@@ -69,7 +69,7 @@ public class DynamicKeyManager extends X509ExtendedKeyManager {
             }
             // Check that one of the certificate issuers are allowed
             Set<Principal> newIssuersSet = Arrays.stream(newIssuers).collect(Collectors.toSet());
-            for (X509Certificate cert: getCertificateChain(clientAlias)) {
+            for (X509Certificate cert : getCertificateChain(clientAlias)) {
                 if (newIssuersSet.contains(cert.getIssuerX500Principal())) {
                     return clientAlias;
                 }

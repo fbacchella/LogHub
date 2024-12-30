@@ -57,7 +57,7 @@ public class Stdout extends Sender {
     }
 
     public String getDestination() {
-        return destination == System.out ? "stdout": "stderr";
+        return destination == System.out ? "stdout" : "stderr";
     }
 
 }

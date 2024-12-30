@@ -43,10 +43,10 @@ import zmq.io.mechanism.curve.Curve;
 
 public class TestCurve {
 
-    @Rule(order=1)
+    @Rule(order = 1)
     public final TemporaryFolder testFolder = new TemporaryFolder();
 
-    @Rule(order=2)
+    @Rule(order = 2)
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     private static final Logger logger = LogManager.getLogger();
@@ -70,7 +70,7 @@ public class TestCurve {
         return new PrivateKeyEntry(privateKey, new Certificate[] {new NaclCertificate(publicKey)});
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testSecureConnectOneWay() throws ZMQCheckedException, IOException {
         Path securePath = Paths.get(testFolder.getRoot().getAbsolutePath(), "secure");
 
@@ -90,16 +90,14 @@ public class TestCurve {
                 .setCurveKeys(tctxt.getFactory().getKeyEntry())
                 .setCurveServer()
                 .setZapDomain("ZAPDOMAIN")
-                .setSocketLogger(logger)
-                ;
+                .setSocketLogger(logger);
         SocketBuilder clientBuilder = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PUSH, rendezvous)
                 .setHwm(100)
                 .setTimeout(1000)
                 .setSecurity(Mechanisms.CURVE)
                 .setCurveKeys(tctxt.getFactory().getKeyEntry())
                 .setCurveClient(tctxt.getFactory().getKeyEntry().getCertificate())
-                .setSocketLogger(logger)
-                ;
+                .setSocketLogger(logger);
         try (Socket server = serverBuilder.build();
              Socket client = clientBuilder.build()) {
             Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE,
@@ -115,7 +113,7 @@ public class TestCurve {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testSecureConnectOtherWay() throws ZMQCheckedException, InvalidKeyException, InvalidKeySpecException {
         Curve curve = new Curve();
         byte[][] serverKeys = curve.keypair();
@@ -151,7 +149,7 @@ public class TestCurve {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testFailedSecureConnect() throws ZMQCheckedException, InvalidKeyException, InvalidKeySpecException {
         Curve curve = new Curve();
         byte[][] serverKeys = curve.keypair();
@@ -196,7 +194,7 @@ public class TestCurve {
 
     @Test
     public void testSocketFactory() throws InvalidKeySpecException {
-        for (String kstype: new String[] {"jceks"/*, "jks"*/}) {
+        for (String kstype : new String[] {"jceks"/*, "jks"*/}) {
             Path kspath = Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqsocketfactory." + kstype).toAbsolutePath();
             PrivateKeyEntry pke1;
             ZMQSocketFactory.ZMQSocketFactoryBuilder builder = new ZMQSocketFactory.ZMQSocketFactoryBuilder();

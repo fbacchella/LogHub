@@ -51,18 +51,18 @@ public class TestWithZMQ {
     }
 
     @Ignore
-    @Test(timeout=3000) 
+    @Test(timeout = 3000)
     public void testSimpleInput() throws InterruptedException, ConfigException, IOException {
         latch = new CountDownLatch(1);
 
         Properties conf = Tools.loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
 
-        for(Receiver r: conf.receivers) {
+        for (Receiver r : conf.receivers) {
             Assert.assertTrue("failed to configure " + r, r.configure(conf));
             r.start();
         }
-        for(Sender s: conf.senders) {
+        for (Sender s : conf.senders) {
             Assert.assertTrue("failed to configure " + s, s.configure(conf));
             s.start();
         }
@@ -74,8 +74,7 @@ public class TestWithZMQ {
                         .setType(SocketType.PUB)
                         .setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8))
                         .setMsPause(250)
-                        .setZmqFactory(tctxt.getFactory())
-                        ;
+                        .setZmqFactory(tctxt.getFactory());
 
         ZMQSink.Builder<String> sinkbuilder = ZMQSink.getBuilder();
         sinkbuilder.setMethod(Method.CONNECT)
@@ -83,8 +82,7 @@ public class TestWithZMQ {
                    .setTopic(new byte[] {})
                    .setSource("inproc://sender")
                    .setReceive(this::process)
-                   .setZmqFactory(tctxt.getFactory())
-                   ;
+                   .setZmqFactory(tctxt.getFactory());
 
         try (ZMQSink<String> receiver = sinkbuilder.build();
              ZMQFlow sender = flowbuilder.build()) {
@@ -94,13 +92,13 @@ public class TestWithZMQ {
             Assert.assertTrue(latch.await(2, TimeUnit.SECONDS));
             //byte[] buffer = out.recv();
             //Assert.assertEquals("wrong send message", "something", new String(buffer));
-            for(Receiver r: conf.receivers) {
+            for (Receiver r : conf.receivers) {
                 r.stopReceiving();
             }
-            for(Receiver r: conf.receivers) {
+            for (Receiver r : conf.receivers) {
                 r.close();
             }
-            for(Sender s: conf.senders) {
+            for (Sender s : conf.senders) {
                 s.stopSending();
             }
         }

@@ -271,7 +271,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
                     inserted = queue.offer(qe, 10, TimeUnit.MILLISECONDS);
                 } finally {
                     readLock.unlock();
-                } 
+                }
             }
         }
     }
@@ -350,7 +350,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
                     inserted = queue.offer(qe, 10, TimeUnit.MILLISECONDS);
                 } finally {
                     readLock.unlock();
-                } 
+                }
             }
             return inserted;
         }
@@ -431,7 +431,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
                     found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS));
                 } finally {
                     readLock.unlock();
-                } 
+                }
             }
             return found;
         }
@@ -541,9 +541,9 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
                         long asyncDelay = (referenceTime - asyncEvents.get(cursorAsync.get()).baseTime) * weight;
                         return blockingDelay > asyncDelay ?
                                 blockingEvents.get(cursorBlocking.getAndIncrement()).event : asyncEvents.get(cursorAsync.getAndIncrement()).event;
-                    } else if (cursorBlocking.get() < blockingEvents.size()){
+                    } else if (cursorBlocking.get() < blockingEvents.size()) {
                         return blockingEvents.get(cursorBlocking.getAndIncrement()).event;
-                    } else if (cursorAsync.get() < asyncEvents.size()){
+                    } else if (cursorAsync.get() < asyncEvents.size()) {
                         return asyncEvents.get(cursorAsync.getAndIncrement()).event;
                     } else {
                         throw new NoSuchElementException();
@@ -580,7 +580,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     }
 
     private interface FunctionInterrupted {
-        QueueElement apply(BlockingQueue<QueueElement> queue) throws InterruptedException ;
+        QueueElement apply(BlockingQueue<QueueElement> queue) throws InterruptedException;
     }
 
     private Thread getExecutorThread(Runnable r) {

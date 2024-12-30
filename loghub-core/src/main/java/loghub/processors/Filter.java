@@ -39,7 +39,7 @@ public class Filter extends TreeWalkProcessor {
     protected Object processLeaf(Event event, Object value) throws ProcessorException {
         if (Boolean.TRUE.equals(filter.eval(event, value))) {
             return RUNSTATUS.REMOVE;
-        } else if (value instanceof Event){
+        } else if (value instanceof Event) {
             return Expression.deepCopy(value);
         } else {
             return value;

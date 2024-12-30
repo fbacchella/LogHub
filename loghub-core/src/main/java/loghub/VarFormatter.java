@@ -79,7 +79,7 @@ public class VarFormatter {
             boolean lZeroPadded = false;
             boolean lGrouping = false;
             boolean lParenthesis = false;
-            for(char c: flags.toCharArray()) {
+            for (char c : flags.toCharArray()) {
                 switch(c) {
                 case '-': lLeftJustified = true; break;
                 case '#': lAlternateForm = true; break;
@@ -110,8 +110,7 @@ public class VarFormatter {
             writer = JacksonBuilder.get(JsonMapper.class)
                                    .module(module)
                                    .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false))
-                                   .getWriter()
-            ;
+                                   .getWriter();
         }
 
         @Override
@@ -131,9 +130,9 @@ public class VarFormatter {
     private static final class NonParsingFormat extends Format {
         private final Locale l;
         private final boolean toUpper;
-        private final Function<Object, String > f;
+        private final Function<Object, String> f;
 
-        private NonParsingFormat(Locale l, boolean toUpper, Function<Object, String > f) {
+        private NonParsingFormat(Locale l, boolean toUpper, Function<Object, String> f) {
             super();
             this.l = l;
             this.toUpper = toUpper;
@@ -384,7 +383,7 @@ public class VarFormatter {
                 chronologyCheck = false;
                 break;
             }
-            case 'b': 
+            case 'b':
                 // Locale-specific abbreviated month name, e.g. "Jan", "Feb", same as h.
             case 'h': {
                 // Locale-specific abbreviated month name, e.g. "Jan", "Feb", same as b.
@@ -394,7 +393,7 @@ public class VarFormatter {
                 chronologyCheck = false;
                 break;
             }
-            case 'A': 
+            case 'A':
                 // Locale-specific full name of the day of the week, e.g. "Sunday", "Monday"
                 taToStr = (sb, ta) -> sb.append(DayOfWeek.from(ta).getDisplayName(TextStyle.FULL, l));
                 zoned = true;
@@ -456,7 +455,7 @@ public class VarFormatter {
                 zoned = true;
                 chronologyCheck = false;
                break;
-            case 'R':{
+            case 'R': {
                 // Time formatted for the 24-hour clock as "%tH:%tM"
                 DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm", locale).withDecimalStyle(DecimalStyle.of(l));
                 taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
@@ -472,7 +471,7 @@ public class VarFormatter {
                 chronologyCheck = false;
                 break;
             }
-            case 'r':{
+            case 'r': {
                 // Time formatted for the 12-hour clock as "%tI:%tM:%tS %Tp". The location of the morning or afternoon marker ('%Tp') may be locale-dependent.
                 DateTimeFormatter dtf1 = DateTimeFormatter.ofPattern("hh:mm:ss", locale).withDecimalStyle(DecimalStyle.of(l));
                 DateTimeFormatter dtf2 = DateTimeFormatter.ofPattern("a", locale).withDecimalStyle(DecimalStyle.of(l));
@@ -535,13 +534,13 @@ public class VarFormatter {
         }
 
         private TemporalAccessor getTemporalAccessor(Object obj) {
-            if (obj instanceof Instant && zoned){
+            if (obj instanceof Instant && zoned) {
                 Instant i = (Instant) obj;
                 return withCalendarSystem(i.atZone(etz));
-            } else if (obj instanceof ZonedDateTime && tz != null){
+            } else if (obj instanceof ZonedDateTime && tz != null) {
                 ZonedDateTime zdt = (ZonedDateTime) obj;
                 return zdt.withZoneSameInstant(etz);
-            } else if (obj instanceof TemporalAccessor){
+            } else if (obj instanceof TemporalAccessor) {
                 return (TemporalAccessor) obj;
             } else {
                 throw new IllegalArgumentException("Not a date/time argument");
@@ -551,7 +550,7 @@ public class VarFormatter {
         @Override
         public StringBuffer format(Object obj, StringBuffer toAppendTo,
                                    FieldPosition pos) {
-            if ( ! (obj instanceof Date) && ! (obj instanceof TemporalAccessor)) {
+            if (! (obj instanceof Date) && ! (obj instanceof TemporalAccessor)) {
                 return toAppendTo.append(obj);
             }
             try {
@@ -635,7 +634,7 @@ public class VarFormatter {
             mapper = Map.copyOf(constructMapper);
             ThreadLocal<FormatDelegated> tl = ThreadLocal.withInitial(() -> new FormatDelegated(pattern, finalFormats));
             delegated = or -> tl.get().format(or);
-            mapper.keySet().stream().reduce((i,j) ->  {
+            mapper.keySet().stream().reduce((i, j) ->  {
                 if (i.getClass() != j.getClass()) {
                     throw new IllegalArgumentException("Can't mix indexed with object resolution");
                 } else {
@@ -671,7 +670,7 @@ public class VarFormatter {
         } else {
             variables = Map.of();
         }
-        for (Map.Entry<Object, Integer> mapping: mapper.entrySet()) {
+        for (Map.Entry<Object, Integer> mapping : mapper.entrySet()) {
             if (".".equals(mapping.getKey())) {
                 resolved[mapping.getValue()] = checkArgType(arg);
                 continue;
@@ -745,23 +744,23 @@ public class VarFormatter {
         } else if (arg == null || ! arg.getClass().isArray()) {
             return arg;
         } else if (arg instanceof byte[]) {
-            return Arrays.toString((byte[])arg);
+            return Arrays.toString((byte[]) arg);
         } else if (arg instanceof short[]) {
-            return Arrays.toString((short[])arg);
+            return Arrays.toString((short[]) arg);
         } else if (arg instanceof int[]) {
-            return Arrays.toString((int[])arg);
+            return Arrays.toString((int[]) arg);
         } else if (arg instanceof long[]) {
-            return Arrays.toString((long[])arg);
+            return Arrays.toString((long[]) arg);
         } else if (arg instanceof float[]) {
-            return Arrays.toString((float[])arg);
+            return Arrays.toString((float[]) arg);
         } else if (arg instanceof double[]) {
-            return Arrays.toString((double[])arg);
+            return Arrays.toString((double[]) arg);
         } else if (arg instanceof boolean[]) {
-            return Arrays.toString((boolean[])arg);
+            return Arrays.toString((boolean[]) arg);
         } else if (arg instanceof char[]) {
-            return Arrays.toString((char[])arg);
+            return Arrays.toString((char[]) arg);
         } else {
-            return Arrays.deepToString((Object[])arg);
+            return Arrays.deepToString((Object[]) arg);
         }
     }
 
@@ -827,7 +826,7 @@ public class VarFormatter {
             String precisionStr =  m.group("precision");
             int precision = precisionStr == null ? -1 : Integer.parseInt(precisionStr);
             String flagStr = m.group("flag");
-            if(flagStr == null) {
+            if (flagStr == null) {
                 flagStr = "";
             }
             Flags flags = new Flags(flagStr);
@@ -854,16 +853,16 @@ public class VarFormatter {
             final UnaryOperator<String> cut = i -> precision < 0 ? i : i.substring(0, precision);
             switch(conversion) {
             case 'b': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "false" : (i instanceof Boolean) ? i.toString() : "true"));
-            case 's': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i.toString()) );
+            case 's': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i.toString()));
             case 'h': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "null" : Integer.toHexString(i.hashCode())));
             case 'c': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> (i instanceof Character) ? i.toString() : "null");
-            case 'd': {Format f = numberFormat(locale, conversion, flags, true, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
+            case 'd': { Format f = numberFormat(locale, conversion, flags, true, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
             case 'o': return new NonDecimalNumberFormat(locale, 8, isUpper, flags, length);
             case 'x': return new NonDecimalNumberFormat(locale, 16, isUpper, flags, length);
-            case 'e': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'f': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'g': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'a': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
+            case 'e': { Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
+            case 'f': { Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
+            case 'g': { Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
+            case 'a': { Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
             case 't': return new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
             case '%': return new NonParsingFormat(Locale.getDefault(), false, i -> "%");
             case 'n': return new NonParsingFormat(Locale.getDefault(), false, i -> System.lineSeparator());
@@ -879,7 +878,7 @@ public class VarFormatter {
         // Default precision for %f is exactly 6 digits
         precision = (precision == -1 ? 6 : precision);
         DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(l);
-        symbols.setExponentSeparator( isUpper ? "E" : "e");
+        symbols.setExponentSeparator(isUpper ? "E" : "e");
         symbols.setDigit(flags.zeropadded ? '0' : '#');
         int fixed = (integer ? length : length - precision - 1);
         DecimalFormat df = new DecimalFormat("#" + (conversion == 'e' ? "E00" : ""), symbols);

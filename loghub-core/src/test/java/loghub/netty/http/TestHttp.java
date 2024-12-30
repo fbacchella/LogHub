@@ -34,14 +34,14 @@ public class TestHttp {
     public final URL resourceUrl = resource.startServer(TcpTransport.getBuilder());
 
     @Test(timeout = 1000)
-    public void Test404() throws IOException, IllegalArgumentException {
+    public void test404() throws IOException, IllegalArgumentException {
         HttpURLConnection cnx = (HttpURLConnection) resourceUrl.openConnection();
         Assert.assertEquals(404, cnx.getResponseCode());
         cnx.disconnect();
     }
 
     @Test(timeout = 1000)
-    public void Test503() throws IOException, IllegalArgumentException {
+    public void test503() throws IOException, IllegalArgumentException {
         HttpRequestProcessing processing = new HttpRequestProcessing() {
             @Override
             public boolean acceptRequest(HttpRequest request) {
@@ -61,7 +61,7 @@ public class TestHttp {
     }
 
     @Test(timeout = 1000)
-    public void TestRootRedirect()
+    public void testRootRedirect()
             throws IOException, IllegalArgumentException {
         resource.setModelHandlers(new RootRedirect());
         HttpURLConnection cnx = (HttpURLConnection) resourceUrl.openConnection();

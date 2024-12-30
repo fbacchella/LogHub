@@ -72,7 +72,7 @@ public class TestPKCS8Codec {
                 "pkcs8/secp384r1.pk8",
                 "pkcs8/secp521r1.pk8"
         };
-        for (String f: files) {
+        for (String f : files) {
             try (InputStream is = getClass().getClassLoader().getResourceAsStream(f)) {
                 try {
                     byte[] buffer = new byte[4096];

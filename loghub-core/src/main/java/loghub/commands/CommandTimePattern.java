@@ -17,7 +17,7 @@ public class CommandTimePattern  implements BaseCommand {
     public int run(List<String> unknownOptions) {
         if (timepattern != null) {
             DatetimeProcessor tested = DatetimeProcessor.of(timepattern);
-            for (String date: unknownOptions) {
+            for (String date : unknownOptions) {
                 try {
                     System.out.format("%s -> %s%n", date, tested.parse(date));
                 } catch (IllegalArgumentException | DateTimeParseException ex) {

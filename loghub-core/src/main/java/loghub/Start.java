@@ -27,7 +27,7 @@ public class Start {
 
     // Memorize canexit, needed when loghub.Start is tested
     private static boolean testscanexit = false;
-    public static Runnable hprofdump = () -> {};
+    public static Runnable hprofdump = () -> { };
 
     /**
      * To be called when a fatal exception is detected. It will generate a shutdown with a failure exit code.<br>
@@ -78,7 +78,7 @@ public class Start {
                     commands.add((BaseCommand) cmd);
                 } else if (cmd instanceof VerbCommand) {
                     VerbCommand vcmd = (VerbCommand) cmd;
-                    for (String v: vcmd.getVerbs()) {
+                    for (String v : vcmd.getVerbs()) {
                         verbs.put(v, vcmd);
                     }
                     jcomBuilder.addCommand(cmd);
@@ -96,7 +96,7 @@ public class Start {
             System.err.println(e.getMessage());
             System.exit(ExitCode.INVALIDARGUMENTS);
         }
-        for (BaseCommand dc: commands) {
+        for (BaseCommand dc : commands) {
             dc.getField("help", Boolean.class).ifPresent(a -> {
                 if (a) {
                     jcom.usage();
@@ -108,12 +108,12 @@ public class Start {
 
         if (parsedCommand != null) {
             VerbCommand cmd = verbs.get(parsedCommand);
-            for (BaseCommand dc: commands) {
+            for (BaseCommand dc : commands) {
                 cmd.extractFields(dc);
             }
             System.exit(cmd.run(jcom.getUnknownOptions()));
         } else {
-            for (BaseCommand dc: commands) {
+            for (BaseCommand dc : commands) {
                 int status = dc.run(jcom.getUnknownOptions());
                 if (status >= 0) {
                     System.exit(status);

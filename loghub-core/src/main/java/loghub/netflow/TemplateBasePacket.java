@@ -34,19 +34,24 @@ public abstract class TemplateBasePacket implements NetflowPacket {
         }
         @Override
         public boolean equals(Object obj) {
-            if(this == obj)
+            if (this == obj) {
                 return true;
-            if(obj == null)
+            }
+            if (obj == null) {
                 return false;
-            if(getClass() != obj.getClass())
+            }
+            if (getClass() != obj.getClass()) {
                 return false;
+            }
             TemplateId other = (TemplateId) obj;
-            if(id != other.id)
+            if (id != other.id) {
                 return false;
-            if(remoteAddr == null) {
+            }
+            if (remoteAddr == null) {
                 return other.remoteAddr == null;
-            } else
+            } else {
                 return remoteAddr.equals(other.remoteAddr);
+            }
         }
     }
 
@@ -57,7 +62,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
 
     private static final Logger logger = LogManager.getLogger();
 
-    protected final Map<TemplateId, Map<Integer,Template>> templates = new HashMap<>();
+    protected final Map<TemplateId, Map<Integer, Template>> templates = new HashMap<>();
 
     private static class Template {
         private final TemplateType type;
@@ -90,10 +95,10 @@ public abstract class TemplateBasePacket implements NetflowPacket {
         @Override
         public String toString() {
             StringBuilder buffer = new StringBuilder();
-            for(int i = 0 ; i < types.size() ; i++) {
+            for (int i = 0; i < types.size(); i++) {
                 buffer.append(String.format("%d[%d]%s, ", types.get(i).longValue(), sizes.get(i), Boolean.TRUE.equals(areScops.get(i)) ? "S" : ""));
             }
-            buffer.delete(buffer.length() - 2 , buffer.length());
+            buffer.delete(buffer.length() - 2, buffer.length());
             return buffer.toString();
         }
     }
@@ -135,7 +140,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
             bbuf = bbuf.readBytes(length - 16);
         }
         int flowSetCount = 0;
-        while(bbuf.isReadable()) {
+        while (bbuf.isReadable()) {
             readSet(remoteAddr, bbuf, ++flowSetCount);
         }
         if (count > 0 && recordseen > count) {
@@ -183,7 +188,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
     }
 
     protected void readTemplateSet(InetAddress remoteAddr, ByteBuf bbuf, boolean canEntrepriseNumber) {
-        while(bbuf.isReadable()) {
+        while (bbuf.isReadable()) {
             recordseen++;
             int templateId = Short.toUnsignedInt(bbuf.readShort());
             logger.trace("  template {}", templateId);
@@ -194,7 +199,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
                 break;
             }
             Template template = new Template(TemplateType.Records, fieldsCount);
-            for (int i = 0 ; i < fieldsCount ; i++) {
+            for (int i = 0; i < fieldsCount; i++) {
                 readDefinition(bbuf, canEntrepriseNumber, template, false);
             }
             templates.computeIfAbsent(new TemplateId(remoteAddr, sourceId), i -> new HashMap<>()).put(templateId, template);
@@ -224,7 +229,6 @@ public abstract class TemplateBasePacket implements NetflowPacket {
         }
     }
 
-
     private void readOptionsTemplateIpfixSet(InetAddress remoteAddr, ByteBuf bbuf) {
         // The test ensure there is more than padding left in the ByteBuf
         while (bbuf.isReadable(3)) {
@@ -233,19 +237,19 @@ public abstract class TemplateBasePacket implements NetflowPacket {
             int fieldsCount = Short.toUnsignedInt(bbuf.readShort());
             int scopesCount = Short.toUnsignedInt(bbuf.readShort());
             Template template = new Template(TemplateType.Options, fieldsCount);
-            for(int i = 0; i < scopesCount; i++) {
+            for (int i = 0; i < scopesCount; i++) {
                 readDefinition(bbuf, true, template, true);
             }
-            for(int i = scopesCount; i < fieldsCount; i++) {
+            for (int i = scopesCount; i < fieldsCount; i++) {
                 readDefinition(bbuf, true, template, false);
-            } 
+            }
             templates.computeIfAbsent(new TemplateId(remoteAddr, sourceId), i -> new HashMap<>()).put(templateId, template);
         }
     }
 
     protected void readDataSet(InetAddress remoteAddr, ByteBuf bbuf, int flowSetId) {
         TemplateId key = new TemplateId(remoteAddr, sourceId);
-        if ( ! templates.containsKey(key)) {
+        if (! templates.containsKey(key)) {
             return;
         }
         Template tpl = templates.get(key).get(flowSetId);
@@ -257,7 +261,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
             recordseen++;
             Map<String, Object> record = new HashMap<>(tpl.getSizes());
             logger.trace("  data");
-            for (int i = 0 ; i < tpl.getSizes() ; i++) {
+            for (int i = 0; i < tpl.getSizes(); i++) {
                 Number type;
                 int fieldSize = 0;
                 try {
@@ -296,7 +300,6 @@ public abstract class TemplateBasePacket implements NetflowPacket {
     public long getSequenceNumber() {
         return sequenceNumber;
     }
-
 
     @Override
     public int getLength() {

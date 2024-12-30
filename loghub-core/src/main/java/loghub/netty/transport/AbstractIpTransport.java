@@ -34,13 +34,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter
-public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends NettyTransport <InetSocketAddress, M, T, B> {
+public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends NettyTransport<InetSocketAddress, M, T, B> {
 
     public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
     public static final AttributeKey<SSLEngine> SSLSENGINATTRIBUTE = AttributeKey.newInstance(SSLEngine.class.getName());
-    public static final int DEFINEDSSLALIAS=-2;
+    public static final int DEFINEDSSLALIAS = -2;
 
-    public abstract static class Builder<M, T extends AbstractIpTransport<M,T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends NettyTransport.Builder<InetSocketAddress, M, T, B> {
+    public abstract static class Builder<M, T extends AbstractIpTransport<M, T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends NettyTransport.Builder<InetSocketAddress, M, T, B> {
         @Setter
         protected int port;
         @Setter
@@ -159,7 +159,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         SSLEngine engine = getEngine();
         engine.setUseClientMode(false);
         SslHandler sslHandler = new SslHandler(engine);
-        pipeline.addFirst( "ssl", sslHandler);
+        pipeline.addFirst("ssl", sslHandler);
         Future<Channel> future = sslHandler.handshakeFuture();
         future.addListener((GenericFutureListener<Future<Channel>>) f -> {
             SSLSession sess = sslHandler.engine().getSession();

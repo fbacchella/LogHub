@@ -9,7 +9,6 @@ import org.junit.Test;
 
 import loghub.LogUtils;
 import loghub.Tools;
-import loghub.netty.transport.POLLER;
 
 public class TestPoller {
 

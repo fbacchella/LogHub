@@ -76,7 +76,7 @@ public class TestJournald {
 
     @Test
     public void testStart() throws Exception {
-        try (Journald r = makeReceiver(i -> {}, Collections.emptyMap())) {
+        try (Journald r = makeReceiver(i -> { }, Collections.emptyMap())) {
             URL journaldURL = new URI("http://localhost:" + port + "/upload").toURL();
             HttpURLConnection cnx = (HttpURLConnection) journaldURL.openConnection();
             cnx.setChunkedStreamingMode(1024);
@@ -87,7 +87,7 @@ public class TestJournald {
             try (OutputStream os = cnx.getOutputStream();
                 InputStream is = getClass().getClassLoader().getResourceAsStream("binaryjournald")) {
                 int len;
-                while ((len = is.read(buf))>0){
+                while ((len = is.read(buf)) > 0) {
                     os.write(buf, 0, len);
                 }
             }
@@ -106,7 +106,7 @@ public class TestJournald {
     }
 
     @Test
-    public void test_loghub_receivers_Journald() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Journald"
                               , BeanInfo.build("useJwt", Boolean.TYPE)
                               , BeanInfo.build("user", String.class)

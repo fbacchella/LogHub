@@ -45,7 +45,7 @@ public class TestMultiKeyStore {
         Assert.assertTrue(mks.engineEntryInstanceOf("password", KeyStore.SecretKeyEntry.class));
         Assert.assertEquals(5, Collections.list(mks.engineAliases()).size());
     }
-    
+
     @Test
     public void loadDomain() throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         DomainLoadStoreParameter params = new DomainLoadStoreParameter(URI.create("file:src/test/resources/crypto/domain.policy"), Collections.emptyMap());
@@ -55,7 +55,7 @@ public class TestMultiKeyStore {
         MultiKeyStoreSpi mks = load("src/test/resources/crypto/domain.policy");
 
         // Domain keystore is buggy, just check consistency of results
-        Assert.assertEquals(ks.entryInstanceOf("loghubca loghub ca",KeyStore.PrivateKeyEntry.class),
+        Assert.assertEquals(ks.entryInstanceOf("loghubca loghub ca", KeyStore.PrivateKeyEntry.class),
                             mks.engineEntryInstanceOf("loghubca loghub ca", KeyStore.PrivateKeyEntry.class));
         Assert.assertEquals(ks.entryInstanceOf("loghubca localhost (loghub ca)", KeyStore.PrivateKeyEntry.class),
                             mks.engineEntryInstanceOf("loghubca localhost (loghub ca)", KeyStore.PrivateKeyEntry.class));
@@ -164,7 +164,7 @@ public class TestMultiKeyStore {
 
     private MultiKeyStoreSpi load(String... paths) {
         SubKeyStore sks = new SubKeyStore();
-        for (String p: paths) {
+        for (String p : paths) {
             sks.addSubStore(p);
         }
         MultiKeyStoreSpi mks = new MultiKeyStoreSpi();

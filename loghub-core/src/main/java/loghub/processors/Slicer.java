@@ -65,7 +65,7 @@ public class Slicer extends Processor {
         Object values = event.getAtPath(toSlice);
         if (values instanceof Collection) {
             @SuppressWarnings("unchecked")
-            Collection<Object> collection = ((Collection<Object>)values);
+            Collection<Object> collection = ((Collection<Object>) values);
             if (collection.size() <= 1) {
                 throw IgnoredEventException.INSTANCE;
             } else {
@@ -90,7 +90,7 @@ public class Slicer extends Processor {
                 Event newEvent = events.computeIfAbsent(key, k -> buildNewEvent(event));
                 ((List<Object>) newEvent.getAtPath(toSlice)).add(i);
             }
-            for (Event ev: events.values()) {
+            for (Event ev : events.values()) {
                 if (flatten) {
                     List<Object> sub = ((List<Object>) ev.getAtPath(toSlice));
                     if (sub.size() == 1) {

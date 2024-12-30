@@ -36,7 +36,7 @@ public class ShutdownTask implements Runnable {
         loghubtimer.cancel();
         // No more new events
         shutdownLogger.info("Stopping receivers");
-        for (int i = 0 ; i < receivers.length ; i++) {
+        for (int i = 0; i < receivers.length; i++) {
             receivers[i].stopReceiving();
             receivers[i] = null;
         }
@@ -47,12 +47,12 @@ public class ShutdownTask implements Runnable {
             shutdownLogger.warn("{} paused event(s) dropped", pausedEventsCount);
         }
         shutdownLogger.info("Stopping processing");
-        for (int i = 0 ; i < eventProcessors.length ; i++) {
+        for (int i = 0; i < eventProcessors.length; i++) {
             eventProcessors[i].stopProcessing();
             eventProcessors[i] = null;
         }
         shutdownLogger.info("Stopping senders");
-        for (int i = 0 ; i < senders.length ; i++) {
+        for (int i = 0; i < senders.length; i++) {
             senders[i].stopSending();
             senders[i] = null;
         }

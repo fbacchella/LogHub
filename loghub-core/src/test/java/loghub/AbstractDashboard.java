@@ -93,7 +93,7 @@ public abstract class AbstractDashboard {
                              .setListen("localhost")
                              .build();
         dashboard.start();
-        port = ((InetSocketAddress)dashboard.getTransport().getChannels().findFirst().get().localAddress()).getPort();
+        port = ((InetSocketAddress) dashboard.getTransport().getChannels().findFirst().get().localAddress()).getPort();
         scheme = getDashboardScheme();
         client = HttpClient.newBuilder()
                            .sslContext(sslContext)

@@ -59,7 +59,7 @@ public class TestCrlf {
     }
 
     @Test
-    public void test_loghub_processors_Crlf() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Crlf"
                 , BeanChecks.BeanInfo.build("format", Crlf.Format.class)
                 , BeanChecks.BeanInfo.build("escape", Boolean.TYPE)

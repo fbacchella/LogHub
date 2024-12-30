@@ -49,10 +49,10 @@ public class TestZMQSender {
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
-    @Rule(order=1)
+    @Rule(order = 1)
     public final TemporaryFolder testFolder = new TemporaryFolder();
 
-    @Rule(order=2)
+    @Rule(order = 2)
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     @BeforeClass
@@ -111,7 +111,7 @@ public class TestZMQSender {
         builder.setDestination(rendezvous);
         configure.accept(builder);
 
-        try (ZMQSink<String> sink = sinkbuilder.build() ; ZMQ sender = builder.build()) {
+        try (ZMQSink<String> sink = sinkbuilder.build(); ZMQ sender = builder.build()) {
             Thread.sleep(100);
             sender.setInQueue(queue);
             Assert.assertTrue(sender.configure(p));
@@ -126,21 +126,21 @@ public class TestZMQSender {
         Assert.assertTrue(buf, Pattern.matches(pattern, buf));
    }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void bind() throws InterruptedException {
          dotest(s ->  s.setMethod(Method.CONNECT),
                 s -> s.setMethod(Method.BIND),
                 "(\\{\"message\":\\d+\\})+");
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void connect() throws InterruptedException {
         dotest(s ->  s.setMethod(Method.BIND),
                s -> s.setMethod(Method.CONNECT),
                "(\\{\"message\":\\d+\\})+");
     }
 
-    @Test(timeout=5000)
+    @Test(timeout  = 5000)
     public void batchConnect() throws InterruptedException {
         dotest(s -> {
             s.setMethod(Method.CONNECT);
@@ -148,7 +148,7 @@ public class TestZMQSender {
         }, s -> s.setMethod(Method.BIND), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void batchBind() throws InterruptedException {
         dotest(s -> {
             s.setMethod(Method.BIND);
@@ -168,7 +168,7 @@ public class TestZMQSender {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void curveClient() throws InterruptedException {
         dotest(s -> {
             s.setMethod(Method.BIND);
@@ -179,7 +179,7 @@ public class TestZMQSender {
                         "(\\{\"message\":\\d+\\})+");
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void curveServer() throws InterruptedException {
         dotest(s -> {
             s.setMethod(Method.BIND);
@@ -189,7 +189,7 @@ public class TestZMQSender {
                         "(\\{\"message\":\\d+\\})+");
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testEncodeError() throws InterruptedException, EncodeException {
         ZMQ.Builder builder = ZMQ.getBuilder();
         builder.setEncoder(ToJson.getBuilder().build());

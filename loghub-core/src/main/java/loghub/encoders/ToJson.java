@@ -11,7 +11,7 @@ import lombok.Setter;
 @BuilderClass(ToJson.Builder.class)
 @CanBatch
 public class ToJson extends AbstractJacksonEncoder<ToJson.Builder, JsonMapper> {
-    
+
     @Setter
     public static class Builder extends AbstractJacksonEncoder.Builder<ToJson> {
         private boolean pretty = false;
@@ -32,8 +32,7 @@ public class ToJson extends AbstractJacksonEncoder<ToJson.Builder, JsonMapper> {
     @Override
     protected JacksonBuilder<JsonMapper> getWriterBuilder(Builder builder) {
         JacksonBuilder<JsonMapper> jbuilder = JacksonBuilder.get(JsonMapper.class)
-                .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, ! (builder.pretty || builder.dateAsText)))
-                ;
+                .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, ! (builder.pretty || builder.dateAsText)));
         if (builder.pretty) {
             jbuilder.feature(SerializationFeature.INDENT_OUTPUT);
         }

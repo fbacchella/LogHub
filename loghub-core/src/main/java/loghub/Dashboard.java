@@ -44,7 +44,7 @@ public class Dashboard {
     private static final Logger logger = LogManager.getLogger();
 
     @Setter
-    @Accessors(chain=true)
+    @Accessors(chain = true)
     public static class Builder {
         int port = -1;
         String listen = null;

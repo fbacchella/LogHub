@@ -79,8 +79,8 @@ public class DurationConvert extends FieldsProcessor {
             public Duration from(Number n) {
                 if (n instanceof Float || n instanceof Double) {
                     double v = n.doubleValue();
-                    long seconds = ((long)v);
-                    long nano = ((long)(v * 1e9) % 1_000_000_000L);
+                    long seconds = ((long) v);
+                    long nano = ((long) (v * 1e9) % 1_000_000_000L);
                     return Duration.ofSeconds(seconds, nano);
                 } else {
                     return Duration.ofSeconds(n.longValue());

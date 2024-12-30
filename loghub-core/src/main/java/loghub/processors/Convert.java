@@ -20,7 +20,7 @@ import lombok.Setter;
  * A processor that take a String field and transform it to any object that can
  * take a String as a constructor.
  * It uses the custom class loader.
- * 
+ *
  * @author Fabrice Bacchella
  *
  */
@@ -76,12 +76,12 @@ public class Convert extends FieldsProcessor {
         } catch (UnknownHostException ex) {
             throw event.buildException("\"" + value + "\" not a valid IP address", ex);
         } catch (NumberFormatException ex) {
-             throw event.buildException("Unable to parse \""+ value +"\" as a " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex));
+             throw event.buildException("Unable to parse \"" + value + "\" as a " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex));
         } catch (InvocationTargetException ex) {
             logger.atDebug()
                   .withThrowable(ex.getCause())
                   .log("Failed to parsed event {}", event);
-            throw event.buildException("Unable to parse \""+ value +"\" as a " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex));
+            throw event.buildException("Unable to parse \"" + value + "\" as a " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex));
         }
     }
 

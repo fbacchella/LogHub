@@ -1,6 +1,3 @@
-/**
- * 
- */
 package loghub.processors;
 
 import java.io.IOException;
@@ -127,7 +124,7 @@ public class TestFieldsProcessor {
         long found = Stats.getErrors().stream()
                                       .map(Throwable.class::cast)
                                       .map(Throwable::getMessage)
-                                      .filter( i -> Pattern.matches("Field with path \"\\[.\\]\" invalid: Expected error", i))
+                                      .filter(i -> Pattern.matches("Field with path \"\\[.\\]\" invalid: Expected error", i))
                                       .count();
         Assert.assertEquals(1, found);
     }
@@ -158,7 +155,7 @@ public class TestFieldsProcessor {
         long found = Stats.getErrors().stream()
                                       .map(Throwable.class::cast)
                                       .map(Throwable::getMessage)
-                                      .filter( i -> Pattern.matches("Field with path \"\\[.\\]\" invalid: Expected unchecked error", i))
+                                      .filter(i -> Pattern.matches("Field with path \"\\[.\\]\" invalid: Expected unchecked error", i))
                                        .count();
         Assert.assertEquals(1, found);
     }
@@ -173,7 +170,7 @@ public class TestFieldsProcessor {
         ev.putAtPath(VariablePath.parse("message"), "1.1.1.1");
         Tools.runProcessing(ev, p.namedPipeLine.get("defaultmessage"), p);
         InetAddress inet = (InetAddress) ev.get("message");
-        Assert.assertArrayEquals(new byte[]{1,1,1,1}, inet.getAddress());
+        Assert.assertArrayEquals(new byte[]{1, 1, 1, 1}, inet.getAddress());
     }
 
 }

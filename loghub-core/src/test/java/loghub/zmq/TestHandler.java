@@ -30,10 +30,10 @@ public class TestHandler {
 
     private static Logger logger;
 
-    @Rule(order=1)
+    @Rule(order = 1)
     public final TemporaryFolder testFolder = new TemporaryFolder();
 
-    @Rule(order=2)
+    @Rule(order = 2)
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     @BeforeClass

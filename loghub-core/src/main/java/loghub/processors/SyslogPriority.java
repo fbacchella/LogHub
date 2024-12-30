@@ -21,7 +21,7 @@ public class SyslogPriority extends FieldsProcessor {
     private static final String PRIORITY = "priority";
     private static final String SEVERITY = "severity";
 
-    private static final VariablePath ECSPATHFACILITY = VariablePath.of(".", "log", SYSLOG, FACILITY) ;
+    private static final VariablePath ECSPATHFACILITY = VariablePath.of(".", "log", SYSLOG, FACILITY);
     private static final VariablePath ECSPATHSEVERITY = VariablePath.of(".", "log", SYSLOG, SEVERITY);
     private static final VariablePath ECSPATHPRIORITY = VariablePath.of(".", "log", SYSLOG, PRIORITY);
 

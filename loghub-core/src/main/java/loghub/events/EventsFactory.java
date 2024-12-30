@@ -25,10 +25,10 @@ public class EventsFactory {
     }
 
     public Event newTestEvent() {
-        return new EventInstance(ConnectionContext.EMPTY, true,this);
+        return new EventInstance(ConnectionContext.EMPTY, true, this);
     }
     public Event newTestEvent(ConnectionContext<?> ipctx) {
-        return new EventInstance(ipctx, true,this);
+        return new EventInstance(ipctx, true, this);
     }
 
     public Event newEvent() {
@@ -48,7 +48,7 @@ public class EventsFactory {
     private void leakDetector() {
         Reference<?> referenceFromQueue;
         while ((referenceFromQueue = referenceQueue.poll()) != null) {
-            ((EventFinalizer)referenceFromQueue).finalizeResources();
+            ((EventFinalizer) referenceFromQueue).finalizeResources();
         }
     }
 

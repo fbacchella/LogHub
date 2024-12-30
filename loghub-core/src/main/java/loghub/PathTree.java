@@ -52,7 +52,7 @@ public class PathTree<T, V> {
             current = current.children.computeIfAbsent(path[i], k -> new Node<>(null));
         }
         Node<T, V> newNode = new Node<>(v);
-        current.children.put(path[path.length -1], newNode);
+        current.children.put(path[path.length - 1], newNode);
     }
 
     public V computeIfAbsent(T[] path, Function<List<T>, V> supplier) {

@@ -48,11 +48,11 @@ public class ScanBinary extends FieldsProcessor {
                 throw event.buildException("Can't parse as floating point value:  " + value);
             }
             else {
-                nvalue = ((Number)value).longValue();
+                nvalue = ((Number) value).longValue();
             }
         } else if (value instanceof String) {
             try {
-                nvalue = Long.decode((String)value);
+                nvalue = Long.decode((String) value);
             } catch (NumberFormatException e) {
                 throw event.buildException("Can't parse as number " + value, e);
             }
@@ -63,7 +63,7 @@ public class ScanBinary extends FieldsProcessor {
         }
         if (fieldsLength == null) {
             List<String> parsed = new ArrayList<>(bitsNames.length);
-            for (int i = 0 ; nvalue > 0 && i < bitsNames.length ; nvalue = nvalue >> 1 , i++) {
+            for (int i = 0; nvalue > 0 && i < bitsNames.length; nvalue = nvalue >> 1, i++) {
                 if ((nvalue & 1) == 1) {
                     parsed.add(bitsNames[i].toString());
                 }
@@ -71,7 +71,7 @@ public class ScanBinary extends FieldsProcessor {
             return parsed.toArray(new String[0]);
         } else {
             Map<String, Number> values = new HashMap<>(fieldsLength.length);
-            for (int i = 0 ; i < fieldsLength.length  ; i++) {
+            for (int i = 0; i < fieldsLength.length; i++) {
                 int mask = (1 << fieldsLength[i]) - 1;
                 values.put(bitsNames[i].toString(), nvalue & mask);
                 nvalue = nvalue >> fieldsLength[i];
@@ -84,7 +84,7 @@ public class ScanBinary extends FieldsProcessor {
      * @return the fieldsLength, can be null
      */
     public Object[] getFieldsLength() {
-        if(fieldsLength != null) {
+        if (fieldsLength != null) {
             Object[] returned = new Object[fieldsLength.length];
             IntStream.range(0, fieldsLength.length).forEach(i -> returned[i] = fieldsLength[i]);
             return returned;

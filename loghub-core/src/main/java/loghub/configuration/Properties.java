@@ -139,12 +139,11 @@ public class Properties extends HashMap<String, Object> {
         cacheManager = Optional.ofNullable((CacheManager) properties.remove(PROPSNAMES.CACHEMANGER.toString()))
                                     .orElseGet(() -> new CacheManager(classloader));
 
-
         if (properties.containsKey("log4j.defaultlevel")) {
             String levelname = (String) properties.remove("log4j.defaultlevel");
             Level log4jlevel = Level.getLevel(levelname);
             LoggerContext ctx = (LoggerContext) LogManager.getContext(classloader, true);
-            ctx.getConfiguration().getLoggers().forEach( (i, j) -> j.setLevel(log4jlevel));
+            ctx.getConfiguration().getLoggers().forEach((i, j) -> j.setLevel(log4jlevel));
             ctx.updateLoggers();
         }
 
@@ -157,7 +156,7 @@ public class Properties extends HashMap<String, Object> {
         senders = properties.containsKey(PROPSNAMES.SENDERS.toString()) ? (Collection<Sender>) properties.remove(PROPSNAMES.SENDERS.toString()) : Collections.emptyList();
 
         Map<String, Processor> _identifiedProcessors = new HashMap<>();
-        pipelines.forEach( i-> i.processors.forEach( j -> {
+        pipelines.forEach(i-> i.processors.forEach(j -> {
             String id = j.getId();
             if (id != null) {
                 _identifiedProcessors.put(id, j);
@@ -222,7 +221,7 @@ public class Properties extends HashMap<String, Object> {
         }
         eventsprocessors = Collections.unmodifiableSet(allep);
 
-        hprofdump = properties.containsKey("hprofDumpPath") ? makeHprofDump((String)properties.remove("hprofDumpPath")) : () -> {};
+        hprofdump = properties.containsKey("hprofDumpPath") ? makeHprofDump((String) properties.remove("hprofDumpPath")) : () -> { };
 
         super.putAll(properties);
 
@@ -259,13 +258,13 @@ public class Properties extends HashMap<String, Object> {
     /**
      * Used by object to register tasks to be executed at defined interval
      * Each task will be given it's own thread at execution.
-     * 
+     *
      * @param name the name that will be given to the thread when running
      * @param task the task to execute in it's dedicated thread
      * @param period time in milliseconds between successive task executions.
      */
     public void registerScheduledTask(String name, Runnable task, long period) {
-        TimerTask collector = new FunctionalTimerTask(() -> 
+        TimerTask collector = new FunctionalTimerTask(() ->
             ThreadBuilder.get()
                          .setDaemon(true)
                          .setName(name)
@@ -343,7 +342,7 @@ public class Properties extends HashMap<String, Object> {
             return null;
         }
         builder.setPort(port);
-        Optional.ofNullable(collect.remove("listen")).ifPresent( p -> builder.setListen(p.toString()));
+        Optional.ofNullable(collect.remove("listen")).ifPresent(p -> builder.setListen(p.toString()));
         if (Boolean.TRUE.equals(Optional.ofNullable(collect.remove("withSSL")).orElse(Boolean.FALSE))) {
             builder.setWithSSL(true);
             builder.setSslContext(Optional.ofNullable(collect.remove("sslContext")).map(SSLContext.class::cast).orElse(ssl));
@@ -371,7 +370,7 @@ public class Properties extends HashMap<String, Object> {
         }
         // Kept for compatibility
         Optional.ofNullable(collect.remove("jolokiaPolicyLocation"))
-                .ifPresent( p -> collect.put("jolokia.policyLocation", p.toString()));
+                .ifPresent(p -> collect.put("jolokia.policyLocation", p.toString()));
         builder.setDashboardServicesProperties(collect);
         return builder.build();
     }

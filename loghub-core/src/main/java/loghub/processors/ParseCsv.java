@@ -22,7 +22,7 @@ public class ParseCsv extends FieldsProcessor {
     @Setter
     @Getter
     private String[] features = new String[0];
-    private char separator= ',';
+    private char separator = ',';
     @Getter @Setter
     private char escapeChar = '\0';
     @Setter

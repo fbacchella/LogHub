@@ -42,7 +42,6 @@ public abstract class AbstractNettyStream<R extends AbstractNettyStream<R, B>, B
         }
     }
 
-
     @Override
     public ChannelConsumer getConsumer() {
         return new BaseChannelConsumer<>((R) this) {

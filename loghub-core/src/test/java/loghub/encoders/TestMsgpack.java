@@ -77,8 +77,8 @@ public class TestMsgpack {
         ObjectReader reader = JacksonBuilder.get(MessagePackMapper.class, new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers))
                                             .getReader();
         List<Map<String, Object>> read = reader.readValue(data, 0, data.length);
-        Assert.assertEquals(2 , read.size());
-        read.forEach( i-> {
+        Assert.assertEquals(2, read.size());
+        read.forEach(i-> {
             @SuppressWarnings("unchecked")
             Map<String, Object> event = (Map<String, Object>) i.get(Event.EVENT_ENTRY);
             Instant timestamp = (Instant) event.get(Event.TIMESTAMPKEY);

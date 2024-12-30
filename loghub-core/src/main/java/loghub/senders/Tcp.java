@@ -154,8 +154,8 @@ public class Tcp extends Sender {
         long sleep = 100;
         while (isRunning() && ! isSocketAlive() && !connect()) {
             try {
-                Thread.sleep(sleep *2);
-                sleep = Math.min(sleep * 2, 5l * 60 * 1000);
+                Thread.sleep(sleep * 2);
+                sleep = Math.min(sleep * 2, 5L * 60 * 1000);
             } catch (InterruptedException ex2) {
                 Thread.currentThread().interrupt();
                 break;

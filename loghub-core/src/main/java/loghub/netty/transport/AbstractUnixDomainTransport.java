@@ -8,7 +8,7 @@ public abstract class AbstractUnixDomainTransport<M, T extends AbstractUnixDomai
         super(builder);
     }
 
-    public abstract static class Builder<M, T extends AbstractUnixDomainTransport<M,T, B>, B extends AbstractUnixDomainTransport.Builder<M, T, B>> extends NettyTransport.Builder<DomainSocketAddress, M, T, B> {
+    public abstract static class Builder<M, T extends AbstractUnixDomainTransport<M, T, B>, B extends AbstractUnixDomainTransport.Builder<M, T, B>> extends NettyTransport.Builder<DomainSocketAddress, M, T, B> {
     }
 
     protected DomainSocketAddress resolveAddress() {

@@ -65,7 +65,7 @@ public class ZapService extends Thread implements AutoCloseable {
                 assert request.getDomain() != null;
                 logger.trace("ZAP request received: {}", request);
                 boolean allowed = true;
-                for (ZapDomainHandler domainHandler: filters.get(request.getDomain())) {
+                for (ZapDomainHandler domainHandler : filters.get(request.getDomain())) {
                     allowed = allowed && domainHandler.authorize(request);
                     if (! allowed) {
                         break;

@@ -68,7 +68,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         super(release);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         RequestAccept mask = getClass().getAnnotation(RequestAccept.class);
-        if ( mask != null) {
+        if (mask != null) {
             String filter = mask.filter();
             String path = mask.path();
             if (filter != null && ! filter.isEmpty()) {
@@ -78,7 +78,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             } else {
                 this.urlFilter = i -> true;
             }
-            this.methods = Arrays.stream(mask.methods()).map( i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
+            this.methods = Arrays.stream(mask.methods()).map(i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
         } else {
             this.urlFilter = i -> true;
             this.methods = Collections.emptySet();
@@ -89,7 +89,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         super(FullHttpRequest.class, release);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         this.urlFilter = urlFilter;
-        this.methods = Arrays.stream(methods).map( i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
+        this.methods = Arrays.stream(methods).map(i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
     }
 
     protected HttpHandler(boolean release, Predicate<String> urlFilter) {
@@ -116,7 +116,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     @Override
     public final boolean acceptInboundMessage(Object msg) throws Exception {
-        return super.acceptInboundMessage(msg) && acceptRequest((HttpRequest)msg);
+        return super.acceptInboundMessage(msg) && acceptRequest((HttpRequest) msg);
     }
 
     public boolean acceptRequest(HttpRequest request) {
@@ -183,7 +183,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     /**
      * Can be used to add custom handlers to a response, call by {@link #writeResponse(ChannelHandlerContext, FullHttpRequest, ByteBuf, int)}.
      * So if processRequest don't call it, no handlers will be added
-     * 
+     *
      * @param request
      * @param response
      */
@@ -199,7 +199,6 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         return new Date();
     }
 
-
     protected void addContentDate(HttpRequest request, HttpResponse response) {
         Date contentDate = getContentDate(request, response);
         if (contentDate != null) {
@@ -209,7 +208,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     protected String getContentType(HttpRequest request, HttpResponse response) {
         ContentType ct = getClass().getAnnotation(ContentType.class);
-        if ( ct != null) {
+        if (ct != null) {
             return ct.value();
         } else {
             return null;
@@ -227,11 +226,11 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     private void failure(ChannelHandlerContext ctx, HttpRequest request, HttpResponseStatus status, String message, Map<AsciiString, Object> additionHeaders) {
         logger.warn("{} {}: {} transfer complete: {}", request::method, request::uri, status::code, () -> message);
         FullHttpResponse response = new DefaultFullHttpResponse(
-                                                                HTTP_1_1, status, 
+                                                                HTTP_1_1, status,
                                                                 Unpooled.copiedBuffer(message + "\r\n", StandardCharsets.UTF_8));
         HttpUtil.setKeepAlive(response, status.code() < 500);
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
-        additionHeaders.entrySet().forEach( i-> response.headers().add(i.getKey(), i.getValue()));
+        additionHeaders.entrySet().forEach(i-> response.headers().add(i.getKey(), i.getValue()));
         ctx.writeAndFlush(response);
         Stats.getMetric(Meter.class, "WebServer.status." + status.code()).mark();
     }
@@ -244,11 +243,11 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         } else if (Optional.ofNullable(cause.getCause()).orElse(cause) instanceof HttpRequestFailure) {
             HttpRequestFailure failure = (HttpRequestFailure) Optional.ofNullable(cause.getCause()).orElse(cause);
             FullHttpResponse response = new DefaultFullHttpResponse(
-                                                                    HTTP_1_1, failure.status, 
+                                                                    HTTP_1_1, failure.status,
                                                                     Unpooled.copiedBuffer(failure.message + "\r\n", StandardCharsets.UTF_8));
             HttpUtil.setKeepAlive(response, failure.status.code() < 500);
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
-            failure.additionHeaders.entrySet().forEach( i-> response.headers().add(i.getKey(), i.getValue()));
+            failure.additionHeaders.entrySet().forEach(i-> response.headers().add(i.getKey(), i.getValue()));
             ctx.writeAndFlush(response);
             Stats.getMetric(Meter.class, "WebServer.status." + failure.status.code()).mark();
         } else {

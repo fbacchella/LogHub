@@ -31,7 +31,7 @@ public class TestAbstractCompDecomp {
         byte[] input = "Compressed message".getBytes(StandardCharsets.UTF_8);
         ByteBuf inbuf = Unpooled.buffer(input.length);
         inbuf.writeBytes(input);
-        
+
         Decompressor.Builder builder = Decompressor.getBuilder();
         Decompressor dcomp = builder.build();
 
@@ -49,7 +49,7 @@ public class TestAbstractCompDecomp {
         }
     }
 
-    @Test(expected=MemoryLimitException.class)
+    @Test(expected = MemoryLimitException.class)
     public void testTooBig() throws Throwable {
         byte[] input = "Compressed message".getBytes(StandardCharsets.UTF_8);
         Compressor.Builder cbuilder = Compressor.getBuilder();

@@ -147,10 +147,10 @@ public class TestJmxStats {
         getProperties("pipeline[main] { }");
 
         Map<String, List<String>> attributes = new HashMap<>();
-        for (String type: List.of("Global", "Exceptions", "Pipelines", "Receivers", "Senders")) {
+        for (String type : List.of("Global", "Exceptions", "Pipelines", "Receivers", "Senders")) {
             ObjectName on = ObjectName.getInstance("loghub", "type", type);
             MBeanInfo info = mbs.getMBeanInfo(on);
-            for (MBeanAttributeInfo ai: info.getAttributes()) {
+            for (MBeanAttributeInfo ai : info.getAttributes()) {
                 Assert.assertNotNull(on + "." + ai.getName(), ai.getDescriptor().getFieldValue("units"));
                 Assert.assertNotNull(on + "." + ai.getName(), ai.getDescriptor().getFieldValue("metricType"));
             }
@@ -159,10 +159,10 @@ public class TestJmxStats {
                                           .sorted()
                                           .collect(Collectors.toList());
             attributes.put(type, attrList);
-            for (String a: attrList) {
+            for (String a : attrList) {
                 Object o = mbs.getAttribute(on, a);
                 if (o instanceof Number) {
-                    Assert.assertEquals(0, ((Number)o).longValue());
+                    Assert.assertEquals(0, ((Number) o).longValue());
                 } else if (o.getClass().isArray()) {
                     Assert.assertEquals(0, Array.getLength(o));
                 } else {
@@ -182,13 +182,13 @@ public class TestJmxStats {
                            IntrospectionException, AttributeNotFoundException, MBeanException {
 
         Map<String, Map<String, Object>> attributes = new HashMap<>();
-        for (String type: List.of("Global", "Exceptions", "Pipelines", "Receivers", "Senders")) {
+        for (String type : List.of("Global", "Exceptions", "Pipelines", "Receivers", "Senders")) {
             ObjectName on = ObjectName.getInstance("loghub", "type", type);
             MBeanInfo info = mbs.getMBeanInfo(on);
             List<String> attrList = Arrays.stream(info.getAttributes())
                                           .map(MBeanFeatureInfo::getName).sorted()
                                           .collect(Collectors.toList());
-            for (String a: attrList) {
+            for (String a : attrList) {
                 Object o = mbs.getAttribute(on, a);
                 attributes.computeIfAbsent(type, k -> new HashMap<>()).put(a, o);
             }

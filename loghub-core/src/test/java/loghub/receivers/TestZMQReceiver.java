@@ -52,10 +52,10 @@ public class TestZMQReceiver {
     }
 
     private static final Pattern ZMQ_SOCKETADDRESS_PATTERN = Pattern.compile("\\d+.\\d+.\\d+.\\d+:\\d+");
-    @Rule(order=1)
+    @Rule(order = 1)
     public final TemporaryFolder testFolder = new TemporaryFolder();
 
-    @Rule(order=2)
+    @Rule(order = 2)
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     private void dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure) throws IOException, InterruptedException {
@@ -66,12 +66,11 @@ public class TestZMQReceiver {
         ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
                         .setDestination(rendezvous)
                         .setType(SocketType.PUSH)
-                        .setZmqFactory(ctx)
-                        ;
+                        .setZmqFactory(ctx);
         flowconfigure.accept(flowbuilder);
 
         AtomicInteger count = new AtomicInteger(0);
-        flowbuilder.setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8)); 
+        flowbuilder.setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8));
         PriorityBlockingQueue receiveQueue = new PriorityBlockingQueue();
         ZMQ.Builder builder = ZMQ.getBuilder();
         builder.setType(SocketType.PULL);
@@ -80,7 +79,7 @@ public class TestZMQReceiver {
         configure.accept(builder);
 
         Properties p = new Properties(Collections.singletonMap("zmq.keystore", Paths.get(testFolder.newFolder().getAbsolutePath(), "zmqtest.jks").toString()));
-        try (ZMQFlow flow = flowbuilder.build() ; ZMQ receiver = builder.build()) {
+        try (ZMQFlow flow = flowbuilder.build(); ZMQ receiver = builder.build()) {
             receiver.setOutQueue(receiveQueue);
             receiver.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             Assert.assertTrue(receiver.configure(p));
@@ -97,7 +96,7 @@ public class TestZMQReceiver {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testConnect() throws InterruptedException, IOException {
         dotest(r -> {
             r.setMethod(Method.CONNECT);
@@ -105,7 +104,7 @@ public class TestZMQReceiver {
         }, s -> s.setMethod(Method.BIND).setType(SocketType.PUSH).setMsPause(250));
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testBind() throws InterruptedException, IOException {
         dotest(r -> {
             r.setMethod(Method.BIND);
@@ -113,7 +112,7 @@ public class TestZMQReceiver {
         }, s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(250));
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testSub() throws InterruptedException, IOException {
         dotest(r -> {
             r.setMethod(Method.BIND);
@@ -122,7 +121,7 @@ public class TestZMQReceiver {
         }, s -> s.setMethod(Method.CONNECT).setType(SocketType.PUB).setMsPause(250));
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testCurveServer() throws InterruptedException, IOException {
         Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
         String keyPub;
@@ -139,7 +138,7 @@ public class TestZMQReceiver {
                s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity(Mechanisms.CURVE).setKeyEntry(tctxt.getFactory().getKeyEntry()));
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testCurveClient() throws InterruptedException, IOException {
         Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
         String keyPub;

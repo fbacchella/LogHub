@@ -51,7 +51,7 @@ public class Crlf extends FieldsProcessor {
         if (format == Format.KEEP) {
             return message.replace("\r", "\\r").replace("\n", "\\n");
         } else {
-            String separator = escape ? format.separator.replace("\r", "\\r").replace("\n", "\\n") :  format.separator ;
+            String separator = escape ? format.separator.replace("\r", "\\r").replace("\n", "\\n") :  format.separator;
             return message.lines().collect(Collectors.joining(separator));
         }
     }

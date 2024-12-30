@@ -85,25 +85,25 @@ public class TestFile {
         return fsend;
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testOk() throws IOException, InterruptedException {
         send(i -> i.setTruncate(true), 1, true);
         send(i -> i.setTruncate(true), 1, true);
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testOkAppend() throws IOException, InterruptedException {
         send(i -> i.setTruncate(false), 1, true);
         send(i -> i.setTruncate(false), 2, true);
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testOkSeparator() throws IOException, InterruptedException {
-        send(i -> {i.setTruncate(true) ; i.setSeparator("\n");}, 2, true);
+        send(i -> {i.setTruncate(true); i.setSeparator("\n");}, 2, true);
         send(i -> i.setTruncate(true), 1, true);
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testEncodeError() throws IOException, InterruptedException, EncodeException {
         outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
         EvalExpression.Builder builder1 = EvalExpression.getBuilder();
@@ -114,7 +114,7 @@ public class TestFile {
         SenderTools.send(fb);
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testFailing()
             throws IOException, InterruptedException, EncodeException, ProcessorException {
         File fsend = send(i -> {}, -1, false);
@@ -137,7 +137,7 @@ public class TestFile {
     }
 
     @Test
-    public void test_loghub_senders_File() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.senders.File"
                 , BeanChecks.BeanInfo.build("fileName", Expression.class)
                 , BeanChecks.BeanInfo.build("cacheSize", Integer.TYPE)

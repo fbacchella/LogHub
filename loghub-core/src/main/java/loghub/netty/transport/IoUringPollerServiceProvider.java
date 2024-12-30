@@ -31,9 +31,9 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
     static {
         byte accessible;
         try {
-            Path IO_URING_DISABLED_PATH = Path.of("/proc/sys/kernel/io_uring_disabled");
-            if (Files.exists(IO_URING_DISABLED_PATH)) {
-                String disabledString = Files.readAllLines(IO_URING_DISABLED_PATH).get(0);
+            Path ioUringDisabledPath = Path.of("/proc/sys/kernel/io_uring_disabled");
+            if (Files.exists(ioUringDisabledPath)) {
+                String disabledString = Files.readAllLines(ioUringDisabledPath).get(0);
                 accessible = Byte.parseByte(disabledString);
             } else {
                 accessible = -2;
@@ -80,7 +80,7 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
     @Override
     public boolean isValid() {
         if (IOUring.isAvailable()) {
-            return IO_URING_ACCESSIBLE >=- 1 && IO_URING_ACCESSIBLE <= 1;
+            return IO_URING_ACCESSIBLE >= -1 && IO_URING_ACCESSIBLE <= 1;
         } else {
             logger.warn("io_uring not available: {}", Helpers.resolveThrowableException(IOUring.unavailabilityCause()));
             return false;
@@ -95,22 +95,22 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
     @Override
     public void setKeepAlive(ServerBootstrap bootstrap, int cnt, int idle, int intvl) {
         bootstrap.childOption(IOUringChannelOption.TCP_KEEPCNT, 3);
-        bootstrap.childOption(IOUringChannelOption.TCP_KEEPIDLE , 60);
-        bootstrap.childOption(IOUringChannelOption.TCP_KEEPINTVL , 10);
+        bootstrap.childOption(IOUringChannelOption.TCP_KEEPIDLE, 60);
+        bootstrap.childOption(IOUringChannelOption.TCP_KEEPINTVL, 10);
     }
 
     @Override
     public void setKeepAlive(Bootstrap bootstrap, int cnt, int idle, int intvl) {
         bootstrap.option(IOUringChannelOption.TCP_KEEPCNT, 3);
-        bootstrap.option(IOUringChannelOption.TCP_KEEPIDLE , 60);
-        bootstrap.option(IOUringChannelOption.TCP_KEEPINTVL , 10);
+        bootstrap.option(IOUringChannelOption.TCP_KEEPIDLE, 60);
+        bootstrap.option(IOUringChannelOption.TCP_KEEPINTVL, 10);
     }
 
     @Override
     public void setKeepAlive(ChannelConfig config, int cnt, int idle, int intvl) {
         config.setOption(IOUringChannelOption.TCP_KEEPCNT, 3);
-        config.setOption(IOUringChannelOption.TCP_KEEPIDLE , 60);
-        config.setOption(IOUringChannelOption.TCP_KEEPINTVL , 10);
+        config.setOption(IOUringChannelOption.TCP_KEEPIDLE, 60);
+        config.setOption(IOUringChannelOption.TCP_KEEPINTVL, 10);
     }
 
 }

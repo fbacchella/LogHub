@@ -152,12 +152,12 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
                 logger.trace("new beats message {}", beatsMessage::getData);
                 ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
                 Event newEvent = factory.newEvent(cctx);
-                beatsMessage.getData().forEach((i,j) -> {
+                beatsMessage.getData().forEach((i, j) -> {
                     String key = i;
                     if (key.startsWith("@")) {
                         key = "_" + key.substring(1);
                     }
-                    newEvent.put(key,j);
+                    newEvent.put(key, j);
                 });
                 ctx.fireChannelRead(newEvent);
             }

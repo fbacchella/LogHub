@@ -65,7 +65,7 @@ public class JacksonModule extends SimpleModule {
             iso8601Processor = iso8601Processor.withLocale(provider.getLocale()).withDefaultZone(provider.getTimeZone().toZoneId());
 
             ZoneId ctxZid = (activeFeatures & WRITE_DATES_WITH_CONTEXT_TIME_ZONE) > 0 ?
-                                    provider.getTimeZone().toZoneId():
+                                    provider.getTimeZone().toZoneId() :
                                     null;
 
             if ((activeFeatures & WRITE_DATES_AS_TIMESTAMPS) > 0) {

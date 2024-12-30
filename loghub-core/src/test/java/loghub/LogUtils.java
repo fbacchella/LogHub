@@ -18,7 +18,7 @@ public class LogUtils {
         } else {
             Configurator.setRootLevel(Level.ERROR);
             Configurator.setLevel(logger.getName(), level);
-            for(String l: allLoggers) {
+            for (String l : allLoggers) {
                 Configurator.setLevel(l, level);
             }
         }

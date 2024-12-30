@@ -100,7 +100,7 @@ public final class Stats {
                 q.clear();
             }
         });
-        
+
         // Register once this dummy metric
         Gauge<Integer> nullGauge = () -> 0;
         Stats.register(Sender.class, Stats.METRIC_SENDER_QUEUESIZE, nullGauge);
@@ -175,7 +175,7 @@ public final class Stats {
     }
 
     private static <T> void storeException(Queue<T> queue, T e) {
-        synchronized(queue) {
+        synchronized (queue) {
             if (! queue.offer(e)) {
                 queue.remove();
                 queue.offer(e);
@@ -228,7 +228,7 @@ public final class Stats {
     /******************************\
      * Handling processors events *
     \******************************/
-    
+
     public static Context startProcessingEvent() {
         getMetric(Counter.class, String.class, METRIC_PIPELINE_INFLIGHT).inc();
         return getMetric(Timer.class, String.class, METRIC_PIPELINE_TIMER).time();

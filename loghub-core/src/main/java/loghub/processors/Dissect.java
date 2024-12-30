@@ -187,7 +187,7 @@ public class Dissect extends FieldsProcessor {
         if (keys.size() == 1) {
             return false;
         } else {
-            for (Key k: keys) {
+            for (Key k : keys) {
                 if (k.appendModifier >= keys.size()) {
                     throw new IllegalArgumentException(String.format("Appender modifier out of range for key \"%s\"", k.name));
                 }
@@ -208,7 +208,7 @@ public class Dissect extends FieldsProcessor {
         Map<String, Object> values = new HashMap<>();
         Map<String, Reference> references = referenceKeys.stream().map(Reference::new).collect(Collectors.toMap(r-> r.key, r -> r));
         int pos = 0;
-        for (int i= 0; i < content.size(); i++) {
+        for (int i = 0; i < content.size(); i++) {
             boolean valid = true;
             Object o = content.get(i);
             if (o instanceof String) {
@@ -243,17 +243,17 @@ public class Dissect extends FieldsProcessor {
                 return RUNSTATUS.FAILED;
             }
         }
-        for (Map.Entry<String, Object> e: values.entrySet()) {
+        for (Map.Entry<String, Object> e : values.entrySet()) {
             if (e.getValue() instanceof AppendData) {
                 AppendData l = (AppendData) e.getValue();
                 values.put(e.getKey(), l.join(appendSeparator));
             }
         }
-        for (Reference r: references.values()) {
+        for (Reference r : references.values()) {
             values.put(r.destination, r.value);
         }
         if (isInPlace()) {
-            for (Map.Entry<String, Object> e: values.entrySet()) {
+            for (Map.Entry<String, Object> e : values.entrySet()) {
                 VariablePath vp = VariablePath.parse(e.getKey());
                 event.putAtPath(vp, e.getValue());
             }

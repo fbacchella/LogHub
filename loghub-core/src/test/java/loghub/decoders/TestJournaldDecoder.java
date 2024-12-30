@@ -77,17 +77,17 @@ public class TestJournaldDecoder {
         events.forEach(e -> Assert.assertTrue(e instanceof Event));
         Event ev = (Event) events.get(0);
         Assert.assertEquals(1637065000943L, ev.getTimestamp().getTime());
-        String message = (String) ((Map<String, Object>)ev.get("fields_user")).get("message");
+        String message = (String) ((Map<String, Object>) ev.get("fields_user")).get("message");
         Assert.assertEquals("Upload to http://xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/upload failed: Send failure: Broken pipe", message);
-        String uid = (String) ((Map<String, Object>)ev.get("fields_trusted")).get("uid");
+        String uid = (String) ((Map<String, Object>) ev.get("fields_trusted")).get("uid");
         Assert.assertEquals("461", uid);
 
         // Checks the last event
         ev = (Event) events.get(3);
         Assert.assertEquals(1637065006095L, ev.getTimestamp().getTime());
-        events.forEach(e -> Assert.assertFalse(((Map<String, Object>)e.get("fields_trusted")).containsKey("realtime_timestamp")));
-        events.forEach(e -> Assert.assertFalse(((Map<String, Object>)e.get("fields_trusted")).containsKey("source_realtime_timestamp")));
-        
+        events.forEach(e -> Assert.assertFalse(((Map<String, Object>) e.get("fields_trusted")).containsKey("realtime_timestamp")));
+        events.forEach(e -> Assert.assertFalse(((Map<String, Object>) e.get("fields_trusted")).containsKey("source_realtime_timestamp")));
+
         events.stream().map(Event.class::cast)
                        .map(Event::getTimestamp)
                        .map(Date::getTime)
@@ -95,7 +95,7 @@ public class TestJournaldDecoder {
     }
 
     @Test
-    public void test_loghub_decoders_JournaldExport() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.decoders.JournaldExport");
     }
 

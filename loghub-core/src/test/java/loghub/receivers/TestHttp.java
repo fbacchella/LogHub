@@ -137,7 +137,7 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void testHttpPostJson() throws IOException, URISyntaxException {
-        try (Http ignored = makeReceiver(i -> {}, Collections.emptyMap())) {
+        try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
             doRequest(new URI("http", null, hostname, port, "/", null, null).toURL(),
                       "{\"a\": 1}".getBytes(StandardCharsets.UTF_8),
                       i -> {
@@ -157,10 +157,10 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void testHttpGet() throws IOException, InterruptedException, URISyntaxException {
-        try (Http ignored = makeReceiver(i -> {}, Collections.emptyMap())) {
+        try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
             doRequest(testURL,
                     new byte[]{},
-                    i -> {}, 200);
+                    i -> { }, 200);
 
             Event e = queue.take();
             String a = (String) e.get("a");
@@ -170,7 +170,7 @@ public class TestHttp {
             Assert.assertNotNull(ectxt);
             Assert.assertNotNull(ectxt.getLocalAddress());
             Assert.assertNotNull(ectxt.getRemoteAddress());
-            Assert.assertNull(((IpConnectionContext)ectxt).getSslParameters());
+            Assert.assertNull(((IpConnectionContext) ectxt).getSslParameters());
         }
     }
 
@@ -185,7 +185,7 @@ public class TestHttp {
             URL url = new URI("https", null, hostname, port, "/", "a=1", null).toURL();
             doRequest(url,
                     new byte[]{},
-                    i -> {}, 200);
+                    i -> { }, 200);
 
             Event e = queue.poll();
             assert e != null;
@@ -196,17 +196,17 @@ public class TestHttp {
             ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
             Assert.assertNotNull(ectxt.getLocalAddress());
             Assert.assertNotNull(ectxt.getRemoteAddress());
-            Assert.assertTrue(Pattern.matches("TLSv1.*", ((IpConnectionContext)ectxt).getSslParameters().getProtocol()));
+            Assert.assertTrue(Pattern.matches("TLSv1.*", ((IpConnectionContext) ectxt).getSslParameters().getProtocol()));
             // Test that ssl state is still good
             doRequest(url,
                     new byte[]{},
-                    i -> {}, 200);
+                    i -> { }, 200);
         }
     }
 
     @Test(timeout = 5000)
     public void testHttpPostForm() throws IOException, URISyntaxException {
-        try (Http ignored = makeReceiver(i -> {}, Collections.emptyMap())) {
+        try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
             doRequest(new URI("http", null, hostname, port, "/", null, null).toURL(),
                     "a=1&b=c%20d".getBytes(StandardCharsets.UTF_8),
                     i -> {
@@ -227,10 +227,10 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void testFailedAuthentication1() {
-        try (Http ignored = makeReceiver(i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap())) {
+        try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL,
                       new byte[]{},
-                      i -> {}, 401);
+                      i -> { }, 401);
         } catch (IOException | URISyntaxException e) {
             Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://" + hostname + ":" + receiver.getPort() + "/?a=1", e.getMessage());
             return;
@@ -240,7 +240,7 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void testFailedAuthentication2() throws URISyntaxException {
-        try (Http ignored = makeReceiver(i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap())){
+        try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL,
                       new byte[]{},
                       i -> {
@@ -256,7 +256,7 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void testGoodPasswordAuthentication() throws IOException, URISyntaxException {
-        try (Http ignored = makeReceiver(i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap())) {
+        try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL,
                     new byte[]{},
                     i -> {
@@ -279,7 +279,7 @@ public class TestHttp {
         props.put("jwt.secret", secret);
         JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
         String jwtToken = handler.getToken(new JMXPrincipal("user"));
-        try (Http ignored = makeReceiver(i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props)){
+        try (Http ignored = makeReceiver(i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props)) {
             URL dest = new URI("http", null, hostname, port, "/", "a=1", null).toURL();
             doRequest(dest,
                     new byte[]{},
@@ -318,18 +318,18 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void manyDecoders() throws ConfigException, IOException {
-        String confile = "input {" + 
-                        "    loghub.receivers.Http {" + 
-                        "        port: 1502," + 
-                        "        decoders: {" + 
-                        "            \"application/csv\": loghub.decoders.Json {" + 
-                        "            }," + 
-                        "            \"application/msgpack\": loghub.decoders.Msgpack {" + 
-                        "            }," + 
-                        "        }," + 
-                        "    }" + 
-                        "} | $main " + 
-                        "pipeline[main] {" + 
+        String confile = "input {" +
+                        "    loghub.receivers.Http {" +
+                        "        port: 1502," +
+                        "        decoders: {" +
+                        "            \"application/csv\": loghub.decoders.Json {" +
+                        "            }," +
+                        "            \"application/msgpack\": loghub.decoders.Msgpack {" +
+                        "            }," +
+                        "        }," +
+                        "    }" +
+                        "} | $main " +
+                        "pipeline[main] {" +
                         "}";
         Properties conf = Tools.loadConf(new StringReader(confile));
         Http http = (Http) conf.receivers.toArray(new Receiver[1])[0];
@@ -340,11 +340,11 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void noExplicitDecoder() throws ConfigException, IOException {
-        String confile = "input {" + 
-                        "    loghub.receivers.Http {" + 
-                        "        decoder: loghub.decoders.Msgpack {" + 
-                        "        }," + 
-                        "    }" + 
+        String confile = "input {" +
+                        "    loghub.receivers.Http {" +
+                        "        decoder: loghub.decoders.Msgpack {" +
+                        "        }," +
+                        "    }" +
                         "} | $main";
 
         try {
@@ -361,7 +361,7 @@ public class TestHttp {
         try (Http ignored = makeReceiver(i -> i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder())), Collections.emptyMap())) {
             doRequest(testURL,
                     new byte[]{},
-                    i -> {}, 200
+                    i -> { }, 200
             );
 
             Event e = queue.poll();
@@ -373,12 +373,12 @@ public class TestHttp {
             Assert.assertNotNull(ectxt);
             Assert.assertNotNull(ectxt.getLocalAddress());
             Assert.assertNotNull(ectxt.getRemoteAddress());
-            Assert.assertNull(((IpConnectionContext)ectxt).getSslParameters());
+            Assert.assertNull(((IpConnectionContext) ectxt).getSslParameters());
         }
     }
 
     @Test
-    public void test_loghub_receivers_Http() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Http"
                               , BeanInfo.build("decoders", Map.class)
                               , BeanInfo.build("useJwt", Boolean.TYPE)

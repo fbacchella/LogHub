@@ -85,7 +85,7 @@ public class AuthenticationHandler {
 
     // Jaas password
     @Getter
-    private final String jaasName ;
+    private final String jaasName;
     private final Configuration jaasConfig;
 
     //JWT authentication
@@ -99,7 +99,7 @@ public class AuthenticationHandler {
         if (builder.jaasConfig != null && (builder.jaasName != null && ! builder.jaasName.isEmpty())) {
             this.jaasName = builder.jaasName;
             this.jaasConfig = builder.jaasConfig;
-            if (jaasConfig.getAppConfigurationEntry(jaasName) == null){
+            if (jaasConfig.getAppConfigurationEntry(jaasName) == null) {
                 throw new IllegalArgumentException(String.format("JAAS name '%s' not found", jaasName));
             }
         } else if (builder.jaasConfig == null && (builder.jaasName != null && ! builder.jaasName.isEmpty())) {
@@ -121,7 +121,7 @@ public class AuthenticationHandler {
             return checkJwt(new String(tryPassword));
         } else if (tryLogin.equals(login) && Arrays.equals(password, tryPassword)) {
             return new JMXPrincipal(login);
-        } else if (jaasName != null){
+        } else if (jaasName != null) {
             return checkJaas(tryLogin, tryPassword);
         } else {
             return null;
@@ -131,12 +131,12 @@ public class AuthenticationHandler {
     private Principal checkJaas(String tryLogin, char[] tryPassword) {
         logger.debug("testing login {} with JAAS {}", tryLogin, jaasName);
         CallbackHandler cbHandler = callbacks -> {
-            for (Callback cb: callbacks) {
+            for (Callback cb : callbacks) {
                 if (cb instanceof NameCallback) {
-                    NameCallback nc = (NameCallback)cb;
+                    NameCallback nc = (NameCallback) cb;
                     nc.setName(tryLogin);
                 } else if (cb instanceof PasswordCallback) {
-                    PasswordCallback pc = (PasswordCallback)cb;
+                    PasswordCallback pc = (PasswordCallback) cb;
                     pc.setPassword(tryPassword);
                 } else {
                     throw new UnsupportedCallbackException(cb, "Unrecognized Callback");

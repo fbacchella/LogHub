@@ -31,10 +31,10 @@ public class UnixStreamTransport extends
         DomainSocketAddress remoteaddr = null;
         DomainSocketAddress localaddr = null;
         if (remoteChannelAddr instanceof DomainSocketAddress) {
-            remoteaddr = (DomainSocketAddress)remoteChannelAddr;
+            remoteaddr = (DomainSocketAddress) remoteChannelAddr;
         }
         if (localChannelAddr instanceof DomainSocketAddress) {
-            localaddr = (DomainSocketAddress)localChannelAddr;
+            localaddr = (DomainSocketAddress) localChannelAddr;
         }
 
         return new DomainConnectionContext(localaddr, remoteaddr);

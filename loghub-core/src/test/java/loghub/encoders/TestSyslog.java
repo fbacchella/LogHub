@@ -130,7 +130,7 @@ public class TestSyslog {
     }
 
     @Test
-    public void test_loghub_processors_Syslog() throws IntrospectionException, ReflectiveOperationException {
+    public void tesBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.encoders.Syslog"
                 , BeanChecks.BeanInfo.build("format", Syslog.Format.class)
                 , BeanChecks.BeanInfo.build("severity", Expression.class)

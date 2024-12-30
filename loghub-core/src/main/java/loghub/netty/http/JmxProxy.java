@@ -112,7 +112,7 @@ public class JmxProxy extends HttpRequestProcessing {
             TabularData td = (TabularData) o;
             Object[] content = new Object[td.size()];
             AtomicInteger i = new AtomicInteger(0);
-            td.values().stream().forEach( j-> content[i.getAndIncrement()] = j);
+            td.values().stream().forEach(j-> content[i.getAndIncrement()] = j);
             return content;
         } else {
             return o;

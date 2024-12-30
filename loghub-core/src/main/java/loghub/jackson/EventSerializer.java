@@ -19,7 +19,7 @@ public class EventSerializer extends JsonSerializer<Event> {
         Map<String, Object> eventContent = new HashMap<>();
         Map<String, Object> eventMetas = new HashMap<>();
         Map<String, Object> eventFields = new HashMap<>(value);
-        value.getMetaAsStream().forEach( i-> eventMetas.put(i.getKey(), i.getValue()));
+        value.getMetaAsStream().forEach(i-> eventMetas.put(i.getKey(), i.getValue()));
         eventContent.put("@fields", eventFields);
         eventContent.put(Event.TIMESTAMPKEY, value.getTimestamp());
         eventContent.put("@METAS", eventMetas);

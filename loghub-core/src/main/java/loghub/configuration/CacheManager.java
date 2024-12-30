@@ -66,7 +66,7 @@ public class CacheManager {
                 return configuration;
             }
         };
-        abstract <K,V> Cache2kBuilder<K, V> configure(Cache2kBuilder<K, V> configuration, Duration duration);
+        abstract <K, V> Cache2kBuilder<K, V> configure(Cache2kBuilder<K, V> configuration, Duration duration);
     }
 
     public class Builder<K, V> {
@@ -75,14 +75,13 @@ public class CacheManager {
         private final Class<K> keyType;
         private final Class<V> valueType;
         private final Set<CacheEntryListenerConfiguration<K, V>> listeners = new HashSet<>();
-        private Factory<? extends CacheLoader<K,V>> factory = null;
+        private Factory<? extends CacheLoader<K, V>> factory = null;
         private boolean storeByValue = true;
         private Builder(Class<K> keyType, Class<V> valueType) {
             builder2k = Cache2kBuilder.of(keyType, valueType)
                             .permitNullValues(false)
                             .storeByReference(true)
-                            .keepDataAfterExpired(false)
-                            ;
+                            .keepDataAfterExpired(false);
             this.keyType = keyType;
             this.valueType = valueType;
             JmxSupport.enable(builder2k);
@@ -112,7 +111,7 @@ public class CacheManager {
             listeners.add(config);
             return this;
         }
-        public Builder<K, V> setCacheLoaderFactory(Factory<? extends CacheLoader<K,V>> factory) {
+        public Builder<K, V> setCacheLoaderFactory(Factory<? extends CacheLoader<K, V>> factory) {
             this.factory = factory;
             return this;
         }

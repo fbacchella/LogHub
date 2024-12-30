@@ -140,7 +140,7 @@ class ExpressionBuilder {
 
     @SuppressWarnings("unchecked")
     public static <T, U, R> ExpressionBuilder of(ExpressionBuilder exp1, ExpressionBuilder exp2, BiFunction<T, U, R> f) {
-        if (exp1.type == ExpressionType.LITERAL && exp2.type == ExpressionType.LITERAL ) {
+        if (exp1.type == ExpressionType.LITERAL && exp2.type == ExpressionType.LITERAL) {
             return new ExpressionBuilder().setType(ExpressionType.LITERAL).setPayload(f.apply((T) exp1.payload, (U) exp2.payload));
         } else {
             Expression.ExpressionLambda asLambda1 = exp1.asLambda();

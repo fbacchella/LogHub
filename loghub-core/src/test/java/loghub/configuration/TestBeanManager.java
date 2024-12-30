@@ -60,33 +60,33 @@ public class TestBeanManager {
     public void testFloat() throws InvocationTargetException, IntrospectionException {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "simplefloat", (float) Math.E);
-        Assert.assertEquals((float)Math.E, c.getSimplefloat(), 0);
+        Assert.assertEquals((float) Math.E, c.getSimplefloat(), 0);
         beansManager.beanSetter(c, "simplefloat", (float) Math.PI);
-        Assert.assertEquals((float)Math.PI, c.getSimplefloat(), 0);
+        Assert.assertEquals((float) Math.PI, c.getSimplefloat(), 0);
         beansManager.beanSetter(c, "simplefloat", "1.3333");
-        Assert.assertEquals((float)1.3333, c.getSimplefloat(), 1e-4f);
+        Assert.assertEquals((float) 1.3333, c.getSimplefloat(), 1e-4f);
     }
 
     @Test
     public void testByte() throws InvocationTargetException, IntrospectionException {
         BeanContener c = new BeanContener();
-        beansManager.beanSetter(c, "octet", (byte)4);
-        Assert.assertEquals((byte)4, c.getOctet());
+        beansManager.beanSetter(c, "octet", (byte) 4);
+        Assert.assertEquals((byte) 4, c.getOctet());
         beansManager.beanSetter(c, "octet", (byte) 8);
-        Assert.assertEquals((byte)8, c.getOctet());
+        Assert.assertEquals((byte) 8, c.getOctet());
         beansManager.beanSetter(c, "octet", "16");
-        Assert.assertEquals((byte)16, c.getOctet());
+        Assert.assertEquals((byte) 16, c.getOctet());
     }
 
     @Test
     public void testShort() throws InvocationTargetException, IntrospectionException {
         BeanContener c = new BeanContener();
-        beansManager.beanSetter(c, "i16", (short)4);
-        Assert.assertEquals((short)4, c.getI16());
+        beansManager.beanSetter(c, "i16", (short) 4);
+        Assert.assertEquals((short) 4, c.getI16());
         beansManager.beanSetter(c, "i16", (short) 8);
-        Assert.assertEquals((short)8, c.getI16());
+        Assert.assertEquals((short) 8, c.getI16());
         beansManager.beanSetter(c, "i16", "16");
-        Assert.assertEquals((short)16, c.getI16());
+        Assert.assertEquals((short) 16, c.getI16());
     }
 
     @Test

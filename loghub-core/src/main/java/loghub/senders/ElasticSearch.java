@@ -53,7 +53,7 @@ import loghub.metrics.Stats;
 import lombok.Setter;
 
 @AsyncSender
-@CanBatch(only=true)
+@CanBatch(only = true)
 @SelfEncoder
 @BuilderClass(ElasticSearch.Builder.class)
 public class ElasticSearch extends AbstractHttpSender {
@@ -132,7 +132,7 @@ public class ElasticSearch extends AbstractHttpSender {
         // If an index date format was given use it
         // If neither index date format nor index expression is given, uses a default value: 'loghub-'yyyy.MM.dd
         if (builder.dateformat != null || builder.index == null) {
-            esIndexFormat = ThreadLocal.withInitial( () -> {
+            esIndexFormat = ThreadLocal.withInitial(() -> {
                 String dateformat = Optional.ofNullable(builder.dateformat).orElse("'loghub-'yyyy.MM.dd");
                 DateFormat df = new SimpleDateFormat(dateformat);
                 df.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -171,7 +171,7 @@ public class ElasticSearch extends AbstractHttpSender {
     public boolean send(Event e) {
         throw new UnsupportedOperationException("Can't send single event");
     }
-    
+
     private String eventIndex(Event event) throws ProcessorException {
         try {
             // if evaluation of the expression returns null, it failed and default to the loghub index
@@ -221,7 +221,7 @@ public class ElasticSearch extends AbstractHttpSender {
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
             int eventIndex = 0;
-            for (Map<String, ?> i: items) {
+            for (Map<String, ?> i : items) {
                 @SuppressWarnings("unchecked")
                 Map<String, Map<String, ?>> errorindex = (Map<String, Map<String, ?>>) i.get("index");
                 EventFuture f = tosend.get(eventIndex++);
@@ -252,7 +252,7 @@ public class ElasticSearch extends AbstractHttpSender {
         Map<String, Object> action = Collections.singletonMap("index", settings);
         Map<String, Object> esjson = new HashMap<>();
         int sent = 0;
-        for (EventFuture ef: events) {
+        for (EventFuture ef : events) {
             try {
                 Event e = ef.getEvent();
                 esjson.clear();
@@ -276,7 +276,7 @@ public class ElasticSearch extends AbstractHttpSender {
                         continue;
                     } else {
                         settings.put("_type", typevalue);
-                    } 
+                    }
                 }
                 sent += sendbytes(os, json.writeValueAsString(action).getBytes(CharsetUtil.UTF_8));
                 sent += sendbytes(os, lf);
@@ -289,7 +289,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 toprocess.add(ef);
             } catch (JsonProcessingException | ProcessorException ex) {
                 ef.completeExceptionally(ex);
-                logger.debug("Failed to serialized {}: {}", ef.getEvent(),Helpers.resolveThrowableException(ex));
+                logger.debug("Failed to serialized {}: {}", ef.getEvent(), Helpers.resolveThrowableException(ex));
             }
         }
         os.flush();
@@ -302,7 +302,7 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     private int checkMajorVersion() {
-        Function<JsonNode,Integer> transform = node -> {
+        Function<JsonNode, Integer> transform = node -> {
             JsonNode version = node.get("version");
             if (version == null) {
                 logger.error("Can't parse Elastic version: {}", node);
@@ -394,7 +394,7 @@ public class ElasticSearch extends AbstractHttpSender {
         Function<JsonNode, Boolean> transform = node -> true;
 
         // Creating the missing indices
-        for (String i: missing) {
+        for (String i : missing) {
             filePart.setLength(0);
             filePart.append("/");
             filePart.append(i);
@@ -464,7 +464,7 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
    void scanResults(JsonNode node, Map<String, String> aliases, Set<String> missing, Set<String> readonly) {
-        for (Map.Entry<String, String> e: aliases.entrySet()) {
+        for (Map.Entry<String, String> e : aliases.entrySet()) {
             Optional<Boolean> status = Optional.ofNullable(node.get(e.getValue()))
                     .map(n -> n.get("settings"))
                     .map(n -> Optional.ofNullable(n.get("index.blocks.read_only_allow_delete"))
@@ -488,15 +488,15 @@ public class ElasticSearch extends AbstractHttpSender {
         try {
             wantedtemplate = Stream.of(templatePath)
                             .filter(Objects::nonNull)
-                            .map( i -> {
+                            .map(i -> {
                                 try {
                                     return i.openStream();
                                 } catch (IOException e) {
                                     throw new UncheckedIOException(e);
                                 }
                             })
-                            .map( i -> new InputStreamReader(i, CharsetUtil.UTF_8))
-                            .map( i -> {
+                            .map(i -> new InputStreamReader(i, CharsetUtil.UTF_8))
+                            .map(i -> {
                                 try {
                                     @SuppressWarnings("unchecked")
                                     Map<Object, Object> localtemplate = jsonreader.readValue(i, Map.class);
@@ -520,7 +520,7 @@ public class ElasticSearch extends AbstractHttpSender {
             try {
                 Map<?, ?> foundTemplate = jsonreader.treeToValue(node, Map.class);
                 Map<?, ?> templateMap = (Map<?, ?>) foundTemplate.get(templateName);
-                Optional<Integer> opt = Optional.ofNullable((Integer)templateMap.get("version"));
+                Optional<Integer> opt = Optional.ofNullable((Integer) templateMap.get("version"));
                 return opt.map(i-> i != wantedVersion).orElse(true);
             } catch (JsonProcessingException e) {
                 throw new UncheckedIOException(e);
@@ -547,7 +547,7 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     private String includeTypeName() {
-        return typeHandling == TYPEHANDLING.MIGRATING ? "?include_type_name=true": "";
+        return typeHandling == TYPEHANDLING.MIGRATING ? "?include_type_name=true" : "";
     }
 
     private <T> T doquery(HttpRequest<JsonNode> request, String filePart, Function<JsonNode, T> transform, Map<Integer, Function<JsonNode, T>> failureHandlers, T onFailure) {
@@ -558,7 +558,7 @@ public class ElasticSearch extends AbstractHttpSender {
         request.setConsumeText(jsonreader::readTree);
         URI[] localendPoints = Arrays.copyOf(this.endpoints, endpoints.length);
         Helpers.shuffleArray(localendPoints);
-        for (URI endPoint: localendPoints) {
+        for (URI endPoint : localendPoints) {
             URI newEndPoint;
             // The resolve("/") is needed for Java 11
             newEndPoint = endPoint.resolve("/").resolve(filePart);
@@ -577,11 +577,11 @@ public class ElasticSearch extends AbstractHttpSender {
                     // This node return 200 but not an application/json, or a 500
                     // Looks like this node is broken try another one
                     logger.warn("Broken node: {}, returned '{} {}' {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
-                } else if (failureHandlers.containsKey(status) && ContentType.APPLICATION_JSON.equals(responseMimeType)){
+                } else if (failureHandlers.containsKey(status) && ContentType.APPLICATION_JSON.equals(responseMimeType)) {
                     JsonNode node = response.getParsedResponse();
                     // Only ES failures can be handled
                     return failureHandlers.get(status).apply(node);
-                } else if (ContentType.APPLICATION_JSON.equals(responseMimeType)){
+                } else if (ContentType.APPLICATION_JSON.equals(responseMimeType)) {
                     JsonNode node = response.getParsedResponse();
                     logger.error("Invalid query: {} {}, return '{} {}'", request.getVerb(), newEndPoint, status, response.getStatusMessage());
                     logger.debug("Error body: {}", node);

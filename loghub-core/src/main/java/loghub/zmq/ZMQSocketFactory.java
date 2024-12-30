@@ -222,7 +222,7 @@ public class ZMQSocketFactory implements AutoCloseable {
                 writer.println("\"");
             }
             PrivateKey prk = kp.getPrivate();
-            return new PrivateKeyEntry(prk, new NaclCertificate[] {certificate} );
+            return new PrivateKeyEntry(prk, new NaclCertificate[] {certificate});
         } else {
             try (FileInputStream ksstream = new FileInputStream(zmqKeyStore.toFile())) {
                 ks.load(ksstream, emptypass);
@@ -302,7 +302,7 @@ public class ZMQSocketFactory implements AutoCloseable {
         delegatedExceptionHandler = handler;
     }
 
-    @Accessors(chain=true)
+    @Accessors(chain = true)
     public class SocketBuilder {
         private final Method method;
         private final SocketType type;
@@ -388,7 +388,7 @@ public class ZMQSocketFactory implements AutoCloseable {
                 if (zapDomain != null) {
                     socket.setZAPDomain(zapDomain);
                 }
-                socket.setTCPKeepAlive(keepAlive ? 1: 0);
+                socket.setTCPKeepAlive(keepAlive ? 1 : 0);
                 if (keepAlive) {
                     socket.setTCPKeepAliveCount(tcpKeepAliveCnt);
                     socket.setTCPKeepAliveIdle(tcpKeepAliveIdle);
@@ -402,7 +402,7 @@ public class ZMQSocketFactory implements AutoCloseable {
                 case NULL:
                     break;
                 default:
-                    throw new IllegalArgumentException("Security "+ security + " not managed");
+                    throw new IllegalArgumentException("Security " + security + " not managed");
                 }
                 if (type == SocketType.SUB && topic != null) {
                     socket.subscribe(topic);

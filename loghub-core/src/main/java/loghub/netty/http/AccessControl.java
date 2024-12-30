@@ -46,7 +46,7 @@ public class AccessControl extends HttpFilter {
             return;
         }
         Matcher matcher = Optional.ofNullable(request.headers().get(HttpHeaderNames.AUTHORIZATION)).map(AUTHDETAILS::matcher).filter(Matcher::matches).orElse(null);
-        if (matcher!= null) {
+        if (matcher != null) {
             switch(matcher.group("scheme").toLowerCase(Locale.US)) {
             case "bearer":
                 if (authhandler.isWithJwt()) {
@@ -58,13 +58,13 @@ public class AccessControl extends HttpFilter {
                 try {
                     byte[] decoded = Base64.getDecoder().decode(matcher.group("value"));
                     content = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(decoded)).array();
-                    Arrays.fill(decoded, (byte)0);
+                    Arrays.fill(decoded, (byte) 0);
                 } catch (IllegalArgumentException e) {
                     logger.warn("Invalid basic authentication scheme details: {}", e.getMessage());
                     throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid basic authentication scheme details", Collections.emptyMap());
                 }
                 int sep = 0;
-                for ( ; sep < content.length ; sep++) {
+                for ( ; sep < content.length; sep++) {
                     if (content[sep] == ':') break;
                 }
                 String login = new String(content, 0, sep);
@@ -104,6 +104,5 @@ public class AccessControl extends HttpFilter {
             ctx.fireExceptionCaught(cause);
         }
     }
-
 
 }

@@ -48,7 +48,9 @@ public class ZMQHelper {
     public enum Method {
         CONNECT {
             @Override
-            public boolean act(ZMQ.Socket socket, String address) { return socket.connect(address); }
+            public boolean act(ZMQ.Socket socket, String address) {
+                return socket.connect(address);
+            }
 
             @Override
             public char getSymbol() {
@@ -57,7 +59,9 @@ public class ZMQHelper {
         },
         BIND {
             @Override
-            public boolean act(ZMQ.Socket socket, String address) { return socket.bind(address); }
+            public boolean act(ZMQ.Socket socket, String address) {
+                return socket.bind(address);
+            }
 
             @Override
             public char getSymbol() {
@@ -79,7 +83,7 @@ public class ZMQHelper {
                 NaclPublicKeySpec keyspec = new NaclPublicKeySpec(serverPublicKey);
                 return new NaclCertificate(NACLKEYFACTORY.generatePublic(keyspec));
             } catch (IllegalArgumentException | InvalidKeyException | InvalidKeySpecException e) {
-                throw new IllegalArgumentException("Not a valid curve server key: "+ e.getMessage(), e);
+                throw new IllegalArgumentException("Not a valid curve server key: " + e.getMessage(), e);
             }
         } else {
             throw new IllegalArgumentException("Not a valid server key");

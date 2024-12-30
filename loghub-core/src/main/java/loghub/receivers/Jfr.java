@@ -182,7 +182,7 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
             case SECONDS:
                 return duration.toSeconds();
             case SECONDS_FLOAT:
-                return duration.toSeconds() + (double) duration.toNanosPart()/ 1_000_000_000;
+                return duration.toSeconds() + (double) duration.toNanosPart() / 1_000_000_000;
             default:
                 throw new IllegalArgumentException(durationUnit.toString());
             }
@@ -216,7 +216,7 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
         default:
             Object value = object.getValue(name);
             if (value instanceof RecordedObject) {
-                return resolve((RecordedObject)value);
+                return resolve((RecordedObject) value);
             } else {
                 return value;
             }

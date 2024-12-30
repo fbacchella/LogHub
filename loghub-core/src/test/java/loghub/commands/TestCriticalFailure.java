@@ -52,7 +52,7 @@ public class TestCriticalFailure {
         JmxService.stop();
     }
 
-    @Test(timeout=10000)
+    @Test(timeout = 10000)
     public void test() throws ConfigException, IOException {
         String confile = String.format("pipeline[newpipe] {} hprofDumpPath:\"%s/loghub.hprof\"", folder.getRoot());
 
@@ -74,7 +74,7 @@ public class TestCriticalFailure {
         Assert.assertTrue(Files.exists(folder.getRoot().toPath().resolve("loghub.hprof")));
     }
 
-    @Test(timeout=10000)
+    @Test(timeout = 10000)
     public void testlatter() throws ConfigException, IOException, InterruptedException, ProcessorException {
         String confile = "pipeline[newpipe] {}";
 

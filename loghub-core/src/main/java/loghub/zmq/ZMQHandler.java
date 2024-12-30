@@ -29,7 +29,7 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 import zmq.io.mechanism.Mechanisms;
 
-@Accessors(chain=true)
+@Accessors(chain = true)
 public class ZMQHandler<M> implements AutoCloseable {
 
     @FunctionalInterface
@@ -50,7 +50,7 @@ public class ZMQHandler<M> implements AutoCloseable {
         Certificate serverPublicKey;
         PrivateKeyEntry keyEntry = null;
         byte[] topic = null;
-        Runnable stopFunction = () -> {};
+        Runnable stopFunction = () -> { };
         Consumer<String> injectError;
         ZMQSocketFactory zfactory = null;
         CountDownLatch latch = null;
@@ -116,7 +116,7 @@ public class ZMQHandler<M> implements AutoCloseable {
             Mechanisms security = builder.security;
             sbuilder.setSecurity(security);
             switch (security) {
-            case CURVE: 
+            case CURVE:
                 logger.debug("Activating Curve security on socket {}", socketUrl);
                 if (zfactory.getZapService() != null) {
                     sbuilder.setZapDomain(builder.name);
@@ -131,7 +131,7 @@ public class ZMQHandler<M> implements AutoCloseable {
                 logger.debug("Activating Null security on socket {}", socketUrl);
                 break;
             default:
-                throw new IllegalArgumentException("Security  "+ builder.security + "not handled");
+                throw new IllegalArgumentException("Security  " + builder.security + "not handled");
             }
             socket = sbuilder.build();
             pooler = zfactory.getZPoller();

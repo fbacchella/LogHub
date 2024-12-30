@@ -56,7 +56,7 @@ public class BeanChecks {
             int mod = init.getModifiers();
             Assert.assertTrue(Modifier.isPublic(mod));
         }
-        for (BeanInfo bi: beans) {
+        for (BeanInfo bi : beans) {
             PropertyDescriptor bean;
             bean = bi.getPropertyDescriptor(testedClass);
             callerLogger.debug("Bean '{}' for {} is {}", bi.beanName, className, bean);

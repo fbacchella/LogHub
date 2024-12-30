@@ -25,16 +25,16 @@ public class Log4JExtract extends ObjectExtractor<LoggingEvent> {
             Optional.ofNullable(o.getLocationInformation().getLineNumber()).ifPresent(v -> event.put("line", v));
         }
         Optional.ofNullable(o.getNDC()).ifPresent(v -> event.put("NDC", v));
-        if(o.getThrowableStrRep() != null) {
+        if (o.getThrowableStrRep() != null) {
             List<String> stack = new ArrayList<>();
-            for(String l: o.getThrowableStrRep()) {
+            for (String l : o.getThrowableStrRep()) {
                 stack.add(l.replace("\t", "    "));
             }
             event.put("stack_trace", stack);
         }
         @SuppressWarnings("unchecked")
         Map<String, ?> m = o.getProperties();
-        if(!m.isEmpty()) {
+        if (!m.isEmpty()) {
             event.put("properties", m);
         }
         event.putAtPath(VariablePath.TIMESTAMP, o.getTimeStamp());

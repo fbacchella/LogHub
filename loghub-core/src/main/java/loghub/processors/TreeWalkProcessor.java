@@ -25,7 +25,7 @@ public abstract class TreeWalkProcessor extends FieldsProcessor {
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         if (value instanceof Map) {
-            return processNode(event, (Map<String, Object>)value);
+            return processNode(event, (Map<String, Object>) value);
         } else {
             return processLeaf(event, value);
         }
@@ -33,6 +33,6 @@ public abstract class TreeWalkProcessor extends FieldsProcessor {
 
     protected abstract Object processLeaf(Event event, Object value) throws ProcessorException;
 
-    protected abstract Object processNode(Event event, Map<String, Object> value) throws ProcessorException ;
+    protected abstract Object processNode(Event event, Map<String, Object> value) throws ProcessorException;
 
 }

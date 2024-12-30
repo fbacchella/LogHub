@@ -69,7 +69,7 @@ public class TestNettyNameResolver {
 
         BiConsumer<Properties, List<Processor>> prepare = (i, j) -> {
             try {
-                for (String name: warmup) {
+                for (String name : warmup) {
                     if (name != null && ! name.isEmpty()) {
                         proc.warmUp(name);
                     }
@@ -82,7 +82,7 @@ public class TestNettyNameResolver {
         return Tools.runProcessing(e, "main", Collections.singletonList(proc), prepare, getProperties());
     }
 
-    @Test(timeout=6000)
+    @Test(timeout = 6000)
     public void badresolvertimeout() throws Throwable {
         Event e = factory.newEvent();
         e.put("host", InetAddress.getByName("10.0.0.1"));
@@ -113,7 +113,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("resolution paused", 0, status2.status.stream().filter("PAUSED"::equals).count());
     }
 
-    @Test(timeout=6000)
+    @Test(timeout = 6000)
     public void badresolvernxdomain() throws Throwable {
         Event e = factory.newEvent();
         /// resolve a no existing name
@@ -123,7 +123,7 @@ public class TestNettyNameResolver {
             i.setField(VariablePath.of("host"));
             i.setDestination(VariablePath.parse("fqdn"));
             i.setTimeout(4);
-        } , e, "20.149.65.149.in-addr.arpa");
+        }, e, "20.149.65.149.in-addr.arpa");
 
         e = status.mainQueue.take();
         Assert.assertNull("resolution not failed", e.get("fqdn"));
@@ -131,7 +131,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
 
-    @Test(timeout=6000)
+    @Test(timeout = 6000)
     public void arootasipv4addr() throws Throwable {
         Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4
@@ -140,7 +140,7 @@ public class TestNettyNameResolver {
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setField(VariablePath.of("host"));
             i.setDestination(VariablePath.parse("fqdn"));
-        } , e, "4.0.41.198.in-addr.arpa");
+        }, e, "4.0.41.198.in-addr.arpa");
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
@@ -148,7 +148,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
 
-    @Test(timeout=6000)
+    @Test(timeout = 6000)
     public void arootasipv4addrWithCollection() throws Throwable {
         Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4
@@ -157,7 +157,7 @@ public class TestNettyNameResolver {
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setField(VariablePath.of("host"));
             i.setDestination(VariablePath.parse("fqdn"));
-        } , e, "4.0.41.198.in-addr.arpa");
+        }, e, "4.0.41.198.in-addr.arpa");
 
         e = status.mainQueue.take();
         @SuppressWarnings("unchecked")
@@ -168,7 +168,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
 
-    @Test(timeout=6000)
+    @Test(timeout = 6000)
     public void arootasipv4string() throws InterruptedException, ConfigException, IOException {
         Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4 as String
@@ -177,7 +177,7 @@ public class TestNettyNameResolver {
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setField(VariablePath.of("host"));
             i.setDestination(VariablePath.parse("fqdn"));
-        } , e, "4.0.41.198.in-addr.arpa");
+        }, e, "4.0.41.198.in-addr.arpa");
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
@@ -185,7 +185,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
 
-    @Test(timeout=6000)
+    @Test(timeout = 6000)
     public void arootasipv6addr() throws Throwable {
         Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv6
@@ -194,7 +194,7 @@ public class TestNettyNameResolver {
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setField(VariablePath.of("host"));
             i.setDestination(VariablePath.parse("fqdn"));
-        } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa");
+        }, e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa");
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
@@ -202,7 +202,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
 
-    @Test(timeout=6000)
+    @Test(timeout = 6000)
     public void arootasipv6string() throws InterruptedException, ConfigException, IOException {
         Event e = factory.newEvent();
         // resolving a.root-servers.net. in IPv6 as a String
@@ -211,7 +211,7 @@ public class TestNettyNameResolver {
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setField(VariablePath.of("host"));
             i.setDestination(VariablePath.parse("fqdn"));
-        } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa");
+        }, e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa");
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
@@ -219,7 +219,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
 
-    @Test(timeout=6000)
+    @Test(timeout = 6000)
     public void resolvemany() throws InterruptedException, ConfigException, IOException {
         Event e = factory.newEvent();
         e.put("hostipv6str", "2001:503:ba3e::2:30");
@@ -231,7 +231,7 @@ public class TestNettyNameResolver {
             i.setFields(new String[]{"*"});
             i.setDestinationTemplate(new VarFormatter("fqdn_${field}"));
             i.setTimeout(4);
-        } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa", "4.0.41.198.in-addr.arpa");
+        }, e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa", "4.0.41.198.in-addr.arpa");
 
         do {
             e = status.mainQueue.element();
@@ -240,14 +240,14 @@ public class TestNettyNameResolver {
 
         e = status.mainQueue.take();
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
-        for (String i: new String[] {"hostipv6str", "hostipv6inet", "hostipv4str", "hostipv4inet"}) {
-            Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn_" +i));
+        for (String i : new String[] {"hostipv6str", "hostipv6inet", "hostipv4str", "hostipv4inet"}) {
+            Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn_" + i));
         }
         Assert.assertEquals("Queue not empty: " + status.mainQueue.size(), 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testCaching() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
         NettyNameResolver.Builder builder = NettyNameResolver.getBuilder();
         builder.setResolver("8.8.8.8");
@@ -268,7 +268,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("a.root-servers.net", proc.fieldFunction(e, "198.41.0.4"));
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testResolvConf() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
         NettyNameResolver.Builder builder = NettyNameResolver.getBuilder();
         URL etcResolvConfURL = this.getClass().getClassLoader().getResource("resolv.conf");
@@ -290,7 +290,7 @@ public class TestNettyNameResolver {
         Assert.assertEquals("a.root-servers.net", proc.fieldFunction(e, "198.41.0.4"));
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testDefault() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
         NettyNameResolver proc = NettyNameResolver.getBuilder().build();
         Assert.assertTrue(proc.configure(getProperties()));
@@ -315,7 +315,7 @@ public class TestNettyNameResolver {
     }
 
     @Test
-    public void TestParallel() throws IOException {
+    public void testParallel() throws IOException {
         String configFile = "pipeline[resolve] { loghub.processors.NettyNameResolver{resolvers: [\"8.8.8.8:53\", \"8.8.4.4:53\"], resolutionMode: \"PARALLEL\"}  }";
         Properties p =  Configuration.parse(new StringReader(configFile));
         Helpers.parallelStartProcessor(p);
@@ -326,7 +326,7 @@ public class TestNettyNameResolver {
     }
 
     @Test
-    public void TestFailing() {
+    public void testFailing() {
         String configFile = "pipeline[resolve] { loghub.processors.NettyNameResolver{resolver: \"8.8.8.8:5a3\", resolutionMode: \"PARALLEL\"}  }";
         StringReader configReader = new StringReader(configFile);
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> Configuration.parse(configReader));
@@ -334,7 +334,7 @@ public class TestNettyNameResolver {
     }
 
     @Test
-    public void test_loghub_processors_NettyNameResolver() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.NettyNameResolver"
                               , BeanInfo.build("resolutionMode", NettyNameResolver.RESOLUTION_MODE.class)
                               , BeanInfo.build("resolver", String.class)

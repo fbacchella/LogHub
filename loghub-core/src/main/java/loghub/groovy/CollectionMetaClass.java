@@ -36,31 +36,31 @@ public class CollectionMetaClass extends LoghubMetaClass<CollectionMetaClass.Ite
             if (Object[].class.isAssignableFrom(array.getClass())) {
                 Collections.addAll(c, (Object[]) array);
             } else if (array instanceof double[]) {
-                for (double b: (double[]) array) {
+                for (double b : (double[]) array) {
                     c.add(b);
                 }
             } else if (array instanceof float[]) {
-                for (float b: (float[]) array) {
+                for (float b : (float[]) array) {
                     c.add(b);
                 }
             } else if (array instanceof long[]) {
-                for (long b: (long[]) array) {
+                for (long b : (long[]) array) {
                     c.add(b);
                 }
             } else if (array instanceof int[]) {
-                for (int b: (int[]) array) {
+                for (int b : (int[]) array) {
                     c.add(b);
                 }
             } else if (array instanceof short[]) {
-                for (short b: (short[]) array) {
+                for (short b : (short[]) array) {
                     c.add(b);
                 }
             } else if (array instanceof byte[]) {
-                for (byte b: (byte[]) array) {
+                for (byte b : (byte[]) array) {
                     c.add(b);
                 }
             } else if (array instanceof boolean[]) {
-                for (boolean b: (boolean[]) array) {
+                for (boolean b : (boolean[]) array) {
                     c.add(b);
                 }
             }
@@ -82,13 +82,13 @@ public class CollectionMetaClass extends LoghubMetaClass<CollectionMetaClass.Ite
                     c = new ArrayList<>();
                 } else if (handler.collection instanceof Set) {
                     c = new LinkedHashSet<>();
-                } else if (handler.collection != null){
+                } else if (handler.collection != null) {
                     c = handler.collection.getClass().getConstructor().newInstance();
                 } else {
                     throw new IllegalStateException("Unusable handler");
                 }
                 handler.filler.accept(c);
-                if ( ! (argument instanceof Collection || argument.getClass().isArray())) {
+                if (! (argument instanceof Collection || argument.getClass().isArray())) {
                     c.add(argument);
                 } else {
                     convertArgument(argument).filler.accept(c);

@@ -45,7 +45,7 @@ public abstract class AbstractXmlDecoder<X extends AbstractXmlDecoder<X, XB>, XB
     }
 
     private Object parse(GetInputStream getis) throws DecodeException {
-        try (InputStream is = getis.get()){
+        try (InputStream is = getis.get()) {
             Document d = handler.parse(is);
             return domTransform(d);
         } catch (IOException | SAXException ex) {

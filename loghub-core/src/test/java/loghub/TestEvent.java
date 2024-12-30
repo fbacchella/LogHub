@@ -24,7 +24,7 @@ import loghub.senders.BlockingConnectionContext;
 
 public class TestEvent {
 
-    private static Logger logger ;
+    private static Logger logger;
 
     private static class Looper extends Processor {
 
@@ -89,7 +89,7 @@ public class TestEvent {
     }
 
     @Test
-    public void TestLoop() {
+    public void testLoop() {
         Pipeline ppl = new Pipeline(List.of(new Looper(), new Looper(), new Looper(), new Looper(), new Looper(), new Looper()), "main", null);
         Map<String, Object> conf = new HashMap<>();
         conf.put("maxSteps", 5);
@@ -169,7 +169,7 @@ public class TestEvent {
     public void testWrapDepthSuccess() {
         Event event = factory.newEvent();
         List<String> path = new ArrayList<>();
-        for (String key: List.of("a", "b", "c", "d")) {
+        for (String key : List.of("a", "b", "c", "d")) {
             path.add(key);
             VariablePath vp = VariablePath.of(path);
             Event wrap1 = event.wrap(VariablePath.of(vp));
@@ -178,7 +178,7 @@ public class TestEvent {
             Assert.assertEquals(NullOrMissingValue.MISSING, event.getAtPath(vp));
             wrap1.put("value", true);
             Assert.assertEquals(true, wrap1.get("value"));
-            Assert.assertEquals(true, ((Map<String, Object>)event.getAtPath(vp)).get("value"));
+            Assert.assertEquals(true, ((Map<String, Object>) event.getAtPath(vp)).get("value"));
             event.clear();
         }
     }
@@ -189,7 +189,7 @@ public class TestEvent {
         List<String> path = new ArrayList<>();
         List<String> fullPath = List.of("a", "b", "c", "d");
         VariablePath fullVariablePath = VariablePath.of(fullPath);
-        for (String key: fullPath) {
+        for (String key : fullPath) {
             path.add(key);
             VariablePath vp = VariablePath.of(path);
             event.putAtPath(vp, new Object());
@@ -206,7 +206,7 @@ public class TestEvent {
         // Map.of doesn't allow null value;
         wrapped.put("a", null);
         event.put("top", wrapped);
-        for (String key: List.of("a", "b", "c")) {
+        for (String key : List.of("a", "b", "c")) {
             Assert.assertThrows(IgnoredEventException.class, () -> event.wrap(VariablePath.of(List.of("top", key))));
         }
         // Should not neither descend nor create [d e]

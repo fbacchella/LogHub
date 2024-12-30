@@ -162,7 +162,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
     }
 
     @SuppressWarnings("unchecked")
-    public<A extends SocketAddress> ConnectionContext<A> getConnectionContext(ChannelHandlerContext ctx) {
+    public <A extends SocketAddress> ConnectionContext<A> getConnectionContext(ChannelHandlerContext ctx) {
         return (ConnectionContext<A>) Optional.ofNullable(ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE)).map(Attribute::get).orElse(null);
     }
 

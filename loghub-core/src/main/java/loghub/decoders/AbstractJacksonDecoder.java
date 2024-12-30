@@ -38,7 +38,7 @@ public abstract class AbstractJacksonDecoder<JB extends AbstractJacksonDecoder.B
 
     @Override
     public Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
-        return runDecodeJackson(ctx, reader -> reader.readValue((InputStream)new ByteBufInputStream(bbuf)));
+        return runDecodeJackson(ctx, reader -> reader.readValue((InputStream) new ByteBufInputStream(bbuf)));
     }
 
     protected final Object runDecodeJackson(ConnectionContext<?> ctx, ObjectResolver gen) throws DecodeException {

@@ -107,9 +107,9 @@ public class Launch implements BaseCommand {
     public <T> Optional<T> getField(String name, Class<T> tClass) {
         switch (name) {
         case "configFile":
-            return Optional.of((T)configFile);
+            return Optional.of((T) configFile);
         case "help":
-            return Optional.of((T)Boolean.valueOf(help));
+            return Optional.of((T) Boolean.valueOf(help));
         default:
             return Optional.empty();
         }
@@ -125,7 +125,7 @@ public class Launch implements BaseCommand {
             p.configure(props);
             FieldsProcessor fp = (FieldsProcessor) p;
             Event ev = props.eventsFactory.newEvent();
-            new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).lines().forEach( i -> {
+            new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).lines().forEach(i -> {
                 try {
                     ev.put("message", i);
                     fp.fieldFunction(ev, i);
@@ -154,7 +154,7 @@ public class Launch implements BaseCommand {
 
         long starttime = System.nanoTime();
 
-        for (Map.Entry<String, Source> s: props.sources.entrySet()) {
+        for (Map.Entry<String, Source> s : props.sources.entrySet()) {
             if (! s.getValue().configure(props)) {
                 logger.error("failed to start source {}", s.getKey());
                 failed = true;
@@ -163,7 +163,7 @@ public class Launch implements BaseCommand {
 
         Helpers.parallelStartProcessor(props);
 
-        for (Sender s: props.senders) {
+        for (Sender s : props.senders) {
             s.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
             try {
                 if (s.configure(props)) {
@@ -183,14 +183,14 @@ public class Launch implements BaseCommand {
         }
 
         if (! failed) {
-            for (EventsProcessor ep: props.eventsprocessors) {
+            for (EventsProcessor ep : props.eventsprocessors) {
                 ep.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
                 ep.start();
             }
             Helpers.waitAllThreads(props.eventsprocessors.stream());
         }
 
-        for (Receiver<?, ?> r: props.receivers) {
+        for (Receiver<?, ?> r : props.receivers) {
             r.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
             try {
                 if (r.configure(props)) {

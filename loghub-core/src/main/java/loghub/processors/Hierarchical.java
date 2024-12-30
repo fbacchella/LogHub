@@ -45,13 +45,13 @@ public class Hierarchical extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        for (String eventField: Set.copyOf(event.keySet())) {
-            for (Pattern p: patterns) {
+        for (String eventField : Set.copyOf(event.keySet())) {
+            for (Pattern p : patterns) {
                 if (p.matcher(eventField).matches()) {
                     List<String> path = VariablePath.pathElements(eventField);
                     if (!path.isEmpty()) {
                         VariablePath d = destination;
-                        for (String e: path) {
+                        for (String e : path) {
                             d = d.append(e);
                         }
                         Etl renamer = Etl.Rename.of(d, VariablePath.of(eventField));

@@ -26,7 +26,7 @@ public class FireEvent extends Processor {
 
     @Override
     public boolean configure(Properties properties) {
-        if( ! properties.namedPipeLine.containsKey(destination)) {
+        if (! properties.namedPipeLine.containsKey(destination)) {
             logger.error("invalid destination for forked event: {}", destination);
             return false;
         }
@@ -39,7 +39,7 @@ public class FireEvent extends Processor {
     @Override
     public boolean process(Event event) throws ProcessorException {
         Event newEvent = factory.newEvent();
-        for (Map.Entry<VariablePath, Expression> e: expressions.entrySet()) {
+        for (Map.Entry<VariablePath, Expression> e : expressions.entrySet()) {
             Object value = e.getValue().eval(event);
             newEvent.putAtPath(e.getKey(), value);
         }

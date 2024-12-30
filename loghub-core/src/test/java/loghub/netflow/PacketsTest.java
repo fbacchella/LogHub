@@ -97,7 +97,7 @@ public class PacketsTest {
     public void testParse() {
         final List<NetflowPacket> packets = new ArrayList<>();
         Arrays.stream(captures)
-        .map(i -> {logger.debug(i + ": "); return i;})
+        .map(i -> { logger.debug(i + ": "); return i;})
         .map(i -> "/netflow/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
         .filter(Objects::nonNull)
@@ -117,7 +117,7 @@ public class PacketsTest {
         .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
         .forEach(i -> {
             try {
-                while(i.isReadable()) {
+                while (i.isReadable()) {
                     packets.add(PacketFactory.parsePacket(InetAddress.getLocalHost(), i));
                 }
             } catch (Exception e) {
@@ -156,13 +156,13 @@ public class PacketsTest {
         .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
         .forEach(i -> {
             try {
-                while(i.isReadable()) {
+                while (i.isReadable()) {
                     nfd.decode(dummyctx, i).forEach(content -> {
                         Assert.assertTrue(content.containsKey("version"));
                         Assert.assertTrue(content.containsKey("sequenceNumber"));
                         Assert.assertTrue(content.containsKey("records"));
-                        ((List<Map<String, Object>>)content.get("records")).forEach( j -> Assert.assertTrue(j.containsKey("_type")));
-                        if (((Integer)content.get("version"))< 10) {
+                        ((List<Map<String, Object>>) content.get("records")).forEach(j -> Assert.assertTrue(j.containsKey("_type")));
+                        if (((Integer) content.get("version")) < 10) {
                             Assert.assertTrue(content.containsKey("SysUptime"));
                         }
                         logger.debug(content);

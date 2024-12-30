@@ -95,7 +95,6 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
             return AsyncFieldsProcessor.this.filterField(event, toprocess, value, results::add);
         }
 
-
         @Override
         public boolean manageException(Event event, Exception e) throws ProcessorException {
             return AsyncFieldsProcessor.this.manageException(event, e, resolveDestination(toprocess));
@@ -139,7 +138,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
 
     protected AsyncFieldsProcessor(Builder<? extends FieldsProcessor, FI, F> builder) {
             super(builder);
-        if (builder.queueDepth == 0 ) {
+        if (builder.queueDepth == 0) {
             queryCount = Optional.empty();
         } else if (builder.queueDepth < 0) {
             // value is negative, not set, will use the default from the properties during the configuration

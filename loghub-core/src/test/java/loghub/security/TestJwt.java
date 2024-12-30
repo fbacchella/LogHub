@@ -32,7 +32,7 @@ public class TestJwt {
         Assert.assertEquals(issuer, newp.getIssuer());
     }
 
-    @Test(expected=SignatureVerificationException.class)
+    @Test(expected = SignatureVerificationException.class)
     public void testFailing() throws IllegalArgumentException, JWTCreationException {
         String secret = UUID.randomUUID().toString();
         String issuer = UUID.randomUUID().toString();
@@ -96,9 +96,9 @@ public class TestJwt {
 
     @Test
     public void testSign() {
-        String payload = "{\n" + 
-                        "  \"sub\": \"John Doe\",\n" + 
-                        "  \"iss\": \"LogHub\"\n" + 
+        String payload = "{\n" +
+                        "  \"sub\": \"John Doe\",\n" +
+                        "  \"iss\": \"LogHub\"\n" +
                         "}";
         String secret = UUID.randomUUID().toString();
         JWTHandler handler = JWTHandler.getBuilder().setAlg("HMAC256").secret(secret).build();
@@ -109,7 +109,7 @@ public class TestJwt {
         Assert.assertEquals("HS256", principal.getAlgorithm());
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testInvalidSign() {
         String secret = UUID.randomUUID().toString();
         JWTHandler.getBuilder().setAlg("BAD").secret(secret).build();

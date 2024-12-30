@@ -33,7 +33,7 @@ import loghub.Tools;
 
 public class TestJacksonModule {
 
-    private static Logger logger ;
+    private static Logger logger;
 
     @BeforeClass
     public static void configure() {
@@ -65,12 +65,12 @@ public class TestJacksonModule {
 
     public void runTest(Object value, Map.Entry<String, Consumer<JsonMapper>> mapperConfigurator, String expected) {
         try {
-            JsonMapper simpleMapper = getMapper(m -> {});
+            JsonMapper simpleMapper = getMapper(m -> { });
             JsonMapper axibaseMapper = getMapper(m -> m.addModule(new JacksonModule()));
             mapperConfigurator.getValue().accept(simpleMapper);
             mapperConfigurator.getValue().accept(axibaseMapper);
             ObjectWriter axibaseWritter =  axibaseMapper.writerFor(Object.class);
-            logger.debug("  {} {}", value.getClass().getName(),axibaseWritter.writeValueAsString(value));
+            logger.debug("  {} {}", value.getClass().getName(), axibaseWritter.writeValueAsString(value));
             Assert.assertEquals(value.getClass().getName(), expected, axibaseWritter.writeValueAsString(value));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
@@ -245,11 +245,11 @@ public class TestJacksonModule {
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/DateOffset with nano", "\"2024-04-29T16:11:38.936155001-04:00[America/New_York]\""),
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/LocalDate with nano", "\"2024-04-29T10:11:38.936155001-04:00[America/New_York]\"")
         );
-        for (Map.Entry<String, Consumer<JsonMapper>> c: configurators) {
-            for (Map.Entry<String, List<Object>> v: values) {
+        for (Map.Entry<String, Consumer<JsonMapper>> c : configurators) {
+            for (Map.Entry<String, List<Object>> v : values) {
                 logger.debug("{}/{}", c.getKey(), v.getKey());
                 String expectedValue = expected.get(String.format("%s/%s", c.getKey(), v.getKey()));
-                for (Object o: v.getValue()) {
+                for (Object o : v.getValue()) {
                     runTest(o, c, expectedValue);
                 }
             }

@@ -111,7 +111,7 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
             String contentType = Optional.ofNullable(headers.headers().get("Content-Type")).orElse("");
             String uri = headers.uri().replace("//", "/");
             HttpMethod method = headers.method();
-            if ( ("application/vnd.fdo.journal".equals(contentType))
+            if (("application/vnd.fdo.journal".equals(contentType))
                             &&  HttpMethod.POST.equals(method)
                             && "/upload".equals(uri)) {
                 valid = true;
@@ -153,7 +153,7 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
                 // Just drop the older events to save memory will keep consuming them
                 events.set(events.size() - Journald.this.maxWaitingEvents, null);
                 // If the events waiting size is too big, reduce it.
-                if (events.size() > Journald.this.maxWaitingEvents * 2 ) {
+                if (events.size() > Journald.this.maxWaitingEvents * 2) {
                     events = events.stream().filter(Objects::nonNull).collect(Collectors.toList());
                 }
             }

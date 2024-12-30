@@ -30,8 +30,8 @@ import lombok.Data;
 class IpfixInformationElements {
 
     @Data
-    @JsonPropertyOrder({"elementId","name","type","semantics","status","description",
-                        "units","range","additional","references","revision","date"})
+    @JsonPropertyOrder({"elementId", "name", "type", "semantics", "status", "description",
+                        "units", "range", "additional", "references", "revision", "date"})
     public static class Element {
         public final int elementId;
         public final String name;
@@ -80,12 +80,15 @@ class IpfixInformationElements {
 
         @Override
         public boolean equals(Object obj) {
-            if(this == obj)
+            if (this == obj) {
                 return true;
-            if(obj == null)
+            }
+            if (obj == null) {
                 return false;
-            if(getClass() != obj.getClass())
+            }
+            if (getClass() != obj.getClass()) {
                 return false;
+            }
             MacAddress other = (MacAddress) obj;
             return Arrays.equals(address, other.address);
         }
@@ -106,7 +109,7 @@ class IpfixInformationElements {
     private static final ThreadLocal<byte[]> buffer16 = ThreadLocal.withInitial(() -> new byte[16]);
 
     // Downloaded from https://www.iana.org/assignments/ipfix/ipfix-information-elements.csv
-    private static final String CSVSOURCE="ipfix-information-elements.csv";
+    private static final String CSVSOURCE = "ipfix-information-elements.csv";
 
     public final Map<Integer, Element> elements;
 

@@ -39,7 +39,7 @@ public class TestVariablePath {
         Event ev = new EventsFactory().newEvent();
         ev.putAtPath(vp, true);
         Map<String, Object> sub = ev;
-        for (String s: pathological) {
+        for (String s : pathological) {
             if (! ".".equals(s)) {
                 sub = (Map<String, Object>) sub.get(s);
             }
@@ -66,7 +66,7 @@ public class TestVariablePath {
         Assert.assertFalse(vp.isMeta());
         Assert.assertFalse(vp.isIndirect());
         Assert.assertEquals(VariablePath.of("a", "b", "c"), vp);
-        Assert.assertEquals(VariablePath.of(List.of("a","b", "c")), vp);
+        Assert.assertEquals(VariablePath.of(List.of("a", "b", "c")), vp);
         Assert.assertEquals("[a b c]", vp.toString());
         Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
     }
@@ -82,7 +82,7 @@ public class TestVariablePath {
     @Test
     public void rooted() {
         VariablePath vp = VariablePath.parse(".a.b.c");
-        Assert.assertEquals(VariablePath.of(".", "a","b", "c"), vp);
+        Assert.assertEquals(VariablePath.of(".", "a", "b", "c"), vp);
         Assert.assertEquals("[. a b c]", vp.toString());
         Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
     }

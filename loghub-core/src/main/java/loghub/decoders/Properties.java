@@ -12,8 +12,8 @@ public class Properties extends AbstractStringJackson<Properties.Builder, JavaPr
 
     @Setter
     public static class Builder extends AbstractStringJackson.Builder<Properties> {
-       private String keyValueSeparator= "=";
-        private String pathSeparator= ".";
+        private String keyValueSeparator = "=";
+        private String pathSeparator = ".";
         private boolean parseSimpleIndexes = true;
         private int firstArrayOffset = 1;
 

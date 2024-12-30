@@ -32,7 +32,7 @@ public class ZMQFactory extends ExternalResource {
         this.testFolder = null;
         this.subFolder = null;
     }
-    
+
     @Override
     protected void before() throws Throwable {
         if (testFolder != null) {

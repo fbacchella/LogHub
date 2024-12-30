@@ -33,10 +33,13 @@ public class CharSupport {
                 i++; // skip the \
                 end = i;
                 char charAt = literal.charAt(i);
-                if (charAt == 'u' ) {
+                if (charAt == 'u') {
                     i++;
                     for (end = i + 1; end < i + 4; end++) {
-                        if (end > last) return null; // invalid escape sequence.
+                        if (end > last) {
+                            // invalid escape sequence.
+                            return null;
+                        }
                         charAt = literal.charAt(end);
                         if (!Character.isDigit(charAt) && !(charAt >= 'a' && charAt <= 'f') && !(charAt >= 'A' && charAt <= 'F')) {
                             return null; // invalid escape sequence.
@@ -45,7 +48,10 @@ public class CharSupport {
                     buf.appendCodePoint(Integer.parseInt(literal.substring(i, end), 16));
                 } else if (Character.isDigit(charAt)) {
                     while (Character.isDigit(literal.charAt(++end))) {
-                        if (end + 1 > last) return null; // invalid escape sequence.
+                        if (end + 1 > last) {
+                            // invalid escape sequence.
+                            return null;
+                        }
                     }
                     buf.appendCodePoint(Integer.parseInt(literal.substring(i, end), 8));
                 } else {

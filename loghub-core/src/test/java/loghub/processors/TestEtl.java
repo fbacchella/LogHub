@@ -46,15 +46,15 @@ public class TestEtl {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Etl", "loghub.EventsProcessor", "loghub.Expression");
     }
 
-    private Event RunEtl(String exp, Consumer<Event> filer) throws ProcessorException {
-        return RunEtl(exp, filer, true);
+    private Event runEtl(String exp, Consumer<Event> filer) throws ProcessorException {
+        return runEtl(exp, filer, true);
     }
 
-    private Event RunEtl(String exp, Consumer<Event> filer, boolean status) throws ProcessorException {
-        return RunEtl(exp, filer, status, null);
+    private Event runEtl(String exp, Consumer<Event> filer, boolean status) throws ProcessorException {
+        return runEtl(exp, filer, status, null);
     }
 
-    private Event RunEtl(String exp, Consumer<Event> filer, boolean status, CompletableFuture<Event> holder) throws ProcessorException {
+    private Event runEtl(String exp, Consumer<Event> filer, boolean status, CompletableFuture<Event> holder) throws ProcessorException {
         Etl e =  ConfigurationTools.buildFromFragment(exp, RouteParser::etl);
         Map<String, Object> settings = new HashMap<>(1);
         e.configure(new Properties(settings));
@@ -204,7 +204,7 @@ public class TestEtl {
 
     private void runElementMissing(String etl) throws ExecutionException, InterruptedException {
         CompletableFuture<Event> holder = new CompletableFuture<>();
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl(etl, i -> {}, true, holder));
+        Assert.assertThrows(IgnoredEventException.class, () -> runEtl(etl, i -> {}, true, holder));
         Assert.assertTrue(holder.get().isEmpty());
     }
 
@@ -225,7 +225,7 @@ public class TestEtl {
 
     @Test
     public void testElementNull() throws ProcessorException {
-        Event ev =  RunEtl("[b] = [a]", i -> i.put("a", NullOrMissingValue.NULL));
+        Event ev =  runEtl("[b] = [a]", i -> i.put("a", NullOrMissingValue.NULL));
         Assert.assertTrue(ev.containsKey("b"));
         Assert.assertEquals(NullOrMissingValue.NULL, ev.get("b"));
         // Ensure that JUnit is not doing any magic tricks when checking NotNull
@@ -289,7 +289,7 @@ public class TestEtl {
 
     @Test
     public void testRename() throws ProcessorException {
-        Event ev =  RunEtl("[a] < [b]", i -> i.put("b", 1));
+        Event ev =  runEtl("[a] < [b]", i -> i.put("b", 1));
         Assert.assertEquals(1, ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
     }
@@ -297,7 +297,7 @@ public class TestEtl {
     @Test
     public void testRenameIndirecDeep() throws ProcessorException {
         Map<String, Object> amap = Collections.singletonMap("b", "c");
-        Event ev =  RunEtl("[<- a b] < [d]", i -> {
+        Event ev =  runEtl("[<- a b] < [d]", i -> {
             i.put("a", amap);
             i.put("d", 1);
         });
@@ -310,13 +310,13 @@ public class TestEtl {
 
     @Test
     public void testRemove() throws ProcessorException {
-        Event ev =  RunEtl("[a]-", i -> i.put("a", 1));
+        Event ev =  runEtl("[a]-", i -> i.put("a", 1));
         Assert.assertTrue(ev.isEmpty());
     }
 
     @Test
     public void testRemoveRoot() throws ProcessorException {
-        Event ev =  RunEtl("[.]-", i -> i.put("a", 1));
+        Event ev =  runEtl("[.]-", i -> i.put("a", 1));
         Assert.assertTrue(ev.isEmpty());
     }
 
@@ -333,7 +333,7 @@ public class TestEtl {
 
     @Test
     public void testMap() throws ProcessorException {
-        Event ev =  RunEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> i.put("b", 1));
+        Event ev =  runEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> i.put("b", 1));
         Assert.assertEquals(10, ev.remove("a"));
         Assert.assertEquals(1, ev.remove("b"));
         Assert.assertTrue(ev.isEmpty());
@@ -341,7 +341,7 @@ public class TestEtl {
 
     @Test
     public void testMapLong() throws ProcessorException {
-        Event ev =  RunEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> i.put("b", 1L));
+        Event ev =  runEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> i.put("b", 1L));
         Assert.assertEquals(10, ev.remove("a"));
         Assert.assertEquals(1L, ev.remove("b"));
         Assert.assertTrue(ev.isEmpty());
@@ -349,27 +349,27 @@ public class TestEtl {
 
     @Test
     public void testMapFailed() {
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> i.put("b", 3)));
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> {}));
+        Assert.assertThrows(IgnoredEventException.class, () -> runEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> i.put("b", 3)));
+        Assert.assertThrows(IgnoredEventException.class, () -> runEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> {}));
     }
 
     @Test
     public void testTimestamp() throws ProcessorException {
-        Event ev =  RunEtl("[@timestamp] = 1000", i -> {});
+        Event ev =  runEtl("[@timestamp] = 1000", i -> {});
         Assert.assertEquals(1000, ev.getTimestamp().getTime());
         Assert.assertTrue(ev.isEmpty());
     }
 
     @Test
     public void testTimestampMove() throws ProcessorException {
-        Event ev =  RunEtl("[@timestamp] < [b]", i -> i.put("b", 1000));
+        Event ev =  runEtl("[@timestamp] < [b]", i -> i.put("b", 1000));
         Assert.assertEquals(1000, ev.getTimestamp().getTime());
         Assert.assertTrue(ev.isEmpty());
     }
 
     @Test
     public void testTimestampFromInstant() throws ProcessorException {
-        Event ev =  RunEtl("[@timestamp] = [b]", i -> i.put("b", Instant.ofEpochMilli(1000)));
+        Event ev =  runEtl("[@timestamp] = [b]", i -> i.put("b", Instant.ofEpochMilli(1000)));
         Assert.assertEquals(1000, ev.getTimestamp().getTime());
         ev.remove("b");
         Assert.assertTrue(ev.isEmpty());
@@ -377,7 +377,7 @@ public class TestEtl {
 
     @Test
     public void testTimestampFromNumber() throws ProcessorException {
-        Event ev =  RunEtl("[@timestamp] = [b]", i -> i.put("b", 1000));
+        Event ev =  runEtl("[@timestamp] = [b]", i -> i.put("b", 1000));
         Assert.assertEquals(1000, ev.getTimestamp().getTime());
         ev.remove("b");
         Assert.assertTrue(ev.isEmpty());
@@ -385,7 +385,7 @@ public class TestEtl {
 
     @Test
     public void testTimestampFromDate() throws ProcessorException {
-        Event ev =  RunEtl("[@timestamp] = [b]", i -> i.put("b", new Date(1000)));
+        Event ev =  runEtl("[@timestamp] = [b]", i -> i.put("b", new Date(1000)));
         Assert.assertEquals(1000, ev.getTimestamp().getTime());
         ev.remove("b");
         Assert.assertTrue(ev.isEmpty());
@@ -393,70 +393,70 @@ public class TestEtl {
 
     @Test
     public void testMetaDirect() throws ProcessorException {
-        Event ev =  RunEtl("[#a] = 1", i -> {});
+        Event ev =  runEtl("[#a] = 1", i -> {});
         Assert.assertEquals(1, ev.getMeta("a"));
     }
 
     @Test
     public void testMetaToValueMove() throws ProcessorException {
-        Event ev =  RunEtl("[a] < [#b]", i -> i.putMeta("b", 1));
+        Event ev =  runEtl("[a] < [#b]", i -> i.putMeta("b", 1));
         Assert.assertEquals(1, ev.get("a"));
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getMeta("b"));
     }
 
     @Test
     public void testMetaToValueAssign() throws ProcessorException {
-        Event ev =  RunEtl("[a] = [#b]", i -> i.putMeta("b", 1));
+        Event ev =  runEtl("[a] = [#b]", i -> i.putMeta("b", 1));
         Assert.assertEquals(1, ev.get("a"));
         Assert.assertEquals(1, ev.getMeta("b"));
     }
 
     @Test
     public void testValueToMeta() throws ProcessorException {
-        Event ev =  RunEtl("[#a] < [b]", i -> i.put("b", 1));
+        Event ev =  runEtl("[#a] < [b]", i -> i.put("b", 1));
         Assert.assertEquals(1, ev.getMeta("a"));
         Assert.assertTrue(ev.isEmpty());
     }
 
     @Test
     public void testConvert() throws ProcessorException {
-        Event ev =  RunEtl("(java.lang.Integer) [a]", i -> i.put("a", "1"));
+        Event ev =  runEtl("(java.lang.Integer) [a]", i -> i.put("a", "1"));
         Assert.assertEquals(1, ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
     }
 
     @Test
     public void testConvertNull() {
-        Assert.assertThrows(loghub.IgnoredEventException.class, () -> RunEtl("(java.lang.Integer) [a]", i -> {}, false));
+        Assert.assertThrows(loghub.IgnoredEventException.class, () -> runEtl("(java.lang.Integer) [a]", i -> {}, false));
     }
 
     @Test
     public void testConvertNullPath() {
-        Assert.assertThrows(loghub.IgnoredEventException.class, () -> RunEtl("(java.lang.Integer) [a b]", i -> {}, false));
+        Assert.assertThrows(loghub.IgnoredEventException.class, () -> runEtl("(java.lang.Integer) [a b]", i -> {}, false));
     }
 
     @Test
     public void testCastMeta() throws ProcessorException {
-        Event ev =  RunEtl("(java.lang.Integer) [#a]", i -> i.putMeta("a", "1"));
+        Event ev =  runEtl("(java.lang.Integer) [#a]", i -> i.putMeta("a", "1"));
         Assert.assertEquals(1, ev.getMeta("a"));
         Assert.assertTrue(ev.isEmpty());
     }
 
     @Test
     public void testFormatMeta() throws ProcessorException {
-        Event ev =  RunEtl("[a]=\"${#1%s} ${#2%s}\"([#type], [type])", i -> {i.putMeta("type", 1);i.put("type", 2);} );
+        Event ev =  runEtl("[a]=\"${#1%s} ${#2%s}\"([#type], [type])", i -> {i.putMeta("type", 1);i.put("type", 2);});
         Assert.assertEquals("1 2", ev.get("a"));
     }
 
     @Test
     public void testFormatSimple() throws ProcessorException {
-        Event ev =  RunEtl("[c]=\"${a%s} ${b%s}\"", i -> {i.put("a", 1);i.put("b", 2);} );
+        Event ev =  runEtl("[c]=\"${a%s} ${b%s}\"", i -> {i.put("a", 1);i.put("b", 2);} );
         Assert.assertEquals("1 2", ev.get("c"));
     }
 
     @Test
     public void testCastComplex() throws ProcessorException {
-        Event ev =  RunEtl("[#principal] = ([#principal] =~ /([^@]+)(@.*)?/ )[1]", i -> i.putMeta("principal", "nobody"));
+        Event ev =  runEtl("[#principal] = ([#principal] =~ /([^@]+)(@.*)?/ )[1]", i -> i.putMeta("principal", "nobody"));
         Assert.assertEquals("nobody", ev.getMeta("principal"));
         Assert.assertTrue(ev.isEmpty());
     }
@@ -464,39 +464,39 @@ public class TestEtl {
     @Test
     public void testMetaChar() throws ProcessorException {
         // The expected string is "'!
-        Event ev =  RunEtl("[a] = \"\\\"'!\"", i -> {});
+        Event ev =  runEtl("[a] = \"\\\"'!\"", i -> {});
         Assert.assertEquals("\"'!", ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
     }
 
     @Test(expected=RecognitionException.class)
     public void testContextReadOnly() throws ProcessorException {
-        RunEtl("[@context principal] = 1", i -> {});
+        runEtl("[@context principal] = 1", i -> {});
     }
 
     @Test
     public void testAppend() throws ProcessorException {
         // Comprehensive type testing is done in loghub.TestEvent#testAppend()
-        Event ev1 =  RunEtl("[a] =+ 1", i -> i.put("a", new int[]{0}));
+        Event ev1 =  runEtl("[a] =+ 1", i -> i.put("a", new int[]{0}));
         int[] v1 = (int[]) ev1.get("a");
         Assert.assertArrayEquals(new int[]{0, 1}, v1);
 
-        Event ev2 =  RunEtl("[a] =+ 1", i -> i.put("a", new Number[]{0L}));
+        Event ev2 =  runEtl("[a] =+ 1", i -> i.put("a", new Number[]{0L}));
         Number[] v2 = (Number[]) ev2.get("a");
         Assert.assertArrayEquals(new Number[]{0L, 1}, v2);
 
-        Event ev3 =  RunEtl("[a] =+ 1", i -> i.put("a", new ArrayList<>(List.of("0"))));
+        Event ev3 =  runEtl("[a] =+ 1", i -> i.put("a", new ArrayList<>(List.of("0"))));
         @SuppressWarnings("unchecked")
         List<Object> v3 = (List<Object>) ev3.get("a");
         Assert.assertEquals(List.of("0", 1), v3);
 
-        Event ev4 =  RunEtl("[a] =+ 1", i -> {});
+        Event ev4 =  runEtl("[a] =+ 1", i -> {});
         @SuppressWarnings("unchecked")
         List<Object> v4 = (List<Object>) ev4.get("a");
         Assert.assertEquals(List.of(1), v4);
 
         Assert.assertThrows(IgnoredEventException.class,
-                            () -> RunEtl("[a] =+ [b]", i -> i.put("a", new ArrayList<>(List.of("0")))));
+                            () -> runEtl("[a] =+ [b]", i -> i.put("a", new ArrayList<>(List.of("0")))));
     }
 
 }

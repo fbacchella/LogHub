@@ -85,7 +85,7 @@ public class TestHierarchical {
     }
 
     @Test
-    public void TestHierarchy0() throws ProcessorException {
+    public void testHierarchy0() throws ProcessorException {
         Event ev = process(b -> {
                 },
                 e -> {
@@ -102,7 +102,7 @@ public class TestHierarchical {
     }
 
     @Test
-    public void TestHierarchy1() throws ProcessorException {
+    public void testHierarchy1() throws ProcessorException {
         Event ev = process(b -> {
                     b.setDestination(VariablePath.of("tmp"));
                     b.setFields(new String[]{"*.*"});
@@ -121,7 +121,7 @@ public class TestHierarchical {
     }
 
     @Test
-    public void TestHierarchy2() throws ProcessorException {
+    public void testHierarchy2() throws ProcessorException {
         Event ev = process(b -> b.setFields(new String[]{"*"}),
                 e -> {
                     e.put("a.b", 1);
@@ -139,7 +139,7 @@ public class TestHierarchical {
     }
 
     @Test
-    public void TestHierarchy3() throws ProcessorException {
+    public void testHierarchy3() throws ProcessorException {
         Event ev = process(b -> {
                     b.setDestination(VariablePath.of("tmp"));
                     b.setFields(new String[]{"a.*"});
@@ -158,7 +158,7 @@ public class TestHierarchical {
     }
 
     @Test
-    public void TestHierarchy4() throws ProcessorException {
+    public void testHierarchy4() throws ProcessorException {
         Event ev = process(b -> {
             b.setFields(new String[] {"*"});
             b.setDestination(VariablePath.parse("."));
@@ -173,11 +173,11 @@ public class TestHierarchical {
         Assert.assertEquals(1, ev.getAtPath(VariablePath.parse("a.b")));
         Assert.assertEquals(2, ev.getAtPath(VariablePath.parse("c.d")));
         Assert.assertEquals(3, ev.get("e"));
-        Assert.assertTrue(((Map<?, ?>)ev.getAtPath(VariablePath.parse("s"))).isEmpty());
+        Assert.assertTrue(((Map<?, ?>) ev.getAtPath(VariablePath.parse("s"))).isEmpty());
     }
 
     @Test
-    public void test_loghub_processors_Hierarchical() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Hierarchical"
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)
                 , BeanChecks.BeanInfo.build("fields", String[].class)

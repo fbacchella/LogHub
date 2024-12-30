@@ -43,7 +43,7 @@ public class TestXmlDom {
     }
 
     @Test
-    public void test_loghub_decoders_XmlDom() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.decoders.XmlDom"
                 , BeanChecks.BeanInfo.build("nameSpaceAware", Boolean.TYPE)
                 , BeanChecks.BeanInfo.build("field", String.class)

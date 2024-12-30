@@ -21,7 +21,7 @@ public abstract class MsgpackTimeSerializer<K> extends JsonSerializer<K> {
         public void serialize(Date value, JsonGenerator gen, SerializerProvider serializers)
                 throws IOException {
             long seconds = Math.floorDiv(value.getTime(), 1000L);
-            int nanoseconds = ((int)(value.getTime() % 1000L)) * 1000000;
+            int nanoseconds = ((int) (value.getTime() % 1000L)) * 1000000;
             doSerialiaze(seconds, nanoseconds, (MessagePackGenerator) gen);
         }
 
@@ -49,10 +49,10 @@ public abstract class MsgpackTimeSerializer<K> extends JsonSerializer<K> {
     void doSerialiaze(long seconds, int nanoseconds, MessagePackGenerator gen) throws IOException {
         ByteBuffer longBuffer = ByteBuffer.wrap(new byte[12]);
         longBuffer.order(ByteOrder.BIG_ENDIAN);
-        long result = ((long)nanoseconds << 34) | seconds;
+        long result = ((long) nanoseconds << 34) | seconds;
         int size;
         if ((result >> 34) == 0) {
-            if ((result & 0xffffffff00000000L) == 0 ) {
+            if ((result & 0xffffffff00000000L) == 0) {
                 longBuffer.putInt((int) result);
                 size = 4;
             } else {
@@ -64,7 +64,7 @@ public abstract class MsgpackTimeSerializer<K> extends JsonSerializer<K> {
             longBuffer.putLong(seconds);
             size = 12;
         }
-        MessagePackExtensionType ext = new MessagePackExtensionType((byte)-1, Arrays.copyOf(longBuffer.array(), size));
+        MessagePackExtensionType ext = new MessagePackExtensionType((byte) -1, Arrays.copyOf(longBuffer.array(), size));
         gen.writeExtensionType(ext);
     }
 

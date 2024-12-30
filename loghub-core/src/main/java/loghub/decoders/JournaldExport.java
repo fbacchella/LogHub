@@ -57,7 +57,7 @@ public class JournaldExport extends Decoder {
     // MONOTONIC_TIMESTAMP is skipped any way, it's an address field
     private static final String TIMESTAMP_R = "REALTIME_TIMESTAMP".toLowerCase(Locale.ENGLISH);
 
-    private static final ByteProcessor FIND_EQUAL = new IndexOfProcessor((byte)'=');
+    private static final ByteProcessor FIND_EQUAL = new IndexOfProcessor((byte) '=');
     private static final ByteProcessor NON_UNDERSCORE = value -> value == (byte) '_';
 
     @Data
@@ -71,7 +71,7 @@ public class JournaldExport extends Decoder {
             userFields.clear();
             trustedFields.clear();
         }
-        boolean isEmpty (){
+        boolean isEmpty() {
             return userFields.isEmpty() && trustedFields.isEmpty();
         }
     }

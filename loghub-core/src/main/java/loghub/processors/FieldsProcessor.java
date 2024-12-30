@@ -155,15 +155,15 @@ public abstract class FieldsProcessor extends Processor {
             }
             if (! event.containsAtPath(toprocess)) {
                 throw event.buildException("Field " + toprocess + " vanished");
-            } else if (isIterable(event, toprocess)){
+            } else if (isIterable(event, toprocess)) {
                 Object value = event.getAtPath(toprocess);
                 List<Object> values;
                 if (value instanceof Collection) {
                     @SuppressWarnings("unchecked")
-                    Collection<Object> c = (Collection<Object>)value;
+                    Collection<Object> c = (Collection<Object>) value;
                     values = new ArrayList<>(c);
                  } else {
-                    values = Arrays.stream((Object[])value).collect(Collectors.toList());
+                    values = Arrays.stream((Object[]) value).collect(Collectors.toList());
                 }
                 Collections.reverse(values);
                 Collection<Object> results = value instanceof Set ?
@@ -222,7 +222,7 @@ public abstract class FieldsProcessor extends Processor {
         if (builder.fields != null) {
             this.globs = new String[builder.fields.length];
             this.patterns = new Pattern[builder.fields.length];
-            for (int i = 0 ; i < builder.fields.length ; i++) {
+            for (int i = 0; i < builder.fields.length; i++) {
                 this.globs[i] = builder.fields[i];
                 this.patterns[i] = Helpers.convertGlobToRegex(this.globs[i]);
             }
@@ -238,7 +238,7 @@ public abstract class FieldsProcessor extends Processor {
 
     @Override
     public boolean configure(Properties properties) {
-        if ( (getFailure() != null || getSuccess() != null || getException() != null) && patterns.length > 0) {
+        if ((getFailure() != null || getSuccess() != null || getException() != null) && patterns.length > 0) {
             logger.error("Will not run conditional processors when multiple fields are defined");
             return false;
         }
@@ -251,8 +251,8 @@ public abstract class FieldsProcessor extends Processor {
         if (patterns.length != 0) {
             // Patterns found, try to process many variables
             //Build a set of fields that needs to be processed
-            for (String eventField: new HashSet<>(event.keySet())) {
-                for (Pattern p: patterns) {
+            for (String eventField : new HashSet<>(event.keySet())) {
+                for (Pattern p : patterns) {
                     if (p.matcher(eventField).matches()) {
                         VariablePath vp = VariablePath.of(eventField);
                         walkTree(event, vp, nextfields);
@@ -273,7 +273,7 @@ public abstract class FieldsProcessor extends Processor {
             walkTree(event, field, nextfields);
             delegate(nextfields, event);
             throw IgnoredEventException.INSTANCE;
-        } else if (isIterable(event, field) ) {
+        } else if (isIterable(event, field)) {
             // The returned value is iterable and iteration for each value was requested, delegate it
             delegate(Set.of(field), event);
             throw IgnoredEventException.INSTANCE;
@@ -309,7 +309,7 @@ public abstract class FieldsProcessor extends Processor {
             if (event.getAtPath(nodepath) instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> node = (Map<String, Object>) event.getAtPath(nodepath);
-                for (String key: node.keySet()) {
+                for (String key : node.keySet()) {
                     queue.add(nodepath.append(key));
                 }
             }
@@ -319,7 +319,7 @@ public abstract class FieldsProcessor extends Processor {
     private void walkTreeDepthPostOrder(Event event, VariablePath base, Set<VariablePath> nextfields) {
         @SuppressWarnings("unchecked")
         Map<String, Object> node = (Map<String, Object>) event.getAtPath(base);
-        for (String key: node.keySet()) {
+        for (String key : node.keySet()) {
             walkTree(event, base.append(key), nextfields);
         }
         nextfields.add(base);
@@ -378,7 +378,7 @@ public abstract class FieldsProcessor extends Processor {
     protected VariablePath resolveDestination(VariablePath currentField) {
         if (destinationTemplate != null) {
             return VariablePath.of(
-                    destinationTemplate.format(Collections.singletonMap("field", currentField.get(currentField.length() -1))));
+                    destinationTemplate.format(Collections.singletonMap("field", currentField.get(currentField.length() - 1))));
         } else if (destination != null) {
             return destination;
         } else {
@@ -421,7 +421,7 @@ public abstract class FieldsProcessor extends Processor {
     public void setFields(String[] fields) {
         this.globs = new String[fields.length];
         this.patterns = new Pattern[fields.length];
-        for (int i = 0 ; i < fields.length ; i++) {
+        for (int i = 0; i < fields.length; i++) {
             this.globs[i] = fields[i];
             this.patterns[i] = Helpers.convertGlobToRegex(this.globs[i]);
         }

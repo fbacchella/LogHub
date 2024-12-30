@@ -37,8 +37,7 @@ public class Xml extends AbstractJacksonEncoder<Xml.Builder, XmlMapper> {
                 .setConfigurator(om -> {
                     om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, ! (builder.pretty || builder.dateAsText));
                     om.configure(ToXmlGenerator.Feature.WRITE_XML_DECLARATION, builder.xmlDeclaration);
-                })
-                ;
+                });
         if (builder.pretty) {
             jbuilder.feature(SerializationFeature.INDENT_OUTPUT);
         }

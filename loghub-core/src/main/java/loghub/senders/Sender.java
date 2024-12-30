@@ -189,7 +189,7 @@ public abstract class Sender extends Thread implements Closeable {
 
     /**
      * A runnable that will be affected to publishing threads. It consumes event and send them as bulk
-     * 
+     *
      * @return a batch publisher runnable
      */
     protected Runnable getPublisher() {
@@ -226,14 +226,14 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     protected void buildSyncer(Properties properties) {
-        for (int i = 0; i < threads.length ; i++) {
+        for (int i = 0; i < threads.length; i++) {
             threads[i] = ThreadBuilder.get().setName(getName() + "Publisher" + i)
                                             .setTask(publisher)
                                             .setDaemon(false)
                                             .build(true);
         }
         //Schedule a task to flush every 5 seconds
-        properties.registerScheduledTask(getName() + "Flusher" , this::syncFlush, flushInterval);
+        properties.registerScheduledTask(getName() + "Flusher", this::syncFlush, flushInterval);
         Helpers.waitAllThreads(Arrays.stream(threads));
     }
 
@@ -413,7 +413,7 @@ public abstract class Sender extends Thread implements Closeable {
             try {
                 logger.trace("New event to send: {}", event);
                 // queue return false if this event was not batched
-                boolean status = isWithBatch() ? queue(event): send(event);
+                boolean status = isWithBatch() ? queue(event) : send(event);
                 if (! isAsync || (isWithBatch() && ! status)) {
                     processStatus(event, status);
                 }
@@ -437,7 +437,7 @@ public abstract class Sender extends Thread implements Closeable {
 
     /**
      * A method that can be used inside custom {@link Sender#run()} for synchronous wait
-     * 
+     *
      * @return a waiting event
      * @throws InterruptedException
      */

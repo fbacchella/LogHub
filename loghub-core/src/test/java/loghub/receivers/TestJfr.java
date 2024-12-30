@@ -142,7 +142,7 @@ public class TestJfr {
     }
 
     @Test
-    public void test_loghub_receivers_Journald() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Jfr"
                 , BeanChecks.BeanInfo.build("durationUnit", Jfr.DURATION_FORMAT.class)
                 , BeanChecks.BeanInfo.build("jfrFile", String.class)

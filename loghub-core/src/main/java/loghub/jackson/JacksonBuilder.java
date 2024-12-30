@@ -39,7 +39,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
         try {
             Method builderMethod = clazz.getMethod("builder");
             @SuppressWarnings("unchecked")
-            MapperBuilder<T,?> builder = (MapperBuilder<T, ?>) builderMethod.invoke(null);
+            MapperBuilder<T, ?> builder = (MapperBuilder<T, ?>) builderMethod.invoke(null);
             defautConfiguration(builder);
             return new JacksonBuilder<>(builder);
         } catch (NoSuchMethodException | SecurityException | IllegalAccessException | InvocationTargetException ex) {
@@ -51,7 +51,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
         try {
             Method builderMethod = clazz.getMethod("builder", factory.getClass());
             @SuppressWarnings("unchecked")
-            MapperBuilder<T,?> builder = (MapperBuilder<T, ?>) builderMethod.invoke(null, factory);
+            MapperBuilder<T, ?> builder = (MapperBuilder<T, ?>) builderMethod.invoke(null, factory);
             defautConfiguration(builder);
             return new JacksonBuilder<>(builder);
         } catch (NoSuchMethodException | SecurityException | IllegalAccessException | InvocationTargetException ex) {
@@ -69,7 +69,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
         builder.enable(StreamReadFeature.USE_FAST_DOUBLE_PARSER);
     }
 
-    public static <T extends ObjectMapper,B extends MapperBuilder<T,B>> JacksonBuilder<T> get(B builder) {
+    public static <T extends ObjectMapper, B extends MapperBuilder<T, B>> JacksonBuilder<T> get(B builder) {
         return new JacksonBuilder<>(builder);
     }
 
@@ -77,7 +77,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
         /* empty */
     };
 
-    private final MapperBuilder<T,?> builder;
+    private final MapperBuilder<T, ?> builder;
 
     @Setter
     private FormatSchema schema = null;
@@ -101,7 +101,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
     }
 
     public ObjectWriter getWriter() {
-        ObjectWriter writer = getMapper().writerFor(typeReference != null ? typeReference: OBJECTREF);
+        ObjectWriter writer = getMapper().writerFor(typeReference != null ? typeReference : OBJECTREF);
         if (schema != null) {
             writer = writer.with(schema);
         }
@@ -121,7 +121,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
         }
         return mapper;
     }
-    
+
     public JacksonBuilder<T> feature(Enum<?> e) {
         try {
             Object o = Array.newInstance(e.getClass(), 1);

@@ -33,7 +33,7 @@ public class MacAddress {
             throw new IllegalArgumentException(addressStr + " is not a valid mac address");
         } else {
             int length = 0;
-            for (int i = 1 ; i <= m.groupCount(); i++) {
+            for (int i = 1; i <= m.groupCount(); i++) {
                 if (m.group(i) == null) {
                     break;
                 } else {
@@ -42,7 +42,7 @@ public class MacAddress {
             }
             address = new byte[length];
 
-            for (int i = 0 ; i < address.length; i++) {
+            for (int i = 0; i < address.length; i++) {
                 String j = m.group(i + 1);
                 address[i] = Short.decode("0x" + j).byteValue();
             }

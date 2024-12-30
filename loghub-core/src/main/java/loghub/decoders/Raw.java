@@ -32,7 +32,7 @@ public class Raw extends Decoder {
 
     @Override
     protected Object decodeObject(ConnectionContext<?> ctx, byte[] msg, int offset, int length) {
-        return Arrays.copyOfRange(msg,offset, offset + length);
+        return Arrays.copyOfRange(msg, offset, offset + length);
     }
 
 }

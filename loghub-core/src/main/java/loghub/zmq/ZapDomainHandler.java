@@ -46,8 +46,7 @@ public interface ZapDomainHandler {
                     throw new UnsupportedOperationException();
                 }
             }
-        }
-        ;
+        };
         abstract ZapDomainHandler get(ZMQSocketFactory factory, Mechanisms security);
     }
 

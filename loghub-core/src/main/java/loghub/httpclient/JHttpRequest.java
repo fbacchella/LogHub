@@ -122,7 +122,7 @@ class JHttpRequest<T> extends HttpRequest<T> {
         return builder.build();
     }
 
-    private <U> Function<U,T> bodyStringResponse() {
+    private <U> Function<U, T> bodyStringResponse() {
         return i -> {
             Reader r = new StringReader((String) i);
             try {
@@ -133,7 +133,7 @@ class JHttpRequest<T> extends HttpRequest<T> {
         };
     }
 
-    private <U> Function<U,T> bodyInputStreamResponse() {
+    private <U> Function<U, T> bodyInputStreamResponse() {
         return i -> {
             try {
                 return getConsumeBytes().read((InputStream) i);

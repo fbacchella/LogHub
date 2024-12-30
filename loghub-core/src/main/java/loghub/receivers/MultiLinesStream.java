@@ -44,7 +44,7 @@ public class MultiLinesStream extends AbstractNettyStream<MultiLinesStream, Mult
          */
         @Override
         protected void decode(ChannelHandlerContext ctx, String msg, List<Object> out) {
-            if (matcherHolder.get().reset(msg).matches()){
+            if (matcherHolder.get().reset(msg).matches()) {
                 buffer.append(joinWith).append(matcherHolder.get().group("payload"));
             } else {
                 if (buffer.length() > 0) {

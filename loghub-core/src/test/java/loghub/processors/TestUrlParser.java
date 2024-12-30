@@ -294,7 +294,7 @@ public class TestUrlParser {
     }
 
     @Test
-    public void test_loghub_processors_UrlParser() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.UrlParser"
                 , BeanChecks.BeanInfo.build("reference", String.class)
                 , BeanChecks.BeanInfo.build("inPlace", Boolean.TYPE)

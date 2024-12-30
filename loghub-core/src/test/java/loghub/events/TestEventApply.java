@@ -43,18 +43,18 @@ public class TestEventApply {
         Assert.assertEquals(4, e.keySet().size());
 
         applyAction(e, true, Event.Action.CONTAINSVALUE, 2);
-        applyAction(e, false, Event.Action.CONTAINSVALUE, 1,"a");
-        applyAction(e, true, Event.Action.CONTAINSVALUE, 1,"a", "b");
-        applyAction(e, false, Event.Action.CONTAINSVALUE, 1,"a", "b", "c");
-        applyAction(e, false, Event.Action.CONTAINSVALUE, 1,"i");
+        applyAction(e, false, Event.Action.CONTAINSVALUE, 1, "a");
+        applyAction(e, true, Event.Action.CONTAINSVALUE, 1, "a", "b");
+        applyAction(e, false, Event.Action.CONTAINSVALUE, 1, "a", "b", "c");
+        applyAction(e, false, Event.Action.CONTAINSVALUE, 1, "i");
         applyAction(e, true, Event.Action.CONTAINSVALUE, 2);
 
         applyAction(e, false, Event.Action.CONTAINS, null);
-        applyAction(e, true, Event.Action.CONTAINS, null,"a");
-        applyAction(e, true, Event.Action.CONTAINS, null,"a", "b");
-        applyAction(e, true, Event.Action.CONTAINS, null,"a", "b", "c");
+        applyAction(e, true, Event.Action.CONTAINS, null, "a");
+        applyAction(e, true, Event.Action.CONTAINS, null, "a", "b");
+        applyAction(e, true, Event.Action.CONTAINS, null, "a", "b", "c");
         applyAction(e, true, Event.Action.CONTAINS, null, "d");
-        applyAction(e, false, Event.Action.CONTAINS, null,"d", "e");
+        applyAction(e, false, Event.Action.CONTAINS, null, "d", "e");
 
         applyAction(e, 4, Event.Action.SIZE, null);
         applyAction(e, 1, Event.Action.SIZE, null, "a", "b");
@@ -105,47 +105,47 @@ public class TestEventApply {
 
         e.put("a", new char[]{'1'});
         applyAction(e, true, Event.Action.APPEND, '2', "a");
-        Assert.assertArrayEquals(new char[]{'1', '2'}, (char[])e.get("a"));
+        Assert.assertArrayEquals(new char[]{'1', '2'}, (char[]) e.get("a"));
 
         e.put("a", new boolean[]{true});
         applyAction(e, true, Event.Action.APPEND, false, "a");
-        Assert.assertArrayEquals(new boolean[]{true, false}, (boolean[])e.get("a"));
+        Assert.assertArrayEquals(new boolean[]{true, false}, (boolean[]) e.get("a"));
 
         e.put("a", new byte[]{1});
         applyAction(e, true, Event.Action.APPEND, 2, "a");
-        Assert.assertArrayEquals(new byte[]{1, 2}, (byte[])e.get("a"));
+        Assert.assertArrayEquals(new byte[]{1, 2}, (byte[]) e.get("a"));
 
         e.put("a", new short[]{1});
         applyAction(e, true, Event.Action.APPEND, 2, "a");
-        Assert.assertArrayEquals(new short[]{1, 2}, (short[])e.get("a"));
+        Assert.assertArrayEquals(new short[]{1, 2}, (short[]) e.get("a"));
 
         e.put("a", new int[]{1});
         applyAction(e, true, Event.Action.APPEND, 2, "a");
-        Assert.assertArrayEquals(new int[]{1, 2}, (int[])e.get("a"));
+        Assert.assertArrayEquals(new int[]{1, 2}, (int[]) e.get("a"));
 
         e.put("a", new long[]{1L});
         applyAction(e, true, Event.Action.APPEND, 2L, "a");
-        Assert.assertArrayEquals(new long[]{1L, 2L}, (long[])e.get("a"));
+        Assert.assertArrayEquals(new long[]{1L, 2L}, (long[]) e.get("a"));
 
         e.put("a", new float[]{1.0f});
         applyAction(e, true, Event.Action.APPEND, 2.0f, "a");
-        Assert.assertArrayEquals(new float[]{1.0f, 2.0f}, (float[])e.get("a"), 1e-5f);
+        Assert.assertArrayEquals(new float[]{1.0f, 2.0f}, (float[]) e.get("a"), 1e-5f);
 
         e.put("a", new double[]{1.0});
         applyAction(e, true, Event.Action.APPEND, 2.0, "a");
-        Assert.assertArrayEquals(new double[]{1.0, 2.0}, (double[])e.get("a"), 1e-5);
+        Assert.assertArrayEquals(new double[]{1.0, 2.0}, (double[]) e.get("a"), 1e-5);
 
         e.put("a", new String[]{"1"});
         applyAction(e, true, Event.Action.APPEND, "2", "a");
-        Assert.assertArrayEquals(new String[]{"1", "2"}, (String[])e.get("a"));
+        Assert.assertArrayEquals(new String[]{"1", "2"}, (String[]) e.get("a"));
 
         e.put("a", new String[]{"1"});
         applyAction(e, true, Event.Action.APPEND, null, "a");
-        Assert.assertArrayEquals(new String[]{"1", null}, (String[])e.get("a"));
+        Assert.assertArrayEquals(new String[]{"1", null}, (String[]) e.get("a"));
 
         e.put("a", new String[]{"1"});
         applyAction(e, true, Event.Action.APPEND, NullOrMissingValue.NULL, "a");
-        Assert.assertArrayEquals(new String[]{"1", null}, (String[])e.get("a"));
+        Assert.assertArrayEquals(new String[]{"1", null}, (String[]) e.get("a"));
 
         Assert.assertThrows(IgnoredEventException.class,
                 () -> applyAction(e, false, Event.Action.APPEND, NullOrMissingValue.MISSING, "a"));
@@ -166,7 +166,7 @@ public class TestEventApply {
         Assert.assertEquals(new Date(1), e.applyAtPath(Event.Action.GET, VariablePath.TIMESTAMP, null));
         Assert.assertThrows(IllegalArgumentException.class,
                 () -> e.applyAtPath(Event.Action.PUT, VariablePath.TIMESTAMP, null));
-        for (Event.Action a: List.of(Event.Action.APPEND,
+        for (Event.Action a : List.of(Event.Action.APPEND,
                                     Event.Action.SIZE,
                                     Event.Action.CONTAINSVALUE,
                                     Event.Action.CONTAINS,
@@ -204,10 +204,10 @@ public class TestEventApply {
         Assert.assertNull(e.applyAtPath(Event.Action.CLEAR, VariablePath.ALLMETAS, null));
         Assert.assertEquals(true, e.applyAtPath(Event.Action.ISEMPTY, VariablePath.ALLMETAS, null));
         Assert.assertEquals(Collections.emptySet(),
-                new HashSet<>( (Collection) e.applyAtPath(Event.Action.VALUES, VariablePath.ALLMETAS, null)));
+                new HashSet<>((Collection) e.applyAtPath(Event.Action.VALUES, VariablePath.ALLMETAS, null)));
         Assert.assertEquals(Collections.emptySet(),
-                new HashSet<>( (Collection) e.applyAtPath(Event.Action.KEYSET, VariablePath.ALLMETAS, null)));
-        for(Event.Action a: List.of(Event.Action.GET,
+                new HashSet<>((Collection) e.applyAtPath(Event.Action.KEYSET, VariablePath.ALLMETAS, null)));
+        for (Event.Action a : List.of(Event.Action.GET,
                                     Event.Action.PUT,
                                     Event.Action.APPEND,
                                     Event.Action.REMOVE

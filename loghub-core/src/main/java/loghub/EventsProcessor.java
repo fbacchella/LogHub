@@ -41,15 +41,15 @@ public class EventsProcessor extends Thread {
 
     private final BlockingQueue<Event> inQueue;
     private final Map<String, BlockingQueue<Event>> outQueues;
-    private final Map<String,Pipeline> namedPipelines;
+    private final Map<String, Pipeline> namedPipelines;
     private final int maxSteps;
     private final EventsRepository<Future<?>> evrepo;
-    
+
     // Used to handle events async processing
     private final BlockingQueue<Event> blockedAsync = new LinkedBlockingQueue<>();
     private Event lastblockedAsync = null;
 
-    public EventsProcessor(PriorityBlockingQueue inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
+    public EventsProcessor(PriorityBlockingQueue inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String, Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
         this.inQueue = inQueue;
         this.outQueues = outQueues;
         this.namedPipelines = namedPipelines;
@@ -184,7 +184,7 @@ public class EventsProcessor extends Thread {
                     event.doMetric(PipelineStat.EXCEPTION, new IllegalStateException("Invalid end state for event, no pipeline"));
                     logger.debug("Invalid end state for event {}", event);
                     event.end();
-                } 
+                }
             }
             Stats.endProcessingEvent(tctxt);
         }
@@ -288,7 +288,7 @@ public class EventsProcessor extends Thread {
                 // A "do nothing" process
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException | UncheckedProcessorException ex) {
-                ProcessorException rex = ex instanceof ProcessorException ? (ProcessorException) ex : ((UncheckedProcessorException)ex).getProcessorException();
+                ProcessorException rex = ex instanceof ProcessorException ? (ProcessorException) ex : ((UncheckedProcessorException) ex).getProcessorException();
                 Processor exceptionProcessor = p.getException();
                 e.getPipelineLogger().atLevel(exceptionProcessor == null ? Level.WARN : Level.DEBUG)
                                      .withThrowable(rex)

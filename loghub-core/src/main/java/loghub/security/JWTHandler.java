@@ -115,7 +115,7 @@ public class JWTHandler {
             return this;
         }
         public JWTHandler build() {
-            return active ? new JWTHandler(this) :null;
+            return active ? new JWTHandler(this) : null;
         }
     }
 

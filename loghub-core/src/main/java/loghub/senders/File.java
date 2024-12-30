@@ -62,7 +62,7 @@ public class File extends Sender {
     public static Builder getBuilder() {
         return new Builder();
     }
-  
+
     private final CompletionHandler<Integer, Event> handler = new CompletionHandler<>() {
 
         @Override
@@ -77,7 +77,7 @@ public class File extends Sender {
 
     };
 
-    private static class FileEventListener implements CacheEntryRemovedListener<Path,FileEntry> {
+    private static class FileEventListener implements CacheEntryRemovedListener<Path, FileEntry> {
         @Override
         public void onRemoved(
                 Iterable<CacheEntryEvent<? extends Path, ? extends FileEntry>> cacheEntryEvents
@@ -178,13 +178,13 @@ public class File extends Sender {
         logger.trace("Sending event {}", event);
         try {
             byte[] msg = getEncoder().encode(event);
-            ByteBuffer buffer = ByteBuffer.allocate(msg.length + separatorBytes.length) ;
+            ByteBuffer buffer = ByteBuffer.allocate(msg.length + separatorBytes.length);
             buffer.put(msg);
             buffer.put(separatorBytes);
             buffer.flip();
             Path outputFile = Paths.get(fileName.eval(event).toString());
             FileEntry fe = filecache.get(outputFile);
-            long writePosition = fe.position.getAndAdd((long)msg.length + separatorBytes.length);
+            long writePosition = fe.position.getAndAdd((long) msg.length + separatorBytes.length);
             fe.destination.write(buffer, writePosition, event, handler);
             Stats.sentBytes(this, buffer.limit());
             return true;

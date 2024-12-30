@@ -23,8 +23,7 @@ public enum POLLER {
     EPOLL,
     OIO,
     KQUEUE,
-    IO_URING,
-    ;
+    IO_URING;
 
     private static final Logger logger = LogManager.getLogger();
 

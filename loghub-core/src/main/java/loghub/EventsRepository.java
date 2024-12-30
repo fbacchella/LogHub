@@ -71,7 +71,7 @@ public class EventsRepository<KEY> {
         int count;
         int tryWait = 0;
         // Wait 1 second to allows some sleeping events to wake up
-        while((count = allPaused.size()) > 0 && tryWait++ < 10) {
+        while ((count = allPaused.size()) > 0 && tryWait++ < 10) {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {

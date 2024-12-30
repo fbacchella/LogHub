@@ -148,13 +148,13 @@ public class Configuration {
     }
 
     private void resolveClassPath(RouteParser.ConfigurationContext configurationContext, CharStream cs) {
-        for (PropertyContext pc: configurationContext.property()) {
+        for (PropertyContext pc : configurationContext.property()) {
             String propertyName = Optional.ofNullable(pc.propertyName).map(RuleContext::getText).orElse("");
             if ("plugins".equals(propertyName)) {
                 String[] path = getStringOrArrayLiteral(pc.beanValue());
                 if (path.length > 0) {
                     try {
-                        logger.debug("Looking for plugins in {}", (Object[])path);
+                        logger.debug("Looking for plugins in {}", (Object[]) path);
                         classLoader = doClassLoader(path);
                         filter.setClassLoader(classLoader);
                         cacheManager = new CacheManager(classLoader);
@@ -195,10 +195,10 @@ public class Configuration {
 
     private boolean consumeIncludes(Path sourcePath, List<Tree> trees) {
         boolean found = false;
-        if ( ! Files.exists(sourcePath)) {
+        if (! Files.exists(sourcePath)) {
             // It might be a glob pattern
             Path progress = sourcePath.isAbsolute() ? sourcePath.getRoot() : Paths.get(".").normalize();
-            for (Path p: sourcePath) {
+            for (Path p : sourcePath) {
                 Path trypath = progress.resolve(p);
                 if (! Files.exists(trypath)) {
                     break;
@@ -234,7 +234,7 @@ public class Configuration {
 
     private void scanProperty(Tree tree) {
         Map<String, PropertyContext> currentProperties = new HashMap<>();
-        for (PropertyContext pc: tree.config.property()) {
+        for (PropertyContext pc : tree.config.property()) {
             String propertyName = Optional.ofNullable(pc.propertyName).map(RuleContext::getText).orElseGet(() -> pc.pn.getText());
             currentProperties.put(propertyName, pc);
         }
@@ -363,8 +363,7 @@ public class Configuration {
             Map<String, Object> resolvedSecrets = configurationProperties.entrySet().stream()
                                               .filter(e -> e.getValue() instanceof RouteParser.SecretContext)
                                               .map(this::resoveSecret)
-                                              .collect(Collectors.toMap(Entry::getKey, Entry::getValue))
-                                              ;
+                                              .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
 
             configurationProperties.putAll(resolvedSecrets);
             configurationProperties.entrySet().removeIf(e -> e.getValue() == null);
@@ -426,8 +425,8 @@ public class Configuration {
     }
 
     private void resolveSources(Tree tree, ConfigListener conflistener) throws ConfigException {
-        for (SourcesContext sc: tree.config.sources()) {
-            for (SourcedefContext sdc: sc.sourcedef()) {
+        for (SourcesContext sc : tree.config.sources()) {
+            for (SourcedefContext sdc : sc.sourcedef()) {
                 String name = sdc.identifier().getText();
                 if (! conflistener.sources.containsKey("name")) {
                     conflistener.sources.put(name, new AtomicReference<>());
@@ -497,8 +496,8 @@ public class Configuration {
         Set<Pipeline> pipelines = new HashSet<>();
         // Generate all the named pipeline
         conf.depth = 0;
-        for(Entry<String, ConfigListener.PipenodesList> e: conf.pipelines.entrySet()) {
-            String name = e.getKey(); 
+        for (Entry<String, ConfigListener.PipenodesList> e : conf.pipelines.entrySet()) {
+            String name = e.getKey();
             Pipeline p = conf.parsePipeline(e.getValue(), name);
             pipelines.add(p);
             namedPipeLine.put(name, p);
@@ -510,25 +509,25 @@ public class Configuration {
         //Find the queue depth
         int queuesDepth = newProperties.containsKey("queueDepth") ? (Integer) newProperties.remove("queueDepth") : DEFAULTQUEUEDEPTH;
         newProperties.put(Properties.PROPSNAMES.QUEUESDEPTH.toString(), queuesDepth);
-        
+
         // Find the queue weight
         int queueWeight = newProperties.containsKey("queueWeight") ? (Integer) newProperties.remove("queueWeight") :
                                   (newProperties.containsKey("queueWeigth") ? (Integer) newProperties.remove("queueWeigth") : DEFAULTQUEUEWEIGHT);
 
         PriorityBlockingQueue mainQueue = new PriorityBlockingQueue(queuesDepth, queueWeight);
         Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
-        conf.outputPipelines.forEach( i-> outputQueues.put(i, new LinkedBlockingQueue<>(queuesDepth)));
+        conf.outputPipelines.forEach(i-> outputQueues.put(i, new LinkedBlockingQueue<>(queuesDepth)));
 
         newProperties.put(Properties.PROPSNAMES.MAINQUEUE.toString(), mainQueue);
         newProperties.put(Properties.PROPSNAMES.OUTPUTQUEUE.toString(), outputQueues);
 
         // Fill the receivers list
         List<Receiver<?, ?>> receivers = new ArrayList<>();
-        for (Input i: conf.inputs) {
+        for (Input i : conf.inputs) {
             if (i.piperef == null || ! namedPipeLine.containsKey(i.piperef)) {
                 throw new ConfigException("Invalid input, no destination pipeline: " + i);
             }
-            for (ConfigListener.ObjectWrapped<Receiver<?, ?>> desc: i.receiver) {
+            for (ConfigListener.ObjectWrapped<Receiver<?, ?>> desc : i.receiver) {
                 Pipeline p = namedPipeLine.get(i.piperef);
                 Receiver<?, ?> r = desc.wrapped;
                 r.setOutQueue(mainQueue);
@@ -543,11 +542,11 @@ public class Configuration {
 
         // Fill the senders list
         List<Sender> senders = new ArrayList<>();
-        for (Output o: conf.outputs) {
+        for (Output o : conf.outputs) {
             if (o.piperef == null || ! namedPipeLine.containsKey(o.piperef)) {
                 throw new IllegalArgumentException("Invalid output, no source pipeline: " + o);
             }
-            for (ConfigListener.ObjectWrapped<Sender> desc: o.sender) {
+            for (ConfigListener.ObjectWrapped<Sender> desc : o.sender) {
                 BlockingQueue<Event> out = outputQueues.get(o.piperef);
                 Sender s = desc.wrapped;
                 s.setInQueue(out);
@@ -594,10 +593,10 @@ public class Configuration {
         .filter(Files::isReadable)
         .filter(filterReadable)
         .filter(i -> (Files.isRegularFile(i) && i.toString().endsWith(".jar")) || Files.isDirectory(i))
-        .forEach( i-> {
+        .forEach(i-> {
             toUrl.accept(i);
             if (Files.isDirectory(i)) {
-                try (Stream<Path> files = Files.list(i)){
+                try (Stream<Path> files = Files.list(i)) {
                     files.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".jar"))
                          .forEach(toUrl);
                 } catch (IOException e) {
@@ -608,7 +607,7 @@ public class Configuration {
 
         //Add myself to class loader, so the custom class loader is used in priority
         Path myself = locateResourcefile("loghub");
-        if(myself.endsWith("loghub")) {
+        if (myself.endsWith("loghub")) {
             myself = myself.getParent();
         }
         urls.add(myself.toUri().toURL());

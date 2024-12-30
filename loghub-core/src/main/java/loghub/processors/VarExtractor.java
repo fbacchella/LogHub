@@ -39,7 +39,7 @@ public class VarExtractor extends FieldsProcessor {
         return new VarExtractor.Builder();
     }
 
-    private final ThreadLocal<Matcher> matchersGenerator ;
+    private final ThreadLocal<Matcher> matchersGenerator;
     private final Collision_handling collision;
 
     public VarExtractor(Builder builder) {
@@ -56,7 +56,7 @@ public class VarExtractor extends FieldsProcessor {
         String after = message;
         Matcher m = matchersGenerator.get().reset(message);
         StringBuilder skipped = new StringBuilder(message.length());
-        while(m.find()) {
+        while (m.find()) {
             skipped.append(message, m.regionStart(), m.start());
             String key = m.group("name");
             String value = m.group("value");
@@ -91,7 +91,7 @@ public class VarExtractor extends FieldsProcessor {
 
     private <T> List<T> listDuplicate(T v1, T v2) {
         @SuppressWarnings("unchecked")
-        List<T> l= (v1 instanceof List) ? (List<T>) v1 : new ArrayList<>(List.of(v1));
+        List<T> l = (v1 instanceof List) ? (List<T>) v1 : new ArrayList<>(List.of(v1));
         l.add(v2);
         return l;
     }

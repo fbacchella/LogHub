@@ -21,7 +21,7 @@ class DatetimeProcessorUnixSeconds implements NumericDateTimeProcessor {
     private final DecimalFormat formatter;
 
     DatetimeProcessorUnixSeconds() {
-        this(ZoneId.systemDefault(), Locale.getDefault(),"#.###########");
+        this(ZoneId.systemDefault(), Locale.getDefault(), "#.###########");
     }
 
     private DatetimeProcessorUnixSeconds(ZoneId zoneId, Locale locale, String pattern) {

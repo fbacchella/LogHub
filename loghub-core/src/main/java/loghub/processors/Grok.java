@@ -50,7 +50,7 @@ public class Grok extends FieldsProcessor {
         Helpers.ThrowingConsumer<InputStream> grokloader = is -> grokCompiler.register(new InputStreamReader(new BufferedInputStream(is)));
         try {
             Helpers.readRessources(builder.classLoader, PATTERNSFOLDER, grokloader);
-            builder.customPatterns.forEach((k,v) -> grokCompiler.register(k.toString(), v.toString()));
+            builder.customPatterns.forEach((k, v) -> grokCompiler.register(k.toString(), v.toString()));
             groks = Arrays.stream(builder.patterns).map(p -> grokCompiler.compile(p, true)).toArray(io.krakens.grok.api.Grok[]::new);
         } catch (IOException | URISyntaxException | IllegalArgumentException e) {
             throw new IllegalArgumentException("Unable to load patterns: " + Helpers.resolveThrowableException(e), e);

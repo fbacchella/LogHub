@@ -77,7 +77,7 @@ public class TestXml {
     }
 
     @Test
-    public void test_loghub_processors_XPathExtractor() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeansXPathExtractor() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.XPathExtractor"
                 , BeanChecks.BeanInfo.build("xpath", String.class)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)
@@ -93,7 +93,7 @@ public class TestXml {
     }
 
     @Test
-    public void test_loghub_processors_ParseXml() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeansParseXml() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.ParseXml"
                 , BeanChecks.BeanInfo.build("nameSpaceAware", Boolean.TYPE)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)

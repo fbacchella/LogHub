@@ -26,7 +26,7 @@ public class TestParser {
     public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.PipeStep","loghub.Pipeline", "loghub.configuration.Configuration");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.PipeStep", "loghub.Pipeline", "loghub.configuration.Configuration");
     }
 
     @Ignore
@@ -37,7 +37,7 @@ public class TestParser {
                                                     "configuration",
                                                     "-tokens",
                                                     "-diagnostics",
-                                                    "-ps","routetry.ps",
+                                                    "-ps", "routetry.ps",
                                                     getClass().getClassLoader().getResource("test.conf").getFile()
         });
     }
@@ -58,13 +58,13 @@ public class TestParser {
         ConfigListener conf = ConfigListener.builder().build();
         conf.startWalk(tree, cs, parser);
         Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
-        for(String s: new String[] {"oneref", "main", "groovy"}) {
+        for (String s : new String[] {"oneref", "main", "groovy"}) {
             Assert.assertTrue("pipeline " + s + " not found", conf.pipelines.containsKey(s));
         }
         Assert.assertEquals("too much pipelines", 6, conf.pipelines.size());
         Assert.assertEquals("too much inputs", 1, conf.inputs.size());
         Assert.assertEquals("too much outputs", 1, conf.outputs.size());
-        for(String s: new String[] {"logfile", "plugins"}) {
+        for (String s :  new String[] {"logfile", "plugins"}) {
             Assert.assertTrue("property " + s + " not found", conf.properties.containsKey(s));
         }
     }

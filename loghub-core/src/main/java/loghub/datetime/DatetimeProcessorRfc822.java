@@ -60,7 +60,9 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
         context.skipSpaces();
         // Skip day of week
         if (! (datetime.charAt(context.offset) >= '0' && datetime.charAt(context.offset) <= '9')) {
-            while (datetime.charAt(context.offset) != ' ') {context.offset++;}
+            while (datetime.charAt(context.offset) != ' ') {
+                context.offset++;
+            }
             if (datetime.charAt(context.offset) == ',') {
                 context.offset++;
             }
@@ -113,7 +115,7 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
         formatted.append(weekDay).append(", ");
         int day = zonedDateTime.getDayOfMonth();
         formatted.append((day <= 9 && dayLength == 2) ? "0" : "").append(day);
-        formatted.append(" ").append(shortMonths[zonedDateTime.getMonthValue() -1]);
+        formatted.append(" ").append(shortMonths[zonedDateTime.getMonthValue() - 1]);
         if (withYear) {
             formatted.append(" ");
             DatetimeProcessorUtil.adjustPossiblyNegative(formatted, zonedDateTime.getYear(), 4);

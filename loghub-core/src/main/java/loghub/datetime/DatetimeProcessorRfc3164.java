@@ -90,7 +90,7 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
     @Override
     public String print(ZonedDateTime zonedDateTime) {
         StringBuilder formatted = new StringBuilder();
-        formatted.append(shortMonths[zonedDateTime.getMonthValue() -1]).append(" ");
+        formatted.append(shortMonths[zonedDateTime.getMonthValue() - 1]).append(" ");
         int day = zonedDateTime.getDayOfMonth();
         formatted.append((day <= 9 && dayLength == 2) ? "0" : "").append(day);
         if (withYear) {

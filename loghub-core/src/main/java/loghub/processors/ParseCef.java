@@ -56,7 +56,7 @@ public class ParseCef extends FieldsProcessor {
             m.reset(message);
             m.region(4, message.length());
 
-            for (String column: COLUMNS) {
+            for (String column : COLUMNS) {
                 if (!m.find()) {
                     throw event.buildException("Not a valid CEF message");
                 } else {

@@ -43,7 +43,7 @@ public class TestFailure {
         try (
              Socket s1 = ctx.getBuilder(Method.BIND, SocketType.PUB, endpoint).build();
              Socket s2 = ctx.getBuilder(Method.BIND, SocketType.PUB, endpoint).build()
-            ){
+            ) {
             // empty
         } catch (ZMQCheckedException ex) {
             Assert.assertEquals(Error.EADDRINUSE, ex.getError());
@@ -74,7 +74,7 @@ public class TestFailure {
         CountDownLatch latch = new CountDownLatch(1);
         FutureTask<Object> blocked = new FutureTask<>(() -> {
             try (
-                 Socket s1 = ctx.getBuilder(Method.BIND, SocketType.SUB, endpoint).build()){
+                 Socket s1 = ctx.getBuilder(Method.BIND, SocketType.SUB, endpoint).build()) {
                 latch.countDown();
                 return s1.recv();
             } catch (UncheckedZMQException ex) {

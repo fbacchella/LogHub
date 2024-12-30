@@ -110,7 +110,7 @@ public class Syslog extends Encoder {
                     IntStream.range(0, builder.secFrac).forEach(i -> timestampformat.append("S"));
                 }
                 timestampformat.append(" yyyy");
-            } else if (! builder.dateFormat.isBlank()){
+            } else if (! builder.dateFormat.isBlank()) {
                 timestampformat.append(builder.dateFormat);
             }
         }
@@ -228,7 +228,7 @@ public class Syslog extends Encoder {
             if (time instanceof Number) {
                 return Instant.ofEpochMilli(((Number) time).longValue()).atZone(defaultTimeZone);
             } else if (time instanceof Date) {
-                return ((Date)time).toInstant().atZone(defaultTimeZone);
+                return ((Date) time).toInstant().atZone(defaultTimeZone);
             } else if (time instanceof Instant) {
                 return ((Instant) time).atZone(defaultTimeZone);
             } else if (time instanceof ZonedDateTime) {

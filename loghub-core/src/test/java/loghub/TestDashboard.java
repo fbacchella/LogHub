@@ -79,7 +79,7 @@ public class TestDashboard extends AbstractDashboard {
         theurl = URI.create(String.format("%s://localhost:%d/metric/%s", getScheme(), getPort(), path)).toURL();
         TypeReference<List<Map<String, String>>> tr = new TypeReference<>() { };
         List<Map<String, String>> data = getJson().get().readValue(theurl, tr);
-        for(Map<String, String> m: data) {
+        for (Map<String, String> m : data) {
             String on = m.get("url").replace("/jmx/", "");
             Assert.assertNotNull(server.getMBeanInfo(new ObjectName(on)));
         }

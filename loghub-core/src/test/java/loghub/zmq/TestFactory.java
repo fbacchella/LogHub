@@ -20,7 +20,6 @@ import loghub.zmq.ZMQHelper.Method;
 
 public class TestFactory {
 
-
     private static Logger logger;
 
     @BeforeClass
@@ -30,7 +29,7 @@ public class TestFactory {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq");
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testPushPull() throws InterruptedException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
         try (ZMQSocketFactory factory = new ZMQSocketFactory()) {
@@ -38,13 +37,13 @@ public class TestFactory {
             CountDownLatch latch = new CountDownLatch(2);
             Thread t1 = ThreadBuilder.get().setDaemon(true).setTask(() -> {
                 try (Socket pull = factory.getBuilder(Method.BIND, SocketType.PULL, rendezvous).setImmediate(false).build();
-                     ZPoller poller = factory.getZPoller()){
+                     ZPoller poller = factory.getZPoller()) {
                     try {
                         Thread.sleep(100);
                     } catch (InterruptedException e1) {
                         Thread.currentThread().interrupt();
                     }
-                    
+
                     poller.register(pull, (s, m) -> {
                         logger.trace("Received message");
                         received.append(s.recvStr());

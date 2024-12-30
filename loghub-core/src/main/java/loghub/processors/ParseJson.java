@@ -31,7 +31,7 @@ public class ParseJson extends FieldsProcessor {
             if (o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
-                for(Map.Entry<Object, Object> e: map.entrySet()) {
+                for (Map.Entry<Object, Object> e : map.entrySet()) {
                     String key = e.getKey().toString();
                     if (key.startsWith("@")) {
                         event.put(atPrefix + key.substring(1), e.getValue());

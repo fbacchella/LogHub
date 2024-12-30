@@ -55,7 +55,7 @@ public class TestHttpJwt {
     }
 
     @Test
-    public void TestSimple401() throws IOException {
+    public void testSimple401() throws IOException {
         HttpURLConnection cnx = (HttpURLConnection) resourceUrl.openConnection();
         cnx.connect();
         Assert.assertEquals(401, cnx.getResponseCode());
@@ -70,7 +70,7 @@ public class TestHttpJwt {
             cnx = (HttpURLConnection) tokenUrl.openConnection();
             String userpass = "user:password";
             String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
-            cnx.setRequestProperty ("Authorization", basicAuth);
+            cnx.setRequestProperty("Authorization", basicAuth);
             cnx.connect();
             BufferedReader bf = new BufferedReader(new InputStreamReader(cnx.getInputStream()));
             token = bf.readLine();
@@ -81,7 +81,7 @@ public class TestHttpJwt {
         try {
             cnx = (HttpURLConnection) resourceUrl.openConnection();
             // Extra space to ensure that parsing is resilient
-            cnx.setRequestProperty ("Authorization", "Bearer  " + token);
+            cnx.setRequestProperty("Authorization", "Bearer  " + token);
             cnx.connect();
             Assert.assertEquals(404, cnx.getResponseCode());
         } finally {

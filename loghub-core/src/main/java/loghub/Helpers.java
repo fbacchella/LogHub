@@ -155,7 +155,7 @@ public final class Helpers {
                 space1.append(ch1);
                 index1++;
 
-                if(index1 < lengthFirstStr) {
+                if (index1 < lengthFirstStr) {
                     ch1 = s1.charAt(index1);
                 } else {
                     break;
@@ -166,7 +166,7 @@ public final class Helpers {
                 space2.append(ch2);
                 index2++;
 
-                if(index2 < lengthSecondStr) {
+                if (index2 < lengthSecondStr) {
                     ch2 = s2.charAt(index2);
                 } else {
                     break;
@@ -215,9 +215,9 @@ public final class Helpers {
 
         Iterator<Path> i1 = p1.iterator();
         Iterator<Path> i2 = p2.iterator();
-        while(i1.hasNext() && i2.hasNext()) {
+        while (i1.hasNext() && i2.hasNext()) {
             int sort = NATURALSORTSTRING.compare(i1.next().toString(), i2.next().toString());
-            if (sort != 0 ) {
+            if (sort != 0) {
                 return sort;
             }
         }
@@ -230,7 +230,7 @@ public final class Helpers {
         }
     };
 
-    public static <E> Iterable<E> enumIterable(Enumeration<E> e){
+    public static <E> Iterable<E> enumIterable(Enumeration<E> e) {
         return () -> new Iterator<>() {
             @Override
             public boolean hasNext() {
@@ -255,7 +255,7 @@ public final class Helpers {
 
     public static void readRessources(ClassLoader loader, String lookingfor, Consumer<InputStream> reader) throws IOException, URISyntaxException {
         List<URL> patternsUrls = Collections.list(loader.getResources(lookingfor));
-        for(URL url: patternsUrls) {
+        for (URL url : patternsUrls) {
             URLConnection cnx = url.openConnection();
             if (cnx instanceof JarURLConnection) {
                 JarURLConnection jarcnx = (JarURLConnection) cnx;
@@ -264,15 +264,15 @@ public final class Helpers {
                 Helpers.ThrowingFunction<JarEntry, InputStream> openner = jarfile::getInputStream;
 
                 StreamSupport.stream(Helpers.enumIterable(jarfile.entries()).spliterator(), false)
-                .filter( i -> i.getName().startsWith(lookingfor))
+                .filter(i -> i.getName().startsWith(lookingfor))
                 .map(openner)
                 .forEach(reader);
             }
             else if ("file".equals(url.getProtocol())) {
                 Path p = Paths.get(url.toURI());
-                if ( p.toFile().isDirectory()) {
+                if (p.toFile().isDirectory()) {
                     try (DirectoryStream<Path> ds = Files.newDirectoryStream(p)) {
-                        for (Path entry: ds) {
+                        for (Path entry : ds) {
                             try (InputStream is = new FileInputStream(entry.toFile())) {
                                 reader.accept(is);
                             }
@@ -339,7 +339,7 @@ public final class Helpers {
                 break;
             case '[':
                 inClass++;
-                firstIndexInClass = i+1;
+                firstIndexInClass = i + 1;
                 sb.append('[');
                 break;
             case ']':
@@ -405,16 +405,15 @@ public final class Helpers {
     public static boolean isFatal(Throwable err) {
         return (
                         // StackOverflowError is a VirtualMachineError but not critical if found in a plugin
-                        ! (err instanceof StackOverflowError) && 
+                        ! (err instanceof StackOverflowError) &&
                         // VirtualMachineError includes OutOfMemoryError and other fatal errors
-                        (err instanceof VirtualMachineError || err instanceof InterruptedException || err instanceof ThreadDeath) ) 
-                        ;
+                        (err instanceof VirtualMachineError || err instanceof InterruptedException || err instanceof ThreadDeath));
     }
 
     public static String getFirstInitClass() {
         StackTraceElement[] elements = new Throwable().getStackTrace();
-        String last ="";
-        for (int i = 1; i < elements.length ; i++) {
+        String last = "";
+        for (int i = 1; i < elements.length; i++) {
             if (!"<init>".equals(elements[i].getMethodName())) {
                 break;
             }
@@ -477,9 +476,9 @@ public final class Helpers {
     public static URI[] stringsToUri(String[] destinations, int port, String protocol, Logger logger) {
         // Uses URI parsing to read destination given by the user.
         URI[] endPoints = new URI[destinations.length];
-        for (int i = 0 ; i < destinations.length ; i++) {
+        for (int i = 0; i < destinations.length; i++) {
             String temp = destinations[i];
-            if ( !temp.contains("//")) {
+            if (!temp.contains("//")) {
                 temp = protocol + "://" + temp;
             }
             try {
@@ -513,7 +512,7 @@ public final class Helpers {
 
     public static void waitAllThreads(Stream<? extends Thread> threads) {
         threads.forEach(i -> {
-            while ( ! i.isAlive()) {
+            while (! i.isAlive()) {
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
@@ -623,7 +622,7 @@ public final class Helpers {
                 String newPath = sourceURI.getHost() + ((sourceURI.getPath() == null || sourceURI.getPath().isEmpty()) ? "" : "/" + sourceURI.getPath());
                 newURI = new URI("file", null, "//" + root.resolve(newPath).toAbsolutePath(),
                         sourceURI.getQuery(), sourceURI.getFragment());
-            } else if ("file".equals(sourceURI.getScheme()) && sourceURI.getSchemeSpecificPart() != null && sourceURI.getPath() == null){
+            } else if ("file".equals(sourceURI.getScheme()) && sourceURI.getSchemeSpecificPart() != null && sourceURI.getPath() == null) {
                 // If file is a relative URI, it's not resolved, and it's stored in the SSP
                 String uriBuffer = "file://" + root.toAbsolutePath() + File.separator + sourceURI.getSchemeSpecificPart();
                  // intermediate URI because URI.normalize() is not smart enough
@@ -663,9 +662,9 @@ public final class Helpers {
     private static <I, O> O mapValue(Map.Entry<String, I> v) {
         I eValue = v.getValue();
         Object value = (eValue instanceof AtomicReference
-                               ? ((AtomicReference<?>)eValue).get() : eValue);
+                               ? ((AtomicReference<?>) eValue).get() : eValue);
         if (value instanceof SslContextBuilder) {
-            value = ((SslContextBuilder)value).build();
+            value = ((SslContextBuilder) value).build();
         }
         return (O) value;
     }

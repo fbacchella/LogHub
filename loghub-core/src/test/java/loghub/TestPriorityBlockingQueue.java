@@ -13,7 +13,7 @@ public class TestPriorityBlockingQueue {
 
     private final EventsFactory factory = new EventsFactory();
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void test1() throws InterruptedException {
         PriorityBlockingQueue queue = new PriorityBlockingQueue(10, 2);
         CountDownLatch latch = new CountDownLatch(1);
@@ -37,7 +37,7 @@ public class TestPriorityBlockingQueue {
         long count = queue.stream().collect(Collectors.counting());
         Assert.assertEquals(11L, count);
         Event[] result = queue.toArray(new Event[0]);
-        for (int i = 0 ; i < 11 ; i++) {
+        for (int i = 0; i < 11; i++) {
             if (result[i].containsKey("#sync")) {
                 Assert.assertEquals(String.valueOf(i), 9, i);
                 break;
@@ -45,7 +45,7 @@ public class TestPriorityBlockingQueue {
         }
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void test2() throws InterruptedException {
         PriorityBlockingQueue queue = new PriorityBlockingQueue(11, 0);
         CountDownLatch latch = new CountDownLatch(1);
@@ -69,7 +69,7 @@ public class TestPriorityBlockingQueue {
         long count = queue.stream().collect(Collectors.counting());
         Assert.assertEquals(11L, count);
         Event[] result = queue.toArray(new Event[0]);
-        for (int i = 0 ; i < 11 ; i++) {
+        for (int i = 0; i < 11; i++) {
             if (result[i].containsKey("#sync")) {
                 Assert.assertTrue(String.valueOf(i), i >= 6 && i <= 7);
                 break;

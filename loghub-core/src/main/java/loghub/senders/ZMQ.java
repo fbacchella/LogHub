@@ -151,7 +151,7 @@ public class ZMQ extends Sender {
     }
 
     @Override
-    public boolean send(Event event) throws SendException, EncodeException{
+    public boolean send(Event event) throws SendException, EncodeException {
         try {
             byte[] msg = encode(event);
             handler.dispatch(msg);

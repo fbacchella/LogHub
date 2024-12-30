@@ -101,10 +101,10 @@ public class SecretsHandler implements Closeable {
     }
 
     private InputStream getReader() throws IOException {
-        try{
+        try {
             // Try the simple embeded URL readers
             return storePath.toURL().openStream();
-        } catch (MalformedURLException ex){
+        } catch (MalformedURLException ex) {
             // Try improved file system providers
             try {
                 return Files.newInputStream(Paths.get(storePath));
@@ -178,10 +178,10 @@ public class SecretsHandler implements Closeable {
             throw new IllegalStateException("Keystore environment unusable", ex);
         }
     }
-    
+
     public byte[] get(String alias) {
         try {
-            KeyStore.SecretKeyEntry ske = (KeyStore.SecretKeyEntry)ks.getEntry(alias, NOPROTECTION);
+            KeyStore.SecretKeyEntry ske = (KeyStore.SecretKeyEntry) ks.getEntry(alias, NOPROTECTION);
             if (ske == null) {
                 throw new IllegalArgumentException("Missing alias " + alias);
             } else {
@@ -206,15 +206,14 @@ public class SecretsHandler implements Closeable {
             })
             .map(a -> {
                 try {
-                    KeyStore.SecretKeyEntry ske = (KeyStore.SecretKeyEntry)ks.getEntry(a, NOPROTECTION);
+                    KeyStore.SecretKeyEntry ske = (KeyStore.SecretKeyEntry) ks.getEntry(a, NOPROTECTION);
                     return new SimpleImmutableEntry<>(a, ske);
                 } catch (NoSuchAlgorithmException | UnrecoverableEntryException | KeyStoreException e) {
                     return null;
                 }
             })
             .filter(Objects::nonNull)
-            .map(e -> e) // Identify but compilation fails without it
-            ;
+            .map(e -> e); // Identify but compilation fails without it
         } catch (KeyStoreException ex) {
             throw new IllegalStateException("Keystore environment unusable", ex);
         }

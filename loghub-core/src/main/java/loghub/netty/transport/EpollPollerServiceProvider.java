@@ -44,8 +44,8 @@ public class EpollPollerServiceProvider implements PollerServiceProvider {
         case LOCAL: return new LocalChannel();
         case TCP: return new EpollSocketChannel();
         case UDP: return new EpollDatagramChannel();
-        case UNIX_STREAM:return new EpollDomainSocketChannel();
-        case UNIX_DGRAM:  return new EpollDomainDatagramChannel();
+        case UNIX_STREAM: return new EpollDomainSocketChannel();
+        case UNIX_DGRAM: return new EpollDomainDatagramChannel();
         default: throw new UnsupportedOperationException(transport.name());
         }
     }
@@ -83,22 +83,22 @@ public class EpollPollerServiceProvider implements PollerServiceProvider {
     @Override
     public void setKeepAlive(ServerBootstrap bootstrap, int cnt, int idle, int intvl) {
         bootstrap.childOption(EpollChannelOption.TCP_KEEPCNT, 3);
-        bootstrap.childOption(EpollChannelOption.TCP_KEEPIDLE , 60);
-        bootstrap.childOption(EpollChannelOption.TCP_KEEPINTVL , 10);
+        bootstrap.childOption(EpollChannelOption.TCP_KEEPIDLE, 60);
+        bootstrap.childOption(EpollChannelOption.TCP_KEEPINTVL, 10);
     }
 
     @Override
     public void setKeepAlive(Bootstrap bootstrap, int cnt, int idle, int intvl) {
         bootstrap.option(EpollChannelOption.TCP_KEEPCNT, 3);
-        bootstrap.option(EpollChannelOption.TCP_KEEPIDLE , 60);
-        bootstrap.option(EpollChannelOption.TCP_KEEPINTVL , 10);
+        bootstrap.option(EpollChannelOption.TCP_KEEPIDLE, 60);
+        bootstrap.option(EpollChannelOption.TCP_KEEPINTVL, 10);
     }
 
     @Override
     public void setKeepAlive(ChannelConfig config, int cnt, int idle, int intvl) {
         config.setOption(EpollChannelOption.TCP_KEEPCNT, 3);
-        config.setOption(EpollChannelOption.TCP_KEEPIDLE , 60);
-        config.setOption(EpollChannelOption.TCP_KEEPINTVL , 10);
+        config.setOption(EpollChannelOption.TCP_KEEPIDLE, 60);
+        config.setOption(EpollChannelOption.TCP_KEEPINTVL, 10);
     }
 
 }

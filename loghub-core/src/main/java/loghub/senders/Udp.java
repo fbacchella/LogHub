@@ -31,7 +31,7 @@ public class Udp extends Sender {
 
     private final int port;
     private final DatagramSocket socket;
-    private final InetAddress IPAddress;
+    private final InetAddress IP_ADDRESS;
 
     public Udp(Builder builder) {
         super(builder);
@@ -47,13 +47,13 @@ public class Udp extends Sender {
             logger.error("Can't start socket: {}", e.getMessage());
         } finally {
             socket = tempSocket;
-            IPAddress = tempIPAddress;
+            IP_ADDRESS = tempIPAddress;
         }
     }
 
     @Override
     public boolean configure(Properties properties) {
-        if (socket != null && IPAddress != null) {
+        if (socket != null && IP_ADDRESS != null) {
             return super.configure(properties);
         } else {
             return false;
@@ -63,7 +63,7 @@ public class Udp extends Sender {
     @Override
     public boolean send(Event event) throws EncodeException, SendException {
         byte[] msg = encode(event);
-        DatagramPacket packet = new DatagramPacket(msg, msg.length, IPAddress, port);
+        DatagramPacket packet = new DatagramPacket(msg, msg.length, IP_ADDRESS, port);
         try {
             socket.send(packet);
         } catch (IOException e) {

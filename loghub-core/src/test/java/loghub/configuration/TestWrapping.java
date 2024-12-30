@@ -45,7 +45,7 @@ public class TestWrapping {
         Event ev = factory.newEvent();
         checkEvent(ev);
     }
-    
+
     @SuppressWarnings("unchecked")
     private void checkEvent(Event ev) throws ConfigException, IOException, InterruptedException {
         Properties conf = Tools.loadConf("wrap.conf");
@@ -53,12 +53,12 @@ public class TestWrapping {
         ev.inject(conf.namedPipeLine.get("main"), conf.mainQueue, false);
         ep.start();
         Event processed = conf.outputQueues.get("main").poll(1, TimeUnit.SECONDS);
-        Assert.assertEquals("b", ((Map<String, Object>)processed.get("a")).get("c"));
+        Assert.assertEquals("b", ((Map<String, Object>) processed.get("a")).get("c"));
         Assert.assertEquals(1, processed.getMeta("d"));
         Assert.assertEquals(0L, processed.getTimestamp().getTime());
         Assert.assertEquals("b", processed.get("e"));
-        Assert.assertEquals(1, ((Map<String, Object>)processed.get("a")).get("#f"));
-        Assert.assertEquals(2, ((Map<String, Object>)processed.get("a")).get("@timestamp"));
+        Assert.assertEquals(1, ((Map<String, Object>) processed.get("a")).get("#f"));
+        Assert.assertEquals(2, ((Map<String, Object>) processed.get("a")).get("@timestamp"));
         ep.stopProcessing();
     }
 

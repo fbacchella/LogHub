@@ -260,7 +260,7 @@ public class FastExternalizeObject {
                 writeReference(o);
             } else if (o instanceof Date) {
                 write(TYPE.DATE.ordinal());
-                writeLong(((Date)o).getTime());
+                writeLong(((Date) o).getTime());
             } else if (o.getClass().isEnum()) {
                 write(TYPE.IMMUTABLE.ordinal());
                 writeReference(o);
@@ -320,7 +320,7 @@ public class FastExternalizeObject {
                 }
             } else if (SocketAddress.class.isAssignableFrom(component)
                        || component.isEnum()
-                       || immutables.contains(component)){
+                       || immutables.contains(component)) {
                 // Explicit handling because DomainSocketAddress is not yet know to Java 11
                 // So it can not be explicitly added to the immutables Set
                 write(TYPE.IMMUTABLE.ordinal());
@@ -330,7 +330,7 @@ public class FastExternalizeObject {
                 // A generic array, not trying to be smart, as there is no easy way to insert a null
                 writeInt(length);
                 writeReference(Array.newInstance(component, length));
-                for (int i = 0; i < length ; i++) {
+                for (int i = 0; i < length; i++) {
                     writeObjectFast(Array.get(o, i));
                 }
             }

@@ -76,7 +76,7 @@ public class TestAnsiClean {
     }
 
     @Test
-    public void test_loghub_processors_Crlf() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.AnsiClean"
                 , BeanChecks.BeanInfo.build("replacement", String.class)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)

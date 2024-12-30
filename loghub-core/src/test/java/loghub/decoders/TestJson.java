@@ -46,7 +46,7 @@ public class TestJson {
     }
 
     @Test
-    public void test_loghub_decoders_Json() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.decoders.Json"
                 , BeanChecks.BeanInfo.build("charset", String.class)
                 , BeanChecks.BeanInfo.build("field", String.class)

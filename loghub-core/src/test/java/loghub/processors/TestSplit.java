@@ -38,13 +38,13 @@ public class TestSplit {
     public void testConversion() throws ProcessorException {
         var r1 = test(",", true, "a,b,c");
         Assert.assertEquals("[a, b, c]", r1.toString());
-        r1 = test(",", true,",a,b,c,");
+        r1 = test(",", true, ",a,b,c,");
         Assert.assertEquals("[, a, b, c, ]", r1.toString());
-        r1 = test(",", false,",a,b,c,");
+        r1 = test(",", false, ",a,b,c,");
         Assert.assertEquals("[a, b, c]", r1.toString());
-        r1 = test("#", false,"#a#b#c#");
+        r1 = test("#", false, "#a#b#c#");
         Assert.assertEquals("[a, b, c]", r1.toString());
-        r1 = test(",", false,"a");
+        r1 = test(",", false, "a");
         Assert.assertEquals(List.of("a"), r1);
     }
 
@@ -63,7 +63,7 @@ public class TestSplit {
     }
 
     @Test
-    public void test_loghub_processors_Split() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Split"
                 , BeanChecks.BeanInfo.build("pattern", String.class)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)

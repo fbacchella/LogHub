@@ -67,7 +67,7 @@ public class TestEncoder {
     }
 
     @Test
-    public void test_loghub_processors_Encoder() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Encoder"
                 , BeanChecks.BeanInfo.build("encoder", loghub.encoders.Encoder.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)

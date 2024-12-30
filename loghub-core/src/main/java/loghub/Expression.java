@@ -291,7 +291,7 @@ public class Expression {
                 return nullarg ? NullOrMissingValue.NULL : arg.toString().toUpperCase();
             default:
                 // Can’t be reached
-                assert false: method;
+                assert false : method;
                 throw IgnoredEventException.INSTANCE;
             }
         }
@@ -333,7 +333,7 @@ public class Expression {
     public static Object split(Object arg1, Pattern pattern) {
         if (arg1 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
-        } else if (arg1 == NullOrMissingValue.NULL || arg1 == null ) {
+        } else if (arg1 == NullOrMissingValue.NULL || arg1 == null) {
             return NullOrMissingValue.NULL;
         } else {
             return pattern.splitAsStream(arg1.toString()).collect(Collectors.toList());
@@ -346,7 +346,7 @@ public class Expression {
 
     public static boolean instanceOf(boolean negated, Object obj, Class<?> clazz) {
         boolean result;
-        if (obj instanceof NullOrMissingValue || obj == null ) {
+        if (obj instanceof NullOrMissingValue || obj == null) {
             result = false;
         } else {
             result = clazz.isAssignableFrom(obj.getClass());
@@ -361,7 +361,7 @@ public class Expression {
         } else if ((obj1 == null || obj1 == NullOrMissingValue.NULL) && (obj2 == null || obj2 == NullOrMissingValue.NULL)) {
             result = !cmd.startsWith("!");
         } else if (obj2 instanceof Collection) {
-            result = ((Collection<?>)obj2).contains(obj1);
+            result = ((Collection<?>) obj2).contains(obj1);
         } else if (obj2.getClass().isArray()) {
             result = DefaultTypeTransformation.primitiveArrayToList(obj2).contains(obj1);
         } else if ((obj1 instanceof CharSequence || obj1 instanceof Character) && obj2 instanceof CharSequence) {
@@ -379,7 +379,7 @@ public class Expression {
             return new ArrayList<>();
         } else {
             // Can’t be reached
-            assert false: collectionType;
+            assert false : collectionType;
             throw IgnoredEventException.INSTANCE;
         }
     }
@@ -394,7 +394,7 @@ public class Expression {
             } else if (argument.getClass().isArray()) {
                 return new LinkedHashSet<T>(DefaultTypeTransformation.primitiveArrayToList(argument));
             } else {
-                return new LinkedHashSet<>(Set.of((T)argument));
+                return new LinkedHashSet<>(Set.of((T) argument));
             }
         } else if ("list".equals(collectionType)) {
             if (argument instanceof List) {
@@ -408,7 +408,7 @@ public class Expression {
             }
         } else {
             // Can’t be reached
-            assert false: collectionType;
+            assert false : collectionType;
             throw IgnoredEventException.INSTANCE;
         }
     }
@@ -475,7 +475,7 @@ public class Expression {
                 if (((String) arg2).startsWith("/")) {
                     arg2 = ((String) arg2).substring(1);
                 }
-                return InetAddress.getAllByName((String)arg2);
+                return InetAddress.getAllByName((String) arg2);
             } else {
                 return arg2;
             }
@@ -494,7 +494,7 @@ public class Expression {
         COMPARABLE,
         OTHER;
         private static ComparaisonClass resolve(Object o) {
-            if (o == null || o == NullOrMissingValue.NULL){
+            if (o == null || o == NullOrMissingValue.NULL) {
                 return NULL;
             } else if (o instanceof CharSequence) {
                 return STRING;
@@ -655,16 +655,16 @@ public class Expression {
     private static int dateCompare(Object arg1, Object arg2) {
         if (arg1 instanceof Date && arg2 instanceof TemporalAccessor) {
             try {
-                long t1 = ((Date)arg1).getTime();
-                long t2 = Instant.from((TemporalAccessor)arg2).toEpochMilli();
+                long t1 = ((Date) arg1).getTime();
+                long t2 = Instant.from((TemporalAccessor) arg2).toEpochMilli();
                 return Long.compare(t1, t2);
             } catch (DateTimeException e) {
                 throw IgnoredEventException.INSTANCE;
             }
         } else if (arg2 instanceof Date && arg1 instanceof TemporalAccessor) {
             try {
-                long t2 = ((Date)arg2).getTime();
-                long t1 = Instant.from((TemporalAccessor)arg1).toEpochMilli();
+                long t2 = ((Date) arg2).getTime();
+                long t1 = Instant.from((TemporalAccessor) arg1).toEpochMilli();
                 return Long.compare(t1, t2);
             } catch (DateTimeException e) {
                 throw IgnoredEventException.INSTANCE;
@@ -672,8 +672,8 @@ public class Expression {
         } else if (arg1 instanceof TemporalAccessor && arg2 instanceof TemporalAccessor) {
             // Groovy can't compare Instant and ZonedDateTime
             try {
-                Instant t1 = Instant.from((TemporalAccessor)arg1);
-                Instant t2 = Instant.from((TemporalAccessor)arg2);
+                Instant t1 = Instant.from((TemporalAccessor) arg1);
+                Instant t2 = Instant.from((TemporalAccessor) arg2);
                 return t1.compareTo(t2);
             } catch (DateTimeException e) {
                 throw IgnoredEventException.INSTANCE;
@@ -688,7 +688,7 @@ public class Expression {
 
     private static int numberCompare(Object arg1, Object arg2) {
         if (arg1 instanceof Number && arg2 instanceof Number) {
-            return NumberMath.compareTo((Number)arg1, (Number)arg2);
+            return NumberMath.compareTo((Number) arg1, (Number) arg2);
         } else {
             assert false : "not reachable";
             throw IgnoredEventException.INSTANCE;
@@ -709,7 +709,7 @@ public class Expression {
     private static int doComparableComparison(Object c1, Object c2) {
         try {
             @SuppressWarnings({ "unchecked", "rawtypes" })
-            int value = ((Comparable)c1).compareTo(c2);
+            int value = ((Comparable) c1).compareTo(c2);
             return value;
         } catch (ClassCastException ex1) {
             try {
@@ -733,7 +733,7 @@ public class Expression {
                 return m.matches();
             } else if ("=~".equals(op) && m.find()) {
                 String[] groups = new String[m.groupCount() + 1];
-                for (int i = 0; i < groups.length ; i++) {
+                for (int i = 0; i < groups.length; i++) {
                     groups[i] = m.group(i);
                 }
                 return groups;
@@ -861,7 +861,7 @@ public class Expression {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T newInstance(Class <T> theClass, List<Object> args) {
+    public static <T> T newInstance(Class<T> theClass, List<Object> args) {
         MetaClass mc = registry.getMetaClass(theClass);
         return (T) mc.invokeConstructor(args.toArray(Object[]::new));
     }
@@ -873,21 +873,21 @@ public class Expression {
     }
 
     public static Object deepCopy(Object v) {
-        if (v == null ) {
+        if (v == null) {
             return NullOrMissingValue.NULL;
         } else if (v instanceof Event) {
             Event e = (Event) v;
             return copyMap(e);
         } else if (v instanceof Map) {
-            Map<?, ?> m = (Map<?, ?>)v;
+            Map<?, ?> m = (Map<?, ?>) v;
             return copyMap(m);
         } else if (v instanceof List) {
-            List<?> l = (List<?>)v;
+            List<?> l = (List<?>) v;
             return l.stream()
                     .map(Expression::deepCopy)
                     .collect(Collectors.toCollection(ArrayList::new));
         } else if (v instanceof Set) {
-            Set<?> s = (Set<?>)v;
+            Set<?> s = (Set<?>) v;
             return s.stream()
                     .map(Expression::deepCopy)
                     .collect(Collectors.toCollection(HashSet::new));
@@ -895,7 +895,7 @@ public class Expression {
             Class<?> c = v.getClass().getComponentType();
             int length = Array.getLength(v);
             Object newArray = Array.newInstance(c, length);
-            for (int i = 0 ; i < length ; i++) {
+            for (int i = 0; i < length; i++) {
                 Array.set(newArray, i, deepCopy(Array.get(v, i)));
             }
             return newArray;

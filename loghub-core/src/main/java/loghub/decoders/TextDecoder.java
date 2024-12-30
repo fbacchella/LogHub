@@ -8,7 +8,7 @@ import loghub.ConnectionContext;
 public interface TextDecoder {
 
     String getCharset();
-    Object decodeObject(ConnectionContext<?> ctx,String message) throws DecodeException;
+    Object decodeObject(ConnectionContext<?> ctx, String message) throws DecodeException;
     Stream<Map<String, Object>> decode(ConnectionContext<?> ctx, String message) throws DecodeException;
 
 }

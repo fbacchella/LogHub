@@ -40,7 +40,7 @@ import loghub.security.ssl.SslContextBuilder;
 public class TestHttpSsl {
 
     @ContentType("text/plain")
-    @RequestAccept(path="/")
+    @RequestAccept(path = "/")
     static class SimpleHandler extends HttpRequestProcessing {
 
         @Override
@@ -59,7 +59,7 @@ public class TestHttpSsl {
         Configurator.setLevel("org", Level.WARN);
     }
 
-    final Function<Map<String, Object> , SSLContext> getContext = props -> {
+    final Function<Map<String, Object>, SSLContext> getContext = props -> {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "TLSv1.2");
         properties.put("trusts", Tools.getDefaultKeyStore());
@@ -85,8 +85,8 @@ public class TestHttpSsl {
     }
 
     @Test
-    public void TestSimple() throws IOException {
-        URL theURL = startHttpServer(Collections.emptyMap(), i -> {});
+    public void testSimple() throws IOException {
+        URL theURL = startHttpServer(Collections.emptyMap(), i -> { });
         resource.setModelHandlers(new SimpleHandler());
         HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
@@ -98,8 +98,8 @@ public class TestHttpSsl {
         cnx.disconnect();
     }
 
-    @Test(expected=javax.net.ssl.SSLHandshakeException.class)
-    public void TestGoogle() throws IOException, URISyntaxException {
+    @Test(expected = javax.net.ssl.SSLHandshakeException.class)
+    public void testGoogle() throws IOException, URISyntaxException {
         URL google = new URI("https://www.google.com").toURL();
         HttpsURLConnection cnx = (HttpsURLConnection) google.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
@@ -112,7 +112,7 @@ public class TestHttpSsl {
     }
 
     @Test
-    public void TestClientAuthentication()
+    public void testClientAuthentication()
             throws IOException, IllegalArgumentException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
         resource.setModelHandlers(new SimpleHandler());
@@ -120,14 +120,14 @@ public class TestHttpSsl {
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
         Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
-        try(Scanner s = new Scanner(cnx.getInputStream())) {
+        try (Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
         cnx.disconnect();
     }
 
-    @Test(expected=IOException.class)
-    public void TestClientAuthenticationFailed()
+    @Test(expected = IOException.class)
+    public void testClientAuthenticationFailed()
             throws IOException, IllegalArgumentException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
         HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
@@ -136,8 +136,8 @@ public class TestHttpSsl {
         cnx.disconnect();
     }
 
-    @Test(expected=javax.net.ssl.SSLHandshakeException.class)
-    public void TestChangedAlias()
+    @Test(expected = javax.net.ssl.SSLHandshakeException.class)
+    public void testChangedAlias()
             throws IOException, IllegalArgumentException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
@@ -150,8 +150,8 @@ public class TestHttpSsl {
         cnx.disconnect();
     }
 
-    @Test(expected=SocketException.class)
-    public void TestNoSsl() throws IOException, IllegalArgumentException, URISyntaxException {
+    @Test(expected = SocketException.class)
+    public void testNoSsl() throws IOException, IllegalArgumentException, URISyntaxException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         URL nohttpsurl = new URI("http", null, theURL.getHost(), theURL.getPort(), theURL.getFile(), null, null).toURL();
         HttpURLConnection cnx = (HttpURLConnection) nohttpsurl.openConnection();

@@ -64,8 +64,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
                 .setLogger(logger)
                 .setName("zmqhandler/" + listen.replaceFirst("://", "/").replace(':', '/').replaceFirst("\\*", "0.0.0.0"))
                 .setReceive(Socket::recvMsg)
-                .setMask(ZPoller.IN)
-                ;
+                .setMask(ZPoller.IN);
     }
 
     @Override

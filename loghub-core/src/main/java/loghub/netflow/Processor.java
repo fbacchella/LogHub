@@ -38,7 +38,7 @@ public class Processor extends loghub.Processor {
         // Needed to reuse the UUID in the stream
         UUID[] lastOptionsUuid = new UUID[1];
         lastOptionsUuid[0] = null;
-        records.forEach( i -> {
+        records.forEach(i -> {
             Event newEvent = eventsFactory.newEvent(event.getConnectionContext());
             newEvent.setTimestamp(event.getTimestamp());
             newEvent.put("msgUUID", msgUuid);

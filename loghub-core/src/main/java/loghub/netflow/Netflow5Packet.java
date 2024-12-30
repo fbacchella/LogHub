@@ -58,7 +58,7 @@ public class Netflow5Packet implements NetflowPacket {
 
         records = new ArrayList<>(count);
         byte[] addrbuffer = new byte[4];
-        for(int i = 0; i < count; i++) {
+        for (int i = 0; i < count; i++) {
             try {
                 Map<String, Object> nfRecord = new HashMap<>(20);
                 bbuf.readBytes(addrbuffer);

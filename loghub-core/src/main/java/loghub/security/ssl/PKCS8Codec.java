@@ -11,9 +11,9 @@ public class PKCS8Codec extends SimpleBerCodec {
     // In older JVM, some mapping where missing, needs to explicit them
     private static final Map<String, String> algoMapping = new HashMap<>();
     static {
-        algoMapping.put("1.2.840.113549.1.1.1","RSA");
-        algoMapping.put("1.3.101.112","Ed25519");
-        algoMapping.put("1.2.840.10045.2.1","EC");
+        algoMapping.put("1.2.840.113549.1.1.1", "RSA");
+        algoMapping.put("1.3.101.112", "Ed25519");
+        algoMapping.put("1.2.840.10045.2.1", "EC");
     }
 
     private int[] oid;
@@ -49,8 +49,8 @@ public class PKCS8Codec extends SimpleBerCodec {
      */
     @Override
     protected int resolveOidPart(byte[] element) {
-        StringBuilder buffer = new StringBuilder(element.length *2);
-        for (byte b: element) {
+        StringBuilder buffer = new StringBuilder(element.length * 2);
+        for (byte b : element) {
             buffer.append(String.format("%02x", b));
         }
         String elemStr = buffer.toString();

@@ -127,7 +127,7 @@ public class TestJavaHttpClient {
         AbstractHttpClientService httpClient = clientBuilder.build();
         HttpRequest<Map<String, Object>> request = httpClient.getRequest();
         request.addHeader("X-Test-Header", "true");
-        request.setHttpVersion(2,0);
+        request.setHttpVersion(2, 0);
         request.setUri(new URI("http", null, "localhost", port, "/", "q=true", "#fragment"));
         request.setVerb("PUT");
         try (HttpResponse<Map<String, Object>> response = httpClient.doRequest(request)) {
@@ -147,7 +147,7 @@ public class TestJavaHttpClient {
         AbstractHttpClientService httpClient = clientBuilder.build();
         HttpRequest<Map<String, Object>> request = httpClient.getRequest();
         request.addHeader("X-Test-Header", "true");
-        request.setHttpVersion(2,0);
+        request.setHttpVersion(2, 0);
         request.setUri(new URI("http", null, "localhost", port, "/", "q=true", "#fragment"));
         request.setVerb("PUT");
         ObjectReader reader = JacksonBuilder.get(JsonMapper.class)

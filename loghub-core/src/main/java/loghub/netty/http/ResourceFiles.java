@@ -42,7 +42,7 @@ public class ResourceFiles extends HttpRequestProcessing {
             if (resourceUrl == null) {
                 throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, request.uri() + " not found");
             } else if ("jar".equals(resourceUrl.getProtocol())) {
-                JarURLConnection jarConnection = (JarURLConnection)resourceUrl.openConnection();
+                JarURLConnection jarConnection = (JarURLConnection) resourceUrl.openConnection();
                 JarEntry entry = jarConnection.getJarEntry();
                 if (entry.isDirectory()) {
                     throw new HttpRequestFailure(HttpResponseStatus.FORBIDDEN, "Directory listing refused");

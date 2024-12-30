@@ -88,7 +88,7 @@ public class Gelf extends AbstractJacksonEncoder<Gelf.Builder, JsonMapper> {
             event.entrySet().stream()
                             .filter(i ->  ! "id".equals(i.getKey()))
                             .filter(i -> fieldpredicate.test(i.getKey()))
-                            .forEach(i -> gelfcontent.put( "_" + i.getKey(), i.getValue()));
+                            .forEach(i -> gelfcontent.put("_" + i.getKey(), i.getValue()));
             byte[] buffer1 = writer.writeValueAsBytes(gelfcontent);
             byte[] buffer2;
             if (compressed) {
@@ -99,7 +99,7 @@ public class Gelf extends AbstractJacksonEncoder<Gelf.Builder, JsonMapper> {
                     buffer2 = bos.toByteArray();
                 }
             } else if (stream) {
-                buffer2 = Arrays.copyOf(buffer1, buffer1.length+1);
+                buffer2 = Arrays.copyOf(buffer1, buffer1.length + 1);
             } else {
                 buffer2 = buffer1;
             }

@@ -80,7 +80,7 @@ public class XPathExtractor extends FieldsProcessor {
                     return resolveNode(nodes.item(0));
                 } else {
                     List<Object> nodesValues = new ArrayList<>(nodes.getLength());
-                    for (int i = 0 ; i < nodes.getLength(); i++) {
+                    for (int i = 0; i < nodes.getLength(); i++) {
                         nodesValues.add(resolveNode(nodes.item(i)));
                     }
                     return nodesValues;

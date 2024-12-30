@@ -599,7 +599,7 @@ public class TestExpressionParsing {
         Assert.assertEquals(6, Tools.evalExpression("[b][-1]", ev));
     }
 
-    @Test(expected=IgnoredEventException.class)
+    @Test(expected = IgnoredEventException.class)
     public void testArrayOutOfBound() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] {1, 2, 3});
@@ -613,21 +613,21 @@ public class TestExpressionParsing {
         Assert.assertEquals(3, Tools.evalExpression("[a][2]", ev));
     }
 
-    @Test(expected=IgnoredEventException.class)
+    @Test(expected = IgnoredEventException.class)
     public void testListOutOfBound() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", List.of(1, 2, 3));
         Tools.evalExpression("[a][3]", ev);
     }
 
-    @Test(expected=IgnoredEventException.class)
+    @Test(expected = IgnoredEventException.class)
     public void testMissingArray() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
         Tools.evalExpression("[b][3]", ev);
     }
 
-    @Test(expected=ProcessorException.class)
+    @Test(expected = ProcessorException.class)
     public void testNotArray() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", 1);
@@ -638,8 +638,8 @@ public class TestExpressionParsing {
     public void testPatternBoolean() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] ==~ /(a.)(.)/",ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] ==~ \"\"\"(a.)(.)\"\"\"",ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[a] ==~ /(a.)(.)/", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[a] ==~ \"\"\"(a.)(.)\"\"\"", ev));
     }
 
     @Test
@@ -648,13 +648,13 @@ public class TestExpressionParsing {
                 Collections.emptySet(), Collections.emptyMap(), Collections.emptyList(),
                 new Object[]{});
         Event ev = factory.newEvent();
-        for(Object o: toTest) {
+        for (Object o : toTest) {
             ev.put("a", o);
-            Boolean i = (Boolean) Tools.evalExpression("[a] ==~ /.*/",ev);
+            Boolean i = (Boolean) Tools.evalExpression("[a] ==~ /.*/", ev);
             Assert.assertEquals(false, i);
         }
         ev.put("a", null);
-        Boolean i = (Boolean) Tools.evalExpression("[a] ==~ /.*/",ev);
+        Boolean i = (Boolean) Tools.evalExpression("[a] ==~ /.*/", ev);
         Assert.assertEquals(false, i);
     }
 
@@ -662,21 +662,21 @@ public class TestExpressionParsing {
     public void
     testPatternMissing() {
         Event ev = factory.newEvent();
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[a] ==~ /.*/",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[a] ==~ /.*/", ev));
     }
 
     @Test
     public void testPatternBooleanEscaped() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", "a.c\n");
-        Assert.assertEquals(true, Tools.evalExpression("[a] ==~ /a\\.c\\n/",ev));
+        Assert.assertEquals(true, Tools.evalExpression("[a] ==~ /a\\.c\\n/", ev));
     }
 
     @Test
     public void testPatternArray() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
-        String i = (String) Tools.evalExpression("([a] =~ /(a.)(.)/)[2]",ev);
+        String i = (String) Tools.evalExpression("([a] =~ /(a.)(.)/)[2]", ev);
         Assert.assertEquals("c", i);
     }
 
@@ -684,13 +684,13 @@ public class TestExpressionParsing {
     public void testFailedPatternArray() {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("([a] =~ /d.*/)[2]",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("([a] =~ /d.*/)[2]", ev));
     }
 
     @Test(expected = RecognitionException.class)
     public void testBadPattern() throws ProcessorException {
         Event ev = factory.newEvent();
-        Tools.evalExpression("[a] ==~ /*/",ev);
+        Tools.evalExpression("[a] ==~ /*/", ev);
     }
 
     @Test
@@ -849,7 +849,7 @@ public class TestExpressionParsing {
     private Object resolve(String function, String value) throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", value);
-        return Tools.evalExpression(String.format("%s([a])", function),ev);
+        return Tools.evalExpression(String.format("%s([a])", function), ev);
     }
 
     @Test
@@ -858,11 +858,11 @@ public class TestExpressionParsing {
         ev.put("a", "1 2 3");
         ev.put("b", "1/2/3");
         ev.put("c", null);
-        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\" \", [a])",ev));
-        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(/ /, [a])",ev));
-        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\"\"\"/\"\"\", [b])",ev));
+        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\" \", [a])", ev));
+        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(/ /, [a])", ev));
+        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\"\"\"/\"\"\", [b])", ev));
         Assert.assertNull(Tools.evalExpression("split(\" \", [c])", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split(/ /, [d])",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split(/ /, [d])", ev));
     }
 
     @Test
@@ -871,12 +871,12 @@ public class TestExpressionParsing {
         ev.put("a", "1 2 3");
         ev.put("b", "1/2/3");
         ev.put("c", null);
-        Assert.assertEquals("1-2-3", Tools.evalExpression("gsub([a], / /, \"-\")",ev));
-        Assert.assertEquals("1/2/3", Tools.evalExpression("gsub([b], / /, \"-\")",ev));
-        Assert.assertEquals("1-2-3", Tools.evalExpression("gsub([b], \"\"\"/\"\"\", \"-\")",ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("gsub([a], \"\"\"/\"\"\", \"-\")",ev));
+        Assert.assertEquals("1-2-3", Tools.evalExpression("gsub([a], / /, \"-\")", ev));
+        Assert.assertEquals("1/2/3", Tools.evalExpression("gsub([b], / /, \"-\")", ev));
+        Assert.assertEquals("1-2-3", Tools.evalExpression("gsub([b], \"\"\"/\"\"\", \"-\")", ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("gsub([a], \"\"\"/\"\"\", \"-\")", ev));
         Assert.assertNull(Tools.evalExpression("gsub([c], / /, \"-\")", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("gsub([d], / /, \"-\")",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("gsub([d], / /, \"-\")", ev));
     }
 
     @Test
@@ -889,16 +889,16 @@ public class TestExpressionParsing {
         ev.put("b", new TreeSet<>(List.of(1, 2, 3, 1)));
         ev.put("c", ' ');
         ev.put("d", null);
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", set(1, 2, 3))",ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", list(1, 2, 3))",ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [a])",ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [aL])",ev));
-        Assert.assertEquals("1.0 2.0 3.0", Tools.evalExpression("join(\" \", [af])",ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [ac])",ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [b])",ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", set(1, 2, 3))", ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", list(1, 2, 3))", ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [a])", ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [aL])", ev));
+        Assert.assertEquals("1.0 2.0 3.0", Tools.evalExpression("join(\" \", [af])", ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [ac])", ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [b])", ev));
         Assert.assertNull(Tools.evalExpression("join(\" \", [d])", ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", \"1 2 3\")",ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join(\" \", [e])",ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", \"1 2 3\")", ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join(\" \", [e])", ev));
     }
 
     @Test
@@ -922,8 +922,8 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", "1");
         ev.put("b", "2");
-        Assert.assertEquals("12", Tools.evalExpression("[a] + [b]",ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isBlank([c])",ev) );
+        Assert.assertEquals("12", Tools.evalExpression("[a] + [b]", ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isBlank([c])", ev));
     }
 
     @Test
@@ -932,8 +932,8 @@ public class TestExpressionParsing {
         ev.put("a", ' ');
         ev.put("b", '1');
         ev.put("c", '2');
-        Assert.assertEquals("", Tools.evalExpression("trim([a])",ev));
-        Assert.assertEquals("12", Tools.evalExpression("[b] + [c]",ev));
+        Assert.assertEquals("", Tools.evalExpression("trim([a])", ev));
+        Assert.assertEquals("12", Tools.evalExpression("[b] + [c]", ev));
     }
 
     @Test
@@ -960,7 +960,7 @@ public class TestExpressionParsing {
         Instant now = (Instant) Tools.evalExpression("now");
         Assert.assertTrue(Math.abs(Instant.now().getEpochSecond() - now.getEpochSecond()) < 1);
     }
-    
+
     @Test
     public void testKeywordAsIdentifier() throws IOException {
         Pattern keywordidentifierPattern = Pattern.compile("'([a-zA-Z][a-zA-Z0-9$_]+)'=\\d+");
@@ -977,7 +977,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testIsEmptyTrue() throws ProcessorException {
-        for (Object o: new Object[] {
+        for (Object o : new Object[] {
                 "",
                 Collections.emptyMap(),
                 Collections.emptyList(),
@@ -997,7 +997,6 @@ public class TestExpressionParsing {
         Assert.assertFalse((boolean) Tools.evalExpression("! isEmpty([.])", ev));
     }
 
-
     @Test
     public void testIsEmptyIgnore() {
         Event ev = factory.newEvent();
@@ -1008,7 +1007,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testIsEmptyFalse() throws ProcessorException {
-        for (Object o: new Object[] {
+        for (Object o : new Object[] {
                 " ",
                 Collections.singletonMap("a", "b"),
                 Collections.singletonList(""),

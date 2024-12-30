@@ -90,7 +90,7 @@ public class TestCidr {
     }
 
     @Test
-    public void test_loghub_processors_Crlf() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Cidr"
                 , BeanChecks.BeanInfo.build("networks", String[].class)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)

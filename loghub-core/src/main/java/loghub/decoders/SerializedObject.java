@@ -50,7 +50,7 @@ public class SerializedObject extends Decoder {
     }
 
     private Object deserialize(Supplier<ObjectInputStream> oisp) throws DecodeException {
-        try (ObjectInputStream ois = oisp.get()){
+        try (ObjectInputStream ois = oisp.get()) {
             return ois.readObject();
         } catch (UncheckedIOException e) {
             throw new DecodeException("IO exception while reading ByteArrayInputStream: " + Helpers.resolveThrowableException(e), e.getCause());

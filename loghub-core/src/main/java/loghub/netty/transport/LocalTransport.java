@@ -8,7 +8,7 @@ import loghub.ConnectionContext;
 import loghub.FastExternalizeObject;
 
 @TransportEnum(TRANSPORT.LOCAL)
-public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf, LocalTransport, LocalTransport.Builder>{
+public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf, LocalTransport, LocalTransport.Builder> {
 
     public static class Builder extends NettyTransport.Builder<LocalAddress, ByteBuf, LocalTransport, LocalTransport.Builder> {
         @Override

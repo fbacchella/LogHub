@@ -94,7 +94,7 @@ public class TestSlicer {
     }
 
     @Test
-    public void test_loghub_processors_Slicer() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Slicer"
                 , BeanChecks.BeanInfo.build("bucket", Expression.class)
                 , BeanChecks.BeanInfo.build("toSlice", VariablePath.class)

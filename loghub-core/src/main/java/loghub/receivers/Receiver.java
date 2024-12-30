@@ -87,7 +87,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     @Getter
     private EventsFactory eventsFactory;
 
-    protected Receiver(B builder){
+    protected Receiver(B builder) {
         setDaemon(true);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         this.blocking = isBlocking() && builder.blocking;
@@ -112,7 +112,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     /**
      * <p>Check if the receiver should block or discard when destination is full.
      * Default is fault.</p>
-     * 
+     *
      * <p>The base method check the value of the {@link Blocking annotation}
      * @return true if the receiver block.
      */
@@ -295,7 +295,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
             return false;
         } else {
             logger.trace("new event: {}", event);
-            if(! event.inject(pipeline, outQueue, blocking)) {
+            if (! event.inject(pipeline, outQueue, blocking)) {
                 event.end();
                 Stats.newBlockedError(this);
                 logger.debug("Send failed from {}, pipeline destination {} blocked", this::getName, () -> pipeline.getName());

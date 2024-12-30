@@ -66,7 +66,7 @@ public class BeansManager {
 
     /**
      * Given an object, a bean name and a bean value, try to set the bean.
-     * 
+     *
      * @param beanObject the object to set
      * @param beanName the bean to set
      * @param beanValue the bean value
@@ -97,13 +97,13 @@ public class BeansManager {
                 int length = Array.getLength(beanValue);
                 Class<?> arrayType = setArgType.getComponentType();
                 Object newValue = Array.newInstance(arrayType, length);
-                for (int i = 0; i < length ; i++){
+                for (int i = 0; i < length; i++) {
                     Array.set(newValue, i, Array.get(beanValue, i));
                 }
                 setMethod.invoke(object, newValue);
             } else if (beanValue == null || setArgType.isAssignableFrom(beanValue.getClass())) {
                 setMethod.invoke(object, beanValue);
-            } else if (beanValue instanceof String){
+            } else if (beanValue instanceof String) {
                 Object argInstance = BeansManager.constructFromString(setArgType, (String) beanValue);
                 setMethod.invoke(object, argInstance);
             } else if (beanValue instanceof Number || beanValue instanceof Character) {
@@ -151,7 +151,7 @@ public class BeansManager {
             } else if (clazz == Character.TYPE || Character.class.equals(clazz) && value.length() == 1) {
                 return (T) Character.valueOf(value.charAt(0));
             } else if (Enum.class.isAssignableFrom(clazz)) {
-                return (T) resolveEnum((Class<? extends Enum>)clazz, value);
+                return (T) resolveEnum((Class<? extends Enum>) clazz, value);
             } else if (clazz == Duration.class) {
                 return (T) Duration.parse(value);
             } else {

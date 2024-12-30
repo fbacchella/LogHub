@@ -21,11 +21,11 @@ public class TestsParseUri {
         docheck("file:/test?q", Paths.get("/test"), "q", null);
         docheck("file:/test#f", Paths.get("/test"), null, "f");
         docheck("file:///test?q#f", Paths.get("/test"), "q", "f");
-        docheck("file:.././test", Paths.get(root,"..", "test").normalize(), null, null);
-        docheck("file:.././test?q#f", Paths.get(root,"..", "test").normalize(), "q", "f");
-        docheck("test", Paths.get(root,"test").normalize(), null, null);
-        docheck("test?q", Paths.get(root,"test?q").normalize(), null, null);
-        docheck("test#f", Paths.get(root,"test#f").normalize(), null, null);
+        docheck("file:.././test", Paths.get(root, "..", "test").normalize(), null, null);
+        docheck("file:.././test?q#f", Paths.get(root, "..", "test").normalize(), "q", "f");
+        docheck("test", Paths.get(root, "test").normalize(), null, null);
+        docheck("test?q", Paths.get(root, "test?q").normalize(), null, null);
+        docheck("test#f", Paths.get(root, "test#f").normalize(), null, null);
         docheck("/test", Paths.get("/test").normalize(), null, null);
         docheck("/space file", Paths.get("/space file").normalize(), null, null);
         docheck("file://target/classes/log4j2.xml", Paths.get(root, "target", "classes", "log4j2.xml").normalize(), null, null);

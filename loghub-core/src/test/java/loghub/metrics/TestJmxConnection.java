@@ -77,7 +77,7 @@ public class TestJmxConnection {
 
     @Test
     public void loadConf1() throws Exception {
-        String configStr = "jmx.port: " +  port + "\njmx.hostname: \"" + hostip +"\"";
+        String configStr = "jmx.port: " +  port + "\njmx.hostname: \"" + hostip + "\"";
         StringReader reader = new StringReader(configStr);
         Properties props = Configuration.parse(reader);
         JmxService.start(props.jmxServiceConfiguration);
@@ -86,7 +86,7 @@ public class TestJmxConnection {
 
     @Test
     public void loadConf2() throws Exception {
-        String configStr = "jmx.port: " +  port + "\njmx.hostname: \"" + loopbackip +"\"";
+        String configStr = "jmx.port: " +  port + "\njmx.hostname: \"" + loopbackip + "\"";
         StringReader reader = new StringReader(configStr);
         Properties props = Configuration.parse(reader);
         JmxService.start(props.jmxServiceConfiguration);
@@ -135,7 +135,7 @@ public class TestJmxConnection {
     }
 
     private void connect(String ip1, String ip2, Map<String, Object> env) throws IOException, InstanceNotFoundException {
-        String jmxUrl = String.format("service:jmx:rmi:///jndi/rmi://%s:%d/jmxrmi",loopbackip, port);
+        String jmxUrl = String.format("service:jmx:rmi:///jndi/rmi://%s:%d/jmxrmi", loopbackip, port);
         JMXServiceURL url = new JMXServiceURL(jmxUrl);
         try (JMXConnector jmxc = JMXConnectorFactory.connect(url, env)) {
             String cnxId = jmxc.getConnectionId();

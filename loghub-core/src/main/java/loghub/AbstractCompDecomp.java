@@ -20,7 +20,7 @@ import lombok.ToString;
 abstract class AbstractCompDecomp implements Filter {
 
     @Setter
-    @EqualsAndHashCode(callSuper=true) @ToString
+    @EqualsAndHashCode(callSuper = true) @ToString
     public abstract static class Builder<B extends AbstractCompDecomp> extends AbstractBuilder<B> {
         protected int memoryLimitInKb = -1;
     }
@@ -34,7 +34,7 @@ abstract class AbstractCompDecomp implements Filter {
     public byte[] filter(byte[] in, int offset, int length) throws FilterException {
         ByteBuf outb = PooledByteBufAllocator.DEFAULT.compositeBuffer(length);
         try (InputStream ins = source(new ByteArrayInputStream(in, offset, length));
-             OutputStream outs = destination(new ByteBufOutputStream(outb))){
+             OutputStream outs = destination(new ByteBufOutputStream(outb))) {
             IOUtils.copy(ins, outs);
         } catch (IOException | CompressorException e) {
             outb.release();
@@ -52,7 +52,7 @@ abstract class AbstractCompDecomp implements Filter {
     public ByteBuf filter(ByteBuf in) throws FilterException {
         ByteBuf out = in.alloc().compositeBuffer(in.readableBytes());
         try (InputStream ins = source(new ByteBufInputStream(in));
-             OutputStream outs = destination(new ByteBufOutputStream(out))){
+             OutputStream outs = destination(new ByteBufOutputStream(out))) {
             IOUtils.copy(ins, outs);
         } catch (IOException | CompressorException e) {
             out.release();

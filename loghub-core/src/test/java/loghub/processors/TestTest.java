@@ -34,7 +34,7 @@ public class TestTest {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
-        sent.put("a",1);
+        sent.put("a", 1);
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
         Assert.assertEquals(1, sent.get("b"));
         Assert.assertEquals(1, sent.size());
@@ -46,7 +46,7 @@ public class TestTest {
         Helpers.parallelStartProcessor(conf);
 
         Event sent = factory.newEvent();
-        sent.put("a",2);
+        sent.put("a", 2);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
         Assert.assertEquals(2, sent.get("c"));

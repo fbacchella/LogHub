@@ -77,9 +77,9 @@ public class TestSimpleReceiver {
             if (message instanceof ByteBuf) {
                 return (ByteBuf) message;
             } else if (message instanceof DatagramPacket) {
-                return ((DatagramPacket)message).content();
+                return ((DatagramPacket) message).content();
             } else if (message instanceof DomainDatagramPacket) {
-                return ((DomainDatagramPacket)message).content();
+                return ((DomainDatagramPacket) message).content();
             }
             throw new IllegalArgumentException(message.getClass().getCanonicalName());
         }

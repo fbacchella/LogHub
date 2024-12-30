@@ -109,7 +109,7 @@ public class TestTcp {
         Assert.assertEquals("{\"message\":1}\n\r{\"message\":2}\n\r", message);
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testEncodeError() throws InterruptedException, EncodeException {
         Tcp.Builder builder = Tcp.getBuilder();
         builder.setDestination("localhost");
@@ -119,7 +119,7 @@ public class TestTcp {
     }
 
     @Test
-    public void test_loghub_senders_Tcp() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.senders.Tcp"
                 , BeanChecks.BeanInfo.build("destination", String.class)
                 , BeanChecks.BeanInfo.build("port", Integer.TYPE)

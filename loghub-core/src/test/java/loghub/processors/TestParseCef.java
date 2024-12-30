@@ -38,14 +38,14 @@ public class TestParseCef {
     private void check(Map<String, Object> fields) {
         String[] fields_names = new String[]{"version", "device_vendor", "device_product", "device_version", "device_event_class_id", "name", "severity"};
         Object[] fields_values = new Object[]{0, "security", "threatmanager", "1.0", "100", "detected a | in packet", 10};
-        for (int i=0; i < fields_names.length; i++) {
+        for (int i = 0; i < fields_names.length; i++) {
             Assert.assertEquals(fields_values[i], fields.get(fields_names[i]));
         }
         @SuppressWarnings("unchecked")
-        Map<String, Object> extensions= (Map<String, Object>) fields.get("extensions");
+        Map<String, Object> extensions = (Map<String, Object>) fields.get("extensions");
         String[] extensions_names = new String[]{"src", "act", "dst", "comment", "comment2", "comment3", "comment4", "app"};
         Object[] extensions_values = new Object[]{"10.0.0.1", "blocked a \\", "1.1.1.1", "with | in it", "with = in it", "with \n in it", "with \r in it", "3"};
-        for (int i=0; i < extensions_names.length; i++) {
+        for (int i = 0; i < extensions_names.length; i++) {
             Assert.assertEquals(extensions_values[i], extensions.get(extensions_names[i]));
         }
     }
@@ -81,7 +81,7 @@ public class TestParseCef {
     }
 
     @Test
-    public void test_loghub_processors_ParseCsv() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.ParseCef"
                                     , BeanChecks.BeanInfo.build("field", VariablePath.class)
                                     , BeanChecks.BeanInfo.build("destination", VariablePath.class)

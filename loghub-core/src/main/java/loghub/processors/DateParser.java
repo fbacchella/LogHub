@@ -118,7 +118,7 @@ public class DateParser extends FieldsProcessor {
             return value;
         } else if (value instanceof Number) {
             // If a number custom parsing
-            return resolveFromNumber(event,(Number) value);
+            return resolveFromNumber(event, (Number) value);
         } else {
             String dateString = value.toString();
             logger.debug("trying to parse {}", dateString);
@@ -150,11 +150,11 @@ public class DateParser extends FieldsProcessor {
         boolean isInstant = NamedPatterns.SECONDS.equalsIgnoreCase(patterns[0]) || "UNIX".equalsIgnoreCase(patterns[0]);
         boolean isDate = NamedPatterns.MILLISECONDS.equalsIgnoreCase(patterns[0]) || "UNIX_MS".equalsIgnoreCase(patterns[0]);
         boolean isNano = "nanoseconds".equalsIgnoreCase(patterns[0]) || "UNIX_NS".equalsIgnoreCase(patterns[0]);
-        if (value instanceof Float || value instanceof Double){
+        if (value instanceof Float || value instanceof Double) {
             double d = value.doubleValue();
             // The cast round toward 0
-            long seconds = ((long)d);
-            long nano = ((long)(d * 1e9) % 1_000_000_000L);
+            long seconds = ((long) d);
+            long nano = ((long) (d * 1e9) % 1_000_000_000L);
             return Instant.ofEpochSecond(seconds, nano);
         } else if (isInstant) {
             return Instant.ofEpochSecond(value.longValue(), 0);

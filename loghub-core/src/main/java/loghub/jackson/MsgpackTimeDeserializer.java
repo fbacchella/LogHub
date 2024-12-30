@@ -23,7 +23,7 @@ public class MsgpackTimeDeserializer implements ExtensionTypeCustomDeserializers
             long lcontent = content.getLong();
             seconds = lcontent & 0x00000003ffffffffL;
             // Masked needed to drop sign extended by right shift
-            nanoseconds = (int)((lcontent >> 34) & (0x3FFFFFFFL));
+            nanoseconds = (int) ((lcontent >> 34) & (0x3FFFFFFFL));
             break;
         case 12:
             nanoseconds = content.getInt();

@@ -81,7 +81,7 @@ public class TestUdp {
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
             int originalMessageSize;
-            try(DatagramSocket send = new DatagramSocket()) {
+            try (DatagramSocket send = new DatagramSocket()) {
                 StringBuilder buffer = new StringBuilder();
                 while (buffer.length() <= size) {
                     buffer.append("message");
@@ -107,17 +107,17 @@ public class TestUdp {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testsmall() throws InterruptedException, IOException {
         testsend(1500);
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testbig() throws InterruptedException, IOException {
         testsend(16384);
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testCompressed() throws InterruptedException, IOException, FilterException {
         int port = Tools.tryGetPort();
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
@@ -145,7 +145,7 @@ public class TestUdp {
 
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
-            try(DatagramSocket send = new DatagramSocket()) {
+            try (DatagramSocket send = new DatagramSocket()) {
                 DatagramPacket packet = new DatagramPacket(sentBuffer, sentBuffer.length, destaddr);
                 try {
                     logger.debug("Listening on {}", r.getListen());

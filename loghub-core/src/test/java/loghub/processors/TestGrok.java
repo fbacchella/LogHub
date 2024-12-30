@@ -37,7 +37,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestLoadPatterns1() throws ProcessorException {
+    public void testLoadPatterns1() throws ProcessorException {
         Grok.Builder builder = Grok.getBuilder();
         builder.setField(VariablePath.of("message"));
         builder.setPattern("%{COMBINEDAPACHELOG}");
@@ -55,7 +55,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestLoadPatterns2() throws ProcessorException {
+    public void testLoadPatterns2() throws ProcessorException {
         Grok.Builder builder = Grok.getBuilder();
         builder.setField(VariablePath.of("message"));
         builder.setPattern("(?:%{SYSLOG_LINE})");
@@ -73,7 +73,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestLoadPatterns3() throws ProcessorException {
+    public void testLoadPatterns3() throws ProcessorException {
         Grok.Builder builder = Grok.getBuilder();
         builder.setCustomPatterns(Collections.singletonMap("FETCHING", "fetching user_deny.db entry"));
         builder.setPattern("%{FETCHING:message} for '%{USERNAME:imap_user}'");
@@ -92,7 +92,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestLoadPatterns5() {
+    public void testLoadPatterns5() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
         Grok grok = builder.build();
@@ -112,7 +112,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestLoadPatterns6() {
+    public void testLoadPatterns6() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"remotehost"});
         builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
@@ -132,7 +132,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestWithPath() {
+    public void testWithPath() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"remotehost"});
         builder.setPattern("%{HOSTNAME:google.com}\\.google\\.com");
@@ -149,7 +149,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestTyped() throws ProcessorException {
+    public void testTyped() throws ProcessorException {
         Grok.Builder builder = Grok.getBuilder();
         builder.setField(VariablePath.of("message"));
         builder.setPattern("%{INT:value:long}");
@@ -166,7 +166,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestNoMatch() {
+    public void testNoMatch() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"host"});
         builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
@@ -182,7 +182,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestMultiPattern() {
+    public void testMultiPattern() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"host"});
         builder.setPatterns(List.of("%{HOSTNAME:google}\\.google\\.com", "%{HOSTNAME:yahoo}\\.yahoo\\.com").toArray(String[]::new));
@@ -200,7 +200,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestBadPattern() {
+    public void testBadPattern() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setPattern("*");
         IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, builder::build);
@@ -208,7 +208,7 @@ public class TestGrok {
     }
 
     @Test
-    public void test_loghub_processors_Grok() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Grok"
                 , BeanChecks.BeanInfo.build("pattern", String.class)
                 , BeanChecks.BeanInfo.build("customPatterns", Map.class)

@@ -17,8 +17,8 @@ public class Csv extends AbstractStringJackson<Csv.Builder, CsvMapper> {
     public static class Builder extends AbstractStringJackson.Builder<Csv> {
         private String[] columns = new String[0];
         private String[] features = new String[0];
-        private char separator= ',';
-        private String lineSeparator= "\n";
+        private char separator = ',';
+        private String lineSeparator = "\n";
         private String nullValue = "";
         private boolean header = false;
 

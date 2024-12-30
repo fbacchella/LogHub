@@ -62,7 +62,7 @@ public class TestVarFormatter {
             // this chronology is not well-supported in String.format, for all versions up to 15
             return;
         }
-        for (Locale l: Locale.getAvailableLocales()) {
+        for (Locale l : Locale.getAvailableLocales()) {
             testWithLocale(l, value, format);
         }
     }
@@ -81,7 +81,7 @@ public class TestVarFormatter {
             String formatter = vf.format(value);
             Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName(), printf, formatter);
         } catch (IllegalArgumentException e) {
-            Assert.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName() +": " + Helpers.resolveThrowableException(e));
+            Assert.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName() + ": " + Helpers.resolveThrowableException(e));
         }
     }
 
@@ -205,7 +205,7 @@ public class TestVarFormatter {
                 "02",
         };
         VarFormatter formatter = new VarFormatter("${%t<UTC>V}", Locale.US);
-        for (int i = 0 ; i < times.length ; i++) {
+        for (int i = 0; i < times.length; i++) {
             String formatted = formatter.format(Instant.ofEpochSecond(times[i]));
             Assert.assertEquals(weekNum[i], formatted);
         }
@@ -220,7 +220,7 @@ public class TestVarFormatter {
 
     @Test
     public void testJson() throws JsonProcessingException {
-        Map<String, Object> mapping = Map.of("a", 1, "b", List.of(2,3, 4), "c", Instant.ofEpochSecond(0));
+        Map<String, Object> mapping = Map.of("a", 1, "b", List.of(2, 3, 4), "c", Instant.ofEpochSecond(0));
         Map<String, Object> mapped = readJson(mapping);
         Assert.assertEquals(mapping.get("a"), mapped.get("a"));
         Assert.assertEquals(mapping.get("b"), mapped.get("b"));
@@ -287,7 +287,7 @@ public class TestVarFormatter {
         ZonedDateTime now = ZonedDateTime.now();
         VarFormatter vf = new VarFormatter("${%t<>Z}", Locale.US);
         String formatter = vf.format(now);
-        Assert.assertEquals("Mismatch for time zone parsing" , String.format(Locale.US, "%tZ", ZonedDateTime.now()), formatter );
+        Assert.assertEquals("Mismatch for time zone parsing", String.format(Locale.US, "%tZ", ZonedDateTime.now()), formatter);
     }
 
     @Test
@@ -295,7 +295,7 @@ public class TestVarFormatter {
         ZonedDateTime now = ZonedDateTime.now();
         ZoneId other = null;
         ZoneId system = ZoneId.systemDefault();
-        for (String ziName: ZoneId.getAvailableZoneIds()) {
+        for (String ziName : ZoneId.getAvailableZoneIds()) {
             ZoneId zi = ZoneId.of(ziName);
             if (zi != system) {
                 other = zi;
@@ -305,13 +305,13 @@ public class TestVarFormatter {
         String formatting = String.format("${%%t<%s>Z}", other.getId());
         VarFormatter vf = new VarFormatter(formatting, Locale.US);
         String formatter = vf.format(now);
-        Assert.assertEquals("Mismatch for time zone parsing" , String.format(Locale.US, "%tZ", ZonedDateTime.now(other)), formatter );
+        Assert.assertEquals("Mismatch for time zone parsing", String.format(Locale.US, "%tZ", ZonedDateTime.now(other)), formatter);
     }
 
     @Test
     public void testTimeZoneLocale() {
-        for (Locale l: Locale.getAvailableLocales()) {
-            for (String ziName: ZoneId.getAvailableZoneIds()) {
+        for (Locale l : Locale.getAvailableLocales()) {
+            for (String ziName : ZoneId.getAvailableZoneIds()) {
                 ZoneId zi = ZoneId.of(ziName);
                 ZonedDateTime now = ZonedDateTime.now(zi);
                 String printfz = String.format(l, "%tz", now);
@@ -329,11 +329,11 @@ public class TestVarFormatter {
         Map<String, Object> values = Collections.singletonMap("var", 1);
         VarFormatter vf = new VarFormatter("a${}b{}c{.}d");
         String formatter = vf.format(values);
-        Assert.assertEquals("mismatch for string escape", "a${}b{}c{.}d", formatter );
+        Assert.assertEquals("mismatch for string escape", "a${}b{}c{.}d", formatter);
 
         vf = new VarFormatter("a'c");
         formatter = vf.format(values);
-        Assert.assertEquals("mismatch for string escape", "a'c", formatter );
+        Assert.assertEquals("mismatch for string escape", "a'c", formatter);
     }
 
     @Test
@@ -343,19 +343,19 @@ public class TestVarFormatter {
             put("b", 1);
         }};
         VarFormatter vf = new VarFormatter("'${a}${}${b}'");
-        Assert.assertEquals("mismatch for complex pattern" , "'2${}1'", vf.format(values) );
+        Assert.assertEquals("mismatch for complex pattern", "'2${}1'", vf.format(values));
     }
 
     @Test
     public void formatSimple() {
         VarFormatter vf = new VarFormatter("${%d} ${%04d}");
-        Assert.assertEquals("mismatch for complex pattern", "123 0123", vf.format(123) );
+        Assert.assertEquals("mismatch for complex pattern", "123 0123", vf.format(123));
     }
 
     @Test
     public void formatPath() {
         VarFormatter vf = new VarFormatter("${a.b}", Locale.ENGLISH);
-        Map<String,Map<String, Object>> obj = Collections.singletonMap("a", Collections.singletonMap("b", "c"));
+        Map<String, Map<String, Object>> obj = Collections.singletonMap("a", Collections.singletonMap("b", "c"));
         String formatted = vf.format(obj);
         Assert.assertEquals("c", formatted);
     }
@@ -418,7 +418,7 @@ public class TestVarFormatter {
     @Test
     public void formatArrayMapDepthString() {
         VarFormatter vf = new VarFormatter("${a.b%s}", Locale.ENGLISH);
-        Map<String, Object> values = Collections.singletonMap("a", Collections.singletonMap("b",new int[] {1, 2, 3}));
+        Map<String, Object> values = Collections.singletonMap("a", Collections.singletonMap("b", new int[] {1, 2, 3}));
         String formatted = vf.format(values);
         Assert.assertEquals("[1, 2, 3]", formatted);
     }
@@ -447,28 +447,28 @@ public class TestVarFormatter {
         Assert.assertEquals("[1, 2, 3]", formatted);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError1() {
         Map<String, Object> values = Collections.singletonMap("a", 1);
         VarFormatter vf = new VarFormatter("${b}");
         vf.format(values);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError2() {
         Map<String, Object> values = Collections.singletonMap("a", 1);
         VarFormatter vf = new VarFormatter("${b.c}");
         vf.format(values);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError3() {
         Map<String, Object> values = Collections.singletonMap("a", 1);
         VarFormatter vf = new VarFormatter("${b.c}");
         vf.format(values);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError4() {
         VarFormatter vf = new VarFormatter("${#2%s}", Locale.ENGLISH);
         List<Object> obj = Collections.singletonList(1);
@@ -476,7 +476,7 @@ public class TestVarFormatter {
         Assert.assertEquals("1", formatted);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError5() {
         VarFormatter vf = new VarFormatter("${a} ${#2}", Locale.ENGLISH);
         List<Object> obj = Collections.singletonList(1);
@@ -484,28 +484,28 @@ public class TestVarFormatter {
         Assert.assertEquals("1", formatted);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError6() {
         VarFormatter vf = new VarFormatter("${a}", Locale.ENGLISH);
         List<Object> obj = Collections.singletonList(1);
         vf.format(obj);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError7() {
         VarFormatter vf = new VarFormatter("${#1}", Locale.ENGLISH);
         Map<String, Object> obj = Collections.singletonMap("a", 1);
         vf.format(obj);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError8() {
         VarFormatter vf = new VarFormatter("${var%z}", Locale.ENGLISH);
         Map<String, Object> obj = Collections.singletonMap("a", 1);
         vf.format(obj);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testError9() {
         VarFormatter vf = new VarFormatter("${var%zd}", Locale.ENGLISH);
         Map<String, Object> obj = Collections.singletonMap("a", 1);

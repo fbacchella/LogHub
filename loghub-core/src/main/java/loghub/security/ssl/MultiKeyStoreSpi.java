@@ -114,7 +114,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Key engineGetKey(String alias, char[] password) throws NoSuchAlgorithmException, UnrecoverableKeyException {
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 Key val = ks.getKey(alias, password);
                 if (val != null) {
@@ -129,7 +129,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Certificate[] engineGetCertificateChain(String alias) {
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 Certificate[] val = ks.getCertificateChain(alias);
                 if (val != null) {
@@ -144,7 +144,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Certificate engineGetCertificate(String alias) {
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 Certificate val = ks.getCertificate(alias);
                 if (val != null) {
@@ -159,7 +159,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Date engineGetCreationDate(String alias) {
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 Date val = ks.getCreationDate(alias);
                 if (val != null) {
@@ -262,7 +262,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public boolean engineContainsAlias(String alias) {
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 boolean val = ks.containsAlias(alias);
                 if (val) {
@@ -278,7 +278,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     @Override
     public int engineSize() {
         int size = 0;
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 size += ks.size();
             } catch (KeyStoreException e) {
@@ -290,7 +290,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public boolean engineIsKeyEntry(String alias) {
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 boolean val = ks.isKeyEntry(alias);
                 if (val) {
@@ -305,7 +305,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public boolean engineIsCertificateEntry(String alias) {
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 boolean val = ks.isCertificateEntry(alias);
                 if (val) {
@@ -320,7 +320,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public String engineGetCertificateAlias(Certificate cert) {
-        for (KeyStore ks: stores) {
+        for (KeyStore ks : stores) {
             try {
                 String val = ks.getCertificateAlias(cert);
                 if (val != null) {
@@ -347,7 +347,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     public void engineLoad(LoadStoreParameter param) {
         if (param instanceof SubKeyStore) {
             SubKeyStore subparams = (SubKeyStore) param;
-            for (String i: subparams.substores) {
+            for (String i : subparams.substores) {
                 try {
                     addStore(i);
                 } catch (RuntimeException | IOException | GeneralSecurityException ex) {
@@ -366,16 +366,16 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             String operatingSystem = System.getProperty("os.name", "");
             String jvmVersion = System.getProperty("java.version", "0");
             String[] systemStores = new String[] {};
-            
+
             if (operatingSystem.startsWith("Mac") && NATURALSORTSTRING.compare(jvmVersion, "23") >= 0) {
                 systemStores = new String[] {"KeychainStore", "KeychainStore-ROOT"};
-            } else if (operatingSystem.startsWith("Mac")){
+            } else if (operatingSystem.startsWith("Mac")) {
                 systemStores = new String[] {"KeychainStore"};
-            } else if (operatingSystem.startsWith("Windows")){
+            } else if (operatingSystem.startsWith("Windows")) {
                 systemStores = new String[] {"Windows-MY", "Windows-ROOT"};
             } else if (operatingSystem.startsWith("Linux")) {
                 // Paths where linux might store certs
-                for (String certsPath: new String[] {
+                for (String certsPath : new String[] {
                         "/etc/ssl/certs/ca-certificates.crt",
                         "/etc/pki/tls/cert.pem",
                         "/etc/ssl/cert.pem",
@@ -389,7 +389,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 }
             }
             if (systemStores.length > 0) {
-                for (String n: systemStores) {
+                for (String n : systemStores) {
                     KeyStore ks = KeyStore.getInstance(n);
                     ks.load(null, "".toCharArray());
                     stores.add(ks);
@@ -401,7 +401,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                     System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "jssecacerts",
                     System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "cacerts"
             };
-            for (String storePathName: paths) {
+            for (String storePathName : paths) {
                 Path storePath = Paths.get(storePathName);
                 if (Files.exists(storePath)) {
                     loadKeystore("JKS", storePath.toUri(), Collections.singletonMap("password", "changeit"));
@@ -414,7 +414,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             // Stream to only keep the last value of any parameter
             Map<String, Object> fileParams = qsd.parameters().entrySet().stream()
                                                 .filter(e -> e.getValue() != null)
-                                                .map(e -> new AbstractMap.SimpleImmutableEntry<>(e.getKey(), e.getValue().get(e.getValue().size() -1)))
+                                                .map(e -> new AbstractMap.SimpleImmutableEntry<>(e.getKey(), e.getValue().get(e.getValue().size() - 1)))
                                                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
             fileParams.put(DEFAULT_ALIAS, encoder.encodeToString(digest.digest(path.getBytes())));
             if (pathURI.getPath().toLowerCase().endsWith(".policy")) {
@@ -483,7 +483,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     private void loadCert(URI path, Map<String, Object> fileParams)
             throws CertificateException, IOException, KeyStoreException {
         logger.debug("Loading binary certificate {}", path);
-        try (InputStream fis = path.toURL().openStream()){
+        try (InputStream fis = path.toURL().openStream()) {
             Certificate cert = cf.generateCertificate(fis);
             addEntry(Collections.singletonList(cert), null, fileParams);
         }
@@ -513,8 +513,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
      * @throws InvalidKeySpecException
      * @throws KeyStoreException
      */
-    private void loadPem(URI path, Map<String, Object> fileParams) throws IOException, GeneralSecurityException
-    {
+    private void loadPem(URI path, Map<String, Object> fileParams) throws IOException, GeneralSecurityException {
         logger.debug("Loading PEM {}", path);
         List<Certificate> certs = new ArrayList<>(1);
         PrivateKey key = null;
@@ -533,7 +532,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                         certs.add(cf.generateCertificate(new ByteArrayInputStream(content)));
                     } else if (matcher.group("prk") != null ||
                             matcher.group("rprk") != null ||
-                            matcher.group("epk") != null){
+                            matcher.group("epk") != null) {
                         if (key != null) {
                             throw new IllegalArgumentException("Multiple key in a PEM");
                         }
@@ -624,7 +623,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             KeyStore.PrivateKeyEntry entry = new KeyStore.PrivateKeyEntry(key, certs.stream().toArray(Certificate[]::new));
             stores.get(0).setEntry(alias, entry, EMPTYPROTECTION);
         } else {
-            for (Certificate cert: certs) {
+            for (Certificate cert : certs) {
                 String certAlias = resolveAlias(cert, params);
                 KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
                 stores.get(0).setEntry(certAlias, entry, null);
@@ -647,8 +646,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     }
 
     private byte[] decrypteEncryptedPkcs8(byte[] epk, String password)
-            throws IOException, GeneralSecurityException
-    {
+            throws IOException, GeneralSecurityException {
         EncryptedPrivateKeyInfo epki = new EncryptedPrivateKeyInfo(epk);
 
         String encAlg = epki.getAlgName();

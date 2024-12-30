@@ -48,7 +48,7 @@ public class Tools {
     public static KeyStore getKeyStore(String... paths) {
         try {
             MultiKeyStoreProvider.SubKeyStore param = new MultiKeyStoreProvider.SubKeyStore();
-            for(String path: paths) {
+            for (String path : paths) {
                 param.addSubStore(path);
             }
             KeyStore ks = KeyStore.getInstance(MultiKeyStoreProvider.NAME, MultiKeyStoreProvider.PROVIDERNAME);
@@ -115,7 +115,7 @@ public class Tools {
     }
 
     public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps) {
-        return runProcessing(sent, pipename, steps, (i,j) -> {});
+        return runProcessing(sent, pipename, steps, (i, j) -> {});
     }
 
     public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare) {
@@ -184,7 +184,7 @@ public class Tools {
     public static Object evalExpression(String exp, Event ev) throws ProcessorException {
         Object resolved = ConfigurationTools.unWrap(exp, RouteParser::expression);
         if (resolved instanceof Expression) {
-            return ((Expression)resolved).eval(ev);
+            return ((Expression) resolved).eval(ev);
         } else {
             return resolved;
         }

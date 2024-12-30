@@ -63,7 +63,7 @@ public class TestFieldsAsynchronous {
     }
 
     private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> {
-        public SleepingProcessor(Builder<SleepingProcessor,TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> builder) {
+        public SleepingProcessor(Builder<SleepingProcessor, TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> builder) {
             super(builder);
         }
 
@@ -104,12 +104,12 @@ public class TestFieldsAsynchronous {
         }
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void success() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
         todo = v -> {
-            if ( ! v.isDone()) {
+            if (! v.isDone()) {
                 v.setSuccess(TestFieldsAsynchronous.this);
             }
         };
@@ -120,7 +120,7 @@ public class TestFieldsAsynchronous {
         Builder builder = new Builder();
         builder.setFields(new String[] {"a", "b"});
         SleepingProcessor sp = builder.build();
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
         Assert.assertTrue(String.format("slept for %d ms",  end - started), end > started + 200);
@@ -128,12 +128,12 @@ public class TestFieldsAsynchronous {
         Assert.assertEquals(getClass().getCanonicalName(), e.get("b"));
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void successWithCollection() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
         todo = v -> {
-            if ( ! v.isDone()) {
+            if (! v.isDone()) {
                 v.setSuccess(TestFieldsAsynchronous.this);
             }
         };
@@ -144,7 +144,7 @@ public class TestFieldsAsynchronous {
         Builder builder = new Builder();
         builder.setFields(new String[] {"a", "b"});
         SleepingProcessor sp = builder.build();
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
         Assert.assertTrue(String.format("slept for %d ms",  end - started), end > started + 200);
@@ -152,12 +152,12 @@ public class TestFieldsAsynchronous {
         Assert.assertEquals(List.of(getClass().getCanonicalName(), getClass().getCanonicalName()), e.get("b"));
     }
 
-    @Test(timeout=1000)
+    @Test(timeout = 1000)
     public void successWithDestination() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
         todo = v -> {
-            if ( ! v.isDone()) {
+            if (! v.isDone()) {
                 v.setSuccess(this);
             }
         };
@@ -169,7 +169,7 @@ public class TestFieldsAsynchronous {
         builder.setFields(new String[] {"a", "b"});
         builder.setDestinationTemplate(new VarFormatter("${field}_done"));
         SleepingProcessor sp = builder.build();
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
         Assert.assertTrue(String.format("slept for %d ms",  end - started), end > started + 200);
@@ -177,7 +177,7 @@ public class TestFieldsAsynchronous {
         Assert.assertEquals(getClass().getCanonicalName(), e.get("b_done"));
     }
 
-    @Test(timeout=1000)
+    @Test(timeout = 1000)
     public void failed() throws InterruptedException {
         todo = v -> v.setSuccess(this);
         transform = (e, v) -> FieldsProcessor.RUNSTATUS.FAILED;
@@ -188,12 +188,12 @@ public class TestFieldsAsynchronous {
         SleepingProcessor sp = builder.build();
         Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(2));
         sp.setFailure(assign);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void timeout() throws InterruptedException {
         todo = v -> {
             try {
@@ -220,14 +220,14 @@ public class TestFieldsAsynchronous {
 
         processors.add(sp);
         processors.add(assign2);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", processors, (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", processors, (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(true, e.get("failure"));
         Assert.assertEquals(true, e.get("b"));
         Assert.assertEquals(1, e.get("a"));
     }
 
-    @Test(timeout=1000)
+    @Test(timeout = 1000)
     public void exceptionFalse() throws InterruptedException {
         todo = v -> v.setFailure(new RuntimeException());
         onexception = (e, x) -> Boolean.FALSE;
@@ -239,12 +239,12 @@ public class TestFieldsAsynchronous {
         SleepingProcessor sp = builder.build();
         Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(2));
         sp.setFailure(assign);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
     }
 
-    @Test(timeout=1000)
+    @Test(timeout = 1000)
     public void exceptionException() throws InterruptedException {
         todo = v -> v.setFailure(new RuntimeException());
         transform = (e, v) -> v.getClass().getCanonicalName();
@@ -262,7 +262,7 @@ public class TestFieldsAsynchronous {
         SleepingProcessor sp = builder.build();
         Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(2));
         sp.setException(assign);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i, j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
     }

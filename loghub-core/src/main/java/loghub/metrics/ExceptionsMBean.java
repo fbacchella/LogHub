@@ -14,9 +14,8 @@ public interface ExceptionsMBean {
     @MetricType(MetricType.GAUGE)
     default String[] getProcessorsFailures() {
         return loghub.metrics.Stats.getErrors().stream()
-                        .map(i -> Helpers.resolveThrowableException((Throwable)i))
-                        .toArray(String[]::new)
-                        ;
+                        .map(i -> Helpers.resolveThrowableException((Throwable) i))
+                        .toArray(String[]::new);
     }
 
     @Units(Units.EXCEPTIONS)
@@ -29,7 +28,7 @@ public interface ExceptionsMBean {
     @MetricType(MetricType.GAUGE)
     default String[] getUnhandledExceptions() {
         return loghub.metrics.Stats.getExceptions().stream()
-                        .map( i -> {
+                        .map(i -> {
                             StringBuilder exceptionDetails = new StringBuilder();
                             String exceptionMessage = Helpers.resolveThrowableException(i);
                             exceptionDetails.append(exceptionMessage);
@@ -39,8 +38,7 @@ public interface ExceptionsMBean {
                             }
                             return exceptionDetails.toString();
                         })
-                        .toArray(String[]::new)
-                        ;
+                        .toArray(String[]::new);
     }
 
     @Units(Units.EXCEPTIONS)
@@ -54,7 +52,6 @@ public interface ExceptionsMBean {
     default String[] getReceiversFailures() {
         return Stats.getReceiverError().toArray(String[]::new);
     }
-
 
     class Implementation extends DocumentedMBean implements ExceptionsMBean {
 

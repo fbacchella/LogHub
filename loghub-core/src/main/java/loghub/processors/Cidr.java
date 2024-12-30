@@ -36,7 +36,7 @@ public class Cidr extends FieldsProcessor {
                 InetAddress resolved = InetAddress.getByName(netname);
                 this.netname = netname;
                 if (resolved instanceof Inet4Address) {
-                    int maskValue = (int)(((1L<<32) - 1) - (((1L<<32) >> bits) - 1));
+                    int maskValue = (int) (((1L << 32) - 1) - (((1L << 32) >> bits) - 1));
                     int networkValue = ByteBuffer.wrap(resolved.getAddress()).getInt() & maskValue;
                     this.mask = new int[] {maskValue};
                     this.network =  new int[] {networkValue};
@@ -103,7 +103,7 @@ public class Cidr extends FieldsProcessor {
             }
         }
         ByteBuffer buffer = ByteBuffer.wrap(address.getAddress());
-        for (NetworkInfo n: networks) {
+        for (NetworkInfo n : networks) {
             buffer.rewind();
             boolean match = false;
             if (n.mask.length == 1 && address instanceof Inet4Address) {

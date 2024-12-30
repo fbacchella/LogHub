@@ -127,7 +127,7 @@ class ParsingContext {
                         offset++;
                     }
                 }
-                zoneId = (hour == 0 && minute == 0 && second == 0 ) ? ZoneOffset.UTC :
+                zoneId = (hour == 0 && minute == 0 && second == 0) ? ZoneOffset.UTC :
                                  ZoneOffset.ofTotalSeconds(sign * (hour * 3600 + minute * 60 + second));
                 return zoneId;
             }
@@ -160,7 +160,7 @@ class ParsingContext {
         }
     }
 
-    void checkOffset(char expected){
+    void checkOffset(char expected) {
         if (offset == length) {
             throw parseException("At end of parsing");
         }
@@ -177,8 +177,6 @@ class ParsingContext {
     DateTimeParseException parseException(String message, Throwable ex) {
         throw new DateTimeParseException(String.format("Failed to parse date \"%s\": %s", datetime, message), datetime, offset, ex);
     }
-
-
     private int resolveDigitByCode(String value, int index) {
         char c = value.charAt(index);
         int result = c - '0';
@@ -187,6 +185,4 @@ class ParsingContext {
         }
         return result;
     }
-
-
 }

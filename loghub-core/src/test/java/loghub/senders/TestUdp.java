@@ -40,7 +40,6 @@ public class TestUdp {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.Udp");
     }
 
-
     private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
 
     private DatagramChannel ssocket;
@@ -106,7 +105,7 @@ public class TestUdp {
     }
 
     @Test
-    public void test_loghub_senders_Udp() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.senders.Tcp"
                 , BeanChecks.BeanInfo.build("destination", String.class)
                 , BeanChecks.BeanInfo.build("port", Integer.TYPE)

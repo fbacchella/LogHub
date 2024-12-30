@@ -50,7 +50,7 @@ import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
 
     @NoCache
-    @RequestAccept(methods= {"GET", "PUT", "POST"})
+    @RequestAccept(methods = {"GET", "PUT", "POST"})
     @ContentType("application/json; charset=utf-8")
     private class PostHandler extends HttpRequestProcessing {
 
@@ -82,7 +82,7 @@ public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
                 if (message != null && decoder == null) {
                     mapsStream = Stream.of(resolveCgi(message));
                 } else if (decoder instanceof TextDecoder) {
-                    mapsStream = ((TextDecoder)decoder).decode(cctx, message);
+                    mapsStream = ((TextDecoder) decoder).decode(cctx, message);
                 } else if (decoder != null) {
                     mapsStream = decoders.get(mimeType).decode(cctx, request.content());
                 } else {

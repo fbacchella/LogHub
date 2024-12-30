@@ -96,7 +96,7 @@ public class TestFilter {
             e.putAtPath(VariablePath.of("related", "user"), Set.of("root", "apache"));
             e.putAtPath(VariablePath.of("related", "hash"), null);
         });
-        Assert.assertEquals(1, ((Map<?, ?>)ev.get("related")).size());
+        Assert.assertEquals(1, ((Map<?, ?>) ev.get("related")).size());
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("related", "hosts")));
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("related", "ip")));
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("related", "hash")));

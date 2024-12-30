@@ -40,7 +40,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<R, SM, B>, SM, B extend
             Stream<Event> es = r.nettyMessageDecode(ctx, msg);
             if (es == null && closeOnError) {
                 ctx.close();
-            } else if (es != null){
+            } else if (es != null) {
                 es.forEach(out::add);
             }
         }
@@ -68,7 +68,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<R, SM, B>, SM, B extend
             if (content.equals(msg)) {
                 content.retain();
             } else if (msg instanceof ByteBufHolder) {
-                ((ByteBufHolder)msg).retain();
+                ((ByteBufHolder) msg).retain();
             }
             out.add(content);
         }

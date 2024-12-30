@@ -11,7 +11,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
-@RequestAccept(path="/")
+@RequestAccept(path = "/")
 public class RootRedirect extends HttpRequestProcessing implements ChannelInboundHandler {
 
     @Override

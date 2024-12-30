@@ -59,7 +59,10 @@ public abstract class SimpleBerCodec {
     protected abstract int resolveOidPart(byte[] element);
 
     protected void readSequence(ByteBuffer topbuffer, Consumer<ByteBuffer> consum) {
-        readType(SEQUENCE, topbuffer,  i-> {consum.accept(i); return null;});
+        readType(SEQUENCE, topbuffer,  i-> {
+            consum.accept(i);
+            return null;
+        });
     }
 
     protected byte[] readBitString(ByteBuffer topbuffer) {
@@ -101,7 +104,7 @@ public abstract class SimpleBerCodec {
             int count = sequenceLength & 0x7F;
             // The max possible value without the first byte should be less that remaining
             // It's a strict inferior value to real size
-            if (1L<<(8*(count-1)) > topbuffer.remaining()) {
+            if (1L << (8 * (count - 1)) > topbuffer.remaining()) {
                 throw new IllegalArgumentException("Invalid ASN1 object, oversized content");
             }
             byte[] buffer = new byte[count];
@@ -119,7 +122,7 @@ public abstract class SimpleBerCodec {
         topbuffer.put(OBJECTIDENTIFIER);
         topbuffer.put((byte) (oid.length - 1));
         topbuffer.put((byte) (oid[0] * 40 + oid[1]));
-        for (int i= 2 ; i < oid.length; i++) {
+        for (int i = 2; i < oid.length; i++) {
             topbuffer.put((byte) oid[i]);
         }
     }

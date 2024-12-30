@@ -120,7 +120,7 @@ public class TestEventProcessing {
             MappingIterator<Map<String, Object>> i = reader.readValues(new InputStreamReader(System.in,
                     StandardCharsets.UTF_8));
 
-            while(i.hasNext()) {
+            while (i.hasNext()) {
                 Map<String, Object> eventMap = i.next();
                 Date eventDate = null;
                 if (eventMap.containsKey(Event.TIMESTAMPKEY) && eventMap.get(Event.TIMESTAMPKEY) instanceof String) {
@@ -130,9 +130,9 @@ public class TestEventProcessing {
                     // Try to resolve the time zone first
                     ZoneId zi = ta.query(TemporalQueries.zone());
                     ZoneOffset zo = ta.query(TemporalQueries.offset());
-                    if ( zo != null) {
+                    if (zo != null) {
                         now = OffsetDateTime.now(zo);
-                    } else if ( zi != null) {
+                    } else if (zi != null) {
                         now = OffsetDateTime.now(zi);
                     } else {
                         now = OffsetDateTime.now(ZoneId.systemDefault());

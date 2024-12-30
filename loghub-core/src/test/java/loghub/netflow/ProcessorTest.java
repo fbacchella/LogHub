@@ -37,15 +37,15 @@ public class ProcessorTest {
         LogUtils.setLevel(logger, Level.TRACE);
     }
 
-    @Test(timeout=1000)
+    @Test(timeout = 1000)
     public void test() throws IOException, DecodeException {
         Processor p = new Processor();
 
         ByteBuf bbuffer;
         try (InputStream is = getClass().getResourceAsStream("/netflow/packets/ipfix.dat");
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[8*1024];
-            for (int length; (length = is.read(buffer)) != -1; ){
+            byte[] buffer = new byte[8 * 1024];
+            for (int length; (length = is.read(buffer)) != -1; ) {
                 out.write(buffer, 0, length);
             }
             bbuffer = Unpooled.wrappedBuffer(out.toByteArray());

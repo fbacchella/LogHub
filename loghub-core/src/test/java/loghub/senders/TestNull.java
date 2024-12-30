@@ -57,7 +57,7 @@ public class TestNull {
         return nullsender;
     }
 
-    @Test(timeout=2000)
+    @Test(timeout = 2000)
     public void testNoEncode() throws InterruptedException {
         long start = System.nanoTime();
         send(b -> {

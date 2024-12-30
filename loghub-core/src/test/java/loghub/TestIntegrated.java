@@ -40,7 +40,7 @@ import loghub.zmq.ZMQHelper.Method;
 
 public class TestIntegrated {
 
-    private static Logger logger ;
+    private static Logger logger;
 
     @Rule
     public final ZMQFactory tctxt = new ZMQFactory();
@@ -57,7 +57,7 @@ public class TestIntegrated {
         JmxService.stop();
     }
 
-    @Test(timeout=10000)
+    @Test(timeout = 10000)
     public void runStart() throws ConfigException, InterruptedException, MalformedObjectNameException,
                                           ZMQCheckedException {
         loghub.metrics.Stats.reset();
@@ -67,8 +67,8 @@ public class TestIntegrated {
         jcom.parse("-c", conffile);
         launch.run(List.of());
         Thread.sleep(500);
-        
-        MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer(); 
+
+        MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer();
         StatsMBean stats = JMX.newMBeanProxy(mbs, StatsMBean.Implementation.NAME, StatsMBean.class);
         Assert.assertNotNull(stats);
         ExceptionsMBean exceptions = JMX.newMBeanProxy(mbs, ExceptionsMBean.Implementation.NAME, ExceptionsMBean.class);
@@ -80,7 +80,7 @@ public class TestIntegrated {
             AtomicLong send = new AtomicLong();
             ThreadBuilder.get().setTask(() -> {
                 try {
-                    for (int i=0 ; i < 5 ; i++) {
+                    for (int i = 0; i < 5; i++) {
                         sender.send("message " + i);
                         send.incrementAndGet();
                         Thread.sleep(1);
@@ -94,7 +94,7 @@ public class TestIntegrated {
                          .setExceptionHandler(null)
                          .build(true);
             Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"(google-public-dns-a|8.8.8.8|dns\\.google)\",\"message\":\"message \\d+\"}");
-            while(send.get() < 5 || loghub.metrics.Stats.getInflight() != 0) {
+            while (send.get() < 5 || loghub.metrics.Stats.getInflight() != 0) {
                 logger.debug("send: {}, in flight: {}", send.get(), loghub.metrics.Stats.getInflight());
                 while (receiver.getEvents() > 0) {
                     logger.debug("in flight: {}", loghub.metrics.Stats.getInflight());
@@ -110,7 +110,7 @@ public class TestIntegrated {
             metrics.addAll(mbs.queryNames(new ObjectName("loghub:*"), null));
             long blocked = 0;
 
-            dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") ,
+            dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename="),
                     JmxMeterMBean::getCount, JmxMeterMBean.class);
             logger.debug("dropped: " + Stats.getDropped());
             logger.debug("failed: " + Stats.getFailed());
@@ -132,13 +132,12 @@ public class TestIntegrated {
         metrics.stream()
         .filter(filter::apply)
         .peek(i -> logger.debug(i.toString() + ": "))
-        .map( i -> JMX.newMBeanProxy(mbs, i, proxyClass))
+        .map(i -> JMX.newMBeanProxy(mbs, i, proxyClass))
         .map(counter)
-        .forEach( i -> {
+        .forEach(i -> {
             count.addAndGet(i);
             logger.debug(i);
-        })
-        ;
+        });
         return count.longValue();
     }
 }

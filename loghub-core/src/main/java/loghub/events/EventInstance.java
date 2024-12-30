@@ -142,7 +142,7 @@ class EventInstance extends Event {
             EventsFactory.finishEvent(false, timer);
             Stats.eventEnd(stepsCount);
         } else {
-            synchronized(this) {
+            synchronized (this) {
                 notify();
             }
         }
@@ -194,7 +194,7 @@ class EventInstance extends Event {
               || pipeLineLogger == null
               && next instanceof PreSubPipline) {
             // It's starting processing, so current pipeline information not yet initialized
-            Pipeline ppl = ((PreSubPipline)next).getPipe();
+            Pipeline ppl = ((PreSubPipline) next).getPipe();
             if (ppl.getName() != null) {
                 pipeLineLogger = ppl.getLogger();
                 currentPipeline = ppl.getName();
@@ -228,7 +228,7 @@ class EventInstance extends Event {
     }
 
     private void addProcessor(Processor p, boolean append) {
-        logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start" );
+        logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start");
         if (p instanceof SubPipeline) {
             SubPipeline sp = (SubPipeline) p;
             Pipeline pipe = sp.getPipeline();

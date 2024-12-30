@@ -177,7 +177,7 @@ public abstract class VariablePath {
             } else if (o == null || getClass() != o.getClass()) {
                 return false;
             } else {
-                return Arrays.equals(path, ((VariableLength)o).path);
+                return Arrays.equals(path, ((VariableLength) o).path);
             }
         }
 
@@ -285,7 +285,7 @@ public abstract class VariablePath {
             } else if (o == null || getClass() != o.getClass()) {
                 return false;
             } else {
-                return key.equals(((Meta)o).key);
+                return key.equals(((Meta) o).key);
             }
         }
     }
@@ -320,7 +320,7 @@ public abstract class VariablePath {
         }
         private Object resolve(Event ev) {
             Object o = ev.getConnectionContext();
-            for (int i=0; i < path.length; i++) {
+            for (int i = 0; i < path.length; i++) {
                 try {
                     o = beanResolver(o, path[i]);
                     // beanResolver return null before end of path, it's a missing value
@@ -358,7 +358,7 @@ public abstract class VariablePath {
         }
         @Override
         public String toString() {
-            return "[" + Event.INDIRECTMARK +' ' + smartPathPrint() + "]";
+            return "[" + Event.INDIRECTMARK + ' ' + smartPathPrint() + "]";
         }
         @Override
         public boolean isIndirect() {
@@ -634,7 +634,7 @@ public abstract class VariablePath {
             if (curs == 0 && next == 0) {
                 elements.add(".");
                 curs = 1;
-            } else if (curs == next){
+            } else if (curs == next) {
                 curs++;
             } else {
                 elements.add(path.substring(curs, next));
@@ -663,7 +663,7 @@ public abstract class VariablePath {
         if (!vp.isContext()) {
             throw new IllegalArgumentException("Not a context path");
         } else {
-            return ((Context)vp).resolve(ev);
+            return ((Context) vp).resolve(ev);
         }
     }
 

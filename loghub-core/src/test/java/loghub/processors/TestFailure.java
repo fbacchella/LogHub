@@ -11,7 +11,7 @@ public class TestFailure {
 
     private final EventsFactory factory = new EventsFactory();
 
-    @Test(expected=ProcessorException.class)
+    @Test(expected = ProcessorException.class)
     public void test() throws ProcessorException {
         Processor p = new Processor() {
 

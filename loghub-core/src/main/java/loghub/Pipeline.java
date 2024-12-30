@@ -32,7 +32,7 @@ public class Pipeline {
     }
 
     public void configure(Properties properties, ExecutorService executor, List<Future<Boolean>> results) {
-        for (Processor p: processors) {
+        for (Processor p : processors) {
             Future<Boolean> f = executor.submit(() -> p.configure(properties));
             results.add(f);
         }

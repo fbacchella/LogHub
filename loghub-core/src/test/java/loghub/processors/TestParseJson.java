@@ -49,7 +49,7 @@ public class TestParseJson {
         Assert.assertTrue(event.get("e") instanceof Map);
     }
 
-    @Test(expected=ProcessorException.class)
+    @Test(expected = ProcessorException.class)
     public void testFailure() throws ProcessorException {
         ParseJson parse = new ParseJson();
         parse.setField(VariablePath.of("message"));
@@ -60,7 +60,7 @@ public class TestParseJson {
     }
 
     @Test
-    public void test_loghub_processors_ParseJson() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.ParseJson"
                               , BeanChecks.BeanInfo.build("atPrefix", String.class)
                         );

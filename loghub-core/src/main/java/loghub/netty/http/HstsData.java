@@ -16,6 +16,7 @@ import lombok.experimental.Accessors;
 public class HstsData {
 
     public static final  String HEADER_NAME = "Strict-Transport-Security";
+    private static final Duration ONE_YEAR = Duration.ofDays(365);
 
     private class HSTSHandler extends ChannelDuplexHandler {
         @Override
@@ -29,7 +30,6 @@ public class HstsData {
         }
     }
 
-    private final Duration ONE_YEAR = Duration.ofDays(365);
     private final Duration maxAge;
     private final boolean includeSubDomains;
     private final boolean preload;
@@ -47,7 +47,7 @@ public class HstsData {
         return String.format("max-age=%s%s%s",
                 maxAge.getSeconds(),
                 includeSubDomains ? "; includeSubDomains" : "",
-                preload ? "; preload" : "" );
+                preload ? "; preload" : "");
     }
 
     public ChannelHandlerAdapter getChannelHandler() {

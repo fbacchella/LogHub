@@ -24,7 +24,7 @@ public enum GroovyMethods {
     private static final Map<String, GroovyMethods> mapSymbol = new HashMap<>();
     private static final Map<String, GroovyMethods> mapGroovyMethod = new HashMap<>();
     static {
-        for (GroovyMethods go: GroovyMethods.values()) {
+        for (GroovyMethods go : GroovyMethods.values()) {
             if (go.symbol != null) {
                 mapSymbol.put(go.symbol, go);
             }

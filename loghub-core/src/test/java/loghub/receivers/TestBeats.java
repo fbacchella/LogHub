@@ -63,10 +63,10 @@ public class TestBeats {
         writer = JacksonBuilder.get(JsonMapper.class).getMapper().writer();
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testSimple() throws IOException, InterruptedException {
         try {
-            makeReceiver( i -> { /* */ }, Collections.emptyMap());
+            makeReceiver(i -> { /* */ }, Collections.emptyMap());
             List<Map<?, ?>> batch = Collections.singletonList(Collections.singletonMap("message", "LogHub"));
             sendFrame(encode(batch), new Socket());
             Event e = queue.poll(1, TimeUnit.SECONDS);
@@ -82,10 +82,10 @@ public class TestBeats {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testGarbage() throws IOException, InterruptedException {
         try {
-            makeReceiver( i -> { /* */ }, Collections.emptyMap());
+            makeReceiver(i -> { /* */ }, Collections.emptyMap());
             sendFrame(ByteBuffer.allocate(100), new Socket());
             Event e = queue.poll(1, TimeUnit.SECONDS);
             Assert.assertNull(e);
@@ -97,10 +97,10 @@ public class TestBeats {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testOversizedBatch() throws IOException, InterruptedException {
         try {
-            makeReceiver( i -> {/* */ }, Collections.emptyMap());
+            makeReceiver(i -> {/* */ }, Collections.emptyMap());
             ByteBuffer out = ByteBuffer.allocate(4096);
             out.put(Protocol.VERSION_2);
             out.put(Protocol.CODE_WINDOW_SIZE);
@@ -128,13 +128,13 @@ public class TestBeats {
         }
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testSSL() throws IOException, InterruptedException {
         SslContextBuilder builder = SslContextBuilder.getBuilder();
         builder.setTrusts(Tools.getDefaultKeyStore());
         SSLContext sslctx = builder.build();
         try {
-            makeReceiver( i -> {
+            makeReceiver(i -> {
                 i.setSslContext(sslctx);
                 i.setWithSSL(true);
                 // It should be required for a better test, needs to understand how to make client side TLS works
@@ -167,7 +167,7 @@ public class TestBeats {
     }
 
     private void sendFrame(ByteBuffer buf, Socket s) throws IOException {
-        try(Socket socket = s) {
+        try (Socket socket = s) {
             socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
             OutputStream os = socket.getOutputStream();
             os.write(buf.array(), buf.arrayOffset(), buf.remaining());
@@ -204,7 +204,7 @@ public class TestBeats {
         out.putInt(batch.size());
 
         // Aggregates the payload that we could decide to compress or not.
-        for (int i = 0; i < batch.size() ; i ++) {
+        for (int i = 0; i < batch.size(); i++) {
             encodeMessageWithJson(out, i, batch.get(i));
         }
         out.flip();
@@ -222,7 +222,7 @@ public class TestBeats {
     }
 
     @Test
-    public void test_loghub_receivers_Beats() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Beats"
                               , BeanInfo.build("timeStampField", String.class)
                               , BeanInfo.build("filter", Filter.class)

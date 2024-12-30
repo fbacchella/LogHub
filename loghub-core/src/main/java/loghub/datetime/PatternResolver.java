@@ -29,7 +29,6 @@ class PatternResolver {
     );
     private static final String VALID_ZONE_PATTERNS = "(" + String.join("|", VALID_ZONE_FORMATTERS) + ")";
 
-
     private static final Pattern IO8601_PATTERN = buildPattern("yyyy-MM-dd('.'|.)HH:mm:ss(([.,])S{1,9})?(%s)?");
     private static final Pattern RFC822_PATTERN = buildPattern("(eee,?\\s+)?(d{1,2})\\s+MMM(\\s+yyyy)?\\s+HH:mm:ss(\\.S{1,9})?(\\s+%s)?");
     private static final Pattern RFC3164_PATTERN = buildPattern("MMM\\s+(d{1,2})(\\s+yyyy)?\\s+HH:mm:ss(\\.S{1,9})?(\\s+%s)?");
@@ -148,7 +147,7 @@ class PatternResolver {
             case "xxxx":
                 return (sb, zdt) -> appendFormattedSecondOffset("+0000", 3, true, ' ', zdt, sb);
             case "xxxxx":
-                return (sb,zdt) -> appendFormattedSecondOffset("+00:00", 3, true, ':', zdt, sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("+00:00", 3, true, ':', zdt, sb);
             default:
                 return new AppendOffset.PatternAppendOffset(pattern);
             }

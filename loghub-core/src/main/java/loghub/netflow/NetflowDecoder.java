@@ -34,7 +34,7 @@ public class NetflowDecoder extends Decoder {
     public Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         InetAddress addr;
         if (ctx instanceof IpConnectionContext) {
-            addr = ((IpConnectionContext)ctx).getRemoteAddress().getAddress();
+            addr = ((IpConnectionContext) ctx).getRemoteAddress().getAddress();
             NetflowPacket packet = PacketFactory.parsePacket(addr, bbuf);
             Map<String, Object> ev = new HashMap<>();
             ev.put(Event.TIMESTAMPKEY, Date.from(packet.getExportTime()));
@@ -48,7 +48,7 @@ public class NetflowDecoder extends Decoder {
                 ev.put("SysUptime", packet5.getSysUpTime());
                 break;
             case 9:
-                ev.put("SysUptime", ((Netflow9Packet)packet).getSysUpTime());
+                ev.put("SysUptime", ((Netflow9Packet) packet).getSysUpTime());
                 break;
             case 10:
                 break;

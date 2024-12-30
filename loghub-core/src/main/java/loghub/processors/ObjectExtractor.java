@@ -29,7 +29,7 @@ public abstract class ObjectExtractor<T> extends Processor {
             extract(event, type);
             return true;
         } else {
-            throw event.buildException("can't extract "+  getClassType().getCanonicalName() + " from " + o.getClass().getCanonicalName());
+            throw event.buildException("can't extract " +  getClassType().getCanonicalName() + " from " + o.getClass().getCanonicalName());
         }
     }
 

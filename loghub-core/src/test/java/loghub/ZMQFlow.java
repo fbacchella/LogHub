@@ -18,7 +18,7 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 import zmq.io.mechanism.Mechanisms;
 
-@Accessors(chain=true)
+@Accessors(chain = true)
 public class ZMQFlow extends Thread implements AutoCloseable {
 
     private static final Logger logger = LogManager.getLogger();
@@ -85,7 +85,7 @@ public class ZMQFlow extends Thread implements AutoCloseable {
                     running = false;
                     Thread.interrupted();
                 }
-            } 
+            }
         } catch (ZMQCheckedException ex) {
             logger.error("Failed handler dispatch", ex);
         } finally {

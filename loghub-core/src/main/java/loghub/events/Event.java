@@ -47,7 +47,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public static final String EVENT_ENTRY = "loghub.Event";
 
     enum Action {
-        APPEND(false, Action::Append),          // Exported through appendAtPath
+        APPEND(false, Action::append),          // Exported through appendAtPath
         GET(false, Action::get),       // Exported through getAtPath
         PUT(false, Action::put),  // Exported through putAtPath
         REMOVE(false, (i, j, k) -> i.remove(j)), // Exported through removeAtPath
@@ -55,7 +55,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         CONTAINSVALUE(true, (c, k, v) -> Action.asMap(c, k).containsValue(v)), // Used in EventWrapper
         ISEMPTY(true, (c, k, v) -> Action.asMap(c, k).isEmpty()), // Used in EventWrapper
         SIZE(true, (c, k, v) ->  Action.size(c, k)), // Used in EventWrapper
-        CLEAR(true, (c, k, v) -> {asMap(c, k).clear(); return null;}), // Used in EventWrapper
+        CLEAR(true, (c, k, v) -> { asMap(c, k).clear(); return null;}), // Used in EventWrapper
         KEYSET(true, (c, k, v) -> Action.asMap(c, k).keySet()), // Used in EventWrapper
         ENTRYSET(true, (c, k, v) -> Action.entrySet(Action.asMap(c, k))), // Used in EventWrapper
         VALUES(true, (c, k, v) -> Action.asMap(c, k).values()), // Used in EventWrapper
@@ -80,8 +80,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         private static Map<String, Object> asMap(Map<String, Object> c , String k) {
             if (k == null) {
                 return c;
-            } else if (c.containsKey(k) && c.get(k) instanceof Map){
-                return (Map<String, Object>)c.get(k);
+            } else if (c.containsKey(k) && c.get(k) instanceof Map) {
+                return (Map<String, Object>) c.get(k);
             } else {
                 return Collections.emptyMap();
             }
@@ -92,23 +92,23 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         private static int size(Map<String, Object> c, String k) {
             if (k == null) {
                 return c.size();
-            } else if (c.containsKey(k) && c.get(k) instanceof Map){
+            } else if (c.containsKey(k) && c.get(k) instanceof Map) {
                 return ((Map<?, ?>) c.get(k)).size();
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
         }
-        private static Object checkPath(Map<String, Object>c, String k, Object v) {
+        private static Object checkPath(Map<String, Object> c, String k, Object v) {
             if (k != null && ! (c.get(k) instanceof Map)) {
                 throw IgnoredEventException.INSTANCE;
             } else {
                 return v;
             }
         }
-        private static boolean Append(Map<String, Object>c, String k, Object v) {
+        private static boolean append(Map<String, Object> c, String k, Object v) {
             if (k == null) {
                 return false;
-            } else if (c.containsKey(k)){
+            } else if (c.containsKey(k)) {
                 Object oldVal = c.get(k);
                 if (oldVal == null || oldVal instanceof NullOrMissingValue) {
                     c.put(k, new ArrayList<>(List.of(v)));
@@ -186,7 +186,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         }
         public final Helpers.TriFunction<Map<String, Object>, String, Object, Object> action;
         public final boolean mapAction;
-        Action(boolean mapAction, Helpers.TriFunction<Map<String, Object>, String, Object, Object> action){
+        Action(boolean mapAction, Helpers.TriFunction<Map<String, Object>, String, Object, Object> action) {
             this.mapAction = mapAction;
             this.action = action;
         }
@@ -414,8 +414,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     /**
      * This method inject a new event in the processing pipeline. Used by receivers when creating new events.
-     * 
-     * @param pipeline the pipeline with the processes to inject 
+     *
+     * @param pipeline the pipeline with the processes to inject
      * @param mainqueue the waiting queue
      * @param blocking does it block or fails if the queue is full.
      * @return true if event was injected in the pipeline.
@@ -425,7 +425,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     /**
      * This method inject a new event in the processing pipeline. Used by processors that want to inject new events.
      * <p>It will not block if the queue is full.</p>
-     * 
+     *
      * @param pipeline
      * @param mainqueue
      */
@@ -440,9 +440,9 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public abstract void reinject(Event reference, PriorityBlockingQueue mainqueue);
 
     /**
-     * Refill this event with the content of this pipeline. Used when forwarding an event 
+     * Refill this event with the content of this pipeline. Used when forwarding an event
      * to a another pipeline
-     * 
+     *
      * @param pipeline
      */
     public abstract void refill(Pipeline pipeline);
@@ -480,10 +480,10 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             setTimestamp((Date) value);
             return true;
         } else if (value instanceof Instant) {
-            setTimestamp(Date.from((Instant)value));
+            setTimestamp(Date.from((Instant) value));
             return true;
         } else if (value instanceof Number) {
-            Date newDate = new Date(((Number)value).longValue());
+            Date newDate = new Date(((Number) value).longValue());
             setTimestamp(newDate);
             return true;
         } else {
@@ -505,7 +505,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     }
 
     public Object getAtPath(VariablePath path) {
-        return applyAtPath(Action.GET, path, null,false);
+        return applyAtPath(Action.GET, path, null, false);
     }
 
     public boolean containsAtPath(VariablePath path) {

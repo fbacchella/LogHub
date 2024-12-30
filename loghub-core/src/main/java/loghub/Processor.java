@@ -129,11 +129,11 @@ public abstract class Processor {
                 return false;
             } else if (status instanceof Boolean) {
                 return ((Boolean) status);
-            } else if (status instanceof Number ){
+            } else if (status instanceof Number) {
                 // If it's an integer, it will map 0 to false, any other value to true
                 // A floating number will always return false, exact 0 don't really exist for float
                 return ! "0".equals(status.toString());
-            } else if (status instanceof String ){
+            } else if (status instanceof String) {
                 return ! ((String) status).isEmpty();
             } else {
                 // a non empty object, it must be true ?

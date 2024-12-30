@@ -51,7 +51,7 @@ public class TestEvalExpression {
     }
 
     @Test
-    public void test_loghub_encoders_EvalExpression() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.encoders.EvalExpression"
                 , BeanChecks.BeanInfo.build("charset", String.class)
                 , BeanChecks.BeanInfo.build("format", Expression.class)

@@ -16,7 +16,7 @@ import loghub.jackson.MsgpackTimeDeserializer;
 /**
  * This transformer parse a msgpack object. If it's a map, all the elements are
  * added to the event. Otherwise, it's content is added to the field indicated.
- * 
+ *
  * @author Fabrice Bacchella
  *
  */

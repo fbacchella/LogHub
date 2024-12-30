@@ -31,7 +31,7 @@ public class IpfixInformationElementsTest {
     public void test() throws IOException {
         IpfixInformationElements iie = new IpfixInformationElements();
         Map<String, Set<String>> values = new HashMap<>();
-        iie.elements.forEach((k,v) -> {
+        iie.elements.forEach((k, v) -> {
             values.computeIfAbsent("Abstract Data Type", i -> new HashSet<>()).add(v.type);
             values.computeIfAbsent("Data Type Semantics", i -> new HashSet<>()).add(v.semantics);
             values.computeIfAbsent("Status", i -> new HashSet<>()).add(v.semantics);

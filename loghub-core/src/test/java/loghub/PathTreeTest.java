@@ -10,7 +10,7 @@ public class PathTreeTest {
     @Test
     public void test() {
         PathTree<String, VariablePath> tree = new PathTree<>(VariablePath.parse(""));
-        for (String[] i: List.of(new String[] {"a", "b"}, new String[] {"a", "b" , "c"}, new String[] {"a", "d"}, new String[] {"a", "e", "f"})) {
+        for (String[] i : List.of(new String[] {"a", "b"}, new String[] {"a", "b", "c"}, new String[] {"a", "d"}, new String[] {"a", "e", "f"})) {
             VariablePath vp1 = tree.computeIfAbsent(i, p -> VariablePath.of(i));
             VariablePath vp2 = tree.computeIfAbsent(i, p -> VariablePath.of(i));
             Assert.assertSame(vp1, vp2);

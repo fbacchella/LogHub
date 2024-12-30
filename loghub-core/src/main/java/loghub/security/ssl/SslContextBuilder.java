@@ -59,7 +59,7 @@ public class SslContextBuilder {
 
     static {
         String operatingSystem = System.getProperty("os.name", "");
-        if (operatingSystem.startsWith("Windows")){
+        if (operatingSystem.startsWith("Windows")) {
             DEFAULT_SECURERANDOM = "Windows-PRNG";
         } else {
             DEFAULT_SECURERANDOM = "NativePRNGNonBlocking";
@@ -266,7 +266,7 @@ public class SslContextBuilder {
         try {
             cl = Optional.ofNullable(cl).orElse(SslContextBuilder.class.getClassLoader());
             @SuppressWarnings("unchecked")
-            Class<Provider> clazz = (Class<Provider>)cl.loadClass(providerClassName);
+            Class<Provider> clazz = (Class<Provider>) cl.loadClass(providerClassName);
             return clazz.getConstructor().newInstance();
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | NoSuchMethodException |
                  InvocationTargetException e) {

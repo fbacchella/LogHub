@@ -49,7 +49,7 @@ public class TestParseCsv {
     }
 
     @Test
-    public void test_loghub_processors_ParseCsv() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.ParseCsv"
                               , BeanChecks.BeanInfo.build("headers", BeanChecks.LSTRING)
                               , BeanChecks.BeanInfo.build("columnSeparator", Character.class)

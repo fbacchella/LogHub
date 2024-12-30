@@ -38,7 +38,7 @@ public class TestMerge {
     @SuppressWarnings("rawtypes")
     @Test
     public void test() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>', \"f\": {}}, doFire: [a] >= 2, forward: false}}";
+        String conf = "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>', \"f\": {}}, doFire: [a] >= 2, forward: false}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Helpers.parallelStartProcessor(p);
@@ -81,15 +81,15 @@ public class TestMerge {
         Assert.assertEquals(8.0, (double) e.get("d"), 1e-5);
         Assert.assertEquals("5", e.get("e"));
         Assert.assertTrue(e.get("f") instanceof Map);
-        Assert.assertTrue(((Map)e.get("f")).get(".f") instanceof List);
+        Assert.assertTrue(((Map) e.get("f")).get(".f") instanceof List);
         Assert.assertEquals(1, e.getTimestamp().getTime());
         Assert.assertEquals(7, e.getMeta("g"));
 
     }
 
-    @Test(timeout=5000)
+    @Test(timeout = 5000)
     public void testExpiration() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, expiration: 1 }}";
+        String conf = "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, expiration: 1 }}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Helpers.parallelStartProcessor(p);
@@ -110,7 +110,7 @@ public class TestMerge {
 
     @Test
     public void testDefault() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", doFire: true, default: \",\", onFire: [f] = 1, forward: true}}";
+        String conf = "pipeline[main] { merge {index: \"${e%s}\", doFire: true, default: \",\", onFire: [f] = 1, forward: true}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Helpers.parallelStartProcessor(p);

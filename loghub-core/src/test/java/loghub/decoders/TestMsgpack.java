@@ -105,16 +105,16 @@ public class TestMsgpack {
         Decoder d = new Msgpack.Builder().build();
 
         Map<Value, Value> destination = new HashMap<>();
-        destination.put(ValueFactory.newString("a"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4}) );
-        destination.put(ValueFactory.newString("b"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4, 5, 6, 7, 8}) );
-        destination.put(ValueFactory.newString("c"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}) );
-        destination.put(ValueFactory.newString("d"), ValueFactory.newExtension((byte) -1, new byte[]{12, 11, 10, 9, 0, 0, 0, 0, 0, 3, 2, 1}) );
+        destination.put(ValueFactory.newString("a"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4}));
+        destination.put(ValueFactory.newString("b"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4, 5, 6, 7, 8}));
+        destination.put(ValueFactory.newString("c"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
+        destination.put(ValueFactory.newString("d"), ValueFactory.newExtension((byte) -1, new byte[]{12, 11, 10, 9, 0, 0, 0, 0, 0, 3, 2, 1}));
 
         // A value that overflow the unsigned nano
         ByteBuffer bytes = ByteBuffer.wrap(new byte[8]);
         bytes.order(ByteOrder.BIG_ENDIAN);
         bytes.putLong(Long.parseUnsignedLong("12005275407473284400"));
-        destination.put(ValueFactory.newString("e"), ValueFactory.newExtension((byte) -1, bytes.array()) );
+        destination.put(ValueFactory.newString("e"), ValueFactory.newExtension((byte) -1, bytes.array()));
 
         Value v = ValueFactory.newMap(destination);
 
@@ -129,7 +129,7 @@ public class TestMsgpack {
         Assert.assertEquals(Instant.class, e.get("b").getClass());
         Assert.assertArrayEquals(new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, (byte[]) e.get("c"));
         Assert.assertEquals(Instant.class, e.get("d").getClass());
-        Instant time = (Instant)e.get("e");
+        Instant time = (Instant) e.get("e");
         Assert.assertEquals(1563268400L, time.getEpochSecond());
         Assert.assertEquals(698799000, time.getNano());
     }

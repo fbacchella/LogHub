@@ -17,7 +17,7 @@ import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 
 @NoCache
 @ContentType("text/plain")
-@RequestAccept(path="/token", methods={"GET"})
+@RequestAccept(path = "/token", methods = {"GET"})
 public class JwtToken extends HttpRequestProcessing {
 
     private final JWTHandler alg;
@@ -33,7 +33,7 @@ public class JwtToken extends HttpRequestProcessing {
             String token = alg.getToken(p);
             ByteBuf content = Unpooled.copiedBuffer(token + "\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
-        } catch (JWTCreationException exception){
+        } catch (JWTCreationException exception) {
             throw new HttpRequestFailure(HttpResponseStatus.SERVICE_UNAVAILABLE, "JWT creation failed", Collections.emptyMap());
         }
     }

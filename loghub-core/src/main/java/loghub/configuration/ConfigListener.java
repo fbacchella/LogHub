@@ -142,7 +142,7 @@ class ConfigListener extends RouteBaseListener {
     static final class Input {
         final List<ObjectWrapped<Receiver<?, ?>>> receiver;
         final String piperef;
-        Input(List<ObjectWrapped<Receiver<?, ?>>>receiver, String piperef) {
+        Input(List<ObjectWrapped<Receiver<?, ?>>> receiver, String piperef) {
             this.piperef = piperef;
             this.receiver = receiver;
         }
@@ -155,7 +155,7 @@ class ConfigListener extends RouteBaseListener {
     static final class Output {
         final List<ObjectWrapped<Sender>> sender;
         final String piperef;
-        Output(List<ObjectWrapped<Sender>>sender, String piperef) {
+        Output(List<ObjectWrapped<Sender>> sender, String piperef) {
             this.piperef = piperef;
             this.sender = sender;
         }
@@ -354,7 +354,7 @@ class ConfigListener extends RouteBaseListener {
         ObjectWrapped<Object> beanObject = stack.peekTyped();
         Object value;
         if (beanValue.wrapped instanceof SslContextBuilder) {
-           value = ((SslContextBuilder)beanValue.wrapped).build();
+           value = ((SslContextBuilder) beanValue.wrapped).build();
         } else {
             value = beanValue.wrapped;
         }
@@ -415,7 +415,7 @@ class ConfigListener extends RouteBaseListener {
         String qualifiedName = ctx.QualifiedIdentifier().getText();
         ObjectWrapped<Object> wobject = getObject(qualifiedName, ctx);
         // Check for some beans to inject
-        for (Class<?> c: INJECTED_BEANS_CLASSES) {
+        for (Class<?> c : INJECTED_BEANS_CLASSES) {
             beansManager.getBeanByType(wobject.wrapped, c).ifPresent(m -> {
                 try {
                     Object value;
@@ -462,18 +462,18 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitPipenode(PipenodeContext ctx) {
         Object o = stack.pop();
-        if( (o instanceof ObjectWrapped) ) {
+        if ((o instanceof ObjectWrapped)) {
             @SuppressWarnings("unchecked")
             ObjectWrapped<Processor> processor = (ObjectWrapped<Processor>) o;
             ProcessorInstance pi = new ProcessorInstance(processor);
             stack.push(pi);
-        } else if( (o instanceof PipenodesList) ) {
+        } else if ((o instanceof PipenodesList)) {
             PipenodesList pipes = (PipenodesList) o;
             Pipeline p = parsePipeline(pipes, currentPipeLineName);
             AnonymousSubPipeline anonymous = new AnonymousSubPipeline();
             anonymous.setPipeline(p);
             stack.push(new ProcessorInstance(anonymous));
-        } else if( (o instanceof PipeRef) ) {
+        } else if ((o instanceof PipeRef)) {
             PipeRef pr = (PipeRef) o;
             NamedSubPipeline nsp = new NamedSubPipeline();
             nsp.setPipeRef(pr.pipename);
@@ -501,14 +501,14 @@ class ConfigListener extends RouteBaseListener {
 
     private Processor getProcessor(Pipenode i, String currentPipeLineName) throws ConfigException {
         Processor t;
-        if (i instanceof ConfigListener.PipeRef){
+        if (i instanceof ConfigListener.PipeRef) {
             ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
             NamedSubPipeline pr = new NamedSubPipeline();
             pr.setPipeRef(cpr.pipename);
             t = pr;
-        } else if (i instanceof ConfigListener.PipenodesList){
+        } else if (i instanceof ConfigListener.PipenodesList) {
             AnonymousSubPipeline subpipe = new AnonymousSubPipeline();
-            Pipeline p = parsePipeline((ConfigListener.PipenodesList)i, currentPipeLineName);
+            Pipeline p = parsePipeline((ConfigListener.PipenodesList) i, currentPipeLineName);
             subpipe.setPipeline(p);
             t = subpipe;
         } else if (i instanceof ConfigListener.ProcessorInstance) {
@@ -550,18 +550,18 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitPipeline(PipelineContext ctx) {
         FinalpiperefContext nextpipe = ctx.finalpiperef();
-        if(nextpipe != null) {
+        if (nextpipe != null) {
             // The PipeRefName was useless
             stack.pop();
         }
         PipenodesList pipe;
-        if( ! stack.isEmpty()) {
+        if (! stack.isEmpty()) {
             pipe = (PipenodesList) stack.pop();
         } else {
             // Empty pipeline, was not created in exitPipenodeList
             pipe = new PipenodesList();
         }
-        if(nextpipe != null) {
+        if (nextpipe != null) {
             pipe.nextPipelineName = nextpipe.getText();
         }
         pipelines.put(currentPipeLineName, pipe);
@@ -582,10 +582,10 @@ class ConfigListener extends RouteBaseListener {
         do {
             o = stack.pop();
             if (o instanceof ProcessorInstance) {
-                pipe.processors.add(0, (ProcessorInstance)o);
+                pipe.processors.add(0, (ProcessorInstance) o);
             }
             assert StackMarker.PIPE_NODE_LIST == o || (o instanceof ProcessorInstance) : o.getClass();
-        } while(StackMarker.PIPE_NODE_LIST != o);
+        } while (StackMarker.PIPE_NODE_LIST != o);
         stack.push(pipe);
     }
 
@@ -607,10 +607,10 @@ class ConfigListener extends RouteBaseListener {
         do {
             o = stack.pop();
             if (o instanceof ProcessorInstance) {
-                pipe.processors.add(0, (ProcessorInstance)o);
+                pipe.processors.add(0, (ProcessorInstance) o);
             }
             assert StackMarker.PATH == o || (o instanceof ProcessorInstance) : o.getClass();
-        } while(StackMarker.PATH != o);
+        } while (StackMarker.PATH != o);
         stack.push(pipe);
     }
 
@@ -633,7 +633,7 @@ class ConfigListener extends RouteBaseListener {
     public void exitPiperef(PiperefContext ctx) {
         // In pipenode, part of a pipeline, expect to find a transformer, so transform the name to a PipeRef transformer
         // Other case the name is kept as is
-        if(ctx.getParent() instanceof loghub.RouteParser.PipenodeContext) {
+        if (ctx.getParent() instanceof loghub.RouteParser.PipenodeContext) {
             PipeRef piperef = new PipeRef();
             piperef.pipename = ((PipeRefName) stack.pop()).piperef;
             stack.push(piperef);
@@ -656,7 +656,7 @@ class ConfigListener extends RouteBaseListener {
                 Pipenode t = (Pipenode) o;
                 clauses.add(0, t);
             } else if (o instanceof ObjectWrapped) {
-                test.setTest(resolveWrappedExpression((ObjectWrapped<?>)o));
+                test.setTest(resolveWrappedExpression((ObjectWrapped<?>) o));
             }
         } while (StackMarker.TEST != o);
         assert clauses.size() == 1 || clauses.size() == 2;
@@ -677,7 +677,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitInputObjectlist(InputObjectlistContext ctx) {
         List<ObjectWrapped<?>> l = new ArrayList<>();
-        while(StackMarker.OBJECT_LIST != stack.peek()) {
+        while (StackMarker.OBJECT_LIST != stack.peek()) {
             l.add((ObjectWrapped<?>) stack.pop());
         }
         stack.pop();
@@ -692,7 +692,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitOutputObjectlist(OutputObjectlistContext ctx) {
         List<ObjectWrapped<?>> l = new ArrayList<>();
-        while(StackMarker.OBJECT_LIST != stack.peek()) {
+        while (StackMarker.OBJECT_LIST != stack.peek()) {
             l.add((ObjectWrapped<?>) stack.pop());
         }
         stack.pop();
@@ -722,7 +722,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitInput(InputContext ctx) {
         PipeRefName piperef;
-        if(stack.peek() instanceof PipeRefName) {
+        if (stack.peek() instanceof PipeRefName) {
             piperef = (PipeRefName) stack.pop();
         } else {
             // if no pipe name given, events are sent to the main pipe
@@ -747,7 +747,7 @@ class ConfigListener extends RouteBaseListener {
         ObjectWrapped<Object> propertyValue = (ObjectWrapped<Object>) stack.pop();
         Object o = properties.get(propertyName);
         if (o instanceof AtomicReference) {
-            ((AtomicReference<Object>)o).set(propertyValue.wrapped);
+            ((AtomicReference<Object>) o).set(propertyValue.wrapped);
         }
     }
 
@@ -801,7 +801,7 @@ class ConfigListener extends RouteBaseListener {
                 VariablePath lvalue = convertEventVariable(ctx.eventVariable().get(count--));
                 Expression expression = resolveWrappedExpression((ObjectWrapped<?>) o);
                 fields.put(lvalue, expression);
-            } else if (o instanceof PipeRefName){
+            } else if (o instanceof PipeRefName) {
                 PipeRefName name = (PipeRefName) o;
                 fire.setDestination(name.piperef);
             } else {
@@ -833,7 +833,7 @@ class ConfigListener extends RouteBaseListener {
             return VariablePath.TIMESTAMP;
         } else if (ev.lex != null) {
             return VariablePath.LASTEXCEPTION;
-        } else if (ev.ctx != null && ev.vp1 == null ) {
+        } else if (ev.ctx != null && ev.vp1 == null) {
             return VariablePath.ofContext(Collections.emptyList());
         } else if (ev.ctx != null) {
             return VariablePath.ofContext(convertEventVariable(ev.vp1));
@@ -945,7 +945,7 @@ class ConfigListener extends RouteBaseListener {
         if (ctx.source() == null) {
             Map<Object, Object> map = new HashMap<>();
             Object o;
-            while((o = stack.pop()) != StackMarker.MAP) {
+            while ((o = stack.pop()) != StackMarker.MAP) {
                 Object value;
                 if (o instanceof ObjectWrapped) {
                     value = ((ObjectWrapped<Object>) o).wrapped;
@@ -979,7 +979,7 @@ class ConfigListener extends RouteBaseListener {
         List<ExpressionBuilder> expressionsList = new ArrayList<>();
         Object se;
         while ((se = stack.pop()) != StackMarker.EXPRESSION_LIST) {
-            expressionsList.add((ExpressionBuilder)se);
+            expressionsList.add((ExpressionBuilder) se);
         }
         Collections.reverse(expressionsList);
         stack.push(expressionsList);
@@ -1170,7 +1170,7 @@ class ConfigListener extends RouteBaseListener {
                     } catch (UnknownHostException ex) {
                         throw new RecognitionException("Failed to parse IP address \"" + o + "\"", parser, stream, ctx);
                     } catch (NumberFormatException ex) {
-                        throw new RecognitionException("Unable to parse \""+ o +"\" as a " + theClass.getName(), parser, stream, ctx);
+                        throw new RecognitionException("Unable to parse \"" + o + "\" as a " + theClass.getName(), parser, stream, ctx);
                     } catch (InvocationTargetException ex) {
                         throw new RecognitionException(Helpers.resolveThrowableException(ex.getCause()), parser, stream, ctx);
                     }

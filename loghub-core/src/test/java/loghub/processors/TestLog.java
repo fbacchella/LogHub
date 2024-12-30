@@ -73,7 +73,7 @@ public class TestLog {
     }
 
     @Test
-    public void test_loghub_processors_Log() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Log"
                 , BeanChecks.BeanInfo.build("message", Expression.class)
                 , BeanChecks.BeanInfo.build("level", String.class)

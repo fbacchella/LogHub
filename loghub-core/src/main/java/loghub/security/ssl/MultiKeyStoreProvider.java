@@ -14,7 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class MultiKeyStoreProvider extends Provider {
-    
+
     private static final Logger logger = LogManager.getLogger();
 
     private static final String INITNAME = "LKS";
@@ -53,7 +53,7 @@ public class MultiKeyStoreProvider extends Provider {
         super(PROVIDERINITNAME, 0.1, "A simple provider for loghub");
         logger.debug("Creating {}", this);
         List<String> aliases = Collections.emptyList();
-        Map<String,String> attributes = Collections.emptyMap();
+        Map<String, String> attributes = Collections.emptyMap();
         Service s = new Service(this, "KeyStore", INITNAME, MultiKeyStoreSpi.class.getCanonicalName(), aliases, attributes);
         putService(s);
     }

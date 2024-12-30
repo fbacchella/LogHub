@@ -272,7 +272,7 @@ public class NettyNameResolver extends
         if (channel instanceof SocketChannel) {
             SocketChannelConfig config = (SocketChannelConfig) channel.config();
             config.setOption(ChannelOption.TCP_NODELAY, true);
-            poller.setKeepAlive(config, 3, 60 ,10);
+            poller.setKeepAlive(config, 3, 60, 10);
         } else {
             ChannelConfig config = channel.config();
             if (rcvBuf > 0) {
@@ -341,7 +341,7 @@ public class NettyNameResolver extends
     }
 
     @SuppressWarnings("unchecked")
-    private Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> parallelResolution (
+    private Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> parallelResolution(
             DnsQuestion dnsquery,
             DnsServerAddressStreamProvider dsasp
     ) {

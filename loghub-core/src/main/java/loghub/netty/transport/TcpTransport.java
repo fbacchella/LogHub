@@ -44,7 +44,7 @@ public class TcpTransport extends AbstractIpTransport<Object, TcpTransport, TcpT
         }
         bootstrap.option(ChannelOption.TCP_NODELAY, noDelay);
         bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
-        poller.setKeepAlive(bootstrap, 3, 60 ,10);
+        poller.setKeepAlive(bootstrap, 3, 60, 10);
     }
 
     @Override
@@ -52,7 +52,7 @@ public class TcpTransport extends AbstractIpTransport<Object, TcpTransport, TcpT
         super.configureBootStrap(bootstrap);
         bootstrap.option(ChannelOption.TCP_NODELAY, noDelay);
         bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
-        poller.setKeepAlive(bootstrap, 3, 60 ,10);
+        poller.setKeepAlive(bootstrap, 3, 60, 10);
         if (timeout >= 0) {
             bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, timeout);
         }
@@ -65,10 +65,10 @@ public class TcpTransport extends AbstractIpTransport<Object, TcpTransport, TcpT
         InetSocketAddress remoteaddr = null;
         InetSocketAddress localaddr = null;
         if (remoteChannelAddr instanceof InetSocketAddress) {
-            remoteaddr = (InetSocketAddress)remoteChannelAddr;
+            remoteaddr = (InetSocketAddress) remoteChannelAddr;
         }
         if (localChannelAddr instanceof InetSocketAddress) {
-            localaddr = (InetSocketAddress)localChannelAddr;
+            localaddr = (InetSocketAddress) localChannelAddr;
         }
 
         Attribute<SSLSession> sess = ctx.channel().attr(SSLSESSIONATTRIBUTE);

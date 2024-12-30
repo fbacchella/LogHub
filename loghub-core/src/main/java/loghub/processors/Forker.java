@@ -13,7 +13,7 @@ import lombok.Setter;
 
 /**
  * An empty processor, it's just a placeholder. It should never be used directly
- * 
+ *
  * @author Fabrice Bacchella
  *
  */
@@ -44,7 +44,7 @@ public class Forker extends Processor {
 
     @Override
     public boolean configure(Properties properties) {
-        if( ! properties.namedPipeLine.containsKey(destination)) {
+        if (! properties.namedPipeLine.containsKey(destination)) {
             logger.error("invalid destination for forked event: {}", destination);
             return false;
         }

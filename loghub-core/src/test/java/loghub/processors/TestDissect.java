@@ -104,7 +104,7 @@ public class TestDissect {
     }
 
     private <E extends Exception> void checkException(Class<E> eClass, String pattern, String message, String expectedMessage) {
-        E ex= Assert.assertThrows(eClass, () -> dobuild(pattern, message, Map.ofEntries()));
+        E ex = Assert.assertThrows(eClass, () -> dobuild(pattern, message, Map.ofEntries()));
         Assert.assertEquals(expectedMessage, ex.getMessage());
     }
 
@@ -141,11 +141,11 @@ public class TestDissect {
     }
 
     private void dobuild(String pattern, String value, Object expected) throws ProcessorException {
-        dobuild(pattern, b -> {}, value, expected);
+        dobuild(pattern, b -> { }, value, expected);
     }
 
     @Test
-    public void test_loghub_processors_Dissect() throws IntrospectionException, ReflectiveOperationException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Dissect"
                 , BeanChecks.BeanInfo.build("pattern", String.class)
                 , BeanChecks.BeanInfo.build("appendSeparator", String.class)

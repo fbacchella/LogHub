@@ -249,17 +249,17 @@ public class TestElasticSearch {
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
             List<Map<String, ?>> details;
-            try(MappingIterator<Map<String, ?>> iter = jsonMapper.readerFor(Map.class).readValues(req.getContent())) {
+            try (MappingIterator<Map<String, ?>> iter = jsonMapper.readerFor(Map.class).readValues(req.getContent())) {
                 details = iter.readAll();
             }
             Map<String, Object> response = new HashMap<>(details.size() * 2);
             response.put("errors", ! errors.isEmpty());
             List<Map<String, Object>> items = new ArrayList<>(details.size());
-            for (int i = 0; i < details.size() ; i+= 2) {
+            for (int i = 0; i < details.size(); i += 2) {
                 Map<String, Map<String, Object>> meta = (Map<String, Map<String, Object>>) details.get(i);
                 Map<String, Object> entryResult = new HashMap<>(Map.of("_index", meta.get("index").get("_index"), "status", 200));
-                if (! errors.isEmpty() && errors.get(i/2) != null) {
-                    entryResult.put("error", errors.get(i/2));
+                if (! errors.isEmpty() && errors.get(i / 2) != null) {
+                    entryResult.put("error", errors.get(i / 2));
                     entryResult.put("status", 400);
                 }
                 items.add(Map.of("index", entryResult));
@@ -335,7 +335,7 @@ public class TestElasticSearch {
 
     private HttpResponse elasticMockDialog(String index, HttpRequest req, Function<MappingIterator<Map<String, ?>>, Map<String, Object>> bulkHandling) {
         try {
-            MockHttpClient.MockHttpRequest r = (MockHttpClient.MockHttpRequest)req;
+            MockHttpClient.MockHttpRequest r = (MockHttpClient.MockHttpRequest) req;
             Assert.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
             Assert.assertEquals("localhost", req.getUri().getHost());
             String path = req.getUri().getPath();
@@ -350,7 +350,7 @@ public class TestElasticSearch {
                 } else if (comparePath(index, "/_alias", req.getUri())) {
                     Assert.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
                     Assert.assertNull(r.content);
-                    Map<String, ?> responseContent = Map.of(index +"-000001", Map.of("aliases", Map.of(index, Map.of())));
+                    Map<String, ?> responseContent = Map.of(index + "-000001", Map.of("aliases", Map.of(index, Map.of())));
                     JsonNode node = jsonMapper.valueToTree(responseContent);
                     return new MockHttpClient.ResponseBuilder()
                                    .setMimeType(ContentType.APPLICATION_JSON)
@@ -451,7 +451,7 @@ public class TestElasticSearch {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
-            for (int i = 0 ; i < count ; i++) {
+            for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
@@ -479,7 +479,7 @@ public class TestElasticSearch {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
-            for (int i = 0 ; i < count ; i++) {
+            for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
                 ev.putMeta("type", "junit");
                 ev.putMeta("index", "testwithexpression-1970.01.01");
@@ -535,7 +535,7 @@ public class TestElasticSearch {
             es.setInQueue(inQueue);
             Assert.assertTrue(es.configure(new Properties(Collections.emptyMap())));
             es.start();
-            for (int i = 0 ; i < count ; i++) {
+            for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent(new NotificationConnectionContext(counter));
                 ev.put("value", "atest" + i);
                 ev.setTimestamp(new Date(0));
@@ -551,7 +551,7 @@ public class TestElasticSearch {
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> this.handleSimpleBulk(mi, index, "_doc");
         httpOps = r -> elasticMockDialog(index, r, handleSimpleBulk);
         int count = 40;
-        ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(count/2);
+        ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(count / 2);
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(5);
@@ -565,7 +565,7 @@ public class TestElasticSearch {
             es.setInQueue(queue);
             Assert.assertTrue(es.configure(new Properties(Collections.emptyMap())));
             es.start();
-            for (int i = 0 ; i < count ; i++) {
+            for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
@@ -599,7 +599,7 @@ public class TestElasticSearch {
                 ));
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(new HttpRoot(), new HttpGetTemplate("loghub"), new HttpPutTemplate("loghub"),
                 new HttpGetAlias("default,BADINDEX", Map.of()),
-                new HttpGetSettings("default,BADINDEX",Map.of(
+                new HttpGetSettings("default,BADINDEX", Map.of(
                         "default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))),
                         "BADINDEX", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
                 new HttpPostBulk(errors)
@@ -618,7 +618,7 @@ public class TestElasticSearch {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
-            for (int i = 0 ; i < count ; i++) {
+            for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", new Date(0));
@@ -626,7 +626,7 @@ public class TestElasticSearch {
                 ev.setTimestamp(new Date(0));
                 Assert.assertTrue(es.queue(ev));
             }
-            for (int i = 0 ; i < count ; i++) {
+            for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
@@ -634,7 +634,7 @@ public class TestElasticSearch {
                 ev.setTimestamp(new Date(0));
                 Assert.assertTrue(es.queue(ev));
             }
-            for (int i = 0 ; i < count ; i++) {
+            for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
@@ -679,7 +679,7 @@ public class TestElasticSearch {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
-            for (int i = 0 ; i < count ; i++) {
+            for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", new Date(0));
@@ -704,9 +704,9 @@ public class TestElasticSearch {
     public void testParse() throws URISyntaxException {
         String[] destinations  = new String[] {"//localhost", "//truc:9301", "truc", "truc:9300"};
         URI[] uris  = new URI[] {new URI("thrift://localhost:9300"), new URI("thrift://truc:9301"), new URI("thrift://localhost:9300"), new URI("truc://localhost:9300")};
-        for (int i = 0 ; i < destinations.length ; i++) {
+        for (int i = 0; i < destinations.length; i++) {
             URI newUrl = new URI(destinations[i]);
-            newUrl = new URI( (newUrl.getScheme() != null  ? newUrl.getScheme() : "thrift"),
+            newUrl = new URI((newUrl.getScheme() != null  ? newUrl.getScheme() : "thrift"),
                     null,
                     (newUrl.getHost() != null ? newUrl.getHost() : "localhost"),
                     (newUrl.getPort() > 0 ? newUrl.getPort() : 9300),

@@ -78,15 +78,15 @@ public abstract class Decoder {
     private Stream<Map<String, Object>> resolve(ConnectionContext<?> ctx, Object o) throws DecodeException {
         if (o == null) {
             return Stream.empty();
-        } else  if (o instanceof Collection){
+        } else  if (o instanceof Collection) {
             @SuppressWarnings("unchecked")
             Collection<Object> coll = (Collection<Object>) o;
             return coll.stream().map(getDecodeMap(ctx));
-        } else if (o instanceof Iterable){
+        } else if (o instanceof Iterable) {
             @SuppressWarnings("unchecked")
             Iterable<Object> i = (Iterable<Object>) o;
             return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(Objects::nonNull);
-        } else if (o instanceof Iterator){
+        } else if (o instanceof Iterator) {
             @SuppressWarnings("unchecked")
             Iterator<Object> iter = (Iterator<Object>) o;
             Iterable<Object> i = () -> iter;

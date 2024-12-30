@@ -200,7 +200,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         } else {
             bindConnectionless(address);
         }
-        for (ChannelFuture cf: listeningChannels) {
+        for (ChannelFuture cf : listeningChannels) {
             try {
                 cf.await().channel();
                 cf.get();
@@ -243,7 +243,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         addHandlers(bootstrap);
         consumer.addOptions(bootstrap);
         configureBootStrap(bootstrap);
-        for (int i = 0 ; i < workerThreads ; i++) {
+        for (int i = 0; i < workerThreads; i++) {
             ChannelFuture future = bootstrap.bind(address);
             listeningChannels.add(future);
         }
@@ -341,7 +341,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         if (o instanceof ChannelConsumer) {
             return (ChannelConsumer) o;
         } else if (o instanceof ConsumerProvider) {
-            ConsumerProvider cp = (ConsumerProvider ) o;
+            ConsumerProvider cp = (ConsumerProvider) o;
             return cp.getConsumer();
         } else {
             return null;
