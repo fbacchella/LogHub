@@ -3,12 +3,13 @@ package loghub;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.logging.log4j.jul.Log4jBridgeHandler;
 
 public class LogUtils {
 
     public static void configure() {
         System.setProperty("Log4jContextSelector", "org.apache.logging.log4j.core.selector.BasicContextSelector");
-        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+        Log4jBridgeHandler.install(true, "", true);
     }
 
     public static void setLevel(Logger logger, Level level, String... allLoggers) {
@@ -22,6 +23,7 @@ public class LogUtils {
                 Configurator.setLevel(l, level);
             }
         }
+        Log4jBridgeHandler.install(true, "", true);
     }
 
 }
