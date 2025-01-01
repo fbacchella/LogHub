@@ -156,8 +156,17 @@ jobs:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-core
                   destination: /loghub-core
             - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-apacheclient
+                  destination: /loghub-apacheclient
+            - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-espipeline
                   destination: /loghub-espipeline
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-executable
+                  destination: /loghub-executable
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-geoip
+                  destination: /loghub-geoip
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-jolokia
                   destination: /loghub-jolokia
@@ -168,14 +177,26 @@ jobs:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-nsca
                   destination: /loghub-nsca
             - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-onigurumaregex
+                  destination: /loghub-onigurumaregex
+            - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-pom
                   destination: /loghub-pom
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-prometheus
+                  destination: /loghub-prometheus
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-protobuf
+                  destination: /loghub-protobuf
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-ratelimiter
                   destination: /loghub-ratelimiter
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-snmp
                   destination: /loghub-snmp
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-uap
+                  destination: /loghub-uap
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-zabbix
                   destination: /loghub-zabbix
