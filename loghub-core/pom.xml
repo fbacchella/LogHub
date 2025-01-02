@@ -13,7 +13,7 @@
     <name>LogHub :: Core</name>
 
     <properties>
-        <netty.version>4.1.115.Final</netty.version>
+        <netty.version>4.1.116.Final</netty.version>
     </properties>
 
     <dependencies>
@@ -45,7 +45,7 @@
         <dependency>
             <groupId>ch.qos.reload4j</groupId>
             <artifactId>reload4j</artifactId>
-            <version>1.2.25</version>
+            <version>1.2.26</version>
         </dependency>
         <dependency>
             <groupId>org.msgpack</groupId>
@@ -161,7 +161,7 @@
         <dependency>
             <groupId>io.netty.incubator</groupId>
             <artifactId>netty-incubator-transport-native-io_uring</artifactId>
-            <version>0.0.25.Final</version>
+            <version>0.0.26.Final</version>
             <classifier>linux-x86_64</classifier>
         </dependency>
         <dependency>
@@ -260,7 +260,7 @@
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.5.6-7</version>
+            <version>1.5.6-9</version>
         </dependency>
         <dependency>
             <groupId>org.brotli</groupId>
