@@ -10,12 +10,12 @@ import loghub.netty.DashboardService;
 public class JolokiaDashboardService implements DashboardService {
 
     @Override
-    public String getPrefix() {
+    public String getName() {
         return "jolokia";
     }
 
     @Override
-    public List<SimpleChannelInboundHandler<FullHttpRequest>> getServices(Map<String, Object> properties) {
+    public List<SimpleChannelInboundHandler<FullHttpRequest>> getHandlers(Map<String, Object> properties) {
         JolokiaEndpoint.Builder builder = JolokiaEndpoint.getBuilder();
         if (properties.containsKey("policyLocation")) {
             builder.setPolicyLocation(properties.get("policyLocation").toString());

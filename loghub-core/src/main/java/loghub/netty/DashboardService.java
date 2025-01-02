@@ -7,6 +7,12 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 
 public interface DashboardService {
-    String getPrefix();
-    List<SimpleChannelInboundHandler<FullHttpRequest>> getServices(Map<String, Object> properties);
+    String getName();
+    List<SimpleChannelInboundHandler<FullHttpRequest>> getHandlers(Map<String, Object> properties);
+    default List<Runnable> getStarters() {
+        return List.of();
+    }
+    default List<Runnable> getStoppers() {
+        return List.of();
+    }
 }

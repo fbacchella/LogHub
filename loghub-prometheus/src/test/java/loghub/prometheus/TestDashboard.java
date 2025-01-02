@@ -53,14 +53,14 @@ public class TestDashboard {
 
     @Before
     public void startDashBoard() throws IllegalArgumentException, InterruptedException {
-        Map<String, Object> promprops = Map.ofEntries(
-                Map.entry("withPrometheus", true),
+        Map<String, Object> promProps = Map.ofEntries(
+                Map.entry("prometheus.withExporter", true),
                 Map.entry("prometheus.withJvmMetrics", true)
         );
         dashboard = Dashboard.getBuilder()
                              .setPort(port)
                              .setListen("localhost")
-                             .setDashboardServicesProperties(new HashMap<>(promprops))
+                             .setDashboardServicesProperties(new HashMap<>(promProps))
                              .build();
         dashboard.start();
     }
@@ -92,7 +92,6 @@ public class TestDashboard {
             Assert.assertEquals(200, rep.getStatus());
             Assert.assertEquals(ContentType.TEXT_PLAIN, rep.getMimeType());
             Assert.assertTrue(rep.getParsedResponse().lines().count() > 200);
-            rep.getParsedResponse().lines().forEach(System.err::println);
         }
     }
 

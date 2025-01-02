@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ServiceLoader;
 
 import javax.net.ssl.SSLContext;
@@ -70,13 +69,16 @@ public class Dashboard {
         return new Dashboard.Builder();
     }
 
-    private final SimpleChannelInboundHandler<FullHttpRequest> ROOTREDIRECT = new RootRedirect();
-    private final SimpleChannelInboundHandler<FullHttpRequest> JMXPROXY = new JmxProxy();
-    private final SimpleChannelInboundHandler<FullHttpRequest> GETMETRIC = new GetMetric();
-    private final SimpleChannelInboundHandler<FullHttpRequest> GRAPHMETRIC = new GraphMetric();
+    private final SimpleChannelInboundHandler<FullHttpRequest> rootRedirect = new RootRedirect();
+    private final SimpleChannelInboundHandler<FullHttpRequest> jmxProxy = new JmxProxy();
+    private final SimpleChannelInboundHandler<FullHttpRequest> getMetric = new GetMetric();
+    private final SimpleChannelInboundHandler<FullHttpRequest> graphMetric = new GraphMetric();
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenGenerator;
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenFilter;
-    private final List<SimpleChannelInboundHandler<FullHttpRequest>> SERVICES = new ArrayList<>();
+    private final List<SimpleChannelInboundHandler<FullHttpRequest>> services = new ArrayList<>();
+    private final List<Runnable> startServices = new ArrayList<>();
+    private final List<Runnable> stopServices = new ArrayList<>();
+
     @Getter
     private final TcpTransport transport;
 
@@ -103,18 +105,14 @@ public class Dashboard {
             tokenFilter = null;
         }
         ServiceLoader<DashboardService> serviceLoader = ServiceLoader.load(DashboardService.class, builder.classLoader);
-        serviceLoader.forEach(ds -> SERVICES.addAll(startService(ds, builder.dashboardServicesProperties)));
+        serviceLoader.forEach(ds -> addService(ds, builder.dashboardServicesProperties));
     }
 
-    private List<SimpleChannelInboundHandler<FullHttpRequest>> startService(DashboardService ds, Map<String, Object> dashboardServicesProperties) {
-        String name = ds.getPrefix();
-        String withProperty = "with" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
-        if (Boolean.TRUE.equals(Optional.ofNullable(dashboardServicesProperties.remove(withProperty)).orElse(Boolean.FALSE))) {
-            logger.info("Activating dashboard service {}", name);
-            return ds.getServices(Helpers.filterPrefix(dashboardServicesProperties, name));
-        } else {
-            return List.of();
-        }
+    private void addService(DashboardService ds, Map<String, Object> dashboardServicesProperties) {
+        logger.info("Activating dashboard service {}", ds.getName());
+        services.addAll(ds.getHandlers(Helpers.filterPrefix(dashboardServicesProperties, ds.getName())));
+        startServices.addAll(ds.getStarters());
+        stopServices.addAll(ds.getStoppers());
     }
 
     private TcpTransport getTransport(Builder builder, HttpChannelConsumer consumer) {
@@ -151,12 +149,12 @@ public class Dashboard {
     }
 
     private void setupModel(ChannelPipeline p) {
-        p.addLast(ROOTREDIRECT);
+        p.addLast(rootRedirect);
         p.addLast(new ResourceFiles());
-        p.addLast(JMXPROXY);
-        SERVICES.forEach(p::addLast);
-        p.addLast(GETMETRIC);
-        p.addLast(GRAPHMETRIC);
+        p.addLast(jmxProxy);
+        services.forEach(p::addLast);
+        p.addLast(getMetric);
+        p.addLast(graphMetric);
         if (tokenGenerator != null && tokenFilter != null) {
             p.addLast(tokenFilter);
             p.addLast(tokenGenerator);
@@ -166,9 +164,11 @@ public class Dashboard {
     public void start() throws InterruptedException {
         logger.debug("Starting the dashboard");
         transport.bind();
+        startServices.forEach(Runnable::run);
     }
 
     public void stop() {
+        stopServices.forEach(Runnable::run);
         transport.close();
     }
 
