@@ -4,11 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.UncheckedIOException;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,11 +17,9 @@ import java.time.ZoneId;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -52,8 +46,6 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.jul.Log4jBridgeHandler;
 
 import loghub.Helpers;
-import loghub.Helpers.ThrowingConsumer;
-import loghub.Helpers.ThrowingPredicate;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.RouteLexer;
@@ -80,14 +72,12 @@ public class Configuration {
 
     private Set<String> inputpipelines = new HashSet<>();
     private Set<String> outputpipelines = new HashSet<>();
-    private ClassLoader classLoader = Configuration.class.getClassLoader();
-    private CacheManager cacheManager = new CacheManager(classLoader);
+    private final GrammarParserFiltering filter = new GrammarParserFiltering();
     private SecretsHandler secrets = null;
-    private final Map<String, String> lockedProperties = new HashMap<>();
+    private final Set<String> lockedProperties = new HashSet<>();
     private final Map<String, Object> configurationProperties = new HashMap<>();
     private final Set<Path> loadedConfigurationFiles = new HashSet<>();
     private final ConfigErrorListener errListener = new ConfigErrorListener();
-    private final GrammarParserFiltering filter = new GrammarParserFiltering();
 
     Configuration() {
     }
@@ -128,12 +118,6 @@ public class Configuration {
         parser.removeErrorListeners();
         parser.addErrorListener(errListener);
         RouteParser.ConfigurationContext configurationContext = parser.configuration();
-        // First pass, to identify the class loader to use
-        // The class loader must be defined in the first configuration file, not included one
-        if (! lockedProperties.containsKey("plugins")) {
-            logger.debug("Resolving classpath");
-            resolveClassPath(configurationContext, cs);
-        }
         logger.debug("Find configuration root");
         Tree tree = Tree.of(cs, configurationContext, parser);
         logger.debug("Scan properties");
@@ -146,27 +130,6 @@ public class Configuration {
                            .map(p -> consumeIncludes(p, trees))
                            .reduce(Boolean.FALSE, (a, b) -> a || b))
          .reduce((a, b) -> a || b).orElse(true);
-    }
-
-    private void resolveClassPath(RouteParser.ConfigurationContext configurationContext, CharStream cs) {
-        for (PropertyContext pc : configurationContext.property()) {
-            String propertyName = Optional.ofNullable(pc.propertyName).map(RuleContext::getText).orElse("");
-            if ("plugins".equals(propertyName)) {
-                String[] path = getStringOrArrayLiteral(pc.beanValue());
-                if (path.length > 0) {
-                    try {
-                        logger.debug("Looking for plugins in {}", (Object[]) path);
-                        classLoader = doClassLoader(path);
-                        filter.setClassLoader(classLoader);
-                        cacheManager = new CacheManager(classLoader);
-                        lockedProperties.put("plugins", pc.beanValue().getText());
-                    } catch (IOException | UncheckedIOException ex) {
-                        throw new ConfigException("can't load plugins: " + ex.getMessage(), cs.getSourceName(), pc.start, ex);
-                    }
-                }
-                break;
-            }
-        }
     }
 
     private CharStream pathToCharStream(Path sourcePath) {
@@ -237,7 +200,11 @@ public class Configuration {
         Map<String, PropertyContext> currentProperties = new HashMap<>();
         for (PropertyContext pc : tree.config.property()) {
             String propertyName = Optional.ofNullable(pc.propertyName).map(RuleContext::getText).orElseGet(() -> pc.pn.getText());
-            currentProperties.put(propertyName, pc);
+            // lockedProperties are not updated after first pass
+            // plugins is handled directly by GrammarParserFiltering
+            if (!"plugins".equals(propertyName) && ! lockedProperties.contains(propertyName)) {
+                currentProperties.put(propertyName, pc);
+            }
         }
         // Don’t change order, it's meaningfully
         // locale and timezone first, to check for output format
@@ -248,21 +215,7 @@ public class Configuration {
         Optional.ofNullable(currentProperties.remove("log4j.configFile")).ifPresent(pc -> processLog4jUriProperty("log4j.configFile", pc, tree));
         Optional.ofNullable(currentProperties.remove("secrets.source")).ifPresent(pc -> processSecretSource(pc, tree));
 
-        // Iterator needed to remove entries while iterating
-        for (Iterator<Entry<String, PropertyContext>> it = currentProperties.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry<String, PropertyContext> e = it.next();
-            if ("includes".equals(e.getKey())) {
-                it.remove();
-            } else {
-                try {
-                    it.remove();
-                    configurationProperties.put(e.getKey(), resolveBean(e.getValue().beanValue()));
-                } catch (IllegalArgumentException ex) {
-                    assert false : String.format("%s: %s", e.getKey(), ex.getMessage());
-                }
-            }
-        }
-        assert currentProperties.isEmpty();
+        currentProperties.forEach((key, value) -> configurationProperties.put(key, resolveBean(value.beanValue())));
     }
 
     private Object resolveBean(RouteParser.BeanValueContext bvc) {
@@ -303,7 +256,7 @@ public class Configuration {
             String secretsSource = pc.beanValue().getText();
             secrets = SecretsHandler.load(secretsSource);
             logger.debug("Loaded secrets source {}", secretsSource);
-            lockedProperties.put("secrets.source", secretsSource);
+            lockedProperties.add("secrets.source");
         } catch (IOException ex) {
             throw new ConfigException("can't load secret store: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
         }
@@ -313,7 +266,7 @@ public class Configuration {
         URI log4JUri =  Helpers.fileUri(pc.beanValue().getText());
         resolverLogger(log4JUri, pc, tree);
         logger.debug("Configured log4j URL to {}", log4JUri);
-        lockedProperties.put(propertyName, pc.beanValue().getText());
+        lockedProperties.add(propertyName);
     }
 
     private void resolverLogger(URI log4JUri, PropertyContext pc, Tree tree) {
@@ -323,7 +276,7 @@ public class Configuration {
         } catch (IOException e) {
             throw new ConfigException(e.getMessage(), tree.stream.getSourceName(), pc.start, e);
         }
-        LoggerContext ctx = (LoggerContext) LogManager.getContext(classLoader, true);
+        LoggerContext ctx = (LoggerContext) LogManager.getContext(filter.getClassLoader(), true);
         // Possible exception are already catched (I hope)
         ctx.setConfigLocation(log4JUri);
         logger.debug("log4j reconfigured");
@@ -341,7 +294,7 @@ public class Configuration {
                 logger.error("Invalid timezone {}: {}", tz, e.getMessage());
             }
         }
-        lockedProperties.put("timezone", tz);
+        lockedProperties.add("timezone");
     }
 
     private void processLocaleProperty(PropertyContext pc) {
@@ -351,7 +304,7 @@ public class Configuration {
             Locale l = Locale.forLanguageTag(localString);
             Locale.setDefault(l);
         }
-        lockedProperties.put("locale", localString);
+        lockedProperties.add("locale");
     }
 
     private Properties runparsing(CharStream cs) throws ConfigException {
@@ -369,8 +322,9 @@ public class Configuration {
 
             configurationProperties.putAll(resolvedSecrets);
             configurationProperties.entrySet().removeIf(e -> e.getValue() == null);
+            CacheManager cacheManager = new CacheManager(filter.getClassLoader());
             ConfigListener conflistener = ConfigListener.builder()
-                                                        .classLoader(classLoader)
+                                                        .classLoader(filter.getClassLoader())
                                                         .secrets(secrets)
                                                         .sslBuilder(resolveSslContext())
                                                         .jaasConfig(resolveJaasConfig())
@@ -385,7 +339,7 @@ public class Configuration {
                 resolveSources(t, conflistener);
                 conflistener.startWalk(t.config, t.stream, t.parser);
             });
-            Properties props = analyze(conflistener);
+            Properties props = analyze(conflistener, cacheManager);
             filter.checkUndeclaredProperties(logger);
             return props;
         } catch (RecognitionException e) {
@@ -444,7 +398,7 @@ public class Configuration {
         configurationProperties.entrySet().removeIf(i -> i.getKey().startsWith("ssl."));
         try {
             if (! sslprops.isEmpty()) {
-                return SslContextBuilder.getBuilder(classLoader, sslprops);
+                return SslContextBuilder.getBuilder(filter.getClassLoader(), sslprops);
             } else {
                 return SslContextBuilder.getBuilder();
             }
@@ -479,7 +433,7 @@ public class Configuration {
         }
     }
 
-    private Properties analyze(ConfigListener conf) throws ConfigException {
+    private Properties analyze(ConfigListener conf, CacheManager cacheManager) throws ConfigException {
         Map<String, Object> newProperties = new HashMap<>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
 
         // Resolvers properties found and add it to new properties
@@ -489,7 +443,7 @@ public class Configuration {
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
-        newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
+        newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), filter.getClassLoader());
         newProperties.put(Properties.PROPSNAMES.CACHEMANGER.toString(), cacheManager);
         newProperties.put(Properties.PROPSNAMES.SSLCONTEXTBUILDER.toString(), conf.sslBuilder);
         newProperties.put(Properties.PROPSNAMES.SSLCONTEXT.toString(), conf.ssl);
@@ -572,71 +526,6 @@ public class Configuration {
         Arrays.stream(Properties.PROPSNAMES.values()).forEach(i -> privatepropsnames.add(i.toString()));
         System.getProperties().entrySet().stream().filter(i -> ! privatepropsnames.contains(i.getKey())).forEach(i -> newProperties.put(i.getKey().toString(), i.getValue()));
         return new Properties(newProperties);
-    }
-
-    private static final class LogHubClassloader extends URLClassLoader {
-        public LogHubClassloader(URL[] urls) {
-            super(urls, LogHubClassloader.class.getClassLoader());
-        }
-        @Override
-        public String toString() {
-            return "Loghub's class loader";
-        }
-    }
-
-    ClassLoader doClassLoader(Object[] pathElements) throws IOException {
-        final Collection<URL> urls = new ArrayList<>();
-
-        // Needed for all the lambda that throws exception
-        ThrowingPredicate<Path> filterReadable = i -> ! Files.isHidden(i);
-        ThrowingConsumer<Path> toUrl = i -> urls.add(i.toUri().toURL());
-        Arrays.stream(pathElements)
-        .map(i -> Paths.get(i.toString()))
-        .filter(Files::isReadable)
-        .filter(filterReadable)
-        .filter(i -> (Files.isRegularFile(i) && i.toString().endsWith(".jar")) || Files.isDirectory(i))
-        .forEach(i-> {
-            toUrl.accept(i);
-            if (Files.isDirectory(i)) {
-                try (Stream<Path> files = Files.list(i)) {
-                    files.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".jar"))
-                         .forEach(toUrl);
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            }
-        });
-
-        //Add myself to class loader, so the custom class loader is used in priority
-        Path myself = locateResourcefile("loghub");
-        if (myself.endsWith("loghub")) {
-            myself = myself.getParent();
-        }
-        urls.add(myself.toUri().toURL());
-
-        return new LogHubClassloader(urls.toArray(new URL[] {}));
-    }
-
-    private Path locateResourcefile(String ressource) {
-        try {
-            URL url = getClass().getClassLoader().getResource(ressource);
-            @SuppressWarnings("ConstantConditions")
-            String protocol = url.getProtocol();
-            String file;
-            switch(protocol) {
-            case "file":
-                file = url.getFile();
-                break;
-            case "jar":
-                file = new URI(url.getFile().replaceFirst("!.*", "")).toURL().getFile();
-                break;
-            default:
-                throw new IllegalArgumentException("unmanaged ressource URL");
-            }
-            return Paths.get(file);
-        } catch (MalformedURLException | URISyntaxException e) {
-            throw new IllegalArgumentException("can't locate the ressource file path", e);
-        }
     }
 
 }

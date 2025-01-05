@@ -164,6 +164,7 @@ property
     | (pn='http.sslParams' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
     | (pn='jmx.sslContext' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
     | (pn='jmx.sslParams' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
+    | (pn='plugins' ':' {filter.checkProperty($pn.text);} beanValue {filter.cleanBeanType(); filter.refreshIncludes($ctx.beanValue());})
     | (propertyName ':' {filter.checkProperty($propertyName.text);} beanValue {filter.cleanBeanType();})
     ;
 
@@ -300,7 +301,7 @@ identifier
     : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'foreach' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
     | 'sslContext' | 'sslParams'
     | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
-    | 'defaultMeta' | 'map'
+    | 'defaultMeta' | 'map' | 'plugins'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
     | 'new' | 'instanceof' | 'now' | 'isEmpty' | 'isIP'
     | 'sources' | 'true' | 'false' | 'null' | 'drop'

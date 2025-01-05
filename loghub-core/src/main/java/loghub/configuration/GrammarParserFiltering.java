@@ -3,20 +3,33 @@ package loghub.configuration;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLParameters;
 
+import org.antlr.v4.runtime.RuleContext;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.BuilderClass;
 import loghub.Expression;
+import loghub.Helpers;
 import loghub.Lambda;
 import loghub.RouteParser;
 import loghub.VariablePath;
@@ -24,6 +37,21 @@ import loghub.security.ssl.SslContextBuilder;
 import lombok.Getter;
 
 public class GrammarParserFiltering {
+
+    private static final Logger logger = LogManager.getLogger();
+
+    static final class LogHubClassloader extends URLClassLoader {
+        public LogHubClassloader(URL[] urls, ClassLoader parent) {
+            super(urls, parent);
+        }
+        public LogHubClassloader(URL[] urls) {
+            super(urls);
+        }
+        @Override
+        public String toString() {
+            return "Loghub's class loader";
+        }
+    }
 
     public enum SECTION {
         INPUT,
@@ -62,19 +90,18 @@ public class GrammarParserFiltering {
     private final Map<String, BEANTYPE> propertiesTypes = new HashMap<>();
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();
     private BEANTYPE currentBeanType = null;
+    @Getter
     private ClassLoader classLoader = getClass().getClassLoader();
     @Getter
     private final BeansManager manager = new BeansManager();
     @Getter
     private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets = new HashMap<>();
     private final Set<String> undeclaredProperties = new HashSet<>();
+    private final Set<URL> includes = new LinkedHashSet<>();
 
     public GrammarParserFiltering() {
-        refreshPropertiesTypes();
-    }
-
-    public void setClassLoader(ClassLoader classLoader) {
-        this.classLoader = classLoader;
+        locateResourcefile("loghub");
+        classLoader = new LogHubClassloader(includes.toArray(new URL[] {}));
         refreshPropertiesTypes();
     }
 
@@ -216,6 +243,83 @@ public class GrammarParserFiltering {
         if (! undeclaredProperties.isEmpty()) {
             logger.warn("Unspecified properties, possible textual error: {}", () -> String.join(", ", undeclaredProperties));
         }
+    }
+
+    public void refreshIncludes(RouteParser.BeanValueContext value) {
+        try {
+            RouteParser.ArrayContext arrayContext = value.array();
+            if (arrayContext == null) {
+                classLoader = doClassLoader(new String[]{value.getText()}, classLoader);
+            } else {
+                String[] paths = arrayContext.arrayContent()
+                                             .beanValue()
+                                             .stream()
+                                             .map(RuleContext::getText)
+                                             .toArray(String[]::new);
+                classLoader = doClassLoader(paths, classLoader);
+            }
+            refreshPropertiesTypes();
+        } catch (IOException ex) {
+            throw new ConfigException("Not valid includes path: " + Helpers.resolveThrowableException(ex), ex);
+        }
+    }
+
+    ClassLoader doClassLoader(String[] pathElements, ClassLoader parent) throws IOException {
+        for (String s: pathElements) {
+            Path p = Path.of(s);
+            URL url = usablePathAsUrl(p);
+            if (url != null) {
+                includes.add(url);
+                if (Files.isDirectory(p)) {
+                    try (Stream<Path> files = Files.list(p)) {
+                        files.map(this::usablePathAsUrl)
+                             .filter(Objects::nonNull)
+                             .forEach(includes::add);
+                    }
+                }
+            }
+        }
+
+        return new LogHubClassloader(includes.toArray(new URL[] {}), parent);
+    }
+
+    private URL usablePathAsUrl(Path tryPath) {
+        try {
+            if ((! Files.isHidden(tryPath)) &&
+                        Files.isReadable(tryPath) &&
+                        ((Files.isRegularFile(tryPath) && tryPath.toString().endsWith(".jar")) || Files.isDirectory(tryPath))) {
+                return tryPath.toUri().toURL();
+            } else {
+                return null;
+            }
+        } catch (IOException ex) {
+            logger.atWarn()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Unusable plugin {}: {}", () -> tryPath, () -> Helpers.resolveThrowableException(ex));
+            return null;
+        }
+    }
+
+    private void locateResourcefile(String ressource) {
+        Configuration.class.getClassLoader().resources(ressource).forEach(url -> {
+            try {
+                String protocol = url.getProtocol();
+                URL file;
+                switch(protocol) {
+                case "file":
+                    file = url;
+                    break;
+                case "jar":
+                    file = Helpers.fileUri(new URI(url.getFile().replaceFirst("!.*", "")).toURL().getFile()).toURL();
+                    break;
+                default:
+                    throw new IllegalArgumentException("unmanaged ressource URL");
+                }
+                includes.add(file);
+            } catch (MalformedURLException | URISyntaxException e) {
+                throw new IllegalArgumentException("can't locate the ressource file path", e);
+            }
+        });
     }
 
 }
