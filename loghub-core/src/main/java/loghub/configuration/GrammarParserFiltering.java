@@ -3,9 +3,6 @@ package loghub.configuration;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -97,11 +94,9 @@ public class GrammarParserFiltering {
     @Getter
     private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets = new HashMap<>();
     private final Set<String> undeclaredProperties = new HashSet<>();
-    private final Set<URL> includes = new LinkedHashSet<>();
 
     public GrammarParserFiltering() {
-        locateResourcefile("loghub");
-        classLoader = new LogHubClassloader(includes.toArray(new URL[] {}));
+        classLoader = GrammarParserFiltering.class.getClassLoader();
         refreshPropertiesTypes();
     }
 
@@ -265,6 +260,7 @@ public class GrammarParserFiltering {
     }
 
     ClassLoader doClassLoader(String[] pathElements, ClassLoader parent) throws IOException {
+        Set<URL> includes = new LinkedHashSet<>();
         for (String s: pathElements) {
             Path p = Path.of(s);
             URL url = usablePathAsUrl(p);
@@ -279,7 +275,6 @@ public class GrammarParserFiltering {
                 }
             }
         }
-
         return new LogHubClassloader(includes.toArray(new URL[] {}), parent);
     }
 
@@ -298,28 +293,6 @@ public class GrammarParserFiltering {
                   .log("Unusable plugin {}: {}", () -> tryPath, () -> Helpers.resolveThrowableException(ex));
             return null;
         }
-    }
-
-    private void locateResourcefile(String ressource) {
-        Configuration.class.getClassLoader().resources(ressource).forEach(url -> {
-            try {
-                String protocol = url.getProtocol();
-                URL file;
-                switch(protocol) {
-                case "file":
-                    file = url;
-                    break;
-                case "jar":
-                    file = Helpers.fileUri(new URI(url.getFile().replaceFirst("!.*", "")).toURL().getFile()).toURL();
-                    break;
-                default:
-                    throw new IllegalArgumentException("unmanaged ressource URL");
-                }
-                includes.add(file);
-            } catch (MalformedURLException | URISyntaxException e) {
-                throw new IllegalArgumentException("can't locate the ressource file path", e);
-            }
-        });
     }
 
 }
