@@ -29,19 +29,19 @@ public class EthernetCounters extends Struct {
         super(df.getByName(NAME));
         buffer = extractData(buffer);
 
-        this.dot3StatsAlignmentErrors = buffer.readUnsignedInt();
-        this.dot3StatsFCSErrors = buffer.readUnsignedInt();
-        this.dot3StatsSingleCollisionFrames = buffer.readUnsignedInt();
-        this.dot3StatsMultipleCollisionFrames = buffer.readUnsignedInt();
-        this.dot3StatsSQETestErrors = buffer.readUnsignedInt();
-        this.dot3StatsDeferredTransmissions = buffer.readUnsignedInt();
-        this.dot3StatsLateCollisions = buffer.readUnsignedInt();
-        this.dot3StatsExcessiveCollisions = buffer.readUnsignedInt();
-        this.dot3StatsInternalMacTransmitErrors = buffer.readUnsignedInt();
-        this.dot3StatsCarrierSenseErrors = buffer.readUnsignedInt();
-        this.dot3StatsFrameTooLongs = buffer.readUnsignedInt();
-        this.dot3StatsInternalMacReceiveErrors = buffer.readUnsignedInt();
-        this.dot3StatsSymbolErrors = buffer.readUnsignedInt();
+        dot3StatsAlignmentErrors = buffer.readUnsignedInt();
+        dot3StatsFCSErrors = buffer.readUnsignedInt();
+        dot3StatsSingleCollisionFrames = buffer.readUnsignedInt();
+        dot3StatsMultipleCollisionFrames = buffer.readUnsignedInt();
+        dot3StatsSQETestErrors = buffer.readUnsignedInt();
+        dot3StatsDeferredTransmissions = buffer.readUnsignedInt();
+        dot3StatsLateCollisions = buffer.readUnsignedInt();
+        dot3StatsExcessiveCollisions = buffer.readUnsignedInt();
+        dot3StatsInternalMacTransmitErrors = buffer.readUnsignedInt();
+        dot3StatsCarrierSenseErrors = buffer.readUnsignedInt();
+        dot3StatsFrameTooLongs = buffer.readUnsignedInt();
+        dot3StatsInternalMacReceiveErrors = buffer.readUnsignedInt();
+        dot3StatsSymbolErrors = buffer.readUnsignedInt();
     }
 
     @Override
