@@ -139,10 +139,10 @@ public class SflowParser {
             throw new IOException("Unhandled sFlow: " + version);
         }
 
-        builder.agentAddress(readIpAddress(bbuf));
+        builder.agent_address(readIpAddress(bbuf));
 
-        builder.subAgentId(bbuf.readUnsignedInt());
-        builder.sequenceNumber(bbuf.readUnsignedInt());
+        builder.sub_agent_id(bbuf.readUnsignedInt());
+        builder.sequence_number(bbuf.readUnsignedInt());
         builder.uptime(Duration.ofMillis(bbuf.readUnsignedInt()));
 
         long numSamples = bbuf.readUnsignedInt();

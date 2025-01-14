@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import io.netty.buffer.ByteBuf;
 import loghub.BuilderClass;
@@ -15,6 +16,7 @@ import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.jackson.JacksonBuilder;
 import loghub.receivers.Receiver;
 import loghub.sflow.SFlowDatagram;
 import loghub.sflow.SflowParser;
@@ -36,7 +38,7 @@ public class Sflow extends Decoder {
         return new Sflow.Builder();
     }
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = JacksonBuilder.get(JsonMapper.class).getMapper();
     private final SflowParser sflowRegistry = new SflowParser();
     private EventsFactory factory;
 

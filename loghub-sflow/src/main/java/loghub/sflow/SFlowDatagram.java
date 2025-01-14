@@ -16,9 +16,9 @@ import lombok.Getter;
 @Getter
 public class SFlowDatagram {
     private final int version;
-    private final InetAddress agentAddress;
-    private final long subAgentId;
-    private final long sequenceNumber;
+    private final InetAddress agent_address;
+    private final long sub_agent_id;
+    private final long sequence_number;
     private final Duration uptime;
     @JsonIgnore
     private final List<Struct> samples;
