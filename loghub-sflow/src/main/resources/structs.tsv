@@ -1,0 +1,121 @@
+sample_data	0	1	flow_sample	sFlow Version 5
+sample_data	0	2	counter_sample	sFlow Version 5
+sample_data	0	3	flow_sample_expanded	sFlow Version 5
+sample_data	0	4	counter_sample_expanded	sFlow Version 5
+sample_data	0	5	discarded_packet	sFlow Dropped Packet Notification Structures
+sample_data	4300	1002	rtmetric	Custom Metrics
+sample_data	4300	1003	rtflow	Custom Metrics
+flow_data	0	1	sampled_header	sFlow Version 5
+flow_data	0	2	sampled_ethernet	sFlow Version 5
+flow_data	0	3	sampled_ipv4	sFlow Version 5
+flow_data	0	4	sampled_ipv6	sFlow Version 5
+flow_data	0	1001	extended_switch	sFlow Version 5
+flow_data	0	1002	extended_router	sFlow Version 5
+flow_data	0	1003	extended_gateway	sFlow Version 5
+flow_data	0	1004	extended_user	sFlow Version 5
+flow_data	0	1005	extended_url (deprecated)	sFlow Version 5
+flow_data	0	1006	extended_mpls	sFlow Version 5
+flow_data	0	1007	extended_nat	sFlow Version 5
+flow_data	0	1008	extended_mpls_tunnel	sFlow Version 5
+flow_data	0	1009	extended_mpls_vc	sFlow Version 5
+flow_data	0	1010	extended_mpls_FTN	sFlow Version 5
+flow_data	0	1011	extended_mpls_LDP_FEC	sFlow Version 5
+flow_data	0	1012	extended_vlantunnel	sFlow Version 5
+flow_data	0	1013	extended_80211_payload	sFlow 802.11 Structures
+flow_data	0	1014	extended_80211_rx	sFlow 802.11 Structures
+flow_data	0	1015	extended_80211_tx	sFlow 802.11 Structures
+flow_data	0	1016	extended_80211_aggregation	sFlow 802.11 Structures
+flow_data	0	1017	extended_openflow_v1 (deprecated)	sFlow OpenFlow Structures
+flow_data	0	1018	extended_fc	sFlow, CEE and FCoE
+flow_data	0	1019	extended_queue_length	sFlow for queue length monitoring
+flow_data	0	1020	extended_nat_port	sFlow Port NAT Structures
+flow_data	0	1021	extended_L2_tunnel_egress	sFlow Tunnel Structures
+flow_data	0	1022	extended_L2_tunnel_ingress	sFlow Tunnel Structures
+flow_data	0	1023	extended_ipv4_tunnel_egress	sFlow Tunnel Structures
+flow_data	0	1024	extended_ipv4_tunnel_ingress	sFlow Tunnel Structures
+flow_data	0	1025	extended_ipv6_tunnel_egress	sFlow Tunnel Structures
+flow_data	0	1026	extended_ipv6_tunnel_ingress	sFlow Tunnel Structures
+flow_data	0	1027	extended_decapsulate_egress	sFlow Tunnel Structures
+flow_data	0	1028	extended_decapsulate_ingress	sFlow Tunnel Structures
+flow_data	0	1029	extended_vni_egress	sFlow Tunnel Structures
+flow_data	0	1030	extended_vni_ingress	sFlow Tunnel Structures
+flow_data	0	1031	extended_ib_lrh	sFlow InfiniBand Structures
+flow_data	0	1032	extended_ib_grh	sFlow InfiniBand Structures
+flow_data	0	1033	extended_ib_brh	sFlow InfiniBand Structures
+flow_data	0	1034	extended_vlanin	QinQ related statistics in sFlow
+flow_data	0	1035	extended_vlanout	QinQ related statistics in sFlow
+flow_data	0	1036	extended_egress_queue	sFlow Dropped Packet Notification Structures
+flow_data	0	1037	extended_acl	sFlow Dropped Packet Notification Structures
+flow_data	0	1038	extended_function	sFlow Dropped Packet Notification Structures
+flow_data	0	1039	extended_transit	sFlow Transit Delay Structures
+flow_data	0	1040	extended_queue	sFlow Transit Delay Structures
+flow_data	0	1041	extended_hw_trap	Host sFlow
+flow_data	0	1042	extended_linux_drop_reason	Host sFlow
+flow_data	0	2000	transaction	Host performance statistics
+flow_data	0	2001	extended_nfs_storage_transaction	Host performance statistics
+flow_data	0	2002	extensed_scsi_storage_transaction	Host performance statistics
+flow_data	0	2003	extended_http_transaction	Host performance statistics
+flow_data	0	2100	extended_socket_ipv4	sFlow Host Structures
+flow_data	0	2101	extended_socket_ipv6	sFlow Host Structures
+flow_data	0	2102	extended_proxy_socket_ipv4	sFlow HTTP Structures
+flow_data	0	2103	extended_proxy_socket_ipv6 	sFlow HTTP Structures
+flow_data	0	2200	memcached_operation	sFlow Memcache Structures
+flow_data	0	2201	http_request (deprecated)	sFlow for HTTP
+flow_data	0	2202	app_operation	sFlow Application Structures
+flow_data	0	2203	app_parent_context	sFlow Application Structures
+flow_data	0	2204	app_initiator	sFlow Application Structures
+flow_data	0	2205	app_target	sFlow Application Structures
+flow_data	0	2206	http_request	sFlow HTTP Structures
+flow_data	0	2207	extended_proxy_request	sFlow HTTP Structures
+flow_data	0	2208	extended_nav_timing	Navigation Timing
+flow_data	0	2209	extended_tcp_info	TCP performance
+flow_data	0	2210	extended_entities	Systemd traffic marking
+flow_data	4413	1	bst_egress_queue	sFlow Broadcom Peak Buffer Utilization Structures
+counter_data	0	1	if_counters	sFlow Version 5
+counter_data	0	2	ethernet_counters	sFlow Version 5
+counter_data	0	3	tokenring_counters	sFlow Version 5
+counter_data	0	4	vg_counters	sFlow Version 5
+counter_data	0	5	vlan_counters	sFlow Version 5
+counter_data	0	6	ieee80211_counters	sFlow 802.11 Structures
+counter_data	0	7	lag_port_stats	sFlow LAG Counters Structure
+counter_data	0	8	slow_path_counts	Fast path / slow path
+counter_data	0	9	ib_counters	sFlow InfiniBand Structures
+counter_data	0	10	sfp	sFlow Optical Interface Structures
+counter_data	0	1001	processor	sFlow Version 5
+counter_data	0	1002	radio_utilization	sFlow 802.11 Structures
+counter_data	0	1003	queue_length	sFlow for queue length monitoring
+counter_data	0	1004	of_port	sFlow OpenFlow Structures
+counter_data	0	1005	port_name	sFlow OpenFlow Structures
+counter_data	0	2000	host_descr	sFlow Host Structures
+counter_data	0	2001	host_adapters	sFlow Host Structures
+counter_data	0	2002	host_parent	sFlow Host Structures
+counter_data	0	2003	host_cpu	sFlow Host Structures
+counter_data	0	2004	host_memory	sFlow Host Structures
+counter_data	0	2005	host_disk_io	sFlow Host Structures
+counter_data	0	2006	host_net_io	sFlow Host Structures
+counter_data	0	2007	mib2_ip_group	sFlow Host TCP/IP Counters
+counter_data	0	2008	mib2_icmp_group	sFlow Host TCP/IP Counters
+counter_data	0	2009	mib2_tcp_group	sFlow Host TCP/IP Counters
+counter_data	0	2010	mib2_udp_group	sFlow Host TCP/IP Counters
+counter_data	0	2100	virt_node	sFlow Host Structures
+counter_data	0	2101	virt_cpu	sFlow Host Structures
+counter_data	0	2102	virt_memory	sFlow Host Structures
+counter_data	0	2103	virt_disk_io	sFlow Host Structures
+counter_data	0	2104	virt_net_io	sFlow Host Structures
+counter_data	0	2105	jmx_runtime	sFlow Java Virtual Machine Structures
+counter_data	0	2106	jmx_statistics	sFlow Java Virtual Machine Structures
+counter_data	0	2200	memcached_counters (deprecated)	sFlow for memcached
+counter_data	0	2201	http_counters	sFlow HTTP Structures
+counter_data	0	2202	app_operations	sFlow Application Structures
+counter_data	0	2203	app_resources	sFlow Application Structures
+counter_data	0	2204	memcache_counters	sFlow Memcache Structures
+counter_data	0	2206	app_workers	sFlow Application Structures
+counter_data	0	2207	ovs_dp_stats	Open vSwitch performance monitoring
+counter_data	0	3000	energy	Energy management
+counter_data	0	3001	temperature	Energy management
+counter_data	0	3002	humidity	Energy management
+counter_data	0	3003	fans	Energy management
+counter_data	4413	1	bst_device_buffers	sFlow Broadcom Peak Buffer Utilization Structures
+counter_data	4413	2	bst_port_buffers	sFlow Broadcom Peak Buffer Utilization Structures
+counter_data	4413	3	hw_tables	sFlow Broadcom Switch ASIC Table Utilization Structures
+counter_data	5703	1	nvidia_gpu	sFlow NVML GPU Structures
