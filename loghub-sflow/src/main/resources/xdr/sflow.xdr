@@ -73,7 +73,14 @@ enum header_protocol {
    IPv4                 = 11,
    IPv6                 = 12,
    MPLS                 = 13,
-   POS                  = 14  /* RFC 1662, 2615 */
+   POS                  = 14,  /* RFC 1662, 2615 */
+/* Additional packet header types for enum header_protocol from sflow_80211 */
+
+   IEEE80211MAC             = 15,  /* 802.11 MAC */
+   IEEE80211_AMPDU          = 16,  /* 802.11n Aggregated MPDU (A-MPDU)
+                                     starting with MPDU delimiter */
+   IEEE80211_AMSDU_Subframe = 17  /* MSDU transported in A-MSDU starting
+                                     with A-MSDU subframe header */
 }
 
 /* Raw Packet Header */
@@ -344,7 +351,7 @@ struct extended_mpls_LDP_FEC {
    nested VLAN tags, and then only when one or more tags has been
    stripped. */
 /* opaque = flow_data; enterprise = 0; format = 1012 */
-extended_vlantunnel {
+struct extended_vlantunnel {
   unsigned int stack<>;  /* List of stripped 802.1Q TPID/TCI layers. Each
                             TPID,TCI pair is represented as a single 32 bit
                             integer. Layers listed from outermost to
@@ -470,9 +477,9 @@ typedef int percentage;
 /* opaque = counter_data; enterprise = 0; format = 1001 */
 
 struct processor {
-   percentage 5s_cpu;          /* 5 second average CPU utilization */
-   percentage 1m_cpu;          /* 1 minute average CPU utilization */
-   percentage 5m_cpu;          /* 5 minute average CPU utilization */
-   unsigned hyper total_memory /* total memory (in bytes) */
-   unsigned hyper free_memory  /* free memory (in bytes) */
+   percentage cpu_5s;           /* 5 second average CPU utilization */
+   percentage cpu_1m;           /* 1 minute average CPU utilization */
+   percentage cpu_5m;           /* 5 minute average CPU utilization */
+   unsigned hyper total_memory; /* total memory (in bytes) */
+   unsigned hyper free_memory ; /* free memory (in bytes) */
 }

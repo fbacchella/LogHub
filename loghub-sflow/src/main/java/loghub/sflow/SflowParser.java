@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -21,17 +19,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-import org.antlr.v4.runtime.CharStreams;
-
 import io.netty.buffer.ByteBuf;
 import loghub.sflow.structs.CounterSample;
 import loghub.sflow.structs.DynamicStruct;
-import loghub.sflow.structs.EthernetCounters;
 import loghub.sflow.structs.ExtendedRouter;
-import loghub.sflow.structs.ExtendedSwitch;
 import loghub.sflow.structs.ExtendedUser;
 import loghub.sflow.structs.FlowSample;
-import loghub.sflow.structs.IfCounters;
 import loghub.sflow.structs.OpaqueStruct;
 import loghub.sflow.structs.SampledHeader;
 import loghub.sflow.structs.Struct;
@@ -60,10 +53,7 @@ public class SflowParser {
         addConstructor(FlowSample.NAME, b -> new FlowSample(this, b));
         addConstructor(SampledHeader.NAME, b -> new SampledHeader(this, b));
         addConstructor(ExtendedRouter.NAME, b -> new ExtendedRouter(this, b));
-        addConstructor(ExtendedSwitch.NAME, b -> new ExtendedSwitch(this, b));
         addConstructor(CounterSample.NAME, b -> new CounterSample(this, b));
-        addConstructor(EthernetCounters.NAME, b -> new EthernetCounters(this, b));
-        addConstructor(IfCounters.NAME, b -> new IfCounters(this, b));
         addConstructor(ExtendedUser.NAME, b -> new ExtendedUser(this, b));
         byAttributeReaders.put("sampled_ipv4.src_port", ByteBuf::readInt);
         byAttributeReaders.put("sampled_ipv4.protocol", ByteBuf::readInt);
@@ -81,8 +71,14 @@ public class SflowParser {
         byTypeReaders.put("ip_v4", this::readIpV4Address);
         byTypeReaders.put("ip_v6", this::readIpV6Address);
         byTypeReaders.put("sflow_data_source", this::readDataSource);
-        byTypeReaders.put("interface", this::readInterface);
         byTypeReaders.put("charset", this::readCharset);
+        byTypeReaders.put("percentage", b -> b.readInt() / 100);
+        byTypeReaders.put("utf8string", b -> {
+            int size = Math.toIntExact(b.readUnsignedInt());
+            byte[] buffer = new byte[size];
+            b.readBytes(buffer);
+            return new String(buffer, StandardCharsets.UTF_8);
+        });
     }
 
     public void addTypes(Map<String, TypeSpecifier<?>> newTypes) {
@@ -239,26 +235,7 @@ public class SflowParser {
         }
         int index = sflow_data_source & ((2 << 23) - 1);
         Map<String, Object> values = new HashMap<>();
-        values.put("type", type);
-        values.put("index", index);
-        return values;
-    }
-
-    public Map<String, Object> readInterface(ByteBuf buf) {
-        Map<String, Object> values = new HashMap<>();
-        int interfaceCode = buf.readInt();
-        int mode = interfaceCode >>> 30;
-        switch (mode) {
-        case 0:
-            values.put("ifIndex", interfaceCode & ((2 << 29) - 1));
-            break;
-        case 1:
-            values.put("droppedReason", interfaceCode & ((2 << 29) - 1));
-            break;
-        case 3:
-            values.put("numInterfaces", interfaceCode & ((2 << 29) - 1));
-            break;
-        }
+        values.put(type, index);
         return values;
     }
 

@@ -16,19 +16,15 @@ public class ExtendedRouter extends Struct {
     public static final String NAME = "extended_router";
 
     private final InetAddress nexthop;
-    private final long src_mask_len;
-    private final long dst_mask_len;
+    private final int src_mask_len;
+    private final int dst_mask_len;
 
-    public ExtendedRouter(SflowParser parser, ByteBuf buffer) {
+    public ExtendedRouter(SflowParser parser, ByteBuf buffer) throws IOException {
         super(parser.getByName(NAME));
-        try {
-            buffer = extractData(buffer);
-            nexthop = parser.readIpAddress(buffer);
-            src_mask_len = buffer.readUnsignedInt();
-            dst_mask_len = buffer.readUnsignedInt();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        buffer = extractData(buffer);
+        nexthop = parser.readIpAddress(buffer);
+        src_mask_len = Math.toIntExact(buffer.readUnsignedInt());
+        dst_mask_len = Math.toIntExact(buffer.readUnsignedInt());
     }
 
     @Override
