@@ -5,7 +5,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -14,45 +18,87 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.UUID;
 import java.util.regex.Pattern;
+
+import org.antlr.v4.runtime.CharStreams;
 
 import io.netty.buffer.ByteBuf;
 import loghub.sflow.structs.CounterSample;
+import loghub.sflow.structs.DynamicStruct;
 import loghub.sflow.structs.EthernetCounters;
 import loghub.sflow.structs.ExtendedRouter;
 import loghub.sflow.structs.ExtendedSwitch;
+import loghub.sflow.structs.ExtendedUser;
 import loghub.sflow.structs.FlowSample;
 import loghub.sflow.structs.IfCounters;
-import loghub.sflow.structs.LagPortStats;
 import loghub.sflow.structs.OpaqueStruct;
 import loghub.sflow.structs.SampledHeader;
 import loghub.sflow.structs.Struct;
+import loghub.types.MacAddress;
+import loghub.xdr.ReadType;
+import loghub.xdr.StructSpecifier;
+import loghub.xdr.TypeSpecifier;
 import lombok.ToString;
 
 @ToString
 public class SflowParser {
-    private Map<DataFormat, Function<ByteBuf, ? extends Struct>> registry = new HashMap<>();
+
+    interface StructConstructor {
+        Struct get(ByteBuf buf) throws IOException;
+    }
+    private Map<DataFormat, StructConstructor> registry = new HashMap<>();
     private Map<StructureClass, Map<Integer, Map<Integer, DataFormat>>> structRegistry = new EnumMap<>(StructureClass.class);
     private Map<String, DataFormat> structByName = new HashMap<>();
     public final Set<DataFormat> missing = new HashSet<>();
+    private final Map<String, ReadType<?>> byTypeReaders = new HashMap<>();
+    private final Map<String, ReadType<?>> byAttributeReaders = new HashMap<>();
+    private final Map<String, StructSpecifier> structs = new HashMap<>();
 
     public SflowParser() {
         getClass().getClassLoader().resources("structs.tsv").forEach(this::loadTsvUrl);
-        addConstructor(FlowSample.NAME, FlowSample::new);
-        addConstructor(SampledHeader.NAME, SampledHeader::new);
-        addConstructor(ExtendedRouter.NAME, ExtendedRouter::new);
-        addConstructor(ExtendedSwitch.NAME, ExtendedSwitch::new);
-        addConstructor(CounterSample.NAME, CounterSample::new);
-        addConstructor(LagPortStats.NAME, LagPortStats::new);
-        addConstructor(EthernetCounters.NAME, EthernetCounters::new);
-        addConstructor(IfCounters.NAME, IfCounters::new);
+        addConstructor(FlowSample.NAME, b -> new FlowSample(this, b));
+        addConstructor(SampledHeader.NAME, b -> new SampledHeader(this, b));
+        addConstructor(ExtendedRouter.NAME, b -> new ExtendedRouter(this, b));
+        addConstructor(ExtendedSwitch.NAME, b -> new ExtendedSwitch(this, b));
+        addConstructor(CounterSample.NAME, b -> new CounterSample(this, b));
+        addConstructor(EthernetCounters.NAME, b -> new EthernetCounters(this, b));
+        addConstructor(IfCounters.NAME, b -> new IfCounters(this, b));
+        addConstructor(ExtendedUser.NAME, b -> new ExtendedUser(this, b));
+        byAttributeReaders.put("sampled_ipv4.src_port", ByteBuf::readInt);
+        byAttributeReaders.put("sampled_ipv4.protocol", ByteBuf::readInt);
+        byAttributeReaders.put("sampled_ipv4.dst_port", ByteBuf::readInt);
+        byAttributeReaders.put("sampled_ipv6.src_port", ByteBuf::readInt);
+        byAttributeReaders.put("sampled_ipv6.protocol", ByteBuf::readInt);
+        byAttributeReaders.put("sampled_ipv6.dst_port", ByteBuf::readInt);
+        byAttributeReaders.put("if_counters.ifType", b -> IANAifType.resolve(b.readInt()));
+        byAttributeReaders.put("host_descr.uuid", b -> {
+            byte[] buffer = new byte[16];
+            b.readBytes(buffer);
+            return UUID.nameUUIDFromBytes(buffer);
+        });
+        byTypeReaders.put("mac", this::readMacAddress);
+        byTypeReaders.put("ip_v4", this::readIpV4Address);
+        byTypeReaders.put("ip_v6", this::readIpV6Address);
+        byTypeReaders.put("sflow_data_source", this::readDataSource);
+        byTypeReaders.put("interface", this::readInterface);
+        byTypeReaders.put("charset", this::readCharset);
     }
 
-    private void addConstructor(String name, BiFunction<SflowParser, ByteBuf, ? extends Struct> constructor) {
+    public void addTypes(Map<String, TypeSpecifier<?>> newTypes) {
+        for (Map.Entry<String, TypeSpecifier<?>> e: newTypes.entrySet()) {
+            if (! byTypeReaders.containsKey(e.getKey())) {
+                byTypeReaders.put(e.getKey(), b -> e.getValue().read(b));
+            }
+            if (e.getValue() instanceof StructSpecifier && ! structs.containsKey(e.getKey())) {
+                structs.put(e.getKey(), (StructSpecifier) e.getValue());
+            }
+        }
+    }
+
+    private void addConstructor(String name, StructConstructor constructor) {
         DataFormat si = structByName.get(name);
-        registry.put(si, b -> constructor.apply(this, b));
+        registry.put(si, constructor::get);
     }
 
     private void loadTsvUrl(URL url) {
@@ -77,14 +123,48 @@ public class SflowParser {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends Struct> T readStruct(StructureClass tclass, ByteBuf data) {
+    public <T extends Struct> T readStruct(StructureClass tclass, ByteBuf data) throws IOException {
         DataFormat df = getStructInformation(tclass, data.readUnsignedInt());
-        Function<ByteBuf, ? extends Struct> producer  = registry.get(df);
+        StructConstructor producer  = registry.get(df);
         if (producer != null) {
-            return (T) producer.apply(data);
+            return (T) producer.get(data);
+        } else if (structs.containsKey(df.getName())) {
+            return (T) new DynamicStruct(df.getName(),this, data);
         } else {
             missing.add(df);
             return (T) new OpaqueStruct(df, data);
+        }
+    }
+
+    public Map<String, Object> readDynamicStructData(DataFormat df, ByteBuf buf) throws IOException {
+        if (structs.containsKey(df.getName())){
+            StructSpecifier.CustomReader reader = (n, t,b) -> readStructAttribute(df.getName(), n, t, b);
+            return structs.get(df.getName()).read(buf, reader);
+        } else {
+            return Map.of();
+        }
+    }
+
+    private Object readStructAttribute(String structName, String attributeName, TypeSpecifier<?> type, ByteBuf buf)
+            throws IOException {
+        String attributePath = structName + "." + attributeName;
+        if (byAttributeReaders.containsKey(attributePath)) {
+            return byAttributeReaders.get(attributePath).read(buf);
+        } else if (byTypeReaders.containsKey(type.getName())) {
+            return byTypeReaders.get(type.getName()).read(buf);
+        } else {
+            return type.read(buf);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T readType(String name, ByteBuf data) throws IOException {
+        if (byAttributeReaders.containsKey(name)) {
+            return (T) byAttributeReaders.get(name).read(data);
+        } else if (byTypeReaders.containsKey(name)){
+            return (T) byTypeReaders.get(name).read(data);
+        } else {
+            return null;
         }
     }
 
@@ -121,6 +201,93 @@ public class SflowParser {
         bbuf.readBytes(ipAddrBuffer);
         return InetAddress.getByAddress(ipAddrBuffer);
     }
+
+    public InetAddress readIpV4Address(ByteBuf bbuf) throws IOException {
+        byte[] ipAddrBuffer = new byte[4];
+        bbuf.readBytes(ipAddrBuffer);
+        return InetAddress.getByAddress(ipAddrBuffer);
+    }
+
+    public InetAddress readIpV6Address(ByteBuf bbuf) throws IOException {
+        byte[] ipAddrBuffer = new byte[16];
+        bbuf.readBytes(ipAddrBuffer);
+        return InetAddress.getByAddress(ipAddrBuffer);
+    }
+
+    public MacAddress readMacAddress(ByteBuf buf) {
+        buf.readInt();
+        byte[] macAddress = new byte[6];
+        buf.readBytes(macAddress);
+        return new MacAddress((macAddress));
+    }
+
+    public Map<String, Object> readDataSource(ByteBuf buf) {
+        int sflow_data_source = buf.readInt();
+        String type;
+        switch (sflow_data_source >>> 23) {
+        case 0:
+            type = "ifIndex";
+            break;
+        case 1:
+            type = "smonVlanDataSource";
+            break;
+        case 2:
+            type = "entPhysicalEntry";
+            break;
+        default:
+            type = "Unknown(" + (sflow_data_source >>> 3) + ")";
+        }
+        int index = sflow_data_source & ((2 << 23) - 1);
+        Map<String, Object> values = new HashMap<>();
+        values.put("type", type);
+        values.put("index", index);
+        return values;
+    }
+
+    public Map<String, Object> readInterface(ByteBuf buf) {
+        Map<String, Object> values = new HashMap<>();
+        int interfaceCode = buf.readInt();
+        int mode = interfaceCode >>> 30;
+        switch (mode) {
+        case 0:
+            values.put("ifIndex", interfaceCode & ((2 << 29) - 1));
+            break;
+        case 1:
+            values.put("droppedReason", interfaceCode & ((2 << 29) - 1));
+            break;
+        case 3:
+            values.put("numInterfaces", interfaceCode & ((2 << 29) - 1));
+            break;
+        }
+        return values;
+    }
+
+    /**
+     * Convert a charset identifier to an effective charset, using <a href="https://www.iana.org/assignments/character-sets/character-sets.xhtml">IANA Character Sets</a>
+     * Currently only bother to implement standards one, as defined in {@link StandardCharsets}
+     * @param buf
+     * @return
+     */
+    public Charset readCharset(ByteBuf buf) {
+        int charset = buf.readInt();
+        switch (charset) {
+        case 3:
+            return StandardCharsets.US_ASCII;
+        case 4:
+            return StandardCharsets.ISO_8859_1;
+        case 106:
+            return StandardCharsets.UTF_8;
+        case 1013:
+            return StandardCharsets.UTF_16BE;
+        case 1014:
+            return StandardCharsets.UTF_16LE;
+        case 1015:
+            return StandardCharsets.UTF_16;
+        default:
+            return Charset.defaultCharset();
+        }
+    }
+
 
     public SFlowDatagram decodePacket(ByteBuf bbuf) throws IOException {
         if (bbuf.readableBytes() < 16) {

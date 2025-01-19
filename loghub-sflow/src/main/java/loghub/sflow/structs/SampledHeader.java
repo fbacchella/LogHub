@@ -14,8 +14,9 @@ public class SampledHeader extends Struct {
     private final long frame_length;
     private final long stripped;
     private final byte[] header;
-    public SampledHeader(SflowParser df, ByteBuf buf) {
-        super(df.getByName(NAME));
+
+    public SampledHeader(SflowParser parser, ByteBuf buf) {
+        super(parser.getByName(NAME));
         ByteBuf buffer = extractData(buf);
         protocol = HeaderProtocol.parse(buffer.readInt());
         frame_length = buffer.readUnsignedInt();

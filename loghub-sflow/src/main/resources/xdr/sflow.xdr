@@ -1,0 +1,478 @@
+/* Standard sFlow data formats */
+
+/* Revision History
+   - version 5
+         Clarified extended_switch definitions for untagged ports
+         Added CPU, memory utilization information
+         Added mpls tunnel, virtual circuit and fec information
+         Clarified next_hop definitions
+         Added stripped count to sampled_header
+         Added POS header_protocol
+         Added BGP next hop router
+         Clarify definition of packet length
+         Remove limit on packet header size
+         Adds host field to URL extension and clarifies url_direction
+         Define url as http request-line
+         Adds character set information to user data
+         Adds NAT support
+         Adds MPLS information
+   - version 4 adds support for BGP communities
+   - version 3 adds support for extended_url information */
+
+/* Enterprise = 0 refers to standard sFlow structures. An
+   sFlow implementor should use the standard structures
+   where possible, even if they can only be partially
+   populated. Vendor specific structures are allowed, but
+   should only be used to supplement the existing
+   structures, or to carry information that hasn't yet
+   been standardized.
+
+   The following values should be used for fields that are
+   unknown (unless otherwise indicated in the structure
+   definitions).
+      - Unknown integer value. Use a value of 0 to indicate that
+        a value is unknown.
+      - Unknown counter. Use the maximum counter value to indicate
+        that the counter is not available. Within any given sFlow
+        session a particular counter must be always available, or
+        always unavailable. An available counter may temporarily
+        have the max value just before it rolls to zero. This is
+        permitted.
+      - Unknown string. Use the zero length empty string. */
+
+
+/* Flow Data Types
+
+   A flow_sample must contain packet header information. The
+   prefered format for reporting packet header information is
+   the sampled_header. However, if the packet header is not
+   available to the sampling process then one or more of
+   sampled_ethernet, sampled_ipv4, sampled_ipv6 may be used. */
+
+
+/* Packet Header Data */
+
+/* The header_protocol enumeration may be expanded over time.
+   Applications receiving sFlow must be prepared to receive
+   sampled_header structures with unknown sampled_header values.
+
+   The authoritative list of protocol numbers will be maintained
+   at www.sflow.org */
+
+enum header_protocol {
+   ETHERNET_ISO88023    = 1,
+   ISO88024_TOKENBUS    = 2,
+   ISO88025_TOKENRING   = 3,
+   FDDI                 = 4,
+   FRAME_RELAY          = 5,
+   X25                  = 6,
+   PPP                  = 7,
+   SMDS                 = 8,
+   AAL5                 = 9,
+   AAL5_IP              = 10, /* e.g. Cisco AAL5 mux */
+   IPv4                 = 11,
+   IPv6                 = 12,
+   MPLS                 = 13,
+   POS                  = 14  /* RFC 1662, 2615 */
+}
+
+/* Raw Packet Header */
+/* opaque = flow_data; enterprise = 0; format = 1 */
+
+struct sampled_header {
+   header_protocol protocol;       /* Format of sampled header */
+   unsigned int frame_length;      /* Original length of packet before
+                                      sampling.
+                                     Note: For a layer 2 header_protocol,
+                                            length is total number of octets
+                                            of data received on the network
+                                            (excluding framing bits but
+                                            including FCS octets).
+                                            Hardware limitations may
+                                            prevent an exact reporting
+                                            of the underlying frame length,
+                                            but an agent should attempt to
+                                            be as accurate as possible. Any
+                                            octets added to the frame_length
+                                            to compensate for encapsulations
+                                            removed by the underlying hardware
+                                            must also be added to the stripped
+                                            count. */
+   unsigned int stripped;          /* The number of octets removed from
+                                      the packet before extracting the
+                                      header<> octets. Trailing encapsulation
+                                      data corresponding to any leading
+                                      encapsulations that were stripped must
+                                      also be stripped. Trailing encapsulation
+                                      data for the outermost protocol layer
+                                      included in the sampled header must be
+                                      stripped.
+
+                                      In the case of a non-encapsulated 802.3
+                                      packet stripped >= 4 since VLAN tag
+                                      information might have been stripped off
+                                      in addition to the FCS.
+
+                                      Outer encapsulations that are ambiguous,
+                                      or not one of the standard header_protocol
+                                      must be stripped. */
+   opaque header<>;                /* Header bytes */
+}
+
+typedef opaque mac[6];
+
+/* Ethernet Frame Data */
+/* opaque = flow_data; enterprise = 0; format = 2 */
+
+struct sampled_ethernet {
+     unsigned int length;   /* The length of the MAC packet received on the
+                               network, excluding lower layer encapsulations
+                               and framing bits but including FCS octets */
+     mac src_mac;           /* Source MAC address */
+     mac dst_mac;           /* Destination MAC address */
+     unsigned int type;     /* Ethernet packet type */
+}
+
+/* Packet IP version 4 data */
+/* opaque = flow_data; enterprise = 0; format = 3 */
+
+struct sampled_ipv4 {
+   unsigned int length;     /* The length of the IP packet excluding
+                               lower layer encapsulations */
+   unsigned int protocol;   /* IP Protocol type
+                               (for example, TCP = 6, UDP = 17) */
+   ip_v4 src_ip;            /* Source IP Address */
+   ip_v4 dst_ip;            /* Destination IP Address */
+   unsigned int src_port;   /* TCP/UDP source port number or equivalent */
+   unsigned int dst_port;   /* TCP/UDP destination port number or equivalent */
+   unsigned int tcp_flags;  /* TCP flags */
+   unsigned int tos;        /* IP type of service */
+}
+
+/* Packet IP Version 6 Data */
+/* opaque = flow_data; enterprise = 0; format = 4 */
+
+struct sampled_ipv6 {
+   unsigned int length;     /* The length of the IP packet excluding
+                               lower layer encapsulations */
+   unsigned int protocol;   /* IP next header
+                               (for example, TCP = 6, UDP = 17) */
+   ip_v6 src_ip;            /* Source IP Address */
+   ip_v6 dst_ip;            /* Destination IP Address */
+   unsigned int src_port;   /* TCP/UDP source port number or equivalent */
+   unsigned int dst_port;   /* TCP/UDP destination port number or equivalent */
+   unsigned int tcp_flags;  /* TCP flags */
+   unsigned int priority;   /* IP priority */
+}
+
+
+/* Extended Flow Data
+
+   Extended data types provide supplimentary information about the
+   sampled packet. All applicable extended flow records should be
+   included with each flow sample. */
+
+/* Extended Switch Data */
+/* opaque = flow_data; enterprise = 0; format = 1001 */
+/* Note: For untagged ingress ports, use the assigned vlan and priority
+         of the port for the src_vlan and src_priority values.
+         For untagged egress ports, use the values for dst_vlan and
+         dst_priority that would have been placed in the 802.Q tag
+         had the egress port been a tagged member of the VLAN instead
+         of an untagged member. */
+
+struct extended_switch {
+   unsigned int src_vlan;     /* The 802.1Q VLAN id of incoming frame */
+   unsigned int src_priority; /* The 802.1p priority of incoming frame */
+   unsigned int dst_vlan;     /* The 802.1Q VLAN id of outgoing frame */
+   unsigned int dst_priority; /* The 802.1p priority of outgoing frame */
+}
+
+/* IP Route Next Hop
+   ipForwardNextHop (RFC 2096) for IPv4 routes.
+   ipv6RouteNextHop (RFC 2465) for IPv6 routes. */
+
+typedef address next_hop;
+
+/* Extended Router Data */
+/* opaque = flow_data; enterprise = 0; format = 1002 */
+
+struct extended_router {
+   next_hop nexthop;            /* IP address of next hop router */
+   unsigned int src_mask_len;   /* Source address prefix mask
+                                   (expressed as number of bits) */
+   unsigned int dst_mask_len;   /* Destination address prefix mask
+                                   (expressed as number of bits) */
+}
+
+enum as_path_segment_type {
+   AS_SET      = 1,            /* Unordered set of ASs */
+   AS_SEQUENCE = 2             /* Ordered set of ASs */
+}
+
+union as_path_type (as_path_segment_type) {
+   case AS_SET:
+      unsigned int as_set<>;
+   case AS_SEQUENCE:
+      unsigned int as_sequence<>;
+}
+
+/* Extended Gateway Data */
+/* opaque = flow_data; enterprise = 0; format = 1003 */
+
+struct extended_gateway {
+   next_hop nexthop;           /* Address of the border router that should
+                                  be used for the destination network */
+   unsigned int as;            /* Autonomous system number of router */
+   unsigned int src_as;        /* Autonomous system number of source */
+   unsigned int src_peer_as;   /* Autonomous system number of source peer */
+   as_path_type dst_as_path<>; /* Autonomous system path to the destination */
+   unsigned int communities<>; /* Communities associated with this route */
+   unsigned int localpref;     /* LocalPref associated with this route */
+}
+
+/* Character Set
+     MIBEnum value of character set used to encode a string - See RFC 2978
+     Where possible UTF-8 encoding (MIBEnum=106) should be used. A value
+     of zero indicates an unknown encoding. */
+
+typedef unsigned int charset;
+
+/* Extended User Data */
+/* opaque = flow_data; enterprise = 0; format = 1004 */
+
+struct extended_user {
+   charset src_charset;        /* Character set for src_user */
+   opaque src_user<>;          /* User ID associated with packet source */
+   charset dst_charset;        /* Character set for dst_user */
+   opaque dst_user<>;          /* User ID associated with packet destination */
+}
+
+enum url_direction {
+   src    = 1,                 /* Source address is server */
+   dst    = 2                  /* Destination address is server */
+}
+
+/* Extended URL Data */
+/* opaque = flow_data; enterprise = 0; format = 1005 */
+
+struct extended_url {
+   url_direction direction;    /* Direction of connection */
+   string url<>;               /* The HTTP request-line (see RFC 2616) */
+   string host<>;              /* The host field from the HTTP header */
+}
+
+/* MPLS label stack
+    - Empty stack may be returned if values unknown
+    - If only innermost label is known then stack may contain single entry
+    - See RFC 3032 for label encoding
+    - Labels in network order */
+typedef int label_stack<>;
+
+/* Extended MPLS Data */
+/* opaque = flow_data; enterprise = 0; format = 1006 */
+
+struct extended_mpls {
+   next_hop nexthop;           /* Address of the next hop */
+   label_stack in_stack;       /* Label stack of received packet */
+   label_stack out_stack;      /* Label stack for transmitted packet */
+}
+
+/* Extended NAT Data
+   Packet header records report addresses as seen at the sFlowDataSource.
+   The extended_nat structure reports on translated source and/or destination
+   addesses for this packet. If an address was not translated it should
+   be equal to that reported for the header. */
+/* opaque = flow_data; enterprise = 0; format = 1007 */
+
+struct extended_nat {
+     address src_address;            /* Source address */
+     address dst_address;            /* Destination address */
+}
+
+/* Extended MPLS Tunnel */
+/* opaque = flow_data; enterprise = 0; format = 1008 */
+
+struct extended_mpls_tunnel {
+   string tunnel_lsp_name<>;   /* Tunnel name */
+   unsigned int tunnel_id;     /* Tunnel ID */
+   unsigned int tunnel_cos;    /* Tunnel COS value */
+}
+
+/* Extended MPLS VC */
+/* opaque = flow_data; enterprise = 0; format = 1009 */
+
+struct extended_mpls_vc {
+   string vc_instance_name<>;  /* VC instance name */
+   unsigned int vll_vc_id;     /* VLL/VC instance ID */
+   unsigned int vc_label_cos;  /* VC Label COS value */
+}
+
+/* Extended MPLS FEC
+    - Definitions from MPLS-FTN-STD-MIB mplsFTNTable */
+/* opaque = flow_data; enterprise = 0; format = 1010 */
+
+struct extended_mpls_FTN {
+   string mplsFTNDescr<>;
+   unsigned int mplsFTNMask;
+}
+
+/* Extended MPLS LVP FEC
+    - Definition from MPLS-LDP-STD-MIB mplsFecTable
+    Note: mplsFecAddrType, mplsFecAddr information available
+          from packet header */
+/* opaque = flow_data; enterprise = 0; format = 1011 */
+
+struct extended_mpls_LDP_FEC {
+   unsigned int mplsFecAddrPrefixLength;
+}
+
+/* Extended VLAN tunnel information
+   Record outer VLAN encapsulations that have
+   been stripped. extended_vlantunnel information
+   should only be reported if all the following conditions are satisfied:
+     1. The packet has nested vlan tags, AND
+     2. The reporting device is VLAN aware, AND
+     3. One or more VLAN tags have been stripped, either
+        because they represent proprietary encapsulations, or
+        because switch hardware automatically strips the outer VLAN
+        encapsulation.
+   Reporting extended_vlantunnel information is not a substitute for
+   reporting extended_switch information. extended_switch data must
+   always be reported to describe the ingress/egress VLAN information
+   for the packet. The extended_vlantunnel information only applies to
+   nested VLAN tags, and then only when one or more tags has been
+   stripped. */
+/* opaque = flow_data; enterprise = 0; format = 1012 */
+extended_vlantunnel {
+  unsigned int stack<>;  /* List of stripped 802.1Q TPID/TCI layers. Each
+                            TPID,TCI pair is represented as a single 32 bit
+                            integer. Layers listed from outermost to
+                            innermost. */
+}
+
+/* Counter Data Types
+
+   Wherever possible, the if_counters block should be included. Media
+   specific counters can be included as well. */
+
+/* Generic Interface Counters - see RFC 2233 */
+/* opaque = counter_data; enterprise = 0; format = 1 */
+
+struct if_counters {
+   unsigned int ifIndex;
+   unsigned int ifType;
+   unsigned hyper ifSpeed;
+   unsigned int ifDirection;    /* derived from MAU MIB (RFC 2668)
+                                   0 = unkown, 1=full-duplex, 2=half-duplex,
+                                   3 = in, 4=out */
+   unsigned int ifStatus;       /* bit field with the following bits assigned
+                                   bit 0 = ifAdminStatus (0 = down, 1 = up)
+                                   bit 1 = ifOperStatus (0 = down, 1 = up) */
+   unsigned hyper ifInOctets;
+   unsigned int ifInUcastPkts;
+   unsigned int ifInMulticastPkts;
+   unsigned int ifInBroadcastPkts;
+   unsigned int ifInDiscards;
+   unsigned int ifInErrors;
+   unsigned int ifInUnknownProtos;
+   unsigned hyper ifOutOctets;
+   unsigned int ifOutUcastPkts;
+   unsigned int ifOutMulticastPkts;
+   unsigned int ifOutBroadcastPkts;
+   unsigned int ifOutDiscards;
+   unsigned int ifOutErrors;
+   unsigned int ifPromiscuousMode;
+}
+
+/* Ethernet Interface Counters - see RFC 2358 */
+/* opaque = counter_data; enterprise = 0; format = 2 */
+
+struct ethernet_counters {
+   unsigned int dot3StatsAlignmentErrors;
+   unsigned int dot3StatsFCSErrors;
+   unsigned int dot3StatsSingleCollisionFrames;
+   unsigned int dot3StatsMultipleCollisionFrames;
+   unsigned int dot3StatsSQETestErrors;
+   unsigned int dot3StatsDeferredTransmissions;
+   unsigned int dot3StatsLateCollisions;
+   unsigned int dot3StatsExcessiveCollisions;
+   unsigned int dot3StatsInternalMacTransmitErrors;
+   unsigned int dot3StatsCarrierSenseErrors;
+   unsigned int dot3StatsFrameTooLongs;
+   unsigned int dot3StatsInternalMacReceiveErrors;
+   unsigned int dot3StatsSymbolErrors;
+}
+
+/* Token Ring Counters - see RFC 1748 */
+/* opaque = counter_data; enterprise = 0; format = 3 */
+
+struct tokenring_counters {
+  unsigned int dot5StatsLineErrors;
+  unsigned int dot5StatsBurstErrors;
+  unsigned int dot5StatsACErrors;
+  unsigned int dot5StatsAbortTransErrors;
+  unsigned int dot5StatsInternalErrors;
+  unsigned int dot5StatsLostFrameErrors;
+  unsigned int dot5StatsReceiveCongestions;
+  unsigned int dot5StatsFrameCopiedErrors;
+  unsigned int dot5StatsTokenErrors;
+  unsigned int dot5StatsSoftErrors;
+  unsigned int dot5StatsHardErrors;
+  unsigned int dot5StatsSignalLoss;
+  unsigned int dot5StatsTransmitBeacons;
+  unsigned int dot5StatsRecoverys;
+  unsigned int dot5StatsLobeWires;
+  unsigned int dot5StatsRemoves;
+  unsigned int dot5StatsSingles;
+  unsigned int dot5StatsFreqErrors;
+}
+
+/* 100 BaseVG interface counters - see RFC 2020 */
+/* opaque = counter_data; enterprise = 0; format = 4 */
+
+struct vg_counters {
+  unsigned int dot12InHighPriorityFrames;
+  unsigned hyper dot12InHighPriorityOctets;
+  unsigned int dot12InNormPriorityFrames;
+  unsigned hyper dot12InNormPriorityOctets;
+  unsigned int dot12InIPMErrors;
+  unsigned int dot12InOversizeFrameErrors;
+  unsigned int dot12InDataErrors;
+  unsigned int dot12InNullAddressedFrames;
+  unsigned int dot12OutHighPriorityFrames;
+  unsigned hyper dot12OutHighPriorityOctets;
+  unsigned int dot12TransitionIntoTrainings;
+  unsigned hyper dot12HCInHighPriorityOctets;
+  unsigned hyper dot12HCInNormPriorityOctets;
+  unsigned hyper dot12HCOutHighPriorityOctets;
+}
+
+/* VLAN Counters */
+/* opaque = counter_data; enterprise = 0; format = 5 */
+
+struct vlan_counters {
+  unsigned int vlan_id;
+  unsigned hyper octets;
+  unsigned int ucastPkts;
+  unsigned int multicastPkts;
+  unsigned int broadcastPkts;
+  unsigned int discards;
+}
+
+/* Percentage expressed in hundredths of a percent
+   (e.g. 100 = 1%). If a percentage value is unknown then
+   use the value -1. */
+
+typedef int percentage;
+
+/* Processor Information */
+/* opaque = counter_data; enterprise = 0; format = 1001 */
+
+struct processor {
+   percentage 5s_cpu;          /* 5 second average CPU utilization */
+   percentage 1m_cpu;          /* 1 minute average CPU utilization */
+   percentage 5m_cpu;          /* 5 minute average CPU utilization */
+   unsigned hyper total_memory /* total memory (in bytes) */
+   unsigned hyper free_memory  /* free memory (in bytes) */
+}

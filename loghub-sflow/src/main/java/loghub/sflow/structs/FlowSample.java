@@ -1,7 +1,9 @@
 package loghub.sflow.structs;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import loghub.sflow.StructureClass;
 import loghub.sflow.SflowParser;
@@ -18,21 +20,23 @@ public class FlowSample extends Struct {
     private final long samplingRate;
     private final long samplePool;
     private final long drops;
+    private final Map<String, Object> input;
+    private final Map<String, Object> ouput;
     private final List<Struct> samples = new ArrayList<>();
 
-    public FlowSample(SflowParser df, ByteBuf buf) {
-        super(df.getByName(NAME));
+    public FlowSample(SflowParser parser, ByteBuf buf) throws IOException {
+        super(parser.getByName(NAME));
         buf = extractData(buf);
         sequenceNumber = buf.readUnsignedInt();
         buf.readUnsignedInt();
         samplingRate = buf.readUnsignedInt();
         samplePool = buf.readUnsignedInt();
         drops = buf.readUnsignedInt();
-        buf.readUnsignedInt(); // interface input
-        buf.readUnsignedInt(); // interface output
+        input = parser.readInterface(buf);
+        ouput = parser.readInterface(buf); // interface output
         long flowRecords = buf.readUnsignedInt();
         for (int i = 0; i < flowRecords; i++) {
-            samples.add(df.readStruct(StructureClass.FLOW_DATA, buf));
+            samples.add(parser.readStruct(StructureClass.FLOW_DATA, buf));
         }
     }
 

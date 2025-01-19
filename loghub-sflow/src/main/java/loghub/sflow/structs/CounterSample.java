@@ -1,5 +1,6 @@
 package loghub.sflow.structs;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,8 +20,8 @@ public class CounterSample extends Struct {
     private final DataSource source_id;
     private final List<Struct> counters;
 
-    public CounterSample(SflowParser df, ByteBuf buf) {
-        super(df.getByName(NAME));
+    public CounterSample(SflowParser parser, ByteBuf buf) throws IOException {
+        super(parser.getByName(NAME));
         buf = extractData(buf);
         // Lecture du numéro de séquence
         sequence_number = buf.readUnsignedInt();
@@ -33,7 +34,7 @@ public class CounterSample extends Struct {
         // Parsing des enregistrements de compteurs
         List<Struct> tempCounters = new ArrayList<>(numRecords);
         for (int i = 0; i < numRecords; i++) {
-            tempCounters.add(df.readStruct(StructureClass.COUNTER_DATA, buf));
+            tempCounters.add(parser.readStruct(StructureClass.COUNTER_DATA, buf));
         }
         counters = List.copyOf(tempCounters);
     }

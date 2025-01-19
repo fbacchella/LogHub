@@ -1,0 +1,404 @@
+/* sFlow Datagram Version 5 */
+
+/* Revision History
+   - version 5 adds support for:
+         Adds expanded encodings for flow_sample and counter_sample
+         Adds unknown address type;
+         Adds sub-agent support.
+         Adds Packet discard information.
+         Adds support for vendor specific extensions.
+         Adds length information to data fields.
+         Adds length information to sample types.
+         Define reset semantics for flow_sample,counter_sample sequence no.
+         Splits sFlow datagram definition from flow/counter data definitions.
+            Note: Revision history for sFlow data definitions is now part
+                  of data definition document. */
+
+/* Address types */
+
+typedef opaque ip_v4[4];
+typedef opaque ip_v6[16];
+
+enum address_type {
+   UNKNOWN  = 0,
+   IP_V4    = 1,
+   IP_V6    = 2
+}
+
+union address (address_type type) {
+   case UNKNOWN:
+     void;
+   case IP_V4:
+     ip_v4;
+   case IP_V6:
+     ip_v6;
+}
+
+/* Data Format
+     The data_format uniquely identifies the format of an opaque structure in
+     the sFlow specification. A data_format is contructed as follows:
+       - The most significant 20 bits correspond to the SMI Private Enterprise
+         Code of the entity responsible for the structure definition. A value
+         of zero is used to denote standard structures defined by sflow.org.
+       - The least significant 12 bits are a structure format number assigned
+         by the enterprise that should uniquely identify the the format of the
+         structure.
+
+     There are currently three opaque structures where which data_formats
+      are used:
+       1. sample_data
+       2. counter_data
+       3. flow_data
+
+     Structure format numbers may be re-used within each of these contexts.
+     For example, an (inmon,1) data_format could identify a particular
+     set of counters when used to describe counter_data, but refer to
+     a set of flow attributes when used to describe flow_data.
+
+     An sFlow implementor should use the standard structures
+     where possible, even if they can only be partially
+     populated. Vendor specific structures are allowed, but
+     should only be used to supplement the existing
+     structures, or to carry information that hasn't yet
+     been standardized.
+
+     Enterprises are encouraged to publish structure definitions in
+     XDR format to www.sflow.org. A structure description document should
+     contain an XDR structure definition immediately preceded by a comment
+     listing the structure to which it applies, the enterprise number, and
+     the structure number. See the definitions of counter_sample and
+     flow_sample for examples.
+
+     Note: An enterprise which has defined sFlow structures is
+           permitted to extend those structure definitions at the end
+           without changing structure numbers.  Any changes that would
+           alter or invalidate fields in published structure
+           definitions must be implemented using a new structure
+           number.  This policy allows additional data to be added to
+           structures while still maintaining backward compatibility.
+           Applications receiving sFlow data must always use the
+           opaque length information when decoding opaque<> structures
+           so that encountering extended structures will not cause
+           decoding errors. Note that these rules apply to the
+           standard structures as well. */
+
+typedef unsigned int data_format;
+
+/* sFlowDataSource encoded as follows:
+     The most significant byte of the source_id is used to indicate the type
+     of sFlowDataSource:
+        0 = ifIndex
+        1 = smonVlanDataSource
+        2 = entPhysicalEntry
+     The lower three bytes contain the relevant index value. */
+
+typedef unsigned int sflow_data_source;
+
+/* Input/output port information
+     Encoding of interface(s) involved in the packet's path through
+     the device.
+
+     0 if interface is not known.
+     The most significant 2 bits are used to indicate the format of
+     the 30 bit value.
+
+        - format = 0 single interface
+            value is ifIndex of the interface. The maximum value,
+            0x3FFFFFFF, indicates that there is no input or output
+            interface (according to which field it appears in).
+            This is used in describing traffic which is not
+            bridged, routed, or otherwise sent through the device
+            being monitored by the agent, but which rather
+            originates or terminates in the device itself.  In
+            the input field, this value is used to indicate
+            packets for which the origin was the device itself
+            (e.g. a RIP request packet sent by the device, if it
+            is acting as an IP router).  In the output field,
+            this value is used to indicate packets for which the
+            destination was the device itself (e.g. a RIP
+            response packet (whether unicast or not) received by
+            the device, if it is acting as an IP router).
+
+        - format = 1 packet discarded
+            value is a reason code. Currently the following codes
+            are defined:
+                0 - 255 use ICMP Destination Unreachable codes
+                        See www.iana.org for authoritative list.
+                        RFC 1812, section 5.2.7.1 describes the
+                        current codes.  Note that the use of
+                        these codes does not imply that the
+                        packet to which they refer is an IP
+                        packet, or if it is, that an ICMP message
+                        of any kind was generated for it.
+                        Current value are:
+                          0  Net Unreachable
+                          1  Host Unreachable
+                          2  Protocol Unreachable
+                          3  Port Unreachable
+                          4  Fragmentation Needed and
+                             Don't Fragment was Set
+                          5  Source Route Failed
+                          6  Destination Network Unknown
+                          7  Destination Host Unknown
+                          8  Source Host Isolated
+                          9  Communication with Destination
+                             Network is Administratively
+                             Prohibited
+                         10  Communication with Destination Host
+                             is Administratively Prohibited
+                         11  Destination Network Unreachable for
+                             Type of Service
+                         12  Destination Host Unreachable for
+                             Type of Service
+                         13  Communication Administratively
+                             Prohibited
+                         14  Host Precedence Violation
+                         15  Precedence cutoff in effect
+                256 = unknown
+                257 = ttl exceeded
+                258 = ACL
+                259 = no buffer space
+                260 = RED
+                261 = traffic shaping/rate limiting
+                262 = packet too big (for protocols that don't
+                      support fragmentation)
+
+             Note: Additional reason codes may be published over
+                   time. An application receiving sFlow must be
+                   prepared to accept additional reason codes.
+                   The authoritative list of reason codes will
+                   be maintained at www.sflow.org
+
+        - format = 2 multiple destination interfaces
+            value is the number of interfaces. A value of 0
+            indicates an unknown number greater than 1.
+
+      Note: Formats 1 & 2 apply only to an output interface and
+            never to an input interface. A packet is always
+            received on a single (possibly unknown) interface.
+
+      Examples:
+         0x00000002  indicates ifIndex = 2
+         0x00000000  ifIndex unknown.
+         0x40000001  packet discarded because of ACL.
+         0x80000007  indicates a packet sent to 7 interfaces.
+         0x80000000  indicates a packet sent to an unknown number
+                     of interfaces greater than 1. */
+
+typedef unsigned int interface;
+
+/* Counter and Flow sample formats
+
+   Compact and expand forms of counter and flow samples are defined.
+   An agent must not mix compact/expanded encodings.  If an agent
+   will never use ifIndex numbers >= 2^24 then it must use compact
+   encodings for all interfaces.  Otherwise the expanded formats must
+   be used for all interfaces.
+
+   While the theoretical range of ifIndex numbers is 2^32,
+   RFC 2863 recommends that ifIndex numbers are allocated using small
+   integer values starting at 1. For most agent implementations the
+   2^24 range of values for ifIndex supported by the compact encoding
+   is more than adequate and its use saves bandwidth. The expanded
+   encodings are provided to support the maximum possible values
+   for ifIndex, even though large ifIndex values are not encouraged. */
+
+struct flow_record {
+   data_format flow_format;         /* The format of sflow_data */
+   opaque flow_data<>;              /* Flow data uniquely defined
+                                       by the flow_format. */
+}
+
+struct counter_record {
+   data_format counter_format;     /* The format of counter_data */
+   opaque counter_data<>;          /* A block of counters uniquely defined
+                                      by the counter_format. */
+}
+
+/* Compact Format Flow/Counter samples
+      If ifIndex numbers are always < 2^24 then the compact
+      must be used. */
+
+/* Format of a single flow sample */
+/* opaque = sample_data; enterprise = 0; format = 1 */
+
+struct flow_sample {
+   unsigned int sequence_number;  /* Incremented with each flow sample
+                                     generated by this source_id.
+                                     Note: If the agent resets the
+                                           sample_pool then it must
+                                           also reset the sequence_number.*/
+   sflow_data_source source_id;   /* sFlowDataSource */
+   unsigned int sampling_rate;    /* sFlowPacketSamplingRate */
+   unsigned int sample_pool;      /* Total number of packets that could have
+                                     been sampled (i.e. packets skipped by
+                                     sampling process + total number of
+                                     samples) */
+   unsigned int drops;            /* Number of times that the sFlow agent
+                                     detected that a packet marked to be
+                                     sampled was dropped due to
+                                     lack of resources. The drops counter
+                                     reports the total number of drops
+                                     detected since the agent was last reset.
+                                     A high drop rate indicates that the
+                                     management agent is unable to process
+                                     samples as fast as they are being
+                                     generated by hardware. Increasing
+                                     sampling_rate will reduce the drop
+                                     rate. Note: An agent that cannot
+                                     detect drops will always report
+                                     zero. */
+
+   interface input;               /* Interface packet was received on. */
+   interface output;              /* Interface packet was sent on. */
+
+   flow_record flow_records<>;    /* Information about a sampled packet */
+}
+
+/* Format of a single counter sample */
+/* opaque = sample_data; enterprise = 0; format = 2 */
+
+struct counters_sample {
+   unsigned int sequence_number;   /* Incremented with each counter sample
+                                      generated by this source_id
+                                      Note: If the agent resets any of the
+                                            counters then it must also
+                                            reset the sequence_number.
+                                            In the case of ifIndex-based
+                                            source_id's the sequence
+                                            number must be reset each time
+                                            ifCounterDiscontinuityTime
+                                            changes. */
+   sflow_data_source source_id;    /* sFlowDataSource */
+   counter_record counters<>;      /* Counters polled for this source */
+}
+
+/* Expanded Format Flow/Counter samples
+      If ifIndex numbers may be >= 2^24 then the expanded
+      must be used. */
+
+struct sflow_data_source_expanded {
+   unsigned int source_id_type;   /* sFlowDataSource type */
+   unsigned int source_id_index;  /* sFlowDataSource index */
+}
+
+struct interface_expanded {
+  unsigned int format;            /* interface format */
+  unsigned int value;             /* interface value */
+}
+
+/* Format of a single expanded flow sample */
+/* opaque = sample_data; enterprise = 0; format = 3 */
+
+struct flow_sample_expanded {
+   unsigned int sequence_number;  /* Incremented with each flow sample
+                                     generated by this source_id.
+                                     Note: If the agent resets the
+                                           sample_pool then it must
+                                           also reset the sequence_number.*/
+   sflow_data_source_expanded source_id; /* sFlowDataSource */
+   unsigned int sampling_rate;    /* sFlowPacketSamplingRate */
+   unsigned int sample_pool;      /* Total number of packets that could have
+                                     been sampled (i.e. packets skipped by
+                                     sampling process + total number of
+                                     samples) */
+   unsigned int drops;            /* Number of times that the sFlow agent
+                                     detected that a packet marked to be
+                                     sampled was dropped due to
+                                     lack of resources. The drops counter
+                                     reports the total number of drops
+                                     detected since the agent was last reset.
+                                     A high drop rate indicates that the
+                                     management agent is unable to process
+                                     samples as fast as they are being
+                                     generated by hardware. Increasing
+                                     sampling_rate will reduce the drop
+                                     rate. Note: An agent that cannot
+                                     detect drops will always report
+                                     zero. */
+
+   interface_expanded input;      /* Interface packet was received on. */
+   interface_expanded output;     /* Interface packet was sent on. */
+
+   flow_record flow_records<>;    /* Information about a sampled packet */
+}
+
+/* Format of a single expanded counter sample */
+/* opaque = sample_data; enterprise = 0; format = 4 */
+
+struct counters_sample_expanded {
+   unsigned int sequence_number;   /* Incremented with each counter sample
+                                      generated by this source_id
+                                      Note: If the agent resets any of the
+                                            counters then it must also
+                                            reset the sequence_number.
+                                            In the case of ifIndex-based
+                                            source_id's the sequence
+                                            number must be reset each time
+                                            ifCounterDiscontinuityTime
+                                            changes. */
+   sflow_data_source_expanded source_id; /* sFlowDataSource */
+   counter_record counters<>;      /* Counters polled for this source */
+}
+
+/* Format of a sample datagram */
+
+struct sample_record {
+   data_format sample_type;       /* Specifies the type of sample data */
+   opaque sample_data<>;          /* A structure corresponding to the
+                                     sample_type */
+}
+
+/* Header information for sFlow version 5 datagrams
+
+   The sub-agent field is used when an sFlow agent is implemented on a
+   distributed architecture and where it is impractical to bring the
+   samples to a single point for transmission.
+
+   However, it is strongly recommended that wherever possible the sub-agent
+   mechanism not be used. If multiple processors are available within a device
+   the various tasks associated with creating flow and counter samples can be
+   distributed among the processors. However, the agent should be architected
+   so that all the samples are marshalled into a single datagram stream. The
+   final marshalling task involved very little processing, but has important
+   benefits in making the overall sFlow system scalable. By reducing the
+   number of UDP packets and packet streams, the protocol overheads associated
+   with sFlow are significantly reduced at the receiver.
+
+   Each sFlowDataSource must be associated with only one sub-agent. The
+   association between sFlowDataSource and sub-agent must remain
+   constant for the entire duration of an sFlow session. */
+
+struct sample_datagram_v5 {
+   address agent_address;         /* IP address of sampling agent,
+                                     sFlowAgentAddress. */
+   unsigned int sub_agent_id;     /* Used to distinguishing between datagram
+                                     streams from separate agent sub entities
+                                     within an device. */
+   unsigned int sequence_number;  /* Incremented with each sample datagram
+                                     generated by a sub-agent within an
+                                     agent. */
+   unsigned int uptime;           /* Current time (in milliseconds since device
+                                     last booted). Should be set as close to
+                                     datagram transmission time as possible.
+                                     Note: While a sub-agents should try and
+                                           track the global sysUptime value
+                                           a receiver of sFlow packets must
+                                           not assume that values are
+                                           synchronised between sub-agents. */
+   sample_record samples<>;        /* An array of sample records */
+}
+
+enum datagram_version {
+   VERSION5 = 5
+}
+
+union sample_datagram_type (datagram_version version) {
+   case VERSION5:
+      sample_datagram_v5 datagram;
+}
+
+struct sample_datagram {
+   sample_datagram_type version;
+}
+

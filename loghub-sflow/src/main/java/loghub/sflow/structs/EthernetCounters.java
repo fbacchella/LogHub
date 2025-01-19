@@ -25,8 +25,8 @@ public class EthernetCounters extends Struct {
     private final long dot3StatsInternalMacReceiveErrors;
     private final long dot3StatsSymbolErrors;
 
-    public EthernetCounters(SflowParser df, ByteBuf buffer) {
-        super(df.getByName(NAME));
+    public EthernetCounters(SflowParser parser, ByteBuf buffer) {
+        super(parser.getByName(NAME));
         buffer = extractData(buffer);
 
         dot3StatsAlignmentErrors = buffer.readUnsignedInt();

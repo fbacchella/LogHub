@@ -32,8 +32,8 @@ public class IfCounters extends Struct {
     private final long ifOutErrors;       // Nombre d'erreurs envoyées
     private final int ifPromiscuousMode;       // Nombre d'erreurs envoyées
 
-    public IfCounters(SflowParser df, ByteBuf buf) {
-        super(df.getByName(NAME));
+    public IfCounters(SflowParser parser, ByteBuf buf) {
+        super(parser.getByName(NAME));
         ByteBuf buffer = extractData(buf);
         ifIndex = buffer.readUnsignedInt();
         ifType = IANAifType.resolve(buffer.readInt());

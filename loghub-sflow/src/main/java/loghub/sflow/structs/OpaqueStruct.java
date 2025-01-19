@@ -20,7 +20,7 @@ public class OpaqueStruct extends Struct {
 
     @Override
     public String getName() {
-        return "UnknownStruct";
+        return "UnknownStruct(" + getFormat() + ")";
     }
 
 }

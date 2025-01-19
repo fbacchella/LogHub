@@ -16,8 +16,8 @@ public class ExtendedSwitch extends Struct {
     private final long dst_vlan;
     private final long dst_priority;
 
-    public ExtendedSwitch(SflowParser df, ByteBuf buf) {
-        super(df.getByName(NAME));
+    public ExtendedSwitch(SflowParser parser, ByteBuf buf) {
+        super(parser.getByName(NAME));
         buf = extractData(buf);
         src_vlan = buf.readUnsignedInt();
         src_priority = buf.readUnsignedInt();
