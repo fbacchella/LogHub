@@ -69,7 +69,7 @@ typeBody
     ;
 
 enumBody
-    : '{' enumEntry (',' enumEntry)* '}'
+    : '{' enumEntry ((','|';') enumEntry)* (','|';')? '}'
     ;
 
 enumEntry
@@ -81,7 +81,7 @@ structTypeSpec
     ;
 
 structBody
-    : '{' (declaration ';') (declaration ';')* '}'
+    : '{' (declaration) (';' declaration)* ';'? '}'
     ;
 
 unionTypeSpec

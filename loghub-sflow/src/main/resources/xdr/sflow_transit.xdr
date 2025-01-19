@@ -1,0 +1,13 @@
+/* Delay for sampled packet traversing switch */
+/* opaque = flow_data; enterprise = 0; format = 1039 */
+struct extended_transit {
+  unsigned int delay; /* transit delay in nanoseconds
+                         0xffffffff indicates value >= 0xffffffff */
+}
+
+/* Queue depth for sampled packet traversing switch */
+/* extended_egress_queue structure must be included */
+/* opaque = flow_data; enterprise = 0; format = 1040 */
+struct extended_queue {
+  unsigned int depth;   /* queue depth in bytes */
+}

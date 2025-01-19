@@ -1,0 +1,22 @@
+struct lane {
+  unsigned int index; /* 1-based index of lane within module, 0=unknown */
+  unsigned int tx_bias_current; /* microamps */
+  unsigned int tx_power;        /* microwatts */
+  unsigned int tx_power_min;    /* microwatts */
+  unsigned int tx_power_max;    /* microwatts */
+  unsigned int tx_wavelength;   /* nanometers */
+  unsigned int rx_power;        /* microwatts */
+  unsigned int rx_power_min;    /* microwatts */
+  unsigned int rx_power_max;    /* microwatts */
+  unsigned int rx_wavelength;   /* nanometers */
+}
+
+/* Optical SFP / QSFP metrics */
+/* opaque = counter_data; enterprise=0; format=10 */
+struct sfp {
+  unsigned int module_id;
+  unsigned int module_num_lanes;      /* total number of lanes in module */
+  unsigned int module_supply_voltage; /* millivolts */
+  int module_temperature;             /* thousandths of a degree Celsius */
+  lane<> lanes;
+}

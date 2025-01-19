@@ -1,0 +1,256 @@
+/* Data structures for exporting Host statistics relating to
+   logical and physical entities */
+
+/* The machine_type enumeration may be expanded over time.
+   Applications receiving sFlow must be prepared to receive
+   host_descr structures with unknown machine_type values.
+
+   The authoritative list of machine types will be maintained
+   at www.sflow.org */
+
+enum machine_type {
+   unknown = 0,
+   other   = 1,
+   x86     = 2,
+   x86_64  = 3,
+   ia64    = 4,
+   sparc   = 5,
+   alpha   = 6,
+   powerpc = 7,
+   m68k    = 8,
+   mips    = 9,
+   arm     = 10,
+   hppa    = 11,
+   s390    = 12
+}
+
+/* The os_name enumeration may be expanded over time.
+   Applications receiving sFlow must be prepared to receive
+   host_descr structures with unknown machine_type values.
+
+   The authoritative list of machine types will be maintained
+   at www.sflow.org */
+
+enum os_name {
+   unknown   = 0,
+   other     = 1,
+   linux     = 2,
+   windows   = 3,
+   darwin    = 4,
+   hpux      = 5,
+   aix       = 6,
+   dragonfly = 7,
+   freebsd   = 8,
+   netbsd    = 9,
+   openbsd   = 10,
+   osf       = 11,
+   solaris   = 12
+}
+
+/* Physical or virtual host description */
+/* opaque = counter_data; enterprise = 0; format = 2000 */
+struct host_descr {
+   string hostname<64>;       /* hostname, empty if unknown */
+   opaque uuid<16>;           /* 16 byte binary UUID, all zeros if unknown */
+   machine_type machine_type; /* the processor family */
+   os_name os_name;           /* Operating system */
+   string os_release<32>;     /* e.g. 2.6.9-42.ELsmp,xp-sp3, empty if unknown */
+}
+
+/* Physical or virtual network adapter NIC/vNIC */
+struct host_adapter {
+   unsigned int ifIndex;     /* ifIndex associated with adapter
+                                Must match ifIndex of vSwitch
+                                port if vSwitch is exporting sFlow
+                                0 = unknown */
+   mac mac_address<>;        /* Adapter MAC address(es) */
+}
+
+/* Set of adapters associated with entity.
+   A physical server will identify the physical network adapters
+   associated with it and a virtual server will identify its virtual
+   adapters. */
+/* opaque = counter_data; enterprise = 0; format = 2001 */
+
+struct host_adapters {
+   adapter adapters<>;              /* adapter(s) associated with entity */
+}
+
+/* Define containment hierarchy between logical and physical
+   entities. Only a single, strict containment tree is permitted,
+   each entity must be contained within a single parent, but a parent
+   may contain more than one child. The host_parent record is used
+   by the child to identify its parent. Physical entities form the roots
+   of the tree and do not send host_parent structures. */
+/* opaque = counter_data; enterprise = 0; format = 2002 */
+
+struct host_parent {
+   unsigned int container_type;     /* sFlowDataSource type */
+   unsigned int container_index;    /* sFlowDataSource index */
+}
+
+/* Extended socket information,
+   Must be filled in for all application transactions associated with a network socket
+   Omit if transaction associated with non-network IPC  */
+
+/* IPv4 Socket */
+/* opaque = flow_data; enterprise = 0; format = 2100 */
+struct extended_socket_ipv4 {
+   unsigned int protocol;     /* IP Protocol type
+                                 (for example, TCP = 6, UDP = 17) */
+   ip_v4 local_ip;            /* local IP address */
+   ip_v4 remote_ip;           /* remote IP address */
+   unsigned int local_port;   /* TCP/UDP local port number or equivalent */
+   unsigned int remote_port;  /* TCP/UDP remote port number of equivalent */
+}
+
+/* IPv6 Socket */
+/* opaque = flow_data; enterprise = 0; format = 2101 */
+struct extended_socket_ipv6 {
+   unsigned int protocol;     /* IP Protocol type
+                                 (for example, TCP = 6, UDP = 17) */
+   ip_v6 local_ip;            /* local IP address */
+   ip_v6 remote_ip;           /* remote IP address */
+   unsigned int local_port;   /* TCP/UDP local port number or equivalent */
+   unsigned int remote_port;  /* TCP/UDP remote port number of equivalent */
+}
+
+/*
+  Physical server performance metrics
+*/
+
+/* Physical Server CPU */
+/* opaque = counter_data; enterprise = 0; format = 2003 */
+
+struct host_cpu {
+   float load_one;              /* 1 minute load avg., -1.0 = unknown */
+   float load_five;             /* 5 minute load avg., -1.0 = unknown */
+   float load_fifteen;          /* 15 minute load avg., -1.0 = unknown */
+   unsigned int proc_run;       /* total number of running processes */
+   unsigned int proc_total;     /* total number of processes */
+   unsigned int cpu_num;        /* number of CPUs */
+   unsigned int cpu_speed;      /* speed in MHz of CPU */
+   unsigned int uptime;         /* seconds since last reboot */
+   unsigned int cpu_user;       /* user time (ms) */
+   unsigned int cpu_nice;       /* nice time (ms) */
+   unsigned int cpu_system;     /* system time (ms) */
+   unsigned int cpu_idle;       /* idle time (ms) */
+   unsigned int cpu_wio;        /* time waiting for I/O to complete (ms) */
+   unsigned int cpu_intr;       /* time servicing interrupts (ms) */
+   unsigned int cpu_sintr;      /* time servicing soft interrupts (ms) */
+   unsigned int interrupts;     /* interrupt count */
+   unsigned int contexts;       /* context switch count */
+}
+
+/* Physical Server Memory */
+/* opaque = counter_data; enterprise = 0; format = 2004 */
+
+struct host_memory {
+    unsigned hyper mem_total;   /* total bytes */
+    unsigned hyper mem_free;    /* free bytes */
+    unsigned hyper mem_shared;  /* shared bytes */
+    unsigned hyper mem_buffers; /* buffers bytes */
+    unsigned hyper mem_cached;  /* cached bytes */
+    unsigned hyper swap_total;  /* swap total bytes */
+    unsigned hyper swap_free;   /* swap free bytes */
+    unsigned int page_in;       /* page in count */
+    unsigned int page_out;      /* page out count */
+    unsigned int swap_in;       /* swap in count */
+    unsigned int swap_out;      /* swap out count */
+}
+
+/* Physical Server Disk I/O */
+/* opaque = counter_data; enterprise = 0; format = 2005 */
+
+struct host_disk_io {
+   unsigned hyper disk_total;    /* total disk size in bytes */
+   unsigned hyper disk_free;     /* total disk free in bytes */
+   percentage  part_max_used;    /* utilization of most utilized partition */
+   unsigned int reads;           /* reads issued */
+   unsigned hyper bytes_read;    /* bytes read */
+   unsigned int read_time;       /* read time (ms) */
+   unsigned int writes;          /* writes completed */
+   unsigned hyper bytes_written; /* bytes written */
+   unsigned int write_time;      /* write time (ms) */
+}
+
+/* Physical Server Network I/O */
+/* opaque = counter_data; enterprise = 0; format = 2006 */
+
+struct host_net_io {
+   unsigned hyper bytes_in;  /* total bytes in */
+   unsigned int pkts_in;     /* total packets in */
+   unsigned int errs_in;     /* total errors in */
+   unsigned int drops_in;    /* total drops in */
+   unsigned hyper bytes_out; /* total bytes out */
+   unsigned int packets_out; /* total packets out */
+   unsigned int errs_out;    /* total errors out */
+   unsigned int drops_out;   /* total drops out */
+}
+
+/*
+  Hypervisor and virtual machine performance metrics
+*/
+
+/* Virtual Node Statistics */
+/* See libvirt, struct virtNodeInfo */
+/* opaque = counter_data; enterprise = 0; format = 2100 */
+
+struct virt_node {
+   unsigned int mhz;           /* expected CPU frequency */
+   unsigned int cpus;          /* the number of active CPUs */
+   unsigned hyper memory;      /* memory size in bytes */
+   unsigned hyper memory_free; /* unassigned memory in bytes */
+   unsigned int num_domains;   /* number of active domains */
+}
+
+/* Virtual Domain CPU statistics */
+/* See libvirt, struct virtDomainInfo */
+/* opaque = counter_data; enterprise = 0; format = 2101 */
+
+struct virt_cpu {
+   unsigned int state;         /* virtDomainState */
+   unsigned int cpuTime;       /* the CPU time used (ms) */
+   unsigned int nrVirtCpu;     /* number of virtual CPUs for the domain */
+}
+
+/* Virtual Domain Memory statistics */
+/* See libvirt, struct virtDomainInfo */
+/* opaque = counter_data; enterprise = 0; format = 2102 */
+
+struct virt_memory {
+   unsigned hyper memory;      /* memory in bytes used by domain */
+   unsigned hyper maxMemory;   /* memory in bytes allowed */
+}
+
+/* Virtual Domain Disk statistics */
+/* See libvirt, struct virtDomainBlockInfo */
+/* See libvirt, struct virtDomainBlockStatsStruct */
+/* opaque = counter_data; enterprise = 0; format = 2103 */
+
+struct virt_disk_io {
+   unsigned hyper capacity;   /* logical size in bytes */
+   unsigned hyper allocation; /* current allocation in bytes */
+   unsigned hyper physical; /* physical size in bytes of the container of the backing image */
+   unsigned int rd_req;       /* number of read requests */
+   unsigned hyper rd_bytes;   /* number of read bytes */
+   unsigned int wr_req;       /* number of write requests */
+   unsigned hyper wr_bytes;   /* number of  written bytes */
+   unsigned int errs;         /* read/write errors */
+}
+
+/* Virtual Domain Network statistics */
+/* See libvirt, struct virtDomainInterfaceStatsStruct */
+/* opaque = counter_data; enterprise = 0; format = 2104 */
+
+struct virt_net_io {
+   unsigned hyper rx_bytes;  /* total bytes received */
+   unsigned int rx_packets;  /* total packets received */
+   unsigned int rx_errs;     /* total receive errors */
+   unsigned int rx_drop;     /* total receive drops */
+   unsigned hyper tx_bytes;  /* total bytes transmitted */
+   unsigned int tx_packets;  /* total packets transmitted */
+   unsigned int tx_errs;     /* total transmit errors */
+   unsigned int tx_drop;     /* total transmit drops */
+}
+

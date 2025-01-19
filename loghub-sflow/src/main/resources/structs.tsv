@@ -1,7 +1,7 @@
 sample_data	0	1	flow_sample	sFlow Version 5
 sample_data	0	2	counter_sample	sFlow Version 5
 sample_data	0	3	flow_sample_expanded	sFlow Version 5
-sample_data	0	4	counter_sample_expanded	sFlow Version 5
+sample_data	0	4	counters_sample_expanded	sFlow Version 5
 sample_data	0	5	discarded_packet	sFlow Dropped Packet Notification Structures
 sample_data	4300	1002	rtmetric	Custom Metrics
 sample_data	4300	1003	rtflow	Custom Metrics
@@ -108,7 +108,7 @@ counter_data	0	2200	memcached_counters (deprecated)	sFlow for memcached
 counter_data	0	2201	http_counters	sFlow HTTP Structures
 counter_data	0	2202	app_operations	sFlow Application Structures
 counter_data	0	2203	app_resources	sFlow Application Structures
-counter_data	0	2204	memcache_counters	sFlow Memcache Structures
+counter_data	0	2204	memcached_counters	sFlow Memcache Structures
 counter_data	0	2206	app_workers	sFlow Application Structures
 counter_data	0	2207	ovs_dp_stats	Open vSwitch performance monitoring
 counter_data	0	3000	energy	Energy management

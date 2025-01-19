@@ -40,7 +40,7 @@ public class TestSflow {
     public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.decoders.Sflow", "loghub.sflow");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.decoders.Sflow", "loghub.sflow", "loghub.xdr");
     }
 
     @Test

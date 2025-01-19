@@ -1,0 +1,141 @@
+/* UTF-8 encoded string */
+typedef opaque utf8string<>;
+
+/* Application name */
+/* Encode hierarchical names using '.' as a separator with most general
+   category on left and specific name on right.
+   e.g. payment, mail.smtp, mail.exchange, db.oracle, db.oracle.mysql */
+
+typedef utf8string<32> application;
+
+/* Operation name */
+/* Encode hierarchical names using '.' as a separator with most general
+   category on left and specific operation name on right.
+   e.g. get.customer.name, upload.photo, upload.audio */
+typedef utf8string operation<32>;
+
+/* Operation attributes */
+/* name=value pairs encoded as an HTTP query string
+   e.g cc=visa&loc=mobile */
+
+typedef utf8string attributes<255>;
+
+/* Status codes */
+
+/* The status enumeration may be expanded over time.
+   Applications receiving sFlow must be prepared to receive
+   enterprise_operation structures with unknown status values.
+
+   The authoritative list of machine types will be maintained
+   at www.sflow.org */
+
+enum status {
+  SUCCESS         = 0,
+  OTHER           = 1,
+  TIMEOUT         = 2,
+  INTERNAL_ERROR  = 3,
+  BAD_REQUEST     = 4,
+  FORBIDDEN       = 5,
+  TOO_LARGE       = 6,
+  NOT_IMPLEMENTED = 7,
+  NOT_FOUND       = 8,
+  UNAVAILABLE     = 9,
+  UNAUTHORIZED    = 10,
+}
+
+/* Operation context */
+struct context {
+  application application;
+  operation operation;
+  attributes attributes;
+}
+
+/* Sampled Application Operation */
+/* opaque = flow_data; enterprise = 0; format = 2202 */
+struct app_operation {
+  context context;             /* attributes describing the operation */
+  utf8string status_descr<64>; /* additional text describing status
+                                  (e.g. "unknown client") */
+  unsigned hyper req_bytes;    /* size of request body (exclude headers) */
+  unsigned hyper resp_bytes;   /* size of response body (exclude headers) */
+  unsigned int uS;             /* duration of the operation (microseconds) */
+  status status;               /* status code */
+}
+
+/* Optional parent context information for sampled client operation
+   The parent context represents the server operation that resulted in
+   the sampled client operation being initiated */
+
+/* opaque = flow_data; enterprise = 0; format = 2203 */
+struct app_parent_content {
+   context context;
+}
+
+/* Actor */
+/* A business level identifier associated with a transaction.
+Examples include customer id, vendor id, merchant id, etc. */
+typedef utf8string<64> actor;
+
+/* Actor initiating the request */
+/* e.g. customer sending a payment */
+/* opaque = flow_data; enterprise = 0; format = 2204 */
+app_initiator {
+   actor actor;
+}
+
+/* Actor targetted by the request */
+/* e.g. recipient of payment */
+/* opaque = flow_data; enterprise = 0; format = 2205 */
+app_target {
+   actor actor;
+}
+
+/* Application counters */
+/* Count of operations by status code */
+/* opaque = counter_data; enterprise = 0; format = 2202 */
+struct app_operations {
+  application application;
+  unsigned int success;
+  unsigned int other;
+  unsigned int timeout;
+  unsigned int internal_error;
+  unsigned int bad_request;
+  unsigned int forbidden;
+  unsigned int too_large;
+  unsigned int not_implemented;
+  unsigned int not_found;
+  unsigned int unavailable;
+  unsigned int unauthorized;
+}
+
+/* Application resources */
+/* see getrusage, getrlimit
+   values represent totals across all application processes/threads */
+/* opaque = counter_data; enterprise = 0; format = 2203 */
+struct app_resources {
+  unsigned int user_time;      /* time spent executing application user
+                                  instructions (in milliseconds) */
+  unsigned int system_time;    /* time spent in operating system on behalf
+                                  of application (in milliseconds) */
+  unsigned hyper mem_used;     /* memory used in bytes */
+  unsigned hyper mem_max;      /* max. memory in bytes */
+  unsigned int fd_open;        /* number of open file descriptors */
+  unsigned int fd_max;         /* max. number of file descriptors */
+  unsigned int conn_open;      /* number of open network connections */
+  unsigned int conn_max;       /* max. number of network connections */
+}
+
+/* Application workers */
+/* Each worker concurrently processes requests with other workers. Workers
+   may by represented by threads, processes, or in the case of asynchronous server the
+   number of requests that are in progress. */
+/* opaque = counter_data; enterprise = 0; format = 2206 */
+app_workers {
+  unsigned int workers_active; /* number of active workers */
+  unsigned int workers_idle;   /* number of idle workers */
+  unsigned int workers_max;    /* max. number of workers */
+  unsigned int req_delayed;    /* number of times processing of a client request
+                                  was delayed because of lack of resources */
+  unsigned int req_dropped;    /* number of times a client request was dropped
+                                  because of a lack of resources */
+}

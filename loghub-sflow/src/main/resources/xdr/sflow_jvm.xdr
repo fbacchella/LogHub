@@ -1,0 +1,46 @@
+/* JVM Runtime Attributes */
+/* See RuntimeMXBean */
+/* opaque = counter_data; enterprise = 0; format = 2105 */
+
+struct jvm_runtime {
+  string vm_name<64>;      /* vm name */
+  string vm_vendor<32>;    /* the vendor for the JVM */
+  string vm_version<32>;   /* the version for the JVM */
+}
+
+/* JVM Statistics */
+/* See MemoryMXBean, GarbageCollectorMXBean, ClassLoadingMXBean, */
+/* CompilationMXBean, ThreadMXBean and UnixOperatingSystemMXBean */
+/* opaque = counter_data; enterprise = 0; format = 2106 */
+
+struct jvm_statistics {
+  unsigned hyper heap_initial;    /* initial heap memory requested */
+  unsigned hyper heap_used;       /* current heap memory usage  */
+  unsigned hyper heap_committed;  /* heap memory currently committed */
+  unsigned hyper heap_max;        /* max heap space */
+  unsigned hyper non_heap_initial; /* initial non heap memory
+                                      requested */
+  unsigned hyper non_heap_used;   /* current non heap memory usage  */
+  unsigned hyper non_heap_committed; /* non heap memory currently
+                                        committed */
+  unsigned hyper non_heap_max;    /* max non-heap space */
+  unsigned int gc_count;          /* total number of collections that
+                                     have occurred */
+  unsigned int gc_time;           /* approximate accumulated collection
+                                     elapsed time in milliseconds */
+  unsigned int classes_loaded;    /* number of classes currently loaded
+                                     in vm */
+  unsigned int classes_total;     /* total number of classes loaded
+                                     since vm started */
+  unsigned int classes_unloaded;  /* total number of classe unloaded
+                                     since vm started */
+  unsigned int compilation_time;  /* total accumulated time spent in
+                                     compilation (in milliseconds) */
+  unsigned int thread_num_live;   /* current number of live threads */
+  unsigned int thread_num_daemon; /* current number of live daemon
+                                     threads */
+  unsigned int thread_num_started; /* total threads started since
+                                      vm started */
+  unsigned int fd_open_count;     /* number of open file descriptors */
+  unsigned int fd_max_count;      /* max number of file descriptors */
+}

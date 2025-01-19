@@ -1,0 +1,23 @@
+/* LAG Port Statistics - see IEEE8023-LAG-MIB */
+/* opaque = counter_data; enterprise = 0; format = 7 */
+
+struct lag_port_stats {
+  mac dot3adAggPortActorSystemID;
+  mac dot3adAggPortPartnerOperSystemID;
+  unsigned int dot3adAggPortAttachedAggID;
+  opaque dot3adAggPortState[4]; /*
+                             Bytes are assigned in following order:
+                             byte 0, value dot3adAggPortActorAdminState
+                             byte 1, value dot3adAggPortActorOperState
+                             byte 2, value dot3adAggPortPartnerAdminState
+                             byte 3, value dot3adAggPortPartnerOperState
+                                 */
+  unsigned int dot3adAggPortStatsLACPDUsRx;
+  unsigned int dot3adAggPortStatsMarkerPDUsRx;
+  unsigned int dot3adAggPortStatsMarkerResponsePDUsRx;
+  unsigned int dot3adAggPortStatsUnknownRx;
+  unsigned int dot3adAggPortStatsIllegalRx;
+  unsigned int dot3adAggPortStatsLACPDUsTx;
+  unsigned int dot3adAggPortStatsMarkerPDUsTx;
+  unsigned int dot3adAggPortStatsMarkerResponsePDUsTx;
+}

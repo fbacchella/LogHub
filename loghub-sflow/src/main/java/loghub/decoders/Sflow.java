@@ -37,6 +37,12 @@ import lombok.Setter;
 @BuilderClass(Sflow.Builder.class)
 public class Sflow extends Decoder {
 
+    private static final List<String> EMBEDED_STRUCS = List.of(
+            "sflow_datagram", "sflow",
+            "bv-sflow", "host", "sflow_80211", "sflow_application", "sflow_broadcom_tables", "sflow_drops", "sflow_host_ip", "sflow_http", "sflow_jvm",
+            "sflow_lag", "sflow_memcached", "sflow_nvml", "sflow_openflow", "sflow_optics", "sflow_transit", "sflow_tunnels"
+    );
+
     @Setter
     public static class Builder extends Decoder.Builder<Sflow> {
         String[] xdrPaths = new String[]{};
@@ -67,8 +73,9 @@ public class Sflow extends Decoder {
                 logger.atError().withThrowable(logger.isDebugEnabled() ? ex : null).log("Unusable xdr \"{}",  () -> logger.isDebugEnabled() ? "" : ": " + Helpers.resolveThrowableException(ex));
             }
         };
-        List.of("xdr/sflow_datagram.xdr", "xdr/sflow.xdr")
+        EMBEDED_STRUCS
             .stream()
+            .map(s  -> String.format("xdr/%s.xdr", s))
             .map(s -> builder.classLoader.getResource(s))
             .forEach(readXdr);
         Arrays.stream(builder.xdrPaths).map(s -> {

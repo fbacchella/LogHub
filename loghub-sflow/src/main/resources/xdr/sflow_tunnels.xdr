@@ -1,0 +1,49 @@
+/* opaque = flow_data; enterprise = 0; format = 1021 */
+struct extended_L2_tunnel_egress {
+     sampled_ethernet header;
+}
+
+/* opaque = flow_data; enterprise = 0; format = 1022 */
+struct extended_L2_tunnel_ingress {
+     sampled_ethernet header;
+}
+
+/* opaque = flow_data; enterprise = 0; format = 1023 */
+struct extended_ipv4_tunnel_egress {
+    sampled_ipv4 header;
+}
+
+/* opaque = flow_data; enterprise = 0; format = 1024 */
+struct extended_ipv4_tunnel_ingress {
+    sampled_ipv4 header;
+}
+
+ /* opaque = flow_data; enterprise = 0; format = 1025 */
+struct extended_ipv6_tunnel_egress {
+    sampled_ipv6 header;
+}
+
+/* opaque = flow_data; enterprise = 0; format = 1026 */
+struct extended_ipv6_tunnel_ingress {
+    sampled_ipv6 header;
+}
+
+/* opaque = flow_data; enterprise = 0; format = 1027 */
+struct extended_decapsulate_egress {
+   unsigned int inner_header_offset;
+}
+
+/* opaque = flow_data; enterprise = 0; format = 1028 */
+struct extended_decapsulate_ingress {
+   unsigned int inner_header_offset;
+}
+
+/* opaque_flow_data; enterprise = 0; format = 1029 */
+struct extended_vni_egress {
+   unsigned int vni;
+}
+
+/* opaque_flow_data; enterprise = 0; format = 1030 */
+struct extended_vni_ingress {
+   unsigned int vni;
+}

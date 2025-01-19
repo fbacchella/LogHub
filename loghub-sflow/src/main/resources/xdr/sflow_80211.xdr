@@ -1,0 +1,155 @@
+/* The 4-byte cipher_suite identifier follows the format of the cipher suite
+   selector value from the 802.11i (TKIP/CCMP amendment to 802.11i)
+   The most significant three bytes contain the OUI and the least significant
+   byte contains the Suite Type.
+
+   The currently assigned values are:
+
+   OUI        |Suite type  |Meaning
+   ----------------------------------------------------
+   00-0F-AC   | 0          | Use group cipher suite
+   00-0F-AC   | 1          | WEP-40
+   00-0F-AC   | 2          | TKIP
+   00-0F-AC   | 3          | Reserved
+   00-0F-AC   | 4          | CCMP
+   00-0F-AC   | 5          | WEP-104
+   00-0F-AC   | 6-255      | Reserved
+   Vendor OUI | Other      | Vendor specific
+   Other      | Any        | Reserved
+   ----------------------------------------------------
+*/
+typedef unsigned int cipher_suite;
+
+/* Extended 80211 Payload
+   Used to provide unencrypted version of 802.11 MAC data. If the
+   MAC data is not encrypted then the agent must not include an
+   extended_80211_payload structure.
+   If 802.11 MAC data is encrypted then the sampled_header structure
+   should only contain the MAC header (since encrypted data cannot
+   be decoded by the sFlow receiver). If the sFlow agent has access to
+   the unencrypted payload, it should add an extended_80211_payload
+   structure containing the unencrypted data bytes from the sampled
+   packet header, starting at the beginning of the 802.2 LLC and not
+   including any trailing encryption footers.  */
+/* opaque = flow_data; enterprise = 0; format = 1013 */
+
+struct extended_80211_payload {
+   cipher_suite ciphersuite; /* encryption scheme used for this packet */
+   opaque       data<>;      /* unencrypted bytes from the payload */
+}
+
+/* Extended 802.11 Data
+   Note: in situations where an 802.11 packet is received and resent
+         wirelessly it is possible to have two extended_80211
+         elements associated with the flow sample, one for the
+         receiver and one for the transmitter */
+
+enum ieee80211_version {
+  a = 1,
+  b = 2,
+  g = 3,
+  n = 4,
+}
+
+typedef unsigned int duration_us; /* Duration measured in microseconds
+                                     0 = unknown */
+
+/* opaque = flow_data; enterprise = 0; format = 1014 */
+
+struct extended_80211_rx {
+   string ssid<32>;            /* SSID string */
+   mac  bssid;                 /* BSSID */
+   ieee80211_version version;  /* version */
+   unsigned int channel;       /* channel number */
+   unsigned hyper speed;
+   unsigned int rsni;          /* received signal to noise ratio,
+                                  see dot11FrameRprtRSNI */
+   unsigned int rcpi;          /* received channel power,
+                                  see dot11FrameRprtLastRCPI */
+   duration_us packet_duration /* amount of time that the successfully
+                                  received packet occupied the RF medium. */
+}
+
+/* opaque = flow_data; enterprise = 0; format = 1015 */
+
+struct extended_80211_tx {
+   string ssid<32>;              /* SSID string */
+   mac  bssid;                   /* BSSID */
+   ieee80211_version version;    /* version */
+   unsigned int transmissions;   /* number of transmissions for sampled
+                                    packet.
+                                    0 = unkown
+                                    1 = packet was successfully transmitted
+                                        on first attempt
+                                    n > 1 = n - 1 retransmissions */
+   duration_us packet_duration;  /* amount of time that the successfully
+                                    transmitted packet occupied the
+                                    RF medium */
+   duration_us retrans_duration; /* amount of time that failed transmission
+                                    attempts occupied the RF medium */
+   unsigned int channel;         /* channel number */
+   unsigned hyper speed;
+   unsigned int power;           /* transmit power in mW. */
+}
+
+/* Extended 802.11 Aggregation Data */
+/* A flow_sample of an aggregated frame would consist of a packet
+   header for the whole frame + any other extended structures that
+   apply (e.g. 80211_tx/rx etc.) + an extended_80211_aggregation
+   structure which would contain an array of pdu structures (one
+   for each PDU in the aggregate). A pdu is simply an array of
+   flow records, in the simplest case a packet header for each PDU,
+   but extended structures could be included as well. */
+
+struct pdu {
+   flow_record flow_records<>;  /* Flow records for each of the PDUs
+                                   in the aggregation */
+}
+
+/* opaque = flow_data; enterprise = 0; format = 1016 */
+
+struct extended_80211_aggregation {
+   pdu pdus<>;
+}
+
+/* IEEE802.11 interface counters - see IEEE802dot11-MIB */
+/* opaque = counter_data; enterprise = 0; format = 6 */
+
+struct ieee80211_counters {
+   unsigned int dot11TransmittedFragmentCount;
+   unsigned int dot11MulticastTransmittedFrameCount;
+   unsigned int dot11FailedCount;
+   unsigned int dot11RetryCount;
+   unsigned int dot11MultipleRetryCount;
+   unsigned int dot11FrameDuplicateCount;
+   unsigned int dot11RTSSuccessCount;
+   unsigned int dot11RTSFailureCount;
+   unsigned int dot11ACKFailureCount;
+   unsigned int dot11ReceivedFragmentCount;
+   unsigned int dot11MulticastReceivedFrameCount;
+   unsigned int dot11FCSErrorCount;
+   unsigned int dot11TransmittedFrameCount;
+   unsigned int dot11WEPUndecryptableCount;
+   unsigned int dot11QoSDiscardedFragmentCount;
+   unsigned int dot11AssociatedStationCount;
+   unsigned int dot11QoSCFPollsReceivedCount;
+   unsigned int dot11QoSCFPollsUnusedCount;
+   unsigned int dot11QoSCFPollsUnusableCount;
+   unsigned int dot11QoSCFPollsLostCount;
+}
+
+/* 802.11 radio utilization
+   Utilization can be computed based on the three counters: elapsed_time,
+   counts total time, on_channel_time counts the time spent
+   on the radio's assigned channel (this may be less than elapsed_time
+   if the radio spends time performing off-channel scans), and
+   on_channel_busy_time counts the time spent sending and receiving frames
+   as part of on-channel activity. */
+/* opaque = counter_data; enterprise = 0; format = 1002 */
+
+struct radio_utilization {
+   unsigned int elapsed_time;         /* elapsed time in ms */
+   unsigned int on_channel_time;      /* time in ms spent on channel */
+   unsigned int on_channel_busy_time; /* time in ms spent on channel
+                                         and busy */
+}

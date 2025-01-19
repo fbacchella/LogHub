@@ -1,0 +1,80 @@
+/* The http_method enumeration may be expanded over time.
+   Applications receiving sFlow must be prepared to receive
+   http_request structures with unknown http_method values */
+
+enum http_method {
+  OTHER    = 0,
+  OPTIONS  = 1,
+  GET      = 2,
+  HEAD     = 3,
+  POST     = 4,
+  PUT      = 5,
+  DELETE   = 6,
+  TRACE    = 7,
+  CONNECT  = 8,
+}
+
+/* HTTP protocol version number */
+/* Encoded as major_number * 1000 + minor_number */
+/* e.g. HTTP1.1 is encoded as 1001 */
+typedef unsigned int version;
+
+/* HTTP request */
+/* opaque = flow_data; enterprise = 0; format = 2206 */
+struct http_request {
+  http_method method;        /* method */
+  version protocol;          /* HTTP protocol version */
+  string uri<255>;           /* URI exactly as it came from the client */
+  string host<64>;           /* Host value from request header */
+  string referer<255>;       /* Referer value from request header */
+  string useragent<128>;     /* User-Agent value from request header */
+  string xff<64>;            /* X-Forwarded-For value
+                                from request header */
+  string authuser<32>;       /* RFC 1413 identity of user*/
+  string mime_type<64>;      /* Mime-Type of response */
+  unsigned hyper req_bytes;  /* Content-Length of request */
+  unsigned hyper resp_bytes; /* Content-Length of response */
+  unsigned int uS;           /* duration of the operation
+                                (in microseconds) */
+  int status;                /* HTTP status code */
+}
+
+/* Rewritten URI */
+/* Only include if host or uri are modified */
+/* opaque = flow_data; enterprise = 0; format = 2207 */
+struct extended_proxy_request {
+  string uri<255>;           /* URI in request to downstream server */
+  string host<64>;          /* Host in request to downstream server */
+}
+
+/* Proxy socket IPv4 */
+/* opaque = flow_data; enterprise=0; format=2102 */
+struct extended_proxy_socket_ipv4 {
+  extended_socket_ipv4 socket;
+}
+
+/* Proxy socket IPv6 */
+/* opaque = flow_data; enterprise=0; format=2103 */
+struct extended_proxy_socket_ipv6 {
+  extended_socket_ipv6 socket;
+}
+
+/* HTTP counters */
+/* opaque = counter_data; enterprise = 0; format = 2201 */
+struct http_counters {
+  unsigned int method_option_count;
+  unsigned int method_get_count;
+  unsigned int method_head_count;
+  unsigned int method_post_count;
+  unsigned int method_put_count;
+  unsigned int method_delete_count;
+  unsigned int method_trace_count;
+  unsigned int method_connect_count;
+  unsigned int method_other_count;
+  unsigned int status_1XX_count;
+  unsigned int status_2XX_count;
+  unsigned int status_3XX_count;
+  unsigned int status_4XX_count;
+  unsigned int status_5XX_count;
+  unsigned int status_other_count;
+}

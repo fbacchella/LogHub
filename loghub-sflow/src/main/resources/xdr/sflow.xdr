@@ -74,8 +74,8 @@ enum header_protocol {
    IPv6                 = 12,
    MPLS                 = 13,
    POS                  = 14,  /* RFC 1662, 2615 */
-/* Additional packet header types for enum header_protocol from sflow_80211 */
 
+/* Additional packet header types for enum header_protocol from sflow_80211 */
    IEEE80211MAC             = 15,  /* 802.11 MAC */
    IEEE80211_AMPDU          = 16,  /* 802.11n Aggregated MPDU (A-MPDU)
                                      starting with MPDU delimiter */

@@ -1,0 +1,25 @@
+/* NVIDIA GPU statistics */
+/* opaque = counter_data; enterprise = 5703, format=1 */
+struct nvidia_gpu {
+  unsigned int device_count; /* see nvmlDeviceGetCount */
+  unsigned int processes;    /* see nvmlDeviceGetComputeRunningProcesses */
+  unsigned int gpu_time;     /* total milliseconds in which one or more
+                                kernels was executing on GPU
+                                sum across all devices */
+  unsigned int mem_time;     /* total milliseconds during which global device
+                                memory was being read/written
+                                sum across all devices */
+  unsigned hyper mem_total;  /* sum of framebuffer memory across devices
+                                see nvmlDeviceGetMemoryInfo */
+  unsigned hyper mem_free;   /* sum of free framebuffer memory across devices
+                                see nvmlDeviceGetMemoryInfo */
+  unsigned int ecc_errors;   /* sum of volatile ECC errors across devices
+                                see nvmlDeviceGetTotalEccErrors */
+  unsigned int energy;       /* sum of millijoules across devices
+                                see nvmlDeviceGetPowerUsage */
+  unsigned int temperature;  /* maximum temperature in degrees Celsius
+                                across devices
+                                see nvmlDeviceGetTemperature */
+  unsigned int fan_speed;    /* maximum fan speed in percent across devices
+                                see nvmlDeviceGetFanSpeed */
+}

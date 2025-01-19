@@ -1,0 +1,33 @@
+/* Percentage expressed in hundredths of a percent
+   (e.g., 100 = 1%). If a percentage value is unknown then
+   use the value -1. */
+
+typedef int percentage;
+
+   The following structures are used to report peak buffer usage:
+
+/* Device level buffer utilization */
+/* buffers_used metrics represent peak since last export */
+/* opaque = counter_data; enterprise = 4413; format = 1 */
+struct bst_device_buffers {
+  percentage uc_pc;  /* unicast buffers percentage utilization */
+  percentage mc_pc;  /* multicast buffers percentage utilization */
+}
+
+/* Port level buffer utilization */
+/* buffers_used metrics represent peak buffers used since last export */
+/* opaque = counter_data; enterprise = 4413; format = 2 */
+struct bst_port_buffers {
+  percentage ingress_uc_pc;         /* ingress unicast buffers utilization */
+  percentage ingress_mc_pc;         /* ingress multicast buffers utilization */
+  percentage egress_uc_pc;          /* egress unicast buffers utilization */
+  percentage egress_mc_pc;          /* egress multicast buffers utilization */
+  percentage egress_queue_uc_pc<8>; /* per egress queue unicast buffers utilization */
+  percentage egress_queue_mc_pc<8>; /* per egress queue multicast buffers utilization*/
+}
+
+/* Selected egress queue */
+/* opaque = flow_data; enterprise = 4413; format = 1 */
+struct extended_bst_egress_queue {
+  unsigned int queue;  /* eqress queue number selected for sampled packet */
+}

@@ -1,0 +1,89 @@
+/* IP Group - see MIB-II */
+/* opaque = counter_data; enterprise = 0; format = 2007 */
+
+struct mib2_ip_group {
+  unsigned int ipForwarding;
+  unsigned int ipDefaultTTL;
+  unsigned int ipInReceives;
+  unsigned int ipInHdrErrors;
+  unsigned int ipInAddrErrors;
+  unsigned int ipForwDatagrams;
+  unsigned int ipInUnknownProtos;
+  unsigned int ipInDiscards;
+  unsigned int ipInDelivers;
+  unsigned int ipOutRequests;
+  unsigned int ipOutDiscards;
+  unsigned int ipOutNoRoutes;
+  unsigned int ipReasmTimeout;
+  unsigned int ipReasmReqds;
+  unsigned int ipReasmOKs;
+  unsigned int ipReasmFails;
+  unsigned int ipFragOKs;
+  unsigned int ipFragFails;
+  unsigned int ipFragCreates;
+}
+
+/* ICMP Group - see MIB-II */
+/* opaque = counter_data; enterprise = 0; format = 2008 */
+
+struct mib2_icmp_group {
+  unsigned int icmpInMsgs;
+  unsigned int icmpInErrors;
+  unsigned int icmpInDestUnreachs;
+  unsigned int icmpInTimeExcds;
+  unsigned int icmpInParamProbs;
+  unsigned int icmpInSrcQuenchs;
+  unsigned int icmpInRedirects;
+  unsigned int icmpInEchos;
+  unsigned int icmpInEchoReps;
+  unsigned int icmpInTimestamps;
+  unsigned int icmpInAddrMasks;
+  unsigned int icmpInAddrMaskReps;
+  unsigned int icmpOutMsgs;
+  unsigned int icmpOutErrors;
+  unsigned int icmpOutDestUnreachs;
+  unsigned int icmpOutTimeExcds;
+  unsigned int icmpOutParamProbs;
+  unsigned int icmpOutSrcQuenchs;
+  unsigned int icmpOutRedirects;
+  unsigned int icmpOutEchos;
+  unsigned int icmpOutEchoReps;
+  unsigned int icmpOutTimestamps;
+  unsigned int icmpOutTimestampReps;
+  unsigned int icmpOutAddrMasks;
+  unsigned int icmpOutAddrMaskReps;
+}
+
+/* TCP Group - see MIB-II */
+/* opaque = counter_data; enterprise = 0; format = 2009 */
+
+struct mib2_tcp_group {
+  unsigned int tcpRtoAlgorithm;
+  unsigned int tcpRtoMin;
+  unsigned int tcpRtoMax;
+  unsigned int tcpMaxConn;
+  unsigned int tcpActiveOpens;
+  unsigned int tcpPassiveOpens;
+  unsigned int tcpAttemptFails;
+  unsigned int tcpEstabResets;
+  unsigned int tcpCurrEstab;
+  unsigned int tcpInSegs;
+  unsigned int tcpOutSegs;
+  unsigned int tcpRetransSegs;
+  unsigned int tcpInErrs;
+  unsigned int tcpOutRsts;
+  unsigned int tcpInCsumErrs;
+}
+
+/* UDP Group - see MIB-II */
+/* opaque = counter_data; enterprise = 0; format = 2010 */
+
+struct mib2_udp_group {
+  unsigned int udpInDatagrams;
+  unsigned int udpNoPorts;
+  unsigned int udpInErrors;
+  unsigned int udpOutDatagrams;
+  unsigned int udpRcvbufErrors;
+  unsigned int udpSndbufErrors;
+  unsigned int udpInCsumErrors;
+}

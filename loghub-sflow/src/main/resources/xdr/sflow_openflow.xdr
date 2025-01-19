@@ -1,0 +1,12 @@
+/* OpenFlow port */
+/* opaque = counter_data; enterprise = 0; format = 1004 */
+struct of_port {
+  unsigned hyper datapath_id;
+  unsigned int port_no;
+}
+
+/* Port name */
+/* opaque = counter_data; enterprise = 0; format = 1005 */
+struct port_name {
+  string name<255>;
+}

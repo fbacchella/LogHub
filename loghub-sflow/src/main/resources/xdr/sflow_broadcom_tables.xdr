@@ -1,0 +1,41 @@
+/* Table utilizations */
+/* utilization of ASIC hardware tables */
+/* opaque = counter_data; enterprise = 4413; format = 3 */
+struct hw_tables {
+  unsigned int host_entries;
+  unsigned int host_entries_max;
+  unsigned int ipv4_entries;
+  unsigned int ipv4_entries_max;
+  unsigned int ipv6_entries;
+  unsigned int ipv6_entries_max;
+  unsigned int ipv4_ipv6_entries;
+  unsigned int ipv6_ipv6_entries_max;
+  unsigned int long_ipv6_entries;
+  unsigned int long_ipv6_entries_max;
+  unsigned int total_routes;
+  unsigned int total_routes_max;
+  unsigned int ecmp_nexthops;
+  unsigned int ecmp_nexthops_max;
+  unsigned int mac_entries;
+  unsigned int mac_entries_max;
+  unsigned int ipv4_neighbors;
+  unsigned int ipv6_neighbors;
+  unsigned int ipv4_routes;
+  unsigned int ipv6_routes;
+  unsigned int acl_ingress_entries;
+  unsigned int acl_ingress_entries_max;
+  unsigned int acl_ingress_counters;
+  unsigned int acl_ingress_counters_max;
+  unsigned int acl_ingress_meters;
+  unsigned int acl_ingress_meters_max;
+  unsigned int acl_ingress_slices;
+  unsigned int acl_ingress_slices_max;
+  unsigned int acl_egress_entries;
+  unsigned int acl_egress_entries_max;
+  unsigned int acl_egress_counters;
+  unsigned int acl_egress_counters_max;
+  unsigned int acl_egress_meters;
+  unsigned int acl_egress_meters_max;
+  unsigned int acl_egress_slices;
+  unsigned int acl_egress_slices_max;
+}
