@@ -60,6 +60,7 @@ public class Sflow extends Decoder {
         Map<String, TypeSpecifier<?>> knownTypes = new HashMap<>();
         XdrWalker xdrWalker = new XdrWalker();
         Consumer<URL> readXdr = s -> {
+            logger.debug("Parsing xdr file {}", s);
             try (InputStream is = s.openStream()) {
                 knownTypes.putAll(xdrWalker.startWalk(CharStreams.fromStream(is), knownTypes));
             } catch (IOException ex) {
@@ -98,7 +99,7 @@ public class Sflow extends Decoder {
             for (Struct s: sFlowHeader.getSamples()) {
                 Map<String, Object> data = objectMapper.convertValue(s, Map.class);
                 Event ev = factory.newEvent(ctx);
-                ev.putAll(data);
+                ev.put(s.getName(), data);
                 ev.putAtPath(VariablePath.of("observer"), observer);
                 events.add(ev);
             }

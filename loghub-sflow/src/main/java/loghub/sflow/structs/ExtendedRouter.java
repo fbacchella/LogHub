@@ -1,11 +1,10 @@
 package loghub.sflow.structs;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.InetAddress;
 
-import loghub.sflow.SflowParser;
 import io.netty.buffer.ByteBuf;
+import loghub.sflow.SflowParser;
 import lombok.Getter;
 import lombok.ToString;
 

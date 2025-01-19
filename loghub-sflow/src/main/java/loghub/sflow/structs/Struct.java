@@ -1,5 +1,7 @@
 package loghub.sflow.structs;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import io.netty.buffer.ByteBuf;
 import loghub.sflow.DataFormat;
 import lombok.Getter;
@@ -7,6 +9,7 @@ import lombok.Getter;
 @Getter
 public abstract class Struct {
 
+    @JsonIgnore
     private final DataFormat format;
 
     protected Struct(DataFormat format) {
@@ -21,5 +24,7 @@ public abstract class Struct {
         return buffer.slice(readPosition, length);
     }
 
+    @JsonIgnore
     public abstract String getName();
+
 }
