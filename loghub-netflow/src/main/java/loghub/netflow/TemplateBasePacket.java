@@ -16,7 +16,7 @@ import io.netty.buffer.ByteBuf;
 
 public abstract class TemplateBasePacket implements NetflowPacket {
 
-    enum TemplateType {
+    public enum TemplateType {
         Records,
         Options
     }

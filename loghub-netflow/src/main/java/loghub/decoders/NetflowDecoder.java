@@ -1,4 +1,4 @@
-package loghub.netflow;
+package loghub.decoders;
 
 import java.net.InetAddress;
 import java.util.Date;
@@ -9,9 +9,11 @@ import io.netty.buffer.ByteBuf;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.IpConnectionContext;
-import loghub.decoders.DecodeException;
-import loghub.decoders.Decoder;
 import loghub.events.Event;
+import loghub.netflow.Netflow5Packet;
+import loghub.netflow.Netflow9Packet;
+import loghub.netflow.NetflowPacket;
+import loghub.netflow.PacketFactory;
 
 @BuilderClass(NetflowDecoder.Builder.class)
 public class NetflowDecoder extends Decoder {

@@ -1,4 +1,4 @@
-package loghub.netflow;
+package loghub.processors;
 
 import java.util.List;
 import java.util.Map;
@@ -10,9 +10,10 @@ import loghub.VarFormatter;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.netflow.PacketFactory;
 import loghub.netflow.TemplateBasePacket.TemplateType;
 
-public class Processor extends loghub.Processor {
+public class NetflowProcessor extends loghub.Processor {
 
     private PriorityBlockingQueue mainQueue;
     private EventsFactory eventsFactory;

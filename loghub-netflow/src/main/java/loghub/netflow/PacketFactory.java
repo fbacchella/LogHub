@@ -24,7 +24,7 @@ public class PacketFactory {
 
     private final Map<TemplateId, Map<Integer, Template>> templates = new HashMap<>();
 
-    PacketFactory() {
+    public PacketFactory() {
     }
 
     public NetflowPacket parsePacket(InetAddress remoteAddr, ByteBuf bbuf) throws DecodeException {

@@ -22,8 +22,10 @@ import loghub.Tools;
 import loghub.Tools.ProcessingStatus;
 import loghub.decoders.DecodeException;
 import loghub.decoders.Decoder;
+import loghub.decoders.NetflowDecoder;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.processors.NetflowProcessor;
 
 public class ProcessorTest {
 
@@ -39,7 +41,7 @@ public class ProcessorTest {
 
     @Test(timeout = 1000)
     public void test() throws IOException, DecodeException {
-        Processor p = new Processor();
+        NetflowProcessor p = new NetflowProcessor();
 
         ByteBuf bbuffer;
         try (InputStream is = getClass().getResourceAsStream("/packets/ipfix.dat");
