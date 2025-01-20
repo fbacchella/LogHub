@@ -16,45 +16,6 @@ import io.netty.buffer.ByteBuf;
 
 public abstract class TemplateBasePacket implements NetflowPacket {
 
-    private static class TemplateId {
-        private final InetAddress remoteAddr;
-        private final int id;
-        private TemplateId(InetAddress remoteAddr, int id) {
-            super();
-            this.remoteAddr = remoteAddr;
-            this.id = id;
-        }
-        @Override
-        public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + id;
-            result = prime * result + ((remoteAddr == null) ? 0 : remoteAddr.hashCode());
-            return result;
-        }
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            TemplateId other = (TemplateId) obj;
-            if (id != other.id) {
-                return false;
-            }
-            if (remoteAddr == null) {
-                return other.remoteAddr == null;
-            } else {
-                return remoteAddr.equals(other.remoteAddr);
-            }
-        }
-    }
-
     enum TemplateType {
         Records,
         Options
@@ -62,46 +23,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
 
     private static final Logger logger = LogManager.getLogger();
 
-    protected final Map<TemplateId, Map<Integer, Template>> templates = new HashMap<>();
-
-    private static class Template {
-        private final TemplateType type;
-        private final List<Number> types;
-        private final List<Integer> sizes;
-        private final List<Boolean> areScops;
-        private Template(TemplateType type, int count) {
-            this.type = type;
-            types = new ArrayList<>(count);
-            sizes = new ArrayList<>(count);
-            areScops = new ArrayList<>(count);
-        }
-        private Template(TemplateType type) {
-            this.type = type;
-            types = new ArrayList<>();
-            sizes = new ArrayList<>();
-            areScops = new ArrayList<>();
-        }
-        private void addField(Number type, int size, boolean isScope) {
-            types.add(type);
-            sizes.add(size);
-            areScops.add(isScope);
-        }
-        private int getSizes() {
-            return sizes.size();
-        }
-        private int getSize(int record) {
-            return sizes.get(record);
-        }
-        @Override
-        public String toString() {
-            StringBuilder buffer = new StringBuilder();
-            for (int i = 0; i < types.size(); i++) {
-                buffer.append(String.format("%d[%d]%s, ", types.get(i).longValue(), sizes.get(i), Boolean.TRUE.equals(areScops.get(i)) ? "S" : ""));
-            }
-            buffer.delete(buffer.length() - 2, buffer.length());
-            return buffer.toString();
-        }
-    }
+    protected final Map<TemplateId, Map<Integer, Template>> templates;
 
     protected static class HeaderInfo {
         int count = -1;
@@ -119,8 +41,10 @@ public abstract class TemplateBasePacket implements NetflowPacket {
     private int recordseen = 0;
     private final List<Map<String, Object>> records = new ArrayList<>();
 
-    protected TemplateBasePacket(InetAddress remoteAddr, ByteBuf bbuf, Function<ByteBuf, HeaderInfo> headerreader, IpfixInformationElements types) {
+    protected TemplateBasePacket(InetAddress remoteAddr, ByteBuf bbuf, Function<ByteBuf, HeaderInfo> headerreader, IpfixInformationElements types,
+            Map<TemplateId, Map<Integer, Template>> templates) {
         this.types = types;
+        this.templates = templates;
         short version = bbuf.readShort();
         if (version < 9) {
             throw new RuntimeException("Invalid version");

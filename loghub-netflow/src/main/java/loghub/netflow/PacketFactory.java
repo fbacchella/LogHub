@@ -3,6 +3,8 @@ package loghub.netflow;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import loghub.decoders.DecodeException;
@@ -20,10 +22,12 @@ public class PacketFactory {
         }
     }
 
-    private PacketFactory() {
+    private final Map<TemplateId, Map<Integer, Template>> templates = new HashMap<>();
+
+    PacketFactory() {
     }
 
-    public static NetflowPacket parsePacket(InetAddress remoteAddr, ByteBuf bbuf) throws DecodeException {
+    public NetflowPacket parsePacket(InetAddress remoteAddr, ByteBuf bbuf) throws DecodeException {
         bbuf.markReaderIndex();
         short version = bbuf.readShort();
         bbuf.resetReaderIndex();
@@ -31,9 +35,9 @@ public class PacketFactory {
         case 5:
             return new Netflow5Packet(bbuf);
         case 9:
-            return new Netflow9Packet(remoteAddr, bbuf, ipfixtypes);
+            return new Netflow9Packet(remoteAddr, bbuf, ipfixtypes, templates);
         case 10:
-            return new IpfixPacket(remoteAddr, bbuf, ipfixtypes);
+            return new IpfixPacket(remoteAddr, bbuf, ipfixtypes, templates);
         default:
             throw new DecodeException("Unsupported netflow/IPFIX packet version: " + version);
         }

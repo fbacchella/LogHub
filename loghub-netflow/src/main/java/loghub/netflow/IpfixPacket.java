@@ -1,6 +1,7 @@
 package loghub.netflow;
 
 import java.net.InetAddress;
+import java.util.Map;
 import java.util.function.Function;
 
 import io.netty.buffer.ByteBuf;
@@ -13,8 +14,9 @@ public class IpfixPacket extends TemplateBasePacket implements NetflowPacket {
         return hi;
     };
 
-    public IpfixPacket(InetAddress remoteAddr, ByteBuf bbuf, IpfixInformationElements ipfixtypes) {
-        super(remoteAddr, bbuf, headerreder, ipfixtypes);
+    public IpfixPacket(InetAddress remoteAddr, ByteBuf bbuf, IpfixInformationElements ipfixtypes,
+            Map<TemplateId, Map<Integer, Template>> templates) {
+        super(remoteAddr, bbuf, headerreder, ipfixtypes, templates);
     }
 
     @Override

@@ -304,6 +304,7 @@
         <module>loghub-uap</module>
         <module>loghub-protobuf</module>
         <module>loghub-sflow</module>
+        <module>loghub-netflow</module>
     </modules>
 
     <profiles>

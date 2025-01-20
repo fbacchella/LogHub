@@ -42,7 +42,7 @@ public class ProcessorTest {
         Processor p = new Processor();
 
         ByteBuf bbuffer;
-        try (InputStream is = getClass().getResourceAsStream("/netflow/packets/ipfix.dat");
+        try (InputStream is = getClass().getResourceAsStream("/packets/ipfix.dat");
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8 * 1024];
             for (int length; (length = is.read(buffer)) != -1; ) {

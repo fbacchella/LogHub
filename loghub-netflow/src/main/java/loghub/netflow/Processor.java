@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import loghub.PriorityBlockingQueue;
 import loghub.ProcessorException;
+import loghub.VarFormatter;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -23,6 +24,7 @@ public class Processor extends loghub.Processor {
         return super.configure(properties);
     }
 
+    private static final VarFormatter vf = new VarFormatter("${%j}");
     @Override
     public boolean process(Event event) throws ProcessorException {
         if (! event.containsKey("records") || ! event.containsKey("version")  || ! event.containsKey("sequenceNumber")) {

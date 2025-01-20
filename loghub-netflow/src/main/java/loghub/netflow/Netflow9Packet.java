@@ -3,6 +3,7 @@ package loghub.netflow;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.function.Function;
 
 import io.netty.buffer.ByteBuf;
@@ -20,8 +21,9 @@ public class Netflow9Packet extends TemplateBasePacket implements NetflowPacket 
 
     private final Duration sysUpTime;
 
-    public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, IpfixInformationElements nf9types) {
-        super(remoteAddr, bbuf, headerreder, nf9types);
+    public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, IpfixInformationElements nf9types,
+            Map<TemplateId, Map<Integer, Template>> templates) {
+        super(remoteAddr, bbuf, headerreder, nf9types, templates);
         sysUpTime = Duration.of(header.sysUpTime, ChronoUnit.MILLIS);
     }
 

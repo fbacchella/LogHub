@@ -26,8 +26,10 @@ public class NetflowDecoder extends Decoder {
         return new Builder();
     }
 
+    private final PacketFactory packetFactory;
     private NetflowDecoder(loghub.decoders.Decoder.Builder<? extends Decoder> builder) {
         super(builder);
+        this.packetFactory = new PacketFactory();
     }
 
     @Override
@@ -35,7 +37,7 @@ public class NetflowDecoder extends Decoder {
         InetAddress addr;
         if (ctx instanceof IpConnectionContext) {
             addr = ((IpConnectionContext) ctx).getRemoteAddress().getAddress();
-            NetflowPacket packet = PacketFactory.parsePacket(addr, bbuf);
+            NetflowPacket packet = packetFactory.parsePacket(addr, bbuf);
             Map<String, Object> ev = new HashMap<>();
             ev.put(Event.TIMESTAMPKEY, Date.from(packet.getExportTime()));
             ev.put("sequenceNumber", packet.getSequenceNumber());

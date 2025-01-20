@@ -95,6 +95,7 @@ public class PacketsTest {
 
     @Test
     public void testParse() {
+        PacketFactory packetFactory = new PacketFactory();
         final List<NetflowPacket> packets = new ArrayList<>();
         Arrays.stream(captures)
         .map(i -> { logger.debug(i + ": "); return i;})
@@ -118,7 +119,7 @@ public class PacketsTest {
         .forEach(i -> {
             try {
                 while (i.isReadable()) {
-                    packets.add(PacketFactory.parsePacket(InetAddress.getLocalHost(), i));
+                    packets.add(packetFactory.parsePacket(InetAddress.getLocalHost(), i));
                 }
             } catch (Exception e) {
                 Assert.fail(e.getMessage());
@@ -138,7 +139,7 @@ public class PacketsTest {
         IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
         Arrays.stream(captures)
         .map(i -> {logger.debug(i + ": "); return i;})
-        .map(i -> "/netflow/packets/" + i)
+        .map(i -> "/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
         .map(i -> {
             try (i) {
