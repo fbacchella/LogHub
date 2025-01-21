@@ -6,7 +6,9 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Optional;
+import java.util.function.Function;
 
 import loghub.BuilderClass;
 import loghub.Expression;
@@ -15,6 +17,7 @@ import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.events.Event;
 import lombok.Setter;
+import zmq.util.Z85;
 
 /**
  * A processor that take a String field and transform it to any object that can
@@ -32,8 +35,9 @@ public class Convert extends FieldsProcessor {
     public static class Builder extends FieldsProcessor.Builder<Convert> {
         private String className = "java.lang.String";
         private String charset = null;
-        private String byteOrder = "NATIVE";
-        private ClassLoader classLoader = Grok.class.getClassLoader();
+        private ByteOrder byteOrder = ByteOrder.nativeOrder();
+        private String encoding = null;
+        private ClassLoader classLoader = Convert.class.getClassLoader();
         public Convert build() {
             return new Convert(this);
         }
@@ -45,31 +49,54 @@ public class Convert extends FieldsProcessor {
     private final Charset charset;
     private final Class<?> clazz;
     private final ByteOrder byteOrder;
+    private final Function<String, byte[]> decoder;
 
     private Convert(Builder builder) {
         super(builder);
         charset = Optional.ofNullable(builder.charset).map(Charset::forName).orElse(StandardCharsets.UTF_8);
-        switch (builder.byteOrder) {
-        case "BIG_ENDIAN":
-            byteOrder = ByteOrder.BIG_ENDIAN;
-            break;
-        case "LITTLE_ENDIAN":
-            byteOrder = ByteOrder.LITTLE_ENDIAN;
-            break;
-        default:
-            byteOrder = ByteOrder.nativeOrder();
-        }
+        byteOrder = builder.byteOrder;
         String className = builder.className;
         try {
             clazz = builder.classLoader.loadClass(className);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
+        if (builder.encoding != null) {
+            decoder = resolveDecoder(builder.encoding);
+        } else {
+            decoder = null;
+        }
+    }
+
+    private Function<String,byte[]> resolveDecoder(String encoding) {
+        switch (encoding) {
+        case "BASE64": {
+            Base64.Decoder b64decoder = Base64.getDecoder();
+            return b64decoder::decode;
+        }
+        case "BASE64MIME": {
+            Base64.Decoder b64decoder = Base64.getMimeDecoder();
+            return b64decoder::decode;
+        }
+        case "BASE64URL": {
+            Base64.Decoder b64decoder = Base64.getUrlDecoder();
+            return b64decoder::decode;
+        }
+        case "Z85": {
+            return Z85::decode;
+        }
+        default: {
+            throw new IllegalArgumentException(String.format("Unsupported text decoder \"%s\"", encoding));
+        }
+        }
     }
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         try {
+            if (decoder != null && value instanceof String) {
+                value = decoder.apply((String) value);
+            }
             return Expression.convertObject(clazz, value, charset, byteOrder);
         } catch (BufferUnderflowException ex) {
             throw event.buildException("Unable to parse field as a " + clazz.getName() + ", not enough bytes", ex);

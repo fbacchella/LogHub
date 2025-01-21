@@ -1,5 +1,6 @@
 package loghub.processors;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.InetAddress;
@@ -7,9 +8,11 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
@@ -19,10 +22,14 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BeanChecks;
+import loghub.Expression;
 import loghub.Helpers;
 import loghub.LogUtils;
+import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
@@ -30,22 +37,25 @@ import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.types.Dn;
 import loghub.types.MacAddress;
+import zmq.util.Z85;
 
 public class TestConvert {
 
     private final EventsFactory factory = new EventsFactory();
+    private static Logger logger;
 
     @BeforeClass
     public static void configure() {
         Tools.configure();
-        Logger logger = LogManager.getLogger();
+        logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Convert");
     }
 
-    private void check(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
+    private void check(String className, Class<?> reference, Consumer<Convert.Builder> configurator, Object invalue, Object outvalue) throws ProcessorException {
         Convert.Builder builder = Convert.getBuilder();
         builder.setField(VariablePath.parse("message"));
         builder.setClassName(className);
+        configurator.accept(builder);
         Convert cv = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
@@ -58,6 +68,10 @@ public class TestConvert {
         Assert.assertTrue(reference.isAssignableFrom(e.get("message").getClass()));
         Assert.assertTrue(e.get("message").getClass().isAssignableFrom(reference));
         Assert.assertEquals(outvalue, e.get("message"));
+    }
+
+    private void check(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
+        check(className, reference, b -> {},invalue, outvalue);
     }
 
     private byte[] generate(Function<ByteBuffer, ByteBuffer> contentSource) {
@@ -135,6 +149,33 @@ public class TestConvert {
     public void testInvalidIp() {
         ProcessorException ex = Assert.assertThrows(loghub.ProcessorException.class, () -> check("java.net.InetAddress", java.net.Inet4Address.class, "www.google.com", "www.google.com"));
         Assert.assertEquals("Field with path \"[message]\" invalid: \"www.google.com\" not a valid IP address", ex.getMessage());
+    }
+
+    @Test
+    public void testEncoded() throws ProcessorException {
+        byte[] content = generate(8, b -> b.putDouble(38));
+        check("java.lang.Double", Double.class, b -> b.setEncoding("BASE64"), Base64.getEncoder().encodeToString(content), (double) 38);
+        check("java.lang.Double", Double.class, b -> b.setEncoding("Z85"), Z85.encode(content, 8), (double) 38);
+    }
+
+    @Test
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.processors.Convert"
+                , BeanChecks.BeanInfo.build("className", String.class)
+                , BeanChecks.BeanInfo.build("charset", String.class)
+                , BeanChecks.BeanInfo.build("byteOrder", ByteOrder.class)
+                , BeanChecks.BeanInfo.build("encoding", String.class)
+                , BeanChecks.BeanInfo.build("classLoader", ClassLoader.class)
+                , BeanChecks.BeanInfo.build("destination", VariablePath.class)
+                , BeanChecks.BeanInfo.build("destinationTemplate", VarFormatter.class)
+                , BeanChecks.BeanInfo.build("field", VariablePath.class)
+                , BeanChecks.BeanInfo.build("fields", String[].class)
+                , BeanChecks.BeanInfo.build("path", VariablePath.class)
+                , BeanChecks.BeanInfo.build("if", Expression.class)
+                , BeanChecks.BeanInfo.build("success", Processor.class)
+                , BeanChecks.BeanInfo.build("failure", Processor.class)
+                , BeanChecks.BeanInfo.build("exception", Processor.class)
+        );
     }
 
 }
