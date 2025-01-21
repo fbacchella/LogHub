@@ -176,8 +176,8 @@ class IpfixInformationElements {
                 bbuf.readBytes(buffer);
                 Map<String, Number> applicationId = new HashMap<>();
                 applicationId.put("ClassificationEngineID", buffer[0]);
-                buffer[0] = 0;
                 ByteBuf selectorBuffer = Unpooled.wrappedBuffer(buffer);
+                selectorBuffer.skipBytes(1);
                 applicationId.put("SelectorID", readUnsignedNumValue(selectorBuffer));
                 return applicationId;
             } else if ("octetArray".equals(e.type) || "Reserved".equals(e.name)) {
