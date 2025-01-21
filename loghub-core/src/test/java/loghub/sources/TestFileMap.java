@@ -40,19 +40,19 @@ public class TestFileMap {
         Properties conf = Tools.loadConf("sources.conf", false);
         conf.sources.values().forEach(i -> Assert.assertTrue(i.configure(conf)));
         FileMap s1 = (FileMap) conf.sources.get("source1");
-        Assert.assertEquals("Reserved", s1.get("0"));
+        Assert.assertEquals("A", s1.get("1"));
         FileMap s2 = (FileMap) conf.sources.get("source2");
         Assert.assertEquals(1, s2.get("a"));
     }
 
     @Test
-    public void testone() {
-        URL ifpixurl = getClass().getResource("/ipfix-information-elements.csv");
+    public void testOne() {
+        URL ifpixurl = getClass().getResource("/mapping.csv");
         FileMap.Builder builder = FileMap.getBuilder();
         builder.setMappingFile(ifpixurl.getFile());
         builder.setCsvFormat("RFC4180");
-        builder.setKeyName("ElementID");
-        builder.setValueName("Name");
+        builder.setKeyName("key");
+        builder.setValueName("value");
         FileMap s = builder.build();
         s.configure(null);
 
@@ -62,7 +62,7 @@ public class TestFileMap {
 
         ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
         Event ep = ps.mainQueue.remove();
-        Assert.assertEquals("octetDeltaCount", ep.get("type"));
+        Assert.assertEquals("A", ep.get("type"));
     }
 
     @Test
