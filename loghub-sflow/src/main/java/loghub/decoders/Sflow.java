@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.antlr.v4.runtime.CharStreams;
@@ -99,6 +100,7 @@ public class Sflow extends Decoder {
     @SuppressWarnings("unchecked")
     protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         List<Event> events = new ArrayList<>();
+        UUID msgUuid = UUID.randomUUID();
 
         try {
             SFlowDatagram sFlowHeader = sflowRegistry.decodePacket(bbuf);
@@ -106,6 +108,7 @@ public class Sflow extends Decoder {
             for (Struct s: sFlowHeader.getSamples()) {
                 Map<String, Object> data = objectMapper.convertValue(s, Map.class);
                 Event ev = factory.newEvent(ctx);
+                ev.putMeta("msgUUID", msgUuid);
                 ev.put(s.getName(), data);
                 ev.putAtPath(VariablePath.of("observer"), observer);
                 events.add(ev);

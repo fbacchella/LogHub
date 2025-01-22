@@ -91,7 +91,7 @@ public class Netflow extends Decoder {
         records.forEach(i -> {
             Event newEvent = factory.newEvent(ctx);
             newEvent.setTimestamp(eventTimestamp);
-            newEvent.put("msgUUID", msgUuid);
+            newEvent.putMeta("msgUUID", msgUuid);
             newEvent.putAll(i);
             newEvent.putAll(decodedPacket);
             events.add(newEvent);
@@ -116,7 +116,7 @@ public class Netflow extends Decoder {
             } else if (recordType == Template.TemplateType.Records) {
                 Event newEvent = factory.newEvent(ctx);
                 newEvent.setTimestamp(eventTimestamp);
-                newEvent.put("msgUUID", msgUuid);
+                newEvent.putMeta("msgUUID", msgUuid);
                 newEvent.putAll(i);
                 newEvent.putAll(decodedPacket);
                 if (! options.isEmpty()) {

@@ -26,6 +26,7 @@ import loghub.BeanChecks;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.decoders.Decoder;
@@ -181,7 +182,7 @@ public class TestNetflow {
                         Assert.assertNull(ev.getLastException());
                         Assert.assertTrue(content.containsKey("version"));
                         Assert.assertTrue(content.containsKey("sequenceNumber"));
-                        Assert.assertTrue(content.toString(), content.containsKey("msgUUID"));
+                        Assert.assertTrue(content.toString(), ev.containsAtPath(VariablePath.ofMeta("msgUUID")));
                     });
                 }
             } catch (DecodeException e) {
