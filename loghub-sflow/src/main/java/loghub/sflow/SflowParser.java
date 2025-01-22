@@ -25,6 +25,7 @@ import loghub.sflow.structs.DynamicStruct;
 import loghub.sflow.structs.ExtendedRouter;
 import loghub.sflow.structs.ExtendedUser;
 import loghub.sflow.structs.FlowSample;
+import loghub.sflow.structs.LagPortStats;
 import loghub.sflow.structs.OpaqueStruct;
 import loghub.sflow.structs.SampledHeader;
 import loghub.sflow.structs.Struct;
@@ -55,6 +56,7 @@ public class SflowParser {
         addConstructor(ExtendedRouter.NAME, b -> new ExtendedRouter(this, b));
         addConstructor(CounterSample.NAME, b -> new CounterSample(this, b));
         addConstructor(ExtendedUser.NAME, b -> new ExtendedUser(this, b));
+        addConstructor(LagPortStats.NAME, b -> new LagPortStats(this, b));
         byAttributeReaders.put("sampled_ipv4.src_port", ByteBuf::readInt);
         byAttributeReaders.put("sampled_ipv4.protocol", ByteBuf::readInt);
         byAttributeReaders.put("sampled_ipv4.dst_port", ByteBuf::readInt);
