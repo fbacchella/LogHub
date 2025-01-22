@@ -3,6 +3,7 @@ package loghub.sflow.structs;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import loghub.sflow.DataSource;
@@ -18,7 +19,7 @@ public class CounterSample extends Struct {
     public static final String NAME = "counter_sample";
     private final long sequence_number;
     private final DataSource source_id;
-    private final List<Struct> counters;
+    private final List<Map<String, Struct>> counters;
 
     public CounterSample(SflowParser parser, ByteBuf buf) throws IOException {
         super(parser.getByName(NAME));
@@ -32,9 +33,10 @@ public class CounterSample extends Struct {
         int numRecords = buf.readInt();
 
         // Parsing des enregistrements de compteurs
-        List<Struct> tempCounters = new ArrayList<>(numRecords);
+        List<Map<String, Struct>> tempCounters = new ArrayList<>(numRecords);
         for (int i = 0; i < numRecords; i++) {
-            tempCounters.add(parser.readStruct(StructureClass.COUNTER_DATA, buf));
+            Struct s = parser.readStruct(StructureClass.COUNTER_DATA, buf);
+            tempCounters.add(Map.of(s.getName(), s));
         }
         counters = List.copyOf(tempCounters);
     }

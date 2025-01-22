@@ -33,7 +33,7 @@ public class StructSpecifier extends TypeSpecifier<Map<String, TypeSpecifier<?>>
     }
 
     public Map<String, Object> read(ByteBuf b, CustomReader reader) throws IOException {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         for (Map.Entry<String, TypeSpecifier<?>> e: structDescription.entrySet()) {
             data.put(e.getKey(), reader.read(e.getKey(), e.getValue(), b));
         }
