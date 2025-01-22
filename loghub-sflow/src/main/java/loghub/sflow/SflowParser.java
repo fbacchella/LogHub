@@ -213,7 +213,6 @@ public class SflowParser {
     }
 
     public MacAddress readMacAddress(ByteBuf buf) {
-        buf.readInt();
         byte[] macAddress = new byte[6];
         buf.readBytes(macAddress);
         return new MacAddress((macAddress));
