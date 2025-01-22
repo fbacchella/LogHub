@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,17 +27,18 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
 
     protected final HeaderInfo header;
     protected final int sourceId;
+    @Getter
     protected final Instant exportTime;
+    @Getter
     protected final long sequenceNumber;
     protected final int length;
     protected final int count;
-    private final List<Map<String, Object>> records = new ArrayList<>();
-    private final NetflowRegistry registry;
     @Getter
-    private boolean withFailure = false;
+    private final List<Map<String, Object>> records;
+    @Getter
+    private final boolean withFailure = false;
 
     protected TemplateBasedPacket(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) {
-        this.registry = registry;
         short version = bbuf.readShort();
         if (version < 9) {
             throw new RuntimeException("Invalid version");
@@ -59,25 +59,26 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
         }
         int flowSetSeen = 0;
         int flowSeen = 0;
+        List<Map<String, Object>> tmpRecords = new ArrayList<>();
         while (bbuf.isReadable()) {
             try {
-                flowSeen += readSet(remoteAddr, bbuf);
+                flowSeen += readSet(remoteAddr, bbuf, registry, tmpRecords);
                 ++flowSetSeen;
             } catch (RuntimeException e) {
-                withFailure = true;
                 logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Failed reading flow set {}", flowSetSeen);
             }
         }
-        if (count > 0 && flowSeen > count) {
-            logger.debug("Too much records seen: {}/{}", flowSeen, count);
-        } else if (flowSeen < count) {
-            logger.debug("Not enough records: {}/{}", flowSeen, count);
+        records = List.copyOf(tmpRecords);
+        if (count > 0 && flowSetSeen > count) {
+            logger.debug("Too much records seen: {}/{}/{}", flowSeen, flowSetSeen, count);
+        } else if (flowSetSeen < count) {
+            logger.debug("Not enough records: {}/{}/{}", flowSeen, flowSetSeen, count);
         }
     }
 
     protected abstract HeaderInfo readHeader(ByteBuf bbuf);
 
-    protected int readSet(InetAddress remoteAddr, ByteBuf bbuf) {
+    protected int readSet(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
         Template.TemplateId key = new Template.TemplateId(remoteAddr, sourceId);
         int flowSetId = Short.toUnsignedInt(bbuf.readShort());
         int length = Short.toUnsignedInt(bbuf.readShort());
@@ -92,18 +93,18 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
         case 3: // IPFIX Option Template FlowSet
             return registry.readOptionsTemplateIpfixSet(key, bbuf.readSlice(length - 4));
         default:
-            return readDataSet(key, bbuf.readSlice(length - 4), flowSetId);
+            return readDataSet(key, bbuf.readSlice(length - 4), flowSetId, registry, records);
         }
     }
 
-    protected int readDataSet(Template.TemplateId key, ByteBuf bbuf, int flowSetId) {
+    protected int readDataSet(Template.TemplateId key, ByteBuf bbuf, int flowSetId, NetflowRegistry registry, List<Map<String, Object>> records) {
         return registry.getTemplate(key, flowSetId)
                        .stream()
-                       .mapToInt(t -> readDataSet(t, bbuf))
+                       .mapToInt(t -> readDataSet(t, bbuf, registry, records))
                        .sum();
     }
 
-    private int readDataSet(Template tpl, ByteBuf bbuf) {
+    private int readDataSet(Template tpl, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
         int recordCount = 0;
         // The test ensure there is more than padding left in the ByteBuf
         while (bbuf.isReadable(4)) {
@@ -146,23 +147,8 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
     }
 
     @Override
-    public Instant getExportTime() {
-        return exportTime;
-    }
-
-    @Override
-    public long getSequenceNumber() {
-        return sequenceNumber;
-    }
-
-    @Override
     public int getLength() {
         return length != -1 ? length : count;
-    }
-
-    @Override
-    public List<Map<String, Object>> getRecords() {
-        return Collections.unmodifiableList(records);
     }
 
 }
