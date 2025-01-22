@@ -1,8 +1,11 @@
 package loghub.xdr;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.antlr.v4.runtime.CharStream;
@@ -98,9 +101,14 @@ public class XdrWalker extends XdrBaseListener {
 
     @Override
     public void exitStructDef(XdrParser.StructDefContext ctx) {
+        List<Declaration> declarations = new ArrayList<>(stack.size());
         LinkedHashMap<String, TypeSpecifier<?>> members = new LinkedHashMap<>();
         while (StackMarker.STRUCT_DEF != stack.peek()) {
             Declaration d = stack.popTyped();
+            declarations.add(d);
+        }
+        Collections.reverse(declarations);
+        for (Declaration d: declarations) {
             members.put(d.identifier, d.type);
         }
         types.put(ctx.IDENTIFIER().getText(), new StructSpecifier(ctx.IDENTIFIER().getText(), members));
