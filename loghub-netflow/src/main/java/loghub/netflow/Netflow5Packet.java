@@ -1,6 +1,8 @@
 package loghub.netflow;
 
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -13,7 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.buffer.ByteBuf;
-import loghub.netflow.TemplateBasePacket.TemplateType;
 import lombok.Getter;
 
 public class Netflow5Packet implements NetflowPacket {
@@ -59,10 +60,10 @@ public class Netflow5Packet implements NetflowPacket {
         records = new ArrayList<>(count);
         byte[] addrbuffer = new byte[4];
         for (int i = 0; i < count; i++) {
+            Map<String, Object> nfRecord = new HashMap<>(20);
             try {
-                Map<String, Object> nfRecord = new HashMap<>(20);
                 bbuf.readBytes(addrbuffer);
-                nfRecord.put(PacketFactory.TYPEKEY, TemplateType.Records);
+                nfRecord.put(NetflowRegistry.TYPEKEY, Template.TemplateType.Records);
                 nfRecord.put("srcaddr", InetAddress.getByAddress(addrbuffer));
                 bbuf.readBytes(addrbuffer);
                 nfRecord.put("dstaddr", InetAddress.getByAddress(addrbuffer));
@@ -87,12 +88,13 @@ public class Netflow5Packet implements NetflowPacket {
                 bbuf.readShort();  // some padding;
                 records.add(nfRecord);
             } catch (IndexOutOfBoundsException e) {
-                break;
-            } catch (Exception e) {
-
+                Throwable t = new IOException(String.format("Reading outside range: only %d bytes available", bbuf.readableBytes()), e);
+                nfRecord.put(NetflowPacket.EXCEPTION_KEY, t);
+            } catch (UnknownHostException e) {
+                // Should never be reached
+                throw new IllegalStateException(e);
             }
         }
-
     }
 
     @Override

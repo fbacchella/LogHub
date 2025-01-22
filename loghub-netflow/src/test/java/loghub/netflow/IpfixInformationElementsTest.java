@@ -1,6 +1,5 @@
 package loghub.netflow;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -28,7 +27,7 @@ public class IpfixInformationElementsTest {
     }
 
     @Test
-    public void test() throws IOException {
+    public void test() {
         IpfixInformationElements iie = new IpfixInformationElements();
         Map<String, Set<String>> values = new HashMap<>();
         iie.elements.forEach((k, v) -> {

@@ -6,12 +6,12 @@ import java.util.UUID;
 
 import loghub.PriorityBlockingQueue;
 import loghub.ProcessorException;
-import loghub.VarFormatter;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.netflow.PacketFactory;
-import loghub.netflow.TemplateBasePacket.TemplateType;
+import loghub.netflow.NetflowRegistry;
+import loghub.netflow.Template;
+import loghub.netflow.Template.TemplateType;
 
 public class NetflowProcessor extends loghub.Processor {
 
@@ -25,7 +25,6 @@ public class NetflowProcessor extends loghub.Processor {
         return super.configure(properties);
     }
 
-    private static final VarFormatter vf = new VarFormatter("${%j}");
     @Override
     public boolean process(Event event) throws ProcessorException {
         if (! event.containsKey("records") || ! event.containsKey("version")  || ! event.containsKey("sequenceNumber")) {
@@ -45,12 +44,12 @@ public class NetflowProcessor extends loghub.Processor {
             Event newEvent = eventsFactory.newEvent(event.getConnectionContext());
             newEvent.setTimestamp(event.getTimestamp());
             newEvent.put("msgUUID", msgUuid);
-            TemplateType recordType = (TemplateType) i.remove(PacketFactory.TYPEKEY);
-            if (recordType == TemplateType.Options) {
+            TemplateType recordType = (TemplateType) i.remove(NetflowRegistry.TYPEKEY);
+            if (recordType == Template.TemplateType.Options) {
                 lastOptionsUuid[0] = UUID.randomUUID();
                 newEvent.put("UUID", lastOptionsUuid[0]);
                 newEvent.put("option", i);
-            } else if (recordType == TemplateType.Records) {
+            } else if (recordType == Template.TemplateType.Records) {
                 newEvent.put("record", i);
                 if (lastOptionsUuid[0] != null) {
                     newEvent.put("optionsUUID", lastOptionsUuid[0]);

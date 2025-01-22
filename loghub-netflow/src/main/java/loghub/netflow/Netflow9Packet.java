@@ -3,33 +3,31 @@ package loghub.netflow;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.function.Function;
 
 import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 
 @Getter
-public class Netflow9Packet extends TemplateBasePacket implements NetflowPacket {
-
-    private static final Function<ByteBuf, HeaderInfo> headerreder = i -> {
-        TemplateBasePacket.HeaderInfo hi = new TemplateBasePacket.HeaderInfo();
-        hi.count =  Short.toUnsignedInt(i.readShort());
-        hi.sysUpTime = Integer.toUnsignedLong(i.readInt());
-        return hi;
-    };
+public class Netflow9Packet extends TemplateBasedPacket implements NetflowPacket {
 
     private final Duration sysUpTime;
 
-    public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, IpfixInformationElements nf9types,
-            Map<TemplateId, Map<Integer, Template>> templates) {
-        super(remoteAddr, bbuf, headerreder, nf9types, templates);
+    public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) {
+        super(remoteAddr, bbuf, registry);
         sysUpTime = Duration.of(header.sysUpTime, ChronoUnit.MILLIS);
     }
 
     @Override
     public int getVersion() {
         return 9;
+    }
+
+    @Override
+    protected HeaderInfo readHeader(ByteBuf bbuf) {
+        TemplateBasedPacket.HeaderInfo hi = new TemplateBasedPacket.HeaderInfo();
+        hi.count =  Short.toUnsignedInt(bbuf.readShort());
+        hi.sysUpTime = Integer.toUnsignedLong(bbuf.readInt());
+        return hi;
     }
 
 }

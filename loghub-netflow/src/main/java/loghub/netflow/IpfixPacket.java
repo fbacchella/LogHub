@@ -1,22 +1,20 @@
 package loghub.netflow;
 
 import java.net.InetAddress;
-import java.util.Map;
-import java.util.function.Function;
 
 import io.netty.buffer.ByteBuf;
 
-public class IpfixPacket extends TemplateBasePacket implements NetflowPacket {
+public class IpfixPacket extends TemplateBasedPacket implements NetflowPacket {
 
-    private static final Function<ByteBuf, HeaderInfo> headerreder = i -> {
-        TemplateBasePacket.HeaderInfo hi = new TemplateBasePacket.HeaderInfo();
-        hi.length =  Short.toUnsignedInt(i.readShort());
+    public IpfixPacket(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) {
+        super(remoteAddr, bbuf, registry);
+    }
+
+    @Override
+    protected HeaderInfo readHeader(ByteBuf bbuf) {
+        TemplateBasedPacket.HeaderInfo hi = new TemplateBasedPacket.HeaderInfo();
+        hi.length =  Short.toUnsignedInt(bbuf.readShort());
         return hi;
-    };
-
-    public IpfixPacket(InetAddress remoteAddr, ByteBuf bbuf, IpfixInformationElements ipfixtypes,
-            Map<TemplateId, Map<Integer, Template>> templates) {
-        super(remoteAddr, bbuf, headerreder, ipfixtypes, templates);
     }
 
     @Override

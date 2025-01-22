@@ -3,16 +3,13 @@ package loghub.netflow;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -25,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
 import loghub.jackson.JacksonBuilder;
+import loghub.types.MacAddress;
 import lombok.Data;
 
 class IpfixInformationElements {
@@ -63,49 +61,9 @@ class IpfixInformationElements {
 
     }
 
-    private static class MacAddress {
-        private final byte[] address;
-
-        public MacAddress(byte[] address) {
-            this.address = address;
-        }
-
-        @Override
-        public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + Arrays.hashCode(address);
-            return result;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            MacAddress other = (MacAddress) obj;
-            return Arrays.equals(address, other.address);
-        }
-
-        @Override
-        public String toString() {
-            StringJoiner j = new StringJoiner(":");
-            // No Arrays.toStream for bytes array
-            for (byte b : address) {
-                j.add(String.format("%02x", b));
-            }
-            return j.toString();
-        }
-
-    }
-
     private static final ThreadLocal<byte[]> buffer4 = ThreadLocal.withInitial(() -> new byte[4]);
+    private static final ThreadLocal<byte[]> buffer6 = ThreadLocal.withInitial(() -> new byte[6]);
+    private static final ThreadLocal<byte[]> buffer8 = ThreadLocal.withInitial(() -> new byte[8]);
     private static final ThreadLocal<byte[]> buffer16 = ThreadLocal.withInitial(() -> new byte[16]);
 
     // Downloaded from https://www.iana.org/assignments/ipfix/ipfix-information-elements.csv
@@ -113,7 +71,7 @@ class IpfixInformationElements {
 
     public final Map<Integer, Element> elements;
 
-    public IpfixInformationElements() throws IOException {
+    public IpfixInformationElements() {
         CsvMapper mapper = JacksonBuilder.get(CsvMapper.class).getMapper();
         CsvSchema elementSchema = mapper.schemaFor(Element.class).withHeader();
         ObjectReader csvReader = mapper.readerFor(Element.class).with(elementSchema);
@@ -129,6 +87,8 @@ class IpfixInformationElements {
                 }
             }
             elements = Collections.unmodifiableMap(buildElements);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Can't find " + "ipfix-information-elements.csv", ex);
         }
     }
 
@@ -172,30 +132,28 @@ class IpfixInformationElements {
                 byte value = bbuf.readByte();
                 return value == 1;
             } else if ("applicationId".equals(e.name)) {
-                byte[] buffer = new byte[bbuf.readableBytes()];
-                bbuf.readBytes(buffer);
                 Map<String, Number> applicationId = new HashMap<>();
-                applicationId.put("ClassificationEngineID", buffer[0]);
-                ByteBuf selectorBuffer = Unpooled.wrappedBuffer(buffer);
-                selectorBuffer.skipBytes(1);
-                applicationId.put("SelectorID", readUnsignedNumValue(selectorBuffer));
+                applicationId.put("ClassificationEngineID", bbuf.readByte());
+                applicationId.put("SelectorID", readUnsignedNumValue(bbuf));
                 return applicationId;
             } else if ("octetArray".equals(e.type) || "Reserved".equals(e.name)) {
                 byte[] buffer = new byte[bbuf.readableBytes()];
                 bbuf.readBytes(buffer);
                 return buffer;
             } else if ("macAddress".equals(e.type) && bbuf.isReadable(6)) {
-                // newly allocated byte[] as it will be stored directly in MacAddress
-                byte[] buffer = new byte[6];
-                bbuf.readBytes(buffer);
-                return new MacAddress(buffer);
+                bbuf.readBytes(buffer6.get());
+                return new MacAddress(buffer6.get());
+            } else if ("macAddress".equals(e.type) && bbuf.isReadable(8)) {
+                bbuf.readBytes(buffer8.get());
+                return new MacAddress(buffer8.get());
             } else if ("string".equals(e.type)) {
                 return bbuf.toString(CharsetUtil.UTF_8);
             } else {
-                throw new RuntimeException("unmannage type: " + e.name);
+                throw new IllegalStateException("Unmanaged type: " + e.name);
             }
         } catch (UnknownHostException e) {
-            throw new UncheckedIOException(e);
+            // Should never be reached
+            throw new IllegalStateException(e);
         }
     }
 
@@ -212,7 +170,15 @@ class IpfixInformationElements {
         case 8:
             return bbuf.readLong();
         default:
-            throw new RuntimeException("Unreadable size :" + bbuf.readableBytes());
+            if (bbuf.readableBytes() < 8) {
+                byte[] bufNum = new byte[8];
+                for (int i = (bbuf.readableBytes() - 1); i >= 0; i--) {
+                    bufNum[i] = bbuf.getByte(i);
+                }
+                return Unpooled.wrappedBuffer(bufNum).readLong();
+            } else {
+                throw new IllegalStateException("Unreadable size :" + bbuf.readableBytes());
+            }
         }
     }
 
@@ -229,7 +195,15 @@ class IpfixInformationElements {
         case 8:
             return bbuf.readLong();
         default:
-            throw new RuntimeException("Unreadable size :" + bbuf.readableBytes());
+            if (bbuf.readableBytes() < 8) {
+                byte[] bufNum = new byte[8];
+                for (int i = (bbuf.readableBytes() - 1); i >= 0; i--) {
+                    bufNum[i] = bbuf.getByte(i);
+                }
+                return Unpooled.wrappedBuffer(bufNum).readLong();
+            } else {
+                throw new IllegalStateException("Unreadable size :" + bbuf.readableBytes());
+            }
         }
     }
 

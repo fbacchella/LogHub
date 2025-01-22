@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 public interface NetflowPacket {
+
+    String EXCEPTION_KEY = "__exception";
+
     int getVersion();
     int getLength();
     Instant getExportTime();
@@ -15,4 +18,5 @@ public interface NetflowPacket {
     default List<Map<String, Object>> getOptions() {
         return Collections.emptyList();
     }
+
 }

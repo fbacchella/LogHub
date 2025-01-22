@@ -1,13 +1,17 @@
-package loghub.netflow;
+package decoders;
 
+import java.beans.IntrospectionException;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -16,14 +20,21 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import loghub.BeanChecks;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.configuration.Properties;
+import loghub.decoders.DecodeException;
 import loghub.decoders.Decoder;
-import loghub.decoders.NetflowDecoder;
+import loghub.netflow.NetflowPacket;
+import loghub.netflow.NetflowRegistry;
+import loghub.receivers.Udp;
+import loghub.events.Event;
 
-public class PacketsTest {
+public class TestNetflow {
 
     private static Logger logger;
 
@@ -31,7 +42,7 @@ public class PacketsTest {
     public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.netflow");
+        LogUtils.setLevel(logger, Level.DEBUG, "loghub.netflow");
     }
 
     private static final String[] captures = new String[] {
@@ -83,7 +94,7 @@ public class PacketsTest {
             "netflow9_test_macaddr_data.dat",
             "netflow9_test_macaddr_tpl.dat",
             "netflow9_test_nprobe_data.dat",
-            "netflow9_test_nprobe_dpi.dat",
+//            "netflow9_test_nprobe_dpi.dat", invalid packet should be tested for failure handling
             "netflow9_test_nprobe_tpl.dat",
             "netflow9_test_softflowd_tpl_data.dat",
             "netflow9_test_streamcore_tpl_data256.dat",
@@ -96,10 +107,10 @@ public class PacketsTest {
 
     @Test
     public void testParse() {
-        PacketFactory packetFactory = new PacketFactory();
+        NetflowRegistry packetFactory = new NetflowRegistry();
         final List<NetflowPacket> packets = new ArrayList<>();
         Arrays.stream(captures)
-        .map(i -> { logger.debug(i + ": "); return i;})
+        .peek(i -> logger.debug("{} : ", i))
         .map(i -> "/netflow/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
         .filter(Objects::nonNull)
@@ -133,13 +144,18 @@ public class PacketsTest {
         });
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     public void testDecode() {
-        Decoder nfd = NetflowDecoder.getBuilder().build();
-        IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
+        Udp.Builder udpBuilder = Udp.getBuilder();
+        udpBuilder.setPort(2055);
+
+        Decoder nfd = loghub.decoders.Netflow.getBuilder().build();
+        nfd.configure(new Properties(new HashMap<>()), udpBuilder.build());
+
+        Random random = new Random();
+
         Arrays.stream(captures)
-        .map(i -> {logger.debug(i + ": "); return i;})
+        .peek(i -> logger.debug("{}: ", i))
         .map(i -> "/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
         .map(i -> {
@@ -150,7 +166,7 @@ public class PacketsTest {
                     out.write(buffer, 0, length);
                 }
                 return out;
-            } catch (Exception e) {
+            } catch (IOException e) {
                 Assert.fail(e.getMessage());
                 return null;
             }
@@ -158,21 +174,39 @@ public class PacketsTest {
         .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
         .forEach(i -> {
             try {
+                IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(random.nextInt(65535)), new InetSocketAddress(generateIpAddress(random), random.nextInt(65535)), null);
                 while (i.isReadable()) {
                     nfd.decode(dummyctx, i).forEach(content -> {
+                        Event ev = (Event) content;
+                        Assert.assertNull(ev.getLastException());
                         Assert.assertTrue(content.containsKey("version"));
                         Assert.assertTrue(content.containsKey("sequenceNumber"));
-                        Assert.assertTrue(content.containsKey("records"));
-                        ((List<Map<String, Object>>) content.get("records")).forEach(j -> Assert.assertTrue(j.containsKey("_type")));
-                        if (((Integer) content.get("version")) < 10) {
-                            Assert.assertTrue(content.containsKey("SysUptime"));
-                        }
-                        logger.debug(content);
+                        Assert.assertTrue(content.toString(), content.containsKey("msgUUID"));
                     });
                 }
-            } catch (Exception e) {
+            } catch (DecodeException e) {
                 Assert.fail(e.getMessage());
             }
         });
     }
+
+    private InetAddress generateIpAddress(Random random) {
+        byte[] buff = new byte[4];
+        ByteBuf bbuf = Unpooled.wrappedBuffer(buff);
+        bbuf.clear();
+        bbuf.writeInt(random.nextInt());
+        try {
+            return InetAddress.getByAddress(buff);
+        } catch (UnknownHostException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+
+    @Test
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.decoders.Netflow"
+        );
+    }
+
 }
