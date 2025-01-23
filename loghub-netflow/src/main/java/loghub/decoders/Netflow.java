@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,6 +141,11 @@ public class Netflow extends Decoder {
             Event newEvent = factory.newEvent(ctx);
             newEvent.setTimestamp(eventTimestamp);
             newEvent.putMeta("msgUUID", msgUuid);
+            Throwable ex = (Throwable) i.remove(NetflowPacket.EXCEPTION_KEY);
+            if (ex != null) {
+                newEvent.pushException(ex);
+            }
+            buildMeta(newEvent, i);
             newEvent.putAll(convertMap(i));
             newEvent.putAll(decodedPacket);
             if (flowSignature) {
@@ -163,15 +169,16 @@ public class Netflow extends Decoder {
             Event newEvent = factory.newEvent(ctx);
             newEvent.setTimestamp(eventTimestamp);
             newEvent.putMeta("msgUUID", msgUuid);
+            Throwable ex = (Throwable) i.remove(NetflowPacket.EXCEPTION_KEY);
+            if (ex != null) {
+                newEvent.pushException(ex);
+            }
+            buildMeta(newEvent, i);
             if (flowSignature) {
                 makeFlowSignature(i).ifPresent(uuid -> newEvent.putMeta("flowSignature", uuid));
             }
             newEvent.putAll(decodedPacket);
             newEvent.putAll(convertMap(i));
-            Throwable ex = (Throwable) i.remove(NetflowPacket.EXCEPTION_KEY);
-            if (ex != null) {
-                newEvent.pushException(ex);
-            }
             if (recordType == Template.TemplateType.Options) {
                 newEvent.putMeta("type", "option");
             } else if (recordType == Template.TemplateType.Records) {
@@ -182,6 +189,17 @@ public class Netflow extends Decoder {
             events.add(newEvent);
         });
         return events;
+    }
+
+    private void buildMeta(Event event, Map<String, Object> data) {
+        Iterator<Map.Entry<String, Object>> iterator = data.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Object> entry = iterator.next();
+            if (entry.getKey().startsWith("__")) {
+                event.putMeta(convertName(entry.getKey().substring(2)), entry.getValue());
+                iterator.remove();
+            }
+        }
     }
 
     private Optional<Object> makeFlowSignature(Map<String, Object> flow) {
