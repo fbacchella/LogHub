@@ -1,5 +1,6 @@
 package loghub.processors;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 
@@ -69,6 +70,7 @@ public class TestDurationConvert {
         Assert.assertEquals(10L, process(1, CENTI, MILLI));
         Assert.assertEquals(100L, process(1, DECI, MILLI));
         Assert.assertEquals(1_000_000L, process(1, MILLI, NANO));
+        Assert.assertEquals(1_000_000L, process(Duration.ofMillis(1), MILLI, NANO));
     }
 
     @Test

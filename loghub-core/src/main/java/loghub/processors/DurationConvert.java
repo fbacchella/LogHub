@@ -118,10 +118,11 @@ public class DurationConvert extends FieldsProcessor {
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
-        Number n;
+        Duration d;
         if (value instanceof Number) {
-            n = (Number) value;
+            d = in.from((Number) value);
         } else if (value instanceof String) {
+            Number n;
             try {
                 n = Long.parseLong((String) value);
             } catch (NumberFormatException e) {
@@ -131,10 +132,13 @@ public class DurationConvert extends FieldsProcessor {
                     throw event.buildException("Can't scan period " + value, e);
                 }
             }
+            d = in.from(n);
+        } else if (value instanceof Duration) {
+            d = (Duration) value;
         } else {
             throw event.buildException("Can't scan period " + value);
         }
-        return out.to(in.from(n));
+        return out.to(d);
     }
 
 }
