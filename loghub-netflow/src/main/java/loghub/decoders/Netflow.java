@@ -1,11 +1,17 @@
 package loghub.decoders;
 
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -27,9 +33,22 @@ import lombok.Setter;
 @BuilderClass(Netflow.Builder.class)
 public class Netflow extends Decoder {
 
+    private static final ThreadLocal<MessageDigest> MD5;
+    static {
+        MD5 = ThreadLocal.withInitial( () -> {
+            try {
+                return MessageDigest.getInstance("MD5");
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException(e);
+            }
+        });
+    }
+    private static final Base64.Encoder b64encoder = Base64.getEncoder().withoutPadding();
+
     @Setter
     public static class Builder extends Decoder.Builder<Netflow> {
         private boolean snakeCase = false;
+        private boolean flowSignature = false;
         @Override
         public Netflow build() {
             return new Netflow(this);
@@ -46,11 +65,13 @@ public class Netflow extends Decoder {
     private final NetflowRegistry registry;
     private EventsFactory factory;
     private final boolean snakeCase;
+    private final boolean flowSignature;
 
     private Netflow(Builder builder) {
         super(builder);
         registry = new NetflowRegistry();
         snakeCase = builder.snakeCase;
+        flowSignature = builder.flowSignature;
     }
 
     @Override
@@ -121,6 +142,9 @@ public class Netflow extends Decoder {
             newEvent.putMeta("msgUUID", msgUuid);
             newEvent.putAll(convertMap(i));
             newEvent.putAll(decodedPacket);
+            if (flowSignature) {
+                makeFlowSignature(i).ifPresent(uuid -> newEvent.putMeta("flowSignature", uuid));
+            }
             events.add(newEvent);
         });
         return events;
@@ -139,6 +163,9 @@ public class Netflow extends Decoder {
             Event newEvent = factory.newEvent(ctx);
             newEvent.setTimestamp(eventTimestamp);
             newEvent.putMeta("msgUUID", msgUuid);
+            if (flowSignature) {
+                makeFlowSignature(i).ifPresent(uuid -> newEvent.putMeta("flowSignature", uuid));
+            }
             newEvent.putAll(decodedPacket);
             newEvent.putAll(convertMap(i));
             Throwable ex = (Throwable) i.remove(NetflowPacket.EXCEPTION_KEY);
@@ -155,6 +182,47 @@ public class Netflow extends Decoder {
             events.add(newEvent);
         });
         return events;
+    }
+
+    private Optional<Object> makeFlowSignature(Map<String, Object> flow) {
+        List<String> idElements = new ArrayList<>();
+        for (String i: List.of("srcaddr", "dstaddr", "srcport", "dstport", "prot",
+                               "sourceIPv4Address", "sourceTransportPort",
+                               "destinationIPv4Address", "destinationTransportPort",
+                               "protocolIdentifier")) {
+            if (flow.containsKey(i)) {
+                String prefix = "other:";
+                switch (i) {
+                case "srcaddr":
+                case "dstaddr":
+                case "sourceIPv4Address":
+                case "destinationIPv4Address":
+                    prefix = "ip:";
+                    break;
+                case "srcport":
+                case "dstport":
+                case "sourceTransportPort":
+                case "destinationTransportPort":
+                    prefix = "port:";
+                    break;
+                case "prot":
+                case "protocolIdentifier":
+                    prefix = "proto:";
+                    break;
+                }
+                idElements.add(prefix + flow.get(i));
+            }
+        }
+        if (! idElements.isEmpty()) {
+            Collections.sort(idElements);
+            MessageDigest localMD5 = MD5.get();
+            localMD5.reset();
+            idElements.forEach(s -> localMD5.update(s.getBytes(StandardCharsets.UTF_8)));
+            String encoded = b64encoder.encodeToString(localMD5.digest());
+            return Optional.of(encoded);
+        } else {
+            return Optional.empty();
+        }
     }
 
     public String convertName(String name) {
