@@ -2,7 +2,9 @@ package loghub.netflow;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +39,7 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
     private final List<Map<String, Object>> records;
     @Getter
     private final boolean withFailure = false;
+    private Instant systemInitTime = null;
 
     protected TemplateBasedPacket(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) {
         short version = bbuf.readShort();
@@ -135,6 +138,34 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
                     Throwable t = new IllegalStateException(String.format("Invalid or unhandled Netflow/IPFIX packet: " + Helpers.resolveThrowableException(e)), e);
                     record.put(NetflowPacket.EXCEPTION_KEY, t);
                 }
+            }
+            if (record.containsKey("systemInitTimeMilliseconds")) {
+                systemInitTime = (Instant) record.get("systemInitTimeMilliseconds");
+            }
+            if (systemInitTime == null && header.sysUpTime != 0) {
+                systemInitTime = exportTime.minusMillis(header.sysUpTime);
+            }
+            if (systemInitTime != null) {
+                record.put("__systemInitTime", systemInitTime);
+            }
+            Duration endRelative = null;
+            if (record.containsKey("flowEndSysUpTime")) {
+                endRelative = Duration.ofMillis(((Number) record.get("flowEndSysUpTime")).longValue());
+                if (systemInitTime != null) {
+                    Temporal endTime = endRelative.addTo(systemInitTime);
+                    record.put("__endTime", endTime);
+                }
+            }
+            Duration startRelative = null;
+            if (record.containsKey("flowStartSysUpTime")) {
+                startRelative = Duration.ofMillis(((Number) record.get("flowStartSysUpTime")).longValue());
+                if (systemInitTime != null) {
+                    Temporal startTime = startRelative.addTo(systemInitTime);
+                    record.put("__startTime", startTime);
+                }
+            }
+            if (endRelative != null && startRelative != null) {
+                record.put("__duration", endRelative.minus(startRelative));
             }
             records.add(record);
         }
