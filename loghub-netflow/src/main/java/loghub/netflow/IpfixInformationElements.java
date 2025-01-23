@@ -132,10 +132,7 @@ class IpfixInformationElements {
                 byte value = bbuf.readByte();
                 return value == 1;
             } else if ("applicationId".equals(e.name)) {
-                Map<String, Number> applicationId = new HashMap<>();
-                applicationId.put("ClassificationEngineID", bbuf.readByte());
-                applicationId.put("SelectorID", readUnsignedNumValue(bbuf));
-                return applicationId;
+                return decodeApplicationId(bbuf);
             } else if ("octetArray".equals(e.type) || "Reserved".equals(e.name)) {
                 byte[] buffer = new byte[bbuf.readableBytes()];
                 bbuf.readBytes(buffer);
@@ -155,6 +152,19 @@ class IpfixInformationElements {
             // Should never be reached
             throw new IllegalStateException(e);
         }
+    }
+
+    private Map<String, Object> decodeApplicationId(ByteBuf bbuf) {
+        Map<String, Object> applicationId = new HashMap<>();
+        byte classificationEngineID = bbuf.readByte();
+        applicationId.put("ClassificationEngineID", classificationEngineID);
+        // The encoding of the class PANA-L7-PEN is a little magique
+        if (classificationEngineID == 20) {
+            applicationId.put("PrivateEntrepriseNumber", bbuf.readInt());
+        }
+        applicationId.put("SelectorID", readUnsignedNumValue(bbuf));
+
+        return applicationId;
     }
 
     private long readNumValue(ByteBuf bbuf) {
