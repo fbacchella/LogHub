@@ -113,23 +113,6 @@ public class Netflow extends Decoder {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> convertMap(Map<String, Object> map) {
-        if (snakeCase) {
-            Map<String, Object> newMap = new HashMap<>(map.size());
-            for (Map.Entry<String, Object> e: map.entrySet()) {
-                Object value = e.getValue();
-                if (value instanceof Map) {
-                    value = convertMap((Map<String, Object>) value);
-                }
-                newMap.put(convertName(e.getKey()), value);
-            }
-            return newMap;
-        } else {
-            return map;
-        }
-     }
-
     private Object splitV5Packet(ConnectionContext<?> ctx, Instant eventTimestamp, Map<String, Object> decodedPacket) {
         List<Event> events = new ArrayList<>();
         @SuppressWarnings("unchecked")
@@ -156,7 +139,7 @@ public class Netflow extends Decoder {
         return events;
     }
 
-    List<Event> splitTemplatePacket(ConnectionContext ctx, Instant eventTimestamp, Map<String, Object> decodedPacket) {
+    List<Event> splitTemplatePacket(ConnectionContext<?> ctx, Instant eventTimestamp, Map<String, Object> decodedPacket) {
         List<Event> events = new ArrayList<>();
 
         @SuppressWarnings("unchecked")
@@ -165,10 +148,17 @@ public class Netflow extends Decoder {
         UUID msgUuid = UUID.randomUUID();
 
         records.forEach(i -> {
-            Template.TemplateType recordType = (Template.TemplateType) i.remove(NetflowRegistry.TYPEKEY);
             Event newEvent = factory.newEvent(ctx);
             newEvent.setTimestamp(eventTimestamp);
             newEvent.putMeta("msgUUID", msgUuid);
+            Template.TemplateType recordType = (Template.TemplateType) i.remove(NetflowRegistry.TYPEKEY);
+            if (recordType == Template.TemplateType.Options) {
+                newEvent.putMeta("type", "option");
+            } else if (recordType == Template.TemplateType.Records) {
+                newEvent.putMeta("type", "flow");
+            } else {
+                newEvent.putMeta("type", "unknown");
+            }
             Throwable ex = (Throwable) i.remove(NetflowPacket.EXCEPTION_KEY);
             if (ex != null) {
                 newEvent.pushException(ex);
@@ -179,13 +169,6 @@ public class Netflow extends Decoder {
             }
             newEvent.putAll(decodedPacket);
             newEvent.putAll(convertMap(i));
-            if (recordType == Template.TemplateType.Options) {
-                newEvent.putMeta("type", "option");
-            } else if (recordType == Template.TemplateType.Records) {
-                newEvent.putMeta("type", "flow");
-            } else {
-                newEvent.putMeta("type", "unknown");
-            }
             events.add(newEvent);
         });
         return events;
@@ -201,6 +184,23 @@ public class Netflow extends Decoder {
             }
         }
     }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> convertMap(Map<String, Object> map) {
+        if (snakeCase) {
+            Map<String, Object> newMap = new HashMap<>(map.size());
+            for (Map.Entry<String, Object> e: map.entrySet()) {
+                Object value = e.getValue();
+                if (value instanceof Map) {
+                    value = convertMap((Map<String, Object>) value);
+                }
+                newMap.put(convertName(e.getKey()), value);
+            }
+            return newMap;
+        } else {
+            return map;
+        }
+     }
 
     private Optional<Object> makeFlowSignature(Map<String, Object> flow) {
         List<String> idElements = new ArrayList<>();
