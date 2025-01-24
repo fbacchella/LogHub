@@ -4,7 +4,6 @@ import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -23,11 +22,13 @@ import loghub.IpConnectionContext;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.netflow.IpfixPacket;
 import loghub.netflow.Netflow5Packet;
 import loghub.netflow.Netflow9Packet;
 import loghub.netflow.NetflowPacket;
 import loghub.netflow.NetflowRegistry;
 import loghub.netflow.Template;
+import loghub.netflow.TemplateBasedPacket;
 import loghub.receivers.Receiver;
 import lombok.Setter;
 
@@ -87,24 +88,14 @@ public class Netflow extends Decoder {
         if (ctx instanceof IpConnectionContext) {
             addr = ((IpConnectionContext) ctx).getRemoteAddress().getAddress();
             NetflowPacket packet = registry.parsePacket(addr, bbuf);
-            Map<String, Object> decodedPacket = new HashMap<>();
-            Instant eventTimestamp = packet.getExportTime();
-            decodedPacket.put(convertName("sequenceNumber"), packet.getSequenceNumber());
-            decodedPacket.put("version", packet.getVersion());
-            decodedPacket.put("records", packet.getRecords());
+            UUID msgUuid = UUID.randomUUID();
             switch (packet.getVersion()) {
             case 5:
-                Netflow5Packet packet5 = (Netflow5Packet) packet;
-                decodedPacket.put(convertName("EngineType"), packet5.getEngineType());
-                decodedPacket.put(convertName("SamplingInterval"), packet5.getSamplingInterval());
-                decodedPacket.put(convertName("SamplingMode"), packet5.getSamplingMode());
-                decodedPacket.put(convertName("SysUptime"), packet5.getSysUpTime());
-                return splitV5Packet(ctx, eventTimestamp, decodedPacket);
+                return splitV5Packet(ctx, msgUuid, (Netflow5Packet) packet);
             case 9:
-                decodedPacket.put(convertName("SysUptime"), ((Netflow9Packet) packet).getSysUpTime());
-                return splitTemplatePacket(ctx, eventTimestamp, decodedPacket);
+                return splitV9Packet(ctx, msgUuid, (Netflow9Packet) packet);
             case 10:
-                return splitTemplatePacket(ctx, eventTimestamp, decodedPacket);
+                return splitTemplatePacket(ctx, msgUuid, (IpfixPacket) packet);
             default:
                 throw new UnsupportedOperationException();
             }
@@ -113,45 +104,37 @@ public class Netflow extends Decoder {
         }
     }
 
-    private Object splitV5Packet(ConnectionContext<?> ctx, Instant eventTimestamp, Map<String, Object> decodedPacket) {
+    private List<Event> splitV5Packet(ConnectionContext<?> ctx, UUID msgUuid, Netflow5Packet packet) {
         List<Event> events = new ArrayList<>();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> records = (List<Map<String, Object>>) decodedPacket.remove("records");
-
-        UUID msgUuid = UUID.randomUUID();
-
-        records.forEach(i -> {
-            Event newEvent = factory.newEvent(ctx);
-            newEvent.setTimestamp(eventTimestamp);
-            newEvent.putMeta("msgUUID", msgUuid);
-            Throwable ex = (Throwable) i.remove(NetflowPacket.EXCEPTION_KEY);
-            if (ex != null) {
-                newEvent.pushException(ex);
-            }
-            buildMeta(newEvent, i);
-            newEvent.putAll(convertMap(i));
-            newEvent.putAll(decodedPacket);
-            if (flowSignature) {
-                makeFlowSignature(i).ifPresent(uuid -> newEvent.putMeta("flowSignature", uuid));
-            }
+        String engineTypeName = convertName("EngineType");
+        String samplingIntervalName = convertName("SamplingInterval");
+        String samplingModeName = convertName("SamplingMode");
+        String sysUptimeName = convertName("SysUptime");
+        packet.getRecords().forEach(i -> {
+            Event newEvent = newEvent(ctx, packet, msgUuid, i);
+            newEvent.put(engineTypeName, packet.getEngineType());
+            newEvent.put(samplingIntervalName, packet.getSamplingInterval());
+            newEvent.put(samplingModeName, packet.getSamplingMode());
+            newEvent.put(sysUptimeName, packet.getSysUpTime());
             events.add(newEvent);
         });
         return events;
     }
 
-    List<Event> splitTemplatePacket(ConnectionContext<?> ctx, Instant eventTimestamp, Map<String, Object> decodedPacket) {
+    List<Event> splitV9Packet(ConnectionContext<?> ctx, UUID msgUuid, Netflow9Packet packet) {
+        List<Event> events = splitTemplatePacket(ctx, msgUuid, packet);
+        String sysUptimeName = convertName("SysUptime");
+        events.forEach(ev -> ev.put(sysUptimeName, packet.getSysUpTime()));
+        return events;
+    }
+
+    List<Event> splitTemplatePacket(ConnectionContext<?> ctx, UUID msgUuid, TemplateBasedPacket packet) {
         List<Event> events = new ArrayList<>();
 
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> records = (List<Map<String, Object>>) decodedPacket.remove("records");
-
-        UUID msgUuid = UUID.randomUUID();
-
-        records.forEach(i -> {
-            Event newEvent = factory.newEvent(ctx);
-            newEvent.setTimestamp(eventTimestamp);
-            newEvent.putMeta("msgUUID", msgUuid);
+        packet.getRecords().forEach(i -> {
             Template.TemplateType recordType = (Template.TemplateType) i.remove(NetflowRegistry.TYPEKEY);
+
+            Event newEvent = newEvent(ctx, packet, msgUuid, i);
             if (recordType == Template.TemplateType.Options) {
                 newEvent.putMeta("type", "option");
             } else if (recordType == Template.TemplateType.Records) {
@@ -159,19 +142,27 @@ public class Netflow extends Decoder {
             } else {
                 newEvent.putMeta("type", "unknown");
             }
-            Throwable ex = (Throwable) i.remove(NetflowPacket.EXCEPTION_KEY);
-            if (ex != null) {
-                newEvent.pushException(ex);
-            }
-            buildMeta(newEvent, i);
-            if (flowSignature) {
-                makeFlowSignature(i).ifPresent(uuid -> newEvent.putMeta("flowSignature", uuid));
-            }
-            newEvent.putAll(decodedPacket);
-            newEvent.putAll(convertMap(i));
             events.add(newEvent);
         });
         return events;
+    }
+
+    private Event newEvent(ConnectionContext<?> ctx, NetflowPacket packet, UUID msgUuid, Map<String, Object> data) {
+        Event newEvent = factory.newEvent(ctx);
+        newEvent.setTimestamp(packet.getExportTime());
+        newEvent.putMeta("msgUUID", msgUuid);
+        Throwable ex = (Throwable) data.remove(NetflowPacket.EXCEPTION_KEY);
+        if (ex != null) {
+            newEvent.pushException(ex);
+        }
+        buildMeta(newEvent, data);
+        if (flowSignature) {
+            makeFlowSignature(data).ifPresent(uuid -> newEvent.putMeta("flowSignature", uuid));
+        }
+        newEvent.putAll(convertMap(data));
+        newEvent.put(convertName("sequenceNumber"), packet.getSequenceNumber());
+        newEvent.put("version", packet.getVersion());
+        return newEvent;
     }
 
     private void buildMeta(Event event, Map<String, Object> data) {
