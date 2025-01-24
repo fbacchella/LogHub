@@ -26,8 +26,8 @@ public class Netflow5Packet implements NetflowPacket {
     private final Duration sysUpTime;
     private final Instant exportTime;
     private final long sequenceNumber;
-    private final int type;
-    private final Integer id;
+    private final int engineType;
+    private final Integer engineId;
     @Getter
     private final short samplingInterval;
     @Getter
@@ -50,8 +50,8 @@ public class Netflow5Packet implements NetflowPacket {
         long exportNano = Integer.toUnsignedLong(bbuf.readInt());
         exportTime = Instant.ofEpochSecond(exportSecs, exportNano);
         sequenceNumber = Integer.toUnsignedLong(bbuf.readInt());
-        type = Byte.toUnsignedInt(bbuf.readByte());
-        id = Byte.toUnsignedInt(bbuf.readByte());
+        engineType = Byte.toUnsignedInt(bbuf.readByte());
+        engineId = Byte.toUnsignedInt(bbuf.readByte());
         //Sampling interval
         short samplingIntervalBuffer = bbuf.readShort();
         samplingInterval = (short) (samplingIntervalBuffer & 0x3FF);
@@ -114,7 +114,7 @@ public class Netflow5Packet implements NetflowPacket {
 
     @Override
     public Object getId() {
-        return id;
+        return engineId;
     }
 
     @Override
@@ -131,7 +131,7 @@ public class Netflow5Packet implements NetflowPacket {
      * @return the type
      */
     public int getEngineType() {
-        return type;
+        return engineType;
     }
 
 }

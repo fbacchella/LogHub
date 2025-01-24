@@ -95,7 +95,7 @@ public class Netflow extends Decoder {
             case 9:
                 return splitV9Packet(ctx, msgUuid, (Netflow9Packet) packet);
             case 10:
-                return splitTemplatePacket(ctx, msgUuid, (IpfixPacket) packet);
+                return splitIpfixPacket(ctx, msgUuid, (IpfixPacket) packet);
             default:
                 throw new UnsupportedOperationException();
             }
@@ -106,13 +106,15 @@ public class Netflow extends Decoder {
 
     private List<Event> splitV5Packet(ConnectionContext<?> ctx, UUID msgUuid, Netflow5Packet packet) {
         List<Event> events = new ArrayList<>();
-        String engineTypeName = convertName("EngineType");
-        String samplingIntervalName = convertName("SamplingInterval");
-        String samplingModeName = convertName("SamplingMode");
-        String sysUptimeName = convertName("SysUptime");
+        String engineTypeName = convertName("engineType");
+        String engineIdName = convertName("engineId");
+        String samplingIntervalName = convertName("samplingInterval");
+        String samplingModeName = convertName("samplingMode");
+        String sysUptimeName = convertName("sysUpTime");
         packet.getRecords().forEach(i -> {
             Event newEvent = newEvent(ctx, packet, msgUuid, i);
             newEvent.put(engineTypeName, packet.getEngineType());
+            newEvent.put(engineIdName, packet.getId());
             newEvent.put(samplingIntervalName, packet.getSamplingInterval());
             newEvent.put(samplingModeName, packet.getSamplingMode());
             newEvent.put(sysUptimeName, packet.getSysUpTime());
@@ -123,8 +125,21 @@ public class Netflow extends Decoder {
 
     List<Event> splitV9Packet(ConnectionContext<?> ctx, UUID msgUuid, Netflow9Packet packet) {
         List<Event> events = splitTemplatePacket(ctx, msgUuid, packet);
-        String sysUptimeName = convertName("SysUptime");
-        events.forEach(ev -> ev.put(sysUptimeName, packet.getSysUpTime()));
+        String sysUptimeName = convertName("sysUpTime");
+        String sourceIdName = convertName("sourceId");
+        events.forEach(ev -> {
+            ev.put(sysUptimeName, packet.getSysUpTime());
+            ev.put(sourceIdName, packet.getId());
+        });
+        return events;
+    }
+
+    List<Event> splitIpfixPacket(ConnectionContext<?> ctx, UUID msgUuid, IpfixPacket packet) {
+        List<Event> events = splitTemplatePacket(ctx, msgUuid, packet);
+        String observationDomainIdName = convertName("observationDomainId");
+        events.forEach(ev -> {
+            ev.put(observationDomainIdName, packet.getId());
+        });
         return events;
     }
 
@@ -132,16 +147,7 @@ public class Netflow extends Decoder {
         List<Event> events = new ArrayList<>();
 
         packet.getRecords().forEach(i -> {
-            Template.TemplateType recordType = (Template.TemplateType) i.remove(NetflowRegistry.TYPEKEY);
-
             Event newEvent = newEvent(ctx, packet, msgUuid, i);
-            if (recordType == Template.TemplateType.OPTIONS) {
-                newEvent.putMeta("type", "option");
-            } else if (recordType == Template.TemplateType.RECORDS) {
-                newEvent.putMeta("type", "flow");
-            } else {
-                newEvent.putMeta("type", "unknown");
-            }
             events.add(newEvent);
         });
         return events;
@@ -154,6 +160,14 @@ public class Netflow extends Decoder {
         Throwable ex = (Throwable) data.remove(NetflowPacket.EXCEPTION_KEY);
         if (ex != null) {
             newEvent.pushException(ex);
+        }
+        Template.TemplateType recordType = (Template.TemplateType) data.remove(NetflowRegistry.TYPEKEY);
+        if (recordType == Template.TemplateType.OPTIONS) {
+            newEvent.putMeta("type", "option");
+        } else if (recordType == Template.TemplateType.RECORDS) {
+            newEvent.putMeta("type", "flow");
+        } else {
+            newEvent.putMeta("type", "unknown");
         }
         buildMeta(newEvent, data);
         if (flowSignature) {
