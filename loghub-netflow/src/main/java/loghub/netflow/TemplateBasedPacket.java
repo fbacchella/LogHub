@@ -67,9 +67,9 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
             }
         }
         records = List.copyOf(tmpRecords);
-        if (count > 0 && flowSetSeen > count) {
+        if (count > 0 && flowSeen > count) {
             logger.debug("Too much records seen: {}/{}/{}", flowSeen, flowSetSeen, count);
-        } else if (flowSetSeen < count) {
+        } else if (flowSeen < count) {
             logger.debug("Not enough records: {}/{}/{}", flowSeen, flowSetSeen, count);
         }
     }
@@ -82,13 +82,17 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
         int setLength = Short.toUnsignedInt(bbuf.readShort());
         switch (flowSetId) {
         case 0: // Netflow v9 Template FlowSet
-            return registry.readTemplateSet(key, bbuf.readSlice(setLength - 4), false);
+            registry.readTemplateSet(key, bbuf.readSlice(setLength - 4), false);
+            return 1;
         case 1: // Netflow v9 Option Template FlowSet
-            return registry.readOptionsTemplateNetflowSet(key, bbuf.readSlice(setLength - 4));
-        case 2: // IPFIX Template FlowSet
-            return registry.readTemplateSet(key, bbuf.readSlice(setLength - 4), true);
+            registry.readOptionsTemplateNetflowSet(key, bbuf.readSlice(setLength - 4));
+            return 1;
+        case 2:
+            registry.readTemplateSet(key, bbuf.readSlice(setLength - 4), true);// IPFIX Template FlowSet
+            return 1;
         case 3: // IPFIX Option Template FlowSet
-            return registry.readOptionsTemplateIpfixSet(key, bbuf.readSlice(setLength - 4));
+            registry.readOptionsTemplateIpfixSet(key, bbuf.readSlice(setLength - 4));
+            return 1;
         default:
             return readDataSet(key, bbuf.readSlice(setLength - 4), flowSetId, registry, records);
         }
@@ -102,7 +106,7 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
     }
 
     private int readDataSet(Template tpl, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
-        int recordCount = 0;
+        int flowSeen = 0;
         // The test ensure there is more than padding left in the ByteBuf
         while (bbuf.isReadable(4)) {
             Map<String, Object> recordData = new HashMap<>(tpl.getSizes());
@@ -121,7 +125,6 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
                     Object value = registry.getTypeValue(type, content);
                     recordData.put(registry.getTypeName(type), value);
                     recordData.put(NetflowRegistry.TYPEKEY, tpl.type);
-                    recordCount++;
                 } catch (IndexOutOfBoundsException e) {
                     Throwable t = new IOException(String.format("Reading outside range: %d out of %d", fieldSize, bbuf.readableBytes()), e);
                     recordData.put(NetflowPacket.EXCEPTION_KEY, t);
@@ -158,9 +161,10 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
             if (endRelative != null && startRelative != null) {
                 recordData.put("__duration", endRelative.minus(startRelative));
             }
+            flowSeen++;
             records.add(recordData);
         }
-        return recordCount;
+        return flowSeen;
     }
 
     @Override

@@ -51,9 +51,7 @@ public class NetflowRegistry {
     }
 
     int readTemplateSet(Template.TemplateId key, ByteBuf bbuf, boolean canEntrepriseNumber) {
-        int recordseen = 0;
         while (bbuf.isReadable()) {
-            recordseen++;
             int templateId = Short.toUnsignedInt(bbuf.readShort());
             logger.trace("  template {}", templateId);
             int fieldsCount = Short.toUnsignedInt(bbuf.readShort());
@@ -68,15 +66,12 @@ public class NetflowRegistry {
             }
             templates.computeIfAbsent(key, i -> new HashMap<>()).put(templateId, template);
         }
-        return recordseen;
+        return 1;
     }
 
-    int readOptionsTemplateNetflowSet(Template.TemplateId key, ByteBuf bbuf) {
-        int recordseen = 0;
+    void readOptionsTemplateNetflowSet(Template.TemplateId key, ByteBuf bbuf) {
         // The test ensure there is more than padding left in the ByteBuf
-        while (bbuf.isReadable(3)) {
-            logger.trace("  options");
-            recordseen++;
+        while (bbuf.isReadable(4)) {
             int templateId = Short.toUnsignedInt(bbuf.readShort());
             int scopeLength = Short.toUnsignedInt(bbuf.readShort());
             int optionsLength = Short.toUnsignedInt(bbuf.readShort());
@@ -93,11 +88,9 @@ public class NetflowRegistry {
             }
             templates.computeIfAbsent(key, i -> new HashMap<>()).put(templateId, template);
         }
-        return recordseen;
     }
 
-    int readOptionsTemplateIpfixSet(Template.TemplateId key, ByteBuf bbuf) {
-        int recordseen = 0;
+    void readOptionsTemplateIpfixSet(Template.TemplateId key, ByteBuf bbuf) {
         // The test ensure there is more than padding left in the ByteBuf
         while (bbuf.isReadable(3)) {
             logger.trace("  options");
@@ -113,7 +106,6 @@ public class NetflowRegistry {
             }
             templates.computeIfAbsent(key, i -> new HashMap<>()).put(templateId, template);
         }
-        return recordseen;
     }
 
     Optional<Template> getTemplate(Template.TemplateId key, int flowSetId) {
