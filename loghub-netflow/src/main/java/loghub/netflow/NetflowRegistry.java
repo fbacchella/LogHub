@@ -17,7 +17,6 @@ public class NetflowRegistry {
     private static final Logger logger = LogManager.getLogger();
 
     public static final String TYPEKEY = "__type";
-
     private final Map<Template.TemplateId, Map<Integer, Template>> templates = new ConcurrentHashMap<>();
     private final IpfixInformationElements ipfixtypes;
 
@@ -63,7 +62,7 @@ public class NetflowRegistry {
                 //It was padding, not a real template template
                 break;
             }
-            Template template = new Template(Template.TemplateType.Records, fieldsCount);
+            Template template = new Template(Template.TemplateType.RECORDS, fieldsCount);
             for (int i = 0; i < fieldsCount; i++) {
                 readDefinition(bbuf, canEntrepriseNumber, template, false);
             }
@@ -81,7 +80,7 @@ public class NetflowRegistry {
             int templateId = Short.toUnsignedInt(bbuf.readShort());
             int scopeLength = Short.toUnsignedInt(bbuf.readShort());
             int optionsLength = Short.toUnsignedInt(bbuf.readShort());
-            Template template = new Template(Template.TemplateType.Options);
+            Template template = new Template(Template.TemplateType.OPTIONS);
             ByteBuf scopes = bbuf.readSlice(scopeLength);
             ByteBuf options = bbuf.readSlice(optionsLength);
             // The test ensure there is more than padding left in the ByteBuf
@@ -105,7 +104,7 @@ public class NetflowRegistry {
             int templateId = Short.toUnsignedInt(bbuf.readShort());
             int fieldsCount = Short.toUnsignedInt(bbuf.readShort());
             int scopesCount = Short.toUnsignedInt(bbuf.readShort());
-            Template template = new Template(Template.TemplateType.Options, fieldsCount);
+            Template template = new Template(Template.TemplateType.OPTIONS, fieldsCount);
             for (int i = 0; i < scopesCount; i++) {
                 readDefinition(bbuf, true, template, true);
             }
@@ -132,5 +131,4 @@ public class NetflowRegistry {
     public Object getTypeValue(int i, ByteBuf bbuf) {
         return ipfixtypes.getValue(i, bbuf);
     }
-
 }

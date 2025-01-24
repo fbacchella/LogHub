@@ -37,22 +37,17 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
     protected final int count;
     @Getter
     private final List<Map<String, Object>> records;
-    @Getter
-    private final boolean withFailure = false;
     private Instant systemInitTime = null;
 
     protected TemplateBasedPacket(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) {
         short version = bbuf.readShort();
         if (version < 9) {
-            throw new RuntimeException("Invalid version");
+            throw new IllegalArgumentException("Invalid version " + version);
         }
         header = readHeader(bbuf);
         this.count = header.count;
         this.length = header.length;
 
-        if (count > 0) {
-            logger.trace("{} records expected", count);
-        }
         exportTime = Instant.ofEpochSecond(Integer.toUnsignedLong(bbuf.readInt()));
         sequenceNumber = Integer.toUnsignedLong(bbuf.readInt());
         sourceId = bbuf.readInt();
@@ -84,19 +79,18 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
     protected int readSet(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
         Template.TemplateId key = new Template.TemplateId(remoteAddr, sourceId);
         int flowSetId = Short.toUnsignedInt(bbuf.readShort());
-        int length = Short.toUnsignedInt(bbuf.readShort());
-        logger.trace("flow set id {}", flowSetId);
+        int setLength = Short.toUnsignedInt(bbuf.readShort());
         switch (flowSetId) {
         case 0: // Netflow v9 Template FlowSet
-            return registry.readTemplateSet(key, bbuf.readSlice(length - 4), false);
+            return registry.readTemplateSet(key, bbuf.readSlice(setLength - 4), false);
         case 1: // Netflow v9 Option Template FlowSet
-            return registry.readOptionsTemplateNetflowSet(key, bbuf.readSlice(length - 4));
+            return registry.readOptionsTemplateNetflowSet(key, bbuf.readSlice(setLength - 4));
         case 2: // IPFIX Template FlowSet
-            return registry.readTemplateSet(key, bbuf.readSlice(length - 4), true);
+            return registry.readTemplateSet(key, bbuf.readSlice(setLength - 4), true);
         case 3: // IPFIX Option Template FlowSet
-            return registry.readOptionsTemplateIpfixSet(key, bbuf.readSlice(length - 4));
+            return registry.readOptionsTemplateIpfixSet(key, bbuf.readSlice(setLength - 4));
         default:
-            return readDataSet(key, bbuf.readSlice(length - 4), flowSetId, registry, records);
+            return readDataSet(key, bbuf.readSlice(setLength - 4), flowSetId, registry, records);
         }
     }
 
@@ -111,14 +105,12 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
         int recordCount = 0;
         // The test ensure there is more than padding left in the ByteBuf
         while (bbuf.isReadable(4)) {
-            Map<String, Object> record = new HashMap<>(tpl.getSizes());
-            logger.trace("  data");
+            Map<String, Object> recordData = new HashMap<>(tpl.getSizes());
             for (int i = 0; i < tpl.getSizes(); i++) {
                 int type;
-                int fieldSize = 0;
+                type = tpl.types.get(i);
+                int fieldSize = tpl.getSize(i);
                 try {
-                    type = tpl.types.get(i);
-                    fieldSize = tpl.getSize(i);
                     if (fieldSize == 65535) {
                         fieldSize = Byte.toUnsignedInt(bbuf.readByte());
                         if (fieldSize == 255) {
@@ -127,47 +119,46 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
                     }
                     ByteBuf content = bbuf.readSlice(fieldSize);
                     Object value = registry.getTypeValue(type, content);
-                    logger.trace("    {} {} {}", registry.getTypeName(type), fieldSize, value);
-                    record.put(registry.getTypeName(type), value);
-                    record.put(NetflowRegistry.TYPEKEY, tpl.type);
+                    recordData.put(registry.getTypeName(type), value);
+                    recordData.put(NetflowRegistry.TYPEKEY, tpl.type);
                     recordCount++;
                 } catch (IndexOutOfBoundsException e) {
                     Throwable t = new IOException(String.format("Reading outside range: %d out of %d", fieldSize, bbuf.readableBytes()), e);
-                    record.put(NetflowPacket.EXCEPTION_KEY, t);
+                    recordData.put(NetflowPacket.EXCEPTION_KEY, t);
                 } catch (RuntimeException e) {
-                    Throwable t = new IllegalStateException(String.format("Invalid or unhandled Netflow/IPFIX packet: " + Helpers.resolveThrowableException(e)), e);
-                    record.put(NetflowPacket.EXCEPTION_KEY, t);
+                    Throwable t = new IllegalStateException(String.format("Invalid or unhandled Netflow/IPFIX packet: %s", Helpers.resolveThrowableException(e)), e);
+                    recordData.put(NetflowPacket.EXCEPTION_KEY, t);
                 }
             }
-            if (record.containsKey("systemInitTimeMilliseconds")) {
-                systemInitTime = (Instant) record.get("systemInitTimeMilliseconds");
+            if (recordData.containsKey("systemInitTimeMilliseconds")) {
+                systemInitTime = (Instant) recordData.get("systemInitTimeMilliseconds");
             }
             if (systemInitTime == null && header.sysUpTime != 0) {
                 systemInitTime = exportTime.minusMillis(header.sysUpTime);
             }
             if (systemInitTime != null) {
-                record.put("__systemInitTime", systemInitTime);
+                recordData.put("__systemInitTime", systemInitTime);
             }
             Duration endRelative = null;
-            if (record.containsKey("flowEndSysUpTime")) {
-                endRelative = Duration.ofMillis(((Number) record.get("flowEndSysUpTime")).longValue());
+            if (recordData.containsKey("flowEndSysUpTime")) {
+                endRelative = Duration.ofMillis(((Number) recordData.get("flowEndSysUpTime")).longValue());
                 if (systemInitTime != null) {
                     Temporal endTime = endRelative.addTo(systemInitTime);
-                    record.put("__endTime", endTime);
+                    recordData.put("__endTime", endTime);
                 }
             }
             Duration startRelative = null;
-            if (record.containsKey("flowStartSysUpTime")) {
-                startRelative = Duration.ofMillis(((Number) record.get("flowStartSysUpTime")).longValue());
+            if (recordData.containsKey("flowStartSysUpTime")) {
+                startRelative = Duration.ofMillis(((Number) recordData.get("flowStartSysUpTime")).longValue());
                 if (systemInitTime != null) {
                     Temporal startTime = startRelative.addTo(systemInitTime);
-                    record.put("__startTime", startTime);
+                    recordData.put("__startTime", startTime);
                 }
             }
             if (endRelative != null && startRelative != null) {
-                record.put("__duration", endRelative.minus(startRelative));
+                recordData.put("__duration", endRelative.minus(startRelative));
             }
-            records.add(record);
+            records.add(recordData);
         }
         return recordCount;
     }

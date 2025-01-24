@@ -36,8 +36,8 @@ public class Template {
         return sizes.size();
     }
 
-    int getSize(int record) {
-        return sizes.get(record);
+    int getSize(int recordId) {
+        return sizes.get(recordId);
     }
 
     @Override
@@ -52,8 +52,8 @@ public class Template {
     }
 
     public enum TemplateType {
-        Records,
-        Options
+        RECORDS,
+        OPTIONS
     }
 
     protected static class TemplateId {

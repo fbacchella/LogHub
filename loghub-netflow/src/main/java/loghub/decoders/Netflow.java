@@ -135,9 +135,9 @@ public class Netflow extends Decoder {
             Template.TemplateType recordType = (Template.TemplateType) i.remove(NetflowRegistry.TYPEKEY);
 
             Event newEvent = newEvent(ctx, packet, msgUuid, i);
-            if (recordType == Template.TemplateType.Options) {
+            if (recordType == Template.TemplateType.OPTIONS) {
                 newEvent.putMeta("type", "option");
-            } else if (recordType == Template.TemplateType.Records) {
+            } else if (recordType == Template.TemplateType.RECORDS) {
                 newEvent.putMeta("type", "flow");
             } else {
                 newEvent.putMeta("type", "unknown");

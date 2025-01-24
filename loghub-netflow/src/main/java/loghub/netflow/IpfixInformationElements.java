@@ -11,6 +11,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.MappingIterator;
@@ -61,6 +64,7 @@ class IpfixInformationElements {
 
     }
 
+    private static final Logger logger = LogManager.getLogger();
     private static final ThreadLocal<byte[]> buffer4 = ThreadLocal.withInitial(() -> new byte[4]);
     private static final ThreadLocal<byte[]> buffer6 = ThreadLocal.withInitial(() -> new byte[6]);
     private static final ThreadLocal<byte[]> buffer8 = ThreadLocal.withInitial(() -> new byte[8]);
@@ -83,12 +87,13 @@ class IpfixInformationElements {
                     Element e = i.nextValue();
                     buildElements.put(e.elementId, e);
                 } catch (JsonMappingException ex) {
-                    // skip failing lines
+                    // some broken lines in ipfix-information-elements.csv to ignore
+                    logger.debug("Ignored not CVS line in ipfix-information-elements.csv: {}",  ex.getMessage());
                 }
             }
             elements = Collections.unmodifiableMap(buildElements);
         } catch (IOException ex) {
-            throw new IllegalStateException("Can't find " + "ipfix-information-elements.csv", ex);
+            throw new IllegalStateException("Can't use ipfix-information-elements.csv", ex);
         }
     }
 

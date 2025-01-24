@@ -38,7 +38,7 @@ public class Netflow5Packet implements NetflowPacket {
         //Skip version
         short version = bbuf.readShort();
         if (version != 5) {
-            throw new RuntimeException("Invalid version");
+            throw new IllegalArgumentException("Invalid version " + version);
         }
         count = Short.toUnsignedInt(bbuf.readShort());
         if (count > 0) {
@@ -63,7 +63,7 @@ public class Netflow5Packet implements NetflowPacket {
             Map<String, Object> nfRecord = new HashMap<>(20);
             try {
                 bbuf.readBytes(addrbuffer);
-                nfRecord.put(NetflowRegistry.TYPEKEY, Template.TemplateType.Records);
+                nfRecord.put(NetflowRegistry.TYPEKEY, Template.TemplateType.RECORDS);
                 nfRecord.put("srcaddr", InetAddress.getByAddress(addrbuffer));
                 bbuf.readBytes(addrbuffer);
                 nfRecord.put("dstaddr", InetAddress.getByAddress(addrbuffer));
@@ -77,7 +77,7 @@ public class Netflow5Packet implements NetflowPacket {
                 nfRecord.put("last", Integer.toUnsignedLong(bbuf.readInt()));
                 nfRecord.put("srcport", Short.toUnsignedInt(bbuf.readShort()));
                 nfRecord.put("dstport", Short.toUnsignedInt(bbuf.readShort()));
-                bbuf.readByte();  // some padding;
+                bbuf.readByte();  // some padding
                 nfRecord.put("tcp_flags", bbuf.readByte());
                 nfRecord.put("prot", Byte.toUnsignedInt(bbuf.readByte()));
                 nfRecord.put("tos", Byte.toUnsignedInt(bbuf.readByte()));
@@ -85,7 +85,7 @@ public class Netflow5Packet implements NetflowPacket {
                 nfRecord.put("dst_as", Short.toUnsignedInt(bbuf.readShort()));
                 nfRecord.put("src_mask", Byte.toUnsignedInt(bbuf.readByte()));
                 nfRecord.put("dst_mask", Byte.toUnsignedInt(bbuf.readByte()));
-                bbuf.readShort();  // some padding;
+                bbuf.readShort();  // some padding
                 records.add(nfRecord);
             } catch (IndexOutOfBoundsException e) {
                 Throwable t = new IOException(String.format("Reading outside range: only %d bytes available", bbuf.readableBytes()), e);
