@@ -21,7 +21,6 @@ public class Netflow5Packet implements NetflowPacket {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private final int count;
     @Getter
     private final Duration sysUpTime;
     private final Instant exportTime;
@@ -41,7 +40,7 @@ public class Netflow5Packet implements NetflowPacket {
         if (version != 5) {
             throw new IllegalArgumentException("Invalid version " + version);
         }
-        count = Short.toUnsignedInt(bbuf.readShort());
+        int count = Short.toUnsignedInt(bbuf.readShort());
         if (count > 0) {
             logger.trace("{} records expected", count);
         }

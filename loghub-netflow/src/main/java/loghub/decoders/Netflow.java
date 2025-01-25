@@ -143,9 +143,7 @@ public class Netflow extends Decoder {
     List<Event> splitIpfixPacket(ConnectionContext<?> ctx, UUID msgUuid, IpfixPacket packet) {
         List<Event> events = splitTemplatePacket(ctx, msgUuid, packet);
         String observationDomainIdName = convertName("observationDomainId");
-        events.forEach(ev -> {
-            ev.put(observationDomainIdName, packet.getId());
-        });
+        events.forEach(ev -> ev.put(observationDomainIdName, packet.getId()));
         return events;
     }
 

@@ -176,9 +176,7 @@ public class TestNetflow {
         };
         Consumer<Netflow.Builder> configurator = b -> {
         };
-        Consumer<Event> checker = ev -> {
-            System.err.println(ev);
-        };
+        Consumer<Event> checker = System.err::println;
         runParsing(files, configurator, checker, e -> Assert.fail(e.getMessage()));
     }
 
@@ -206,9 +204,7 @@ public class TestNetflow {
         AtomicInteger count = new AtomicInteger();
         Consumer<Netflow.Builder> configurator = b -> {
         };
-        Consumer<Event> checker = ev -> {
-            Assert.fail();
-        };
+        Consumer<Event> checker = ev -> Assert.fail();
         Consumer<DecodeException> onException = ex -> count.incrementAndGet();
         runParsing(badCaptures, configurator, checker, onException);
         Assert.assertEquals(badCaptures.length, count.get());
