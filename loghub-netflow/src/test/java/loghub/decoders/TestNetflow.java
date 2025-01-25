@@ -44,8 +44,13 @@ public class TestNetflow {
         LogUtils.setLevel(logger, Level.DEBUG, "loghub.netflow");
     }
 
-    private static final String[] badCaptures = new String[] {
+    private static final String[] invalidCaptures = new String[] {
             "netflow9_test_nprobe_dpi.dat",
+    };
+
+    private static final String[] badCaptures = new String[] {
+            "netflow5_test_invalid01.dat",
+            "netflow5_test_invalid02.dat",
     };
 
     private static final String[] goodCaptures = new String[] {
@@ -64,8 +69,6 @@ public class TestNetflow {
             "ipfix_test_vmware_vds_data266_267.dat",
             "ipfix_test_vmware_vds_tpl.dat",
             "netflow5.dat",
-            "netflow5_test_invalid01.dat",
-            "netflow5_test_invalid02.dat",
             "netflow5_test_juniper_mx80.dat",
             "netflow5_test_microtik.dat",
             "netflow9_cisco_asr1001x_tpl259.dat",
@@ -115,8 +118,6 @@ public class TestNetflow {
             b.setFlowSignature(true);
         };
         Consumer<Event> checker = ev -> {
-            System.err.println(ev);
-            Assert.assertNull(ev.getLastException());
             Assert.assertTrue(ev.containsKey("sequence_number"));
             int version = (int) ev.get("version");
             if (version >= 9) {
@@ -140,7 +141,7 @@ public class TestNetflow {
                 Assert.assertNotNull(ev.get("sys_up_time"));
             }
         };
-        runParsing(goodCaptures, configurator, checker);
+        runParsing(goodCaptures, configurator, checker, e -> Assert.fail(e.getMessage()));
     }
 
     @Test
@@ -148,8 +149,6 @@ public class TestNetflow {
         Consumer<Netflow.Builder> configurator = b -> {
         };
         Consumer<Event> checker = ev -> {
-            System.err.println(ev);
-            Assert.assertNull(ev.getLastException());
             Assert.assertTrue(ev.containsKey("sequenceNumber"));
             int version = (int) ev.get("version");
             Assert.assertEquals(NullOrMissingValue.MISSING, ev.getMeta("flowSignature"));
@@ -165,12 +164,26 @@ public class TestNetflow {
                 Assert.assertNotNull(ev.get("samplingMode"));
                 Assert.assertNotNull(ev.get("sysUpTime"));
             }
-        };
-        runParsing(goodCaptures, configurator, checker);
+         };
+        runParsing(goodCaptures, configurator, checker, e -> Assert.fail(e.getMessage()));
     }
 
     @Test
-    public void testFailed() {
+    public void runNetflow9CiscoASR9000OptionsTemplate() {
+        String[] files = {
+                "netflow9_test_cisco_asr9k_opttpl256.dat",
+                "netflow9_test_cisco_asr9k_data256.dat"
+        };
+        Consumer<Netflow.Builder> configurator = b -> {
+        };
+        Consumer<Event> checker = ev -> {
+            System.err.println(ev);
+        };
+        runParsing(files, configurator, checker, e -> Assert.fail(e.getMessage()));
+    }
+
+    @Test
+    public void testInvalid() {
         AtomicInteger count = new AtomicInteger();
         Consumer<Netflow.Builder> configurator = b -> {
         };
@@ -185,7 +198,20 @@ public class TestNetflow {
                 Assert.assertNull(ev.getLastException());
             }
         };
-        runParsing(badCaptures, configurator, checker);
+        runParsing(invalidCaptures, configurator, checker, e -> Assert.fail(e.getMessage()));
+    }
+
+    @Test
+    public void testFailed() {
+        AtomicInteger count = new AtomicInteger();
+        Consumer<Netflow.Builder> configurator = b -> {
+        };
+        Consumer<Event> checker = ev -> {
+            Assert.fail();
+        };
+        Consumer<DecodeException> onException = ex -> count.incrementAndGet();
+        runParsing(badCaptures, configurator, checker, onException);
+        Assert.assertEquals(badCaptures.length, count.get());
     }
 
     private InetAddress generateIpAddress(Random random) {
@@ -200,7 +226,7 @@ public class TestNetflow {
         }
     }
 
-    private void runParsing(String[] captures, Consumer<Netflow.Builder> configure, Consumer<Event> checker) {
+    private void runParsing(String[] captures, Consumer<Netflow.Builder> configure, Consumer<Event> checker, Consumer<DecodeException> onException) {
         Udp.Builder udpBuilder = Udp.getBuilder();
         udpBuilder.setPort(2055);
 
@@ -210,6 +236,7 @@ public class TestNetflow {
         nfd.configure(new Properties(new HashMap<>()), udpBuilder.build());
 
         Random random = new Random();
+        IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(random.nextInt(65535)), new InetSocketAddress(generateIpAddress(random), random.nextInt(65535)), null);
 
         Arrays.stream(captures)
                 .peek(i -> logger.debug("{}: ", i))
@@ -231,7 +258,6 @@ public class TestNetflow {
                 .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
                 .forEach(i -> {
                     try {
-                        IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(random.nextInt(65535)), new InetSocketAddress(generateIpAddress(random), random.nextInt(65535)), null);
                         while (i.isReadable()) {
                             nfd.decode(dummyctx, i).forEach(content -> {
                                 Event ev = (Event) content;
@@ -247,7 +273,7 @@ public class TestNetflow {
                             });
                         }
                     } catch (DecodeException e) {
-                        Assert.fail(e.getMessage());
+                        onException.accept(e);
                     }
                 });
     }
