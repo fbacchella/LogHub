@@ -39,7 +39,7 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
     private final List<Map<String, Object>> records;
     private Instant systemInitTime = null;
 
-    protected TemplateBasedPacket(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) {
+    protected TemplateBasedPacket(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) throws IOException {
         short version = bbuf.readShort();
         if (version < 9) {
             throw new IllegalArgumentException("Invalid version " + version);
@@ -63,7 +63,7 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
                 flowSeen += readSet(remoteAddr, bbuf, registry, tmpRecords);
                 ++flowSetSeen;
             } catch (RuntimeException e) {
-                logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Failed reading flow set {}", flowSetSeen);
+                throw new IOException("Failed reading flow set", e);
             }
         }
         records = List.copyOf(tmpRecords);

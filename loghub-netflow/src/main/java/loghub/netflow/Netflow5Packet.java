@@ -34,7 +34,7 @@ public class Netflow5Packet implements NetflowPacket {
     private final byte samplingMode;
     List<Map<String, Object>> records;
 
-    public Netflow5Packet(ByteBuf bbuf) {
+    public Netflow5Packet(ByteBuf bbuf) throws IOException {
         //Skip version
         short version = bbuf.readShort();
         if (version != 5) {
@@ -87,12 +87,9 @@ public class Netflow5Packet implements NetflowPacket {
                 nfRecord.put("dst_mask", Byte.toUnsignedInt(bbuf.readByte()));
                 bbuf.readShort();  // some padding
                 records.add(nfRecord);
-            } catch (IndexOutOfBoundsException e) {
-                Throwable t = new IOException(String.format("Reading outside range: only %d bytes available", bbuf.readableBytes()), e);
-                nfRecord.put(NetflowPacket.EXCEPTION_KEY, t);
-            } catch (UnknownHostException e) {
-                // Should never be reached
-                throw new IllegalStateException(e);
+            } catch (IndexOutOfBoundsException | UnknownHostException e) {
+                throw new IOException("Failed reading Netflow 5 packet", e);
+
             }
         }
     }

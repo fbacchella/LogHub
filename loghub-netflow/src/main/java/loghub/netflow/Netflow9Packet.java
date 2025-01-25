@@ -1,5 +1,6 @@
 package loghub.netflow;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -12,7 +13,7 @@ public class Netflow9Packet extends TemplateBasedPacket implements NetflowPacket
 
     private final Duration sysUpTime;
 
-    public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) {
+    public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) throws IOException {
         super(remoteAddr, bbuf, registry);
         sysUpTime = Duration.of(header.sysUpTime, ChronoUnit.MILLIS);
     }

@@ -1,5 +1,6 @@
 package loghub.decoders;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -87,7 +88,12 @@ public class Netflow extends Decoder {
         InetAddress addr;
         if (ctx instanceof IpConnectionContext) {
             addr = ((IpConnectionContext) ctx).getRemoteAddress().getAddress();
-            NetflowPacket packet = registry.parsePacket(addr, bbuf);
+            NetflowPacket packet;
+            try {
+                packet = registry.parsePacket(addr, bbuf);
+            } catch (IOException e) {
+                throw new DecodeException("Failed decoding packet", e);
+            }
             UUID msgUuid = UUID.randomUUID();
             switch (packet.getVersion()) {
             case 5:
@@ -97,7 +103,7 @@ public class Netflow extends Decoder {
             case 10:
                 return splitIpfixPacket(ctx, msgUuid, (IpfixPacket) packet);
             default:
-                throw new UnsupportedOperationException();
+                throw new UnsupportedOperationException("Unhandled packet version " + packet.getVersion());
             }
         } else {
             return null;

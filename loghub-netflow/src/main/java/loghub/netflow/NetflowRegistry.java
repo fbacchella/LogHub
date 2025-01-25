@@ -1,5 +1,6 @@
 package loghub.netflow;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +25,7 @@ public class NetflowRegistry {
         ipfixtypes = new IpfixInformationElements();
     }
 
-    public NetflowPacket parsePacket(InetAddress remoteAddr, ByteBuf bbuf) throws DecodeException {
+    public NetflowPacket parsePacket(InetAddress remoteAddr, ByteBuf bbuf) throws IOException {
         bbuf.markReaderIndex();
         short version = bbuf.readShort();
         bbuf.resetReaderIndex();
@@ -36,7 +37,7 @@ public class NetflowRegistry {
         case 10:
             return new IpfixPacket(remoteAddr, bbuf, this);
         default:
-            throw new DecodeException("Unsupported netflow/IPFIX packet version: " + version);
+            throw new IOException("Unsupported netflow/IPFIX packet version: " + version);
         }
     }
 
