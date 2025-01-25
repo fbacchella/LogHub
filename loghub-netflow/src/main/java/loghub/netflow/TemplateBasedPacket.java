@@ -190,9 +190,4 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
         return sourceId;
     }
 
-    @Override
-    public int getLength() {
-        return length != -1 ? length : count;
-    }
-
 }

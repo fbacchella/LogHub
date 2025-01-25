@@ -26,6 +26,7 @@ public class Netflow5Packet implements NetflowPacket {
     private final Duration sysUpTime;
     private final Instant exportTime;
     private final long sequenceNumber;
+    @Getter
     private final int engineType;
     private final Integer engineId;
     @Getter
@@ -100,11 +101,6 @@ public class Netflow5Packet implements NetflowPacket {
     }
 
     @Override
-    public int getLength() {
-        return count;
-    }
-
-    @Override
     public Instant getExportTime() {
         return exportTime;
     }
@@ -122,13 +118,6 @@ public class Netflow5Packet implements NetflowPacket {
     @Override
     public List<Map<String, Object>> getRecords() {
         return records;
-    }
-
-    /**
-     * @return the type
-     */
-    public int getEngineType() {
-        return engineType;
     }
 
 }

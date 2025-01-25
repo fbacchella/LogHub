@@ -7,15 +7,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import io.netty.buffer.ByteBuf;
-import loghub.decoders.DecodeException;
 
 public class NetflowRegistry {
-
-    private static final Logger logger = LogManager.getLogger();
 
     public static final String TYPEKEY = "__type";
     private final Map<Template.TemplateId, Map<Integer, Template>> templates = new ConcurrentHashMap<>();
@@ -51,13 +45,11 @@ public class NetflowRegistry {
         template.addField(type, length, isScope);
     }
 
-    int readTemplateSet(Template.TemplateId key, ByteBuf bbuf, boolean canEntrepriseNumber) {
+    void readTemplateSet(Template.TemplateId key, ByteBuf bbuf, boolean canEntrepriseNumber) {
         while (bbuf.isReadable()) {
             int templateId = Short.toUnsignedInt(bbuf.readShort());
-            logger.trace("  template {}", templateId);
             int fieldsCount = Short.toUnsignedInt(bbuf.readShort());
             if (templateId == 0 && fieldsCount == 0) {
-                logger.trace("empty template");
                 //It was padding, not a real template template
                 break;
             }
@@ -67,7 +59,6 @@ public class NetflowRegistry {
             }
             templates.computeIfAbsent(key, i -> new HashMap<>()).put(templateId, template);
         }
-        return 1;
     }
 
     void readOptionsTemplateNetflowSet(Template.TemplateId key, ByteBuf bbuf) {
@@ -80,11 +71,11 @@ public class NetflowRegistry {
             ByteBuf scopes = bbuf.readSlice(scopeLength);
             ByteBuf options = bbuf.readSlice(optionsLength);
             // The test ensure there is more than padding left in the ByteBuf
-            while (scopes.isReadable(3)) {
+            while (scopes.isReadable(4)) {
                 readDefinition(scopes, false, template, true);
             }
             // The test ensure there is more than padding left in the ByteBuf
-            while (options.isReadable(3)) {
+            while (options.isReadable(4)) {
                 readDefinition(options, false, template, false);
             }
             templates.computeIfAbsent(key, i -> new HashMap<>()).put(templateId, template);
@@ -94,7 +85,6 @@ public class NetflowRegistry {
     void readOptionsTemplateIpfixSet(Template.TemplateId key, ByteBuf bbuf) {
         // The test ensure there is more than padding left in the ByteBuf
         while (bbuf.isReadable(3)) {
-            logger.trace("  options");
             int templateId = Short.toUnsignedInt(bbuf.readShort());
             int fieldsCount = Short.toUnsignedInt(bbuf.readShort());
             int scopesCount = Short.toUnsignedInt(bbuf.readShort());

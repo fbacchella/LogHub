@@ -9,7 +9,6 @@ public interface NetflowPacket {
     String EXCEPTION_KEY = "__exception";
 
     int getVersion();
-    int getLength();
     Instant getExportTime();
     long getSequenceNumber();
     Object getId();
