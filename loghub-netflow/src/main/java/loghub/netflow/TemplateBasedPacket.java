@@ -107,12 +107,19 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
 
     private int readDataSet(Template tpl, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
         int flowSeen = 0;
+
+        Map<String, Object> scopes;
+        if (tpl.getScopeCount() > 0) {
+            scopes = new HashMap<>();
+        } else {
+            scopes = Map.of();
+        }
+
         // The test ensure there is more than padding left in the ByteBuf
         while (bbuf.isReadable(4)) {
             Map<String, Object> recordData = new HashMap<>(tpl.getSizes());
+            recordData.put(NetflowRegistry.TYPEKEY, tpl.type);
             for (int i = 0; i < tpl.getSizes(); i++) {
-                int type;
-                type = tpl.types.get(i);
                 int fieldSize = tpl.getSize(i);
                 try {
                     if (fieldSize == 65535) {
@@ -122,9 +129,17 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
                         }
                     }
                     ByteBuf content = bbuf.readSlice(fieldSize);
+                    int type = tpl.types.get(i);
                     Object value = registry.getTypeValue(type, content);
-                    recordData.put(registry.getTypeName(type), value);
-                    recordData.put(NetflowRegistry.TYPEKEY, tpl.type);
+                    String typeName = (tpl.isScope(i) && getVersion() == 9) ? Template.resolveScope(type) : registry.getTypeName(type);
+                    if ("paddingOctets".equals(typeName)) {
+                        continue;
+                    }
+                    if (tpl.isScope(i)) {
+                        scopes.put(typeName, value);
+                    } else {
+                        recordData.put(typeName, value);
+                    }
                 } catch (IndexOutOfBoundsException e) {
                     Throwable t = new IOException(String.format("Reading outside range: %d out of %d", fieldSize, bbuf.readableBytes()), e);
                     recordData.put(NetflowPacket.EXCEPTION_KEY, t);
@@ -132,6 +147,9 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
                     Throwable t = new IllegalStateException(String.format("Invalid or unhandled Netflow/IPFIX packet: %s", Helpers.resolveThrowableException(e)), e);
                     recordData.put(NetflowPacket.EXCEPTION_KEY, t);
                 }
+            }
+            if (! scopes.isEmpty()) {
+                recordData.put("scope", scopes);
             }
             if (recordData.containsKey("systemInitTimeMilliseconds")) {
                 systemInitTime = (Instant) recordData.get("systemInitTimeMilliseconds");

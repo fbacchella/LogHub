@@ -5,12 +5,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import lombok.Getter;
+
 public class Template {
 
     final TemplateType type;
     final List<Integer> types;
     private final List<Integer> sizes;
     private final List<Boolean> areScops;
+    @Getter
+    private int scopeCount = 0;
 
     Template(TemplateType type, int count) {
         this.type = type;
@@ -30,6 +34,9 @@ public class Template {
         types.add(type);
         sizes.add(size);
         areScops.add(isScope);
+        if (isScope) {
+            scopeCount++;
+        }
     }
 
     int getSizes() {
@@ -38,6 +45,10 @@ public class Template {
 
     int getSize(int recordId) {
         return sizes.get(recordId);
+    }
+
+    boolean isScope(int recordId) {
+        return areScops.get(recordId);
     }
 
     @Override
@@ -54,6 +65,18 @@ public class Template {
     public enum TemplateType {
         RECORDS,
         OPTIONS
+    }
+
+    // Underspecified, only found at https://www.rfc-editor.org/rfc/rfc3954#section-6.1
+    public static String resolveScope(int value) {
+        switch (value) {
+        case 1: return "System";
+        case 2: return "Interface";
+        case 3: return "Line Card";
+        case 4: return "Cache";
+        case 5: return "Template";
+        default: return "Unknown/" + value;
+        }
     }
 
     protected static class TemplateId {
