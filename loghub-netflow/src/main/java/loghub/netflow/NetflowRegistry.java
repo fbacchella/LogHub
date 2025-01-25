@@ -118,7 +118,14 @@ public class NetflowRegistry {
     }
 
     public String getTypeName(int i) {
-        return ipfixtypes.getName(i);
+        // Not an enterprise type
+        if (i <= 65535) {
+            return ipfixtypes.getName(i);
+        } else {
+            int enterprise = i >>> 16;
+            int sybType = i & 65535;
+            return "enterprise_" + enterprise + "_" + sybType;
+        }
     }
 
     public Object getTypeValue(int i, ByteBuf bbuf) {
