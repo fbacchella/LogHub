@@ -58,9 +58,10 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
         int flowSetSeen = 0;
         int flowSeen = 0;
         List<Map<String, Object>> tmpRecords = new ArrayList<>();
+        Template.TemplateId key = new Template.TemplateId(remoteAddr, sourceId);
         while (bbuf.isReadable()) {
             try {
-                flowSeen += readSet(remoteAddr, bbuf, registry, tmpRecords);
+                flowSeen += readSet(key, bbuf, registry, tmpRecords);
                 ++flowSetSeen;
             } catch (RuntimeException e) {
                 throw new IOException("Failed reading flow set", e);
@@ -76,8 +77,8 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
 
     protected abstract HeaderInfo readHeader(ByteBuf bbuf);
 
-    protected int readSet(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
-        Template.TemplateId key = new Template.TemplateId(remoteAddr, sourceId);
+    protected int readSet(Template.TemplateId key, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records)
+            throws IOException {
         int flowSetId = Short.toUnsignedInt(bbuf.readShort());
         int setLength = Short.toUnsignedInt(bbuf.readShort());
         switch (flowSetId) {
