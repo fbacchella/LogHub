@@ -15,6 +15,8 @@ public class Template {
     private final List<Boolean> areScops;
     @Getter
     private int scopeCount = 0;
+    @Getter
+    private int templateBytesSize;
 
     Template(TemplateType type, int count) {
         this.type = type;
@@ -33,6 +35,7 @@ public class Template {
     void addField(Integer type, int size, boolean isScope) {
         types.add(type);
         sizes.add(size);
+        templateBytesSize += size;
         areScops.add(isScope);
         if (isScope) {
             scopeCount++;

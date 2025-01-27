@@ -27,33 +27,33 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
         long sysUpTime = 0;
     }
 
-    protected final HeaderInfo header;
     protected final int sourceId;
     @Getter
     protected final Instant exportTime;
     @Getter
     protected final long sequenceNumber;
-    protected final int length;
-    protected final int count;
     @Getter
     private final List<Map<String, Object>> records;
     private Instant systemInitTime = null;
 
     protected TemplateBasedPacket(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) throws IOException {
-        short version = bbuf.readShort();
-        if (version < 9) {
-            throw new IllegalArgumentException("Invalid version " + version);
+        HeaderInfo header;
+        try {
+            short version = bbuf.readShort();
+            if (version < 9) {
+                throw new IllegalArgumentException("Invalid version " + version);
+            }
+            header = readHeader(bbuf);
+            exportTime = Instant.ofEpochSecond(Integer.toUnsignedLong(bbuf.readInt()));
+            sequenceNumber = Integer.toUnsignedLong(bbuf.readInt());
+            sourceId = bbuf.readInt();
+        } catch (IndexOutOfBoundsException e) {
+            throw new IOException("Invalid packet content", e);
         }
-        header = readHeader(bbuf);
-        this.count = header.count;
-        this.length = header.length;
 
-        exportTime = Instant.ofEpochSecond(Integer.toUnsignedLong(bbuf.readInt()));
-        sequenceNumber = Integer.toUnsignedLong(bbuf.readInt());
-        sourceId = bbuf.readInt();
         // If length is non zero, an Ipfix packet
-        if (length > 0) {
-            bbuf = bbuf.readSlice(length - 16);
+        if (header.length > 0) {
+            bbuf = bbuf.readSlice(header.length - 16);
         }
         int flowSetSeen = 0;
         int flowSeen = 0;
@@ -61,63 +61,76 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
         Template.TemplateId key = new Template.TemplateId(remoteAddr, sourceId);
         while (bbuf.isReadable()) {
             try {
-                flowSeen += readSet(key, bbuf, registry, tmpRecords);
+                flowSeen += readSet(header, key, bbuf, registry, tmpRecords);
                 ++flowSetSeen;
-            } catch (RuntimeException e) {
+            } catch (IndexOutOfBoundsException e) {
                 throw new IOException("Failed reading flow set", e);
+            } catch (IOException e) {
+                // Unrecoverable error reading a flow set, stop parsing
+                // Marking the last flowset failure
+                tmpRecords.add(new HashMap<>(Map.of(NetflowPacket.EXCEPTION_KEY, e)));
+                break;
             }
         }
         records = List.copyOf(tmpRecords);
-        if (count > 0 && flowSeen > count) {
-            logger.debug("Too much records seen: {}/{}/{}", flowSeen, flowSetSeen, count);
-        } else if (flowSeen < count) {
-            logger.debug("Not enough records: {}/{}/{}", flowSeen, flowSetSeen, count);
+        if (header.count > 0 && flowSeen > header.count) {
+            logger.debug("Too much records seen: {}/{}/{}", flowSeen, flowSetSeen, header.count);
+        } else if (flowSeen < header.count) {
+            logger.debug("Not enough records: {}/{}/{}", flowSeen, flowSetSeen, header.count);
         }
     }
 
     protected abstract HeaderInfo readHeader(ByteBuf bbuf);
 
-    protected int readSet(Template.TemplateId key, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records)
+    protected int readSet(HeaderInfo header, Template.TemplateId key, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records)
             throws IOException {
+        if (bbuf.readableBytes() < 4) {
+            throw new IOException("Invalid flow set length " + bbuf.readableBytes());
+        }
         int flowSetId = Short.toUnsignedInt(bbuf.readShort());
         int setLength = Short.toUnsignedInt(bbuf.readShort());
+        if (setLength == 0 || setLength > (bbuf.readableBytes() + 4)) {
+            throw new IOException("Invalid flow set length " + setLength);
+        }
+        ByteBuf setBuffer = bbuf.readSlice(setLength - 4);
         switch (flowSetId) {
         case 0: // Netflow v9 Template FlowSet
-            registry.readTemplateSet(key, bbuf.readSlice(setLength - 4), false);
+            registry.readTemplateSet(key, setBuffer, false);
             return 1;
         case 1: // Netflow v9 Option Template FlowSet
-            registry.readOptionsTemplateNetflowSet(key, bbuf.readSlice(setLength - 4));
+            registry.readOptionsTemplateNetflowSet(key, setBuffer);
             return 1;
-        case 2:
-            registry.readTemplateSet(key, bbuf.readSlice(setLength - 4), true);// IPFIX Template FlowSet
+        case 2: // IPFIX Template FlowSet
+            registry.readTemplateSet(key, setBuffer, true);// IPFIX Template FlowSet
             return 1;
         case 3: // IPFIX Option Template FlowSet
-            registry.readOptionsTemplateIpfixSet(key, bbuf.readSlice(setLength - 4));
+            registry.readOptionsTemplateIpfixSet(key, setBuffer);
             return 1;
         default:
-            return readDataSet(key, bbuf.readSlice(setLength - 4), flowSetId, registry, records);
+            return readDataSet(header, key, setBuffer, flowSetId, registry, records);
         }
     }
 
-    protected int readDataSet(Template.TemplateId key, ByteBuf bbuf, int flowSetId, NetflowRegistry registry, List<Map<String, Object>> records) {
+    protected int readDataSet(HeaderInfo header, Template.TemplateId key, ByteBuf bbuf, int flowSetId, NetflowRegistry registry, List<Map<String, Object>> records) {
         return registry.getTemplate(key, flowSetId)
                        .stream()
-                       .mapToInt(t -> readDataSet(t, bbuf, registry, records))
+                       .mapToInt(t -> readDataSet(header, t, bbuf, registry, records))
                        .sum();
     }
 
-    private int readDataSet(Template tpl, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
+    private int readDataSet(HeaderInfo header, Template tpl, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
         int flowSeen = 0;
 
         Map<String, Object> scopes;
         if (tpl.getScopeCount() > 0) {
-            scopes = new HashMap<>();
+            scopes = new HashMap<>(tpl.getScopeCount());
         } else {
             scopes = Map.of();
         }
-
         // The test ensure there is more than padding left in the ByteBuf
-        while (bbuf.isReadable(4)) {
+        // All the ByteBuf reading should be done inside this try, so a failed buffer reading will only fails for this
+        // currently read data set
+        while (bbuf.isReadable(tpl.getTemplateBytesSize())) {
             Map<String, Object> recordData = new HashMap<>(tpl.getSizes());
             recordData.put(NetflowRegistry.TYPEKEY, tpl.type);
             for (int i = 0; i < tpl.getSizes(); i++) {
@@ -137,6 +150,7 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
                         continue;
                     }
                     if (tpl.isScope(i)) {
+                        // scope can't be a Map.of() if one template is a scope template
                         scopes.put(typeName, value);
                     } else {
                         recordData.put(typeName, value);
@@ -144,6 +158,8 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
                 } catch (IndexOutOfBoundsException e) {
                     Throwable t = new IOException(String.format("Reading outside range: %d out of %d", fieldSize, bbuf.readableBytes()), e);
                     recordData.put(NetflowPacket.EXCEPTION_KEY, t);
+                    // A record is broken, don't try to keep parsing, as they are not separated
+                    break;
                 } catch (RuntimeException e) {
                     Throwable t = new IllegalStateException(String.format("Invalid or unhandled Netflow/IPFIX packet: %s", Helpers.resolveThrowableException(e)), e);
                     recordData.put(NetflowPacket.EXCEPTION_KEY, t);

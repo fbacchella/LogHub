@@ -149,9 +149,21 @@ class IpfixInformationElements {
                 bbuf.readBytes(buffer8.get());
                 return new MacAddress(buffer8.get());
             } else if ("string".equals(e.type)) {
-                return bbuf.toString(CharsetUtil.UTF_8);
+                // Strings are often padded with \0 so cut it
+                byte[] stringBuffer = new byte[bbuf.readableBytes()];
+                bbuf.readBytes(stringBuffer);
+                int zoffest = stringBuffer.length;
+                for (int p = 0; p < stringBuffer.length; p++) {
+                    if (stringBuffer[p] == 0) {
+                        zoffest = p;
+                        break;
+                    }
+                }
+                return new String(stringBuffer, 0, zoffest, CharsetUtil.UTF_8);
             } else {
-                throw new IllegalStateException("Unmanaged type: " + e.name);
+                byte[] buffer = new byte[bbuf.readableBytes()];
+                bbuf.readBytes(buffer);
+                return buffer;
             }
         } catch (UnknownHostException e) {
             // Should never be reached

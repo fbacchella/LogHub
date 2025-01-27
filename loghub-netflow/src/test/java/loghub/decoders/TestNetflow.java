@@ -121,6 +121,11 @@ public class TestNetflow {
             Assert.assertTrue(ev.containsKey("sequence_number"));
             int version = (int) ev.get("version");
             if (version >= 9) {
+                Assert.assertTrue(List.of("flow", "option").contains(ev.getMeta("type")));
+            } else if (version == 5) {
+                Assert.assertEquals("flow", ev.getMeta("type"));
+            }
+            if (version >= 9) {
                 if ("record".equals(ev.get("type"))) {
                     String flowSignature = (String) ev.getMeta("flowSignature");
                     Assert.assertEquals(16, b64decoder.decode(flowSignature).length);
@@ -254,17 +259,12 @@ public class TestNetflow {
                 .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
                 .forEach(i -> {
                     try {
-                        while (i.isReadable()) {
+                        if (i.isReadable()) {
                             nfd.decode(dummyctx, i).forEach(content -> {
                                 Event ev = (Event) content;
                                 Assert.assertTrue(content.toString(), ev.containsAtPath(VariablePath.ofMeta("msgUUID")));
                                 int version = (int) ev.get("version");
                                 Assert.assertTrue(List.of(5, 9, 10).contains(version));
-                                if (version >= 9) {
-                                    Assert.assertTrue(List.of("flow", "option").contains(ev.getMeta("type")));
-                                } else if (version == 5) {
-                                    Assert.assertEquals("flow", ev.getMeta("type"));
-                                }
                                 checker.accept(ev);
                             });
                         }

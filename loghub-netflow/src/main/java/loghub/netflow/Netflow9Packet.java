@@ -11,11 +11,10 @@ import lombok.Getter;
 @Getter
 public class Netflow9Packet extends TemplateBasedPacket implements NetflowPacket {
 
-    private final Duration sysUpTime;
+    private Duration sysUpTime;
 
     public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, NetflowRegistry registry) throws IOException {
         super(remoteAddr, bbuf, registry);
-        sysUpTime = Duration.of(header.sysUpTime, ChronoUnit.MILLIS);
     }
 
     @Override
@@ -28,6 +27,7 @@ public class Netflow9Packet extends TemplateBasedPacket implements NetflowPacket
         TemplateBasedPacket.HeaderInfo hi = new TemplateBasedPacket.HeaderInfo();
         hi.count =  Short.toUnsignedInt(bbuf.readShort());
         hi.sysUpTime = Integer.toUnsignedLong(bbuf.readInt());
+        sysUpTime = Duration.of(hi.sysUpTime, ChronoUnit.MILLIS);
         return hi;
     }
 

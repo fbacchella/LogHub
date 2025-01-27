@@ -50,7 +50,7 @@ public class NetflowRegistry {
             int templateId = Short.toUnsignedInt(bbuf.readShort());
             int fieldsCount = Short.toUnsignedInt(bbuf.readShort());
             if (templateId == 0 && fieldsCount == 0) {
-                //It was padding, not a real template template
+                //It was padding, not a real template
                 break;
             }
             Template template = new Template(Template.TemplateType.RECORDS, fieldsCount);
