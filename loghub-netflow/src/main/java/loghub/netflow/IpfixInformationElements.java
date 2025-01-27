@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -102,69 +103,144 @@ class IpfixInformationElements {
     }
 
     public Object getValue(int i, ByteBuf bbuf) {
-        try {
-            Element e = elements.get(i);
-            if (e == null) {
-                byte[] buffer = new byte[bbuf.readableBytes()];
-                bbuf.readBytes(buffer);
-                return buffer;
-            }
-            if ("ipv4Address".equals(e.type) && bbuf.isReadable(4)) {
-                bbuf.readBytes(buffer4.get());
-                return InetAddress.getByAddress(buffer4.get());
-            } else if ("ipv6Address".equals(e.type) && bbuf.isReadable(16)) {
-                bbuf.readBytes(buffer16.get());
-                return InetAddress.getByAddress(buffer16.get());
-            } else if ("dateTimeSeconds".equals(e.type)) {
-                long value = readNumValue(bbuf);
-                return Instant.ofEpochSecond(value);
-            } else if ("dateTimeMilliseconds".equals(e.type)) {
-                long value = readNumValue(bbuf);
-                return Instant.ofEpochMilli(value);
-            } else if ("dateTimeMicroseconds".equals(e.type)) {
-                long value = readNumValue(bbuf);
-                return Instant.ofEpochSecond(0, value * 1000);
-            } else if ("dateTimeNanoseconds".equals(e.type)) {
-                long value = readNumValue(bbuf);
-                return Instant.ofEpochSecond(0, value);
-            } else if ("float64".equals(e.type) && bbuf.isReadable(8)) {
-                return bbuf.readDouble();
-            } else if (e.type.startsWith("unsigned")) {
-                return readUnsignedNumValue(bbuf);
-            } else if (e.type.startsWith("signed")) {
-                return readNumValue(bbuf);
-            } else if ("boolean".equals(e.type) && bbuf.isReadable(8)) {
+        Element e = elements.get(i);
+        if (e == null) {
+            return readByteArray(bbuf);
+         } else {
+            return evalByName(e, bbuf)
+                    .or(() -> evalByType(e, bbuf))
+                    .or(() -> evalByAdHoc(e, bbuf))
+                    .orElseGet(() -> readByteArray(bbuf));
+        }
+    }
+
+    private byte[] readByteArray(ByteBuf bbuf) {
+        if (bbuf.isReadable()) {
+            byte[] buffer = new byte[bbuf.readableBytes()];
+            bbuf.readBytes(buffer);
+            return buffer;
+        } else {
+            return new byte[0];
+        }
+     }
+
+    private Optional<Object> evalByName(Element e, ByteBuf bbuf) {
+        switch (e.name) {
+        case "applicationId":
+            return Optional.of(decodeApplicationId(bbuf));
+        case "Reserved":
+            return Optional.of(readByteArray(bbuf));
+        default:
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Object> evalByType(Element e, ByteBuf bbuf) {
+        switch (e.type) {
+        case "boolean": {
+            if (bbuf.isReadable(1)) {
                 byte value = bbuf.readByte();
-                return value == 1;
-            } else if ("applicationId".equals(e.name)) {
-                return decodeApplicationId(bbuf);
-            } else if ("octetArray".equals(e.type) || "Reserved".equals(e.name)) {
-                byte[] buffer = new byte[bbuf.readableBytes()];
-                bbuf.readBytes(buffer);
-                return buffer;
-            } else if ("macAddress".equals(e.type) && bbuf.isReadable(6)) {
-                bbuf.readBytes(buffer6.get());
-                return new MacAddress(buffer6.get());
-            } else if ("macAddress".equals(e.type) && bbuf.isReadable(8)) {
-                bbuf.readBytes(buffer8.get());
-                return new MacAddress(buffer8.get());
-            } else if ("string".equals(e.type)) {
-                // Strings are often padded with \0 so cut it
-                byte[] stringBuffer = new byte[bbuf.readableBytes()];
-                bbuf.readBytes(stringBuffer);
-                int zoffest = stringBuffer.length;
-                for (int p = 0; p < stringBuffer.length; p++) {
-                    if (stringBuffer[p] == 0) {
-                        zoffest = p;
-                        break;
-                    }
-                }
-                return new String(stringBuffer, 0, zoffest, CharsetUtil.UTF_8);
+                return Optional.of(value == 1);
             } else {
-                byte[] buffer = new byte[bbuf.readableBytes()];
-                bbuf.readBytes(buffer);
-                return buffer;
+                return Optional.empty();
             }
+        }
+        case "octetArray":
+            return Optional.of(readByteArray(bbuf));
+        case "dateTimeSeconds": {
+            long value = readNumValue(bbuf);
+            return Optional.of(Instant.ofEpochSecond(value));
+        }
+        case "dateTimeMilliseconds": {
+            long value = readNumValue(bbuf);
+            return Optional.of(Instant.ofEpochMilli(value));
+        }
+        case "dateTimeMicroseconds": {
+            long value = readNumValue(bbuf);
+            return Optional.of(Instant.ofEpochSecond(0, value * 1000));
+        }
+        case "dateTimeNanoseconds": {
+            long value = readNumValue(bbuf);
+            return Optional.of(Instant.ofEpochSecond(0, value));
+        }
+        case "float32": {
+            if (bbuf.isReadable(4)) {
+                return Optional.of(bbuf.readFloat());
+            } else {
+                return Optional.empty();
+            }
+        }
+        case "float64": {
+            if (bbuf.isReadable(8)) {
+                return Optional.of(bbuf.readDouble());
+            } else {
+                return Optional.empty();
+            }
+        }
+        case "macAddress": {
+            byte[] macBuffer;
+            if (bbuf.isReadable(6)) {
+                macBuffer = buffer6.get();
+            } else if (bbuf.isReadable(8)) {
+                macBuffer = buffer8.get();
+            } else {
+                return Optional.empty();
+            }
+            bbuf.readBytes(macBuffer);
+            return Optional.of(new MacAddress(macBuffer));
+        }
+        case "string": {
+            if (bbuf.isReadable()) {
+                return Optional.of(readString(bbuf));
+            } else {
+                return Optional.empty();
+            }
+        }
+        case "ipv4Address":
+            return readIpAddress(4, bbuf);
+        case "ipv6Address":
+            return readIpAddress(16, bbuf);
+        default:
+            return Optional.empty();
+        }
+    }
+
+    private String readString(ByteBuf bbuf) {
+        // Strings are often padded with \0 so cut it
+        byte[] stringBuffer = new byte[bbuf.readableBytes()];
+        bbuf.readBytes(stringBuffer);
+        int zoffest = stringBuffer.length;
+        for (int p = 0; p < stringBuffer.length; p++) {
+            if (stringBuffer[p] == 0) {
+                zoffest = p;
+                break;
+            }
+        }
+        return new String(stringBuffer, 0, zoffest, CharsetUtil.UTF_8);
+    }
+
+    private Optional<Object> evalByAdHoc(Element e, ByteBuf bbuf) {
+        if (e.type.startsWith("unsigned")) {
+            return Optional.of(readUnsignedNumValue(bbuf));
+        } else if (e.type.startsWith("signed")) {
+            return Optional.of(readNumValue(bbuf));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Object> readIpAddress(int size, ByteBuf bbuf) {
+        byte[] ipBuffer;
+        if (size == 4 && bbuf.readableBytes() == 4) {
+            ipBuffer = buffer4.get();
+        } else if (size == 16 && bbuf.readableBytes() == 16) {
+            ipBuffer = buffer16.get();
+        } else {
+            return Optional.empty();
+        }
+        bbuf.readBytes(ipBuffer);
+        try {
+            return Optional.of(InetAddress.getByAddress(ipBuffer));
         } catch (UnknownHostException e) {
             // Should never be reached
             throw new IllegalStateException(e);
