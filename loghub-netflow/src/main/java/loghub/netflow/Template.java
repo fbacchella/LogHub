@@ -82,6 +82,7 @@ public class Template {
         }
     }
 
+    @Getter
     protected static class TemplateId {
 
         private final InetAddress remoteAddr;

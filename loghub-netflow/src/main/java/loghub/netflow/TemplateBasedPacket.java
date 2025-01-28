@@ -114,11 +114,11 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
     protected int readDataSet(HeaderInfo header, Template.TemplateId key, ByteBuf bbuf, int flowSetId, NetflowRegistry registry, List<Map<String, Object>> records) {
         return registry.getTemplate(key, flowSetId)
                        .stream()
-                       .mapToInt(t -> readDataSet(header, t, bbuf, registry, records))
+                       .mapToInt(t -> readDataSet(key.getId(), header, t, bbuf, registry, records))
                        .sum();
     }
 
-    private int readDataSet(HeaderInfo header, Template tpl, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
+    private int readDataSet(int templateId, HeaderInfo header, Template tpl, ByteBuf bbuf, NetflowRegistry registry, List<Map<String, Object>> records) {
         int flowSeen = 0;
 
         Map<String, Object> scopes;
@@ -196,6 +196,7 @@ public abstract class TemplateBasedPacket implements NetflowPacket {
             if (endRelative != null && startRelative != null) {
                 recordData.put("__duration", endRelative.minus(startRelative));
             }
+            recordData.put("__templateId", templateId);
             flowSeen++;
             records.add(recordData);
         }
