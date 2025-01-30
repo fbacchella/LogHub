@@ -122,17 +122,329 @@ class IpfixInformationElements {
         } else {
             return new byte[0];
         }
-     }
+    }
 
     private Optional<Object> evalByName(Element e, ByteBuf bbuf) {
         switch (e.name) {
         case "applicationId":
             return Optional.of(decodeApplicationId(bbuf));
+        case "icmpTypeCodeIPv4":
+            if (bbuf.isReadable(2)) {
+                byte type = bbuf.readByte();
+                byte code = bbuf.readByte();
+                return Optional.of(Map.of("type", type, "code", code));
+            } else {
+                return Optional.empty();
+            }
+        case "samplingAlgorithm":
+            if (bbuf.isReadable()) {
+                byte value = bbuf.readByte();
+                switch (value) {
+                case 1:
+                    return Optional.of("Deterministic Sampling");
+                case 2:
+                    return Optional.of("Random Sampling");
+                default:
+                    return Optional.of(value);
+                }
+            } else {
+                return Optional.empty();
+            }
+        case "forwardingStatus":
+            if (bbuf.isReadable()) {
+                return Optional.of(decodeForwardingStatus(bbuf));
+            } else {
+                return Optional.empty();
+            }
         case "Reserved":
             return Optional.of(readByteArray(bbuf));
+        case "flowEndReason":
+            if (bbuf.isReadable()) {
+                byte value = bbuf.readByte();
+                switch (value) {
+                case 0: return Optional.of("reserved");
+                case 1: return Optional.of("idle timeout");
+                case 2: return Optional.of("active timeout");
+                case 3: return Optional.of("end of Flow detected");
+                case 4: return Optional.of("forced end");
+                case 5: return Optional.of("lack of resources");
+                default: return Optional.of("Unassigned: " + value);
+                }
+            } else {
+                return Optional.empty();
+            }
+        case "ipClassOfService":
+            if (bbuf.isReadable()) {
+                return Optional.of(decodeDscp(bbuf));
+            } else {
+                return Optional.empty();
+            }
         default:
             return Optional.empty();
         }
+    }
+
+    private Map<String, Object> decodeForwardingStatus(ByteBuf bbuf) {
+        short value = bbuf.readUnsignedByte();
+        String status;
+        String reason;
+        switch (value) {
+        case 0x040:
+            status = "Forwarded";
+            reason = "Unknown";
+            break;
+        case 0x41:
+            status = "Forwarded";
+            reason = "Fragmented";
+            break;
+        case 0x42:
+            status = "Forwarded";
+            reason = "Not Fragmented";
+            break;
+        case 0x43:
+            status = "Forwarded";
+            reason = "Tunneled";
+            break;
+        case 0x44:
+            status = "Forwarded";
+            reason = "ACL Redirect";
+            break;
+        case 0x80:
+            status = "Dropped";
+            reason = "Unknown";
+            break;
+        case 0x81:
+            status = "Dropped";
+            reason = "ACL deny";
+            break;
+        case 0x82:
+            status = "Dropped";
+            reason = "ACL drop";
+            break;
+        case 0x83:
+            status = "Dropped";
+            reason = "Unroutable";
+            break;
+        case 0x84:
+            status = "Dropped";
+            reason = "Adjacency";
+            break;
+        case 0x85:
+            status = "Dropped";
+            reason = "Fragmentation and DF set";
+            break;
+        case 0x86:
+            status = "Dropped";
+            reason = "Bad header checksum";
+            break;
+        case 0x87:
+            status = "Dropped";
+            reason = "Bad total Length";
+            break;
+        case 0x88:
+            status = "Dropped";
+            reason = "Bad header length";
+            break;
+        case 0x89:
+            status = "Dropped";
+            reason = "Bad TTL";
+            break;
+        case 0x8a:
+            status = "Dropped";
+            reason = "Policer";
+            break;
+        case 0x8b:
+            status = "Dropped";
+            reason = "WRED";
+            break;
+        case 0x8c:
+            status = "Dropped";
+            reason = "RPF";
+            break;
+        case 0x8d:
+            status = "Dropped";
+            reason = "For us";
+            break;
+        case 0x8e:
+            status = "Dropped";
+            reason = "Bad output interface";
+            break;
+        case 0x8f:
+            status = "Dropped";
+            reason = "Hardware";
+            break;
+        case 0xc0:
+            status = "Consumed";
+            reason = "Unknown";
+            break;
+        case 0xc1:
+            status = "Consumed";
+            reason = "Punt Adjacency";
+            break;
+        case 0xc2:
+            status = "Consumed";
+            reason = "Incomplete Adjacency";
+            break;
+        case 0xc3:
+            status = "Consumed";
+            reason = "For us";
+            break;
+        default:
+            switch ((byte) (value >>> 6)) {
+            case 0:
+                status = "Unknown";
+                break;
+            case 1:
+                status = "Forwarded";
+                break;
+            case 2:
+                status = "Dropped";
+                break;
+            case 3:
+                status = "Consumed";
+                break;
+            default:
+                // Not reachable
+                throw new IllegalStateException();
+            }
+            reason = "Unassigned: " + (value & (2^6 -1));
+        }
+        return Map.of("reason", reason, "status", status);
+    }
+
+    private Map<String, Object> decodeDscp(ByteBuf bbuf) {
+        int value = Byte.toUnsignedInt(bbuf.readByte());
+        int ecn = value & 3;
+        int dscp = value >>> 2;
+        int pool;
+        int codepoint;
+        if ((dscp & 1) == 0) {
+            pool = 1;
+            codepoint = dscp >>> 1;
+        } else if ((dscp & 3) == 3) {
+            pool = 2;
+            codepoint = dscp >>> 2;
+        } else {
+            pool = 3;
+            codepoint = dscp >>> 2;
+        }
+        String dscpName;
+        String serviceClass;
+        Map<String, Object> dscpMap = new HashMap<>();
+        dscpMap.put("pool", pool);
+        dscpMap.put("codePoint", codepoint);
+        switch (dscp) {
+        case 0:
+            dscpName = "DF";
+            serviceClass = "Standard";
+            break;
+        case 1:
+            dscpName = "LE";
+            serviceClass = "Lower-effort";
+            break;
+        case 10:
+            dscpName = "AF11";
+            serviceClass = "High-throughput data";
+            break;
+        case 12:
+            dscpName = "AF12";
+            serviceClass = "High-throughput data";
+            break;
+        case 14:
+            dscpName = "AF13";
+            serviceClass = "High-throughput data";
+            break;
+        case 16:
+            dscpName = "CS2";
+            serviceClass = "OAM";
+            break;
+        case 18:
+            dscpName = "AF21";
+            serviceClass = "Low-latency data";
+            break;
+        case 20:
+            dscpName = "AF22";
+            serviceClass = "Low-latency data";
+            break;
+        case 22:
+            dscpName = "AF23";
+            serviceClass = "Low-latency data";
+            break;
+        case 24:
+            dscpName = "CS3";
+            serviceClass = "Broadcast video";
+            break;
+        case 26:
+            dscpName = "AF31";
+            serviceClass = "Multimedia streaming";
+            break;
+        case 28:
+            dscpName = "AF32";
+            serviceClass = "Multimedia streaming";
+            break;
+        case 30:
+            dscpName = "AF33";
+            serviceClass = "Multimedia streaming";
+            break;
+        case 32:
+            dscpName = "CS4";
+            serviceClass = "Real-time interactive";
+            break;
+        case 34:
+            dscpName = "AF41";
+            serviceClass = "Multimedia conferencing";
+            break;
+        case 36:
+            dscpName = "AF42";
+            serviceClass = "Multimedia conferencing";
+            break;
+        case 38:
+            dscpName = "AF43";
+            serviceClass = "Multimedia conferencing";
+            break;
+        case 40:
+            dscpName = "CS5";
+            serviceClass = "Signaling";
+            break;
+        case 46:
+            dscpName = "EF";
+            serviceClass = "Telephony";
+            break;
+        case 48:
+            dscpName = "CS6";
+            serviceClass = "Network control";
+            break;
+        case 56:
+            dscpName = "CS7";
+            serviceClass = "Reserved for future use";
+            break;
+        default:
+            dscpName = "";
+            serviceClass = "";
+        }
+        if (! dscpName.isEmpty()) {
+            dscpMap.put("dscpName", dscpName);
+            dscpMap.put("serviceClass", serviceClass);
+        }
+        String ecnKeyword;
+        switch (ecn) {
+        case 0:
+            ecnKeyword = "Not-ECT";
+            break;
+        case 1:
+            ecnKeyword = "ECT(1)";
+            break;
+        case 2:
+            ecnKeyword = "ECT(0)";
+            break;
+        case 3:
+            ecnKeyword = "CE";
+            break;
+        default:
+            // Never reached
+            ecnKeyword = "";
+        }
+        return Map.of("ECN", ecnKeyword, "DSCP", dscpMap);
     }
 
     private Optional<Object> evalByType(Element e, ByteBuf bbuf) {
