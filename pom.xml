@@ -290,6 +290,7 @@
     <modules>
         <module>loghub-core</module>
         <module>loghub-executable</module>
+        <module>loghub-kaitai</module>
         <module>loghub-kafka</module>
         <module>loghub-snmp</module>
         <module>loghub-zabbix</module>

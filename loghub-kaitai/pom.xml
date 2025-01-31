@@ -9,8 +9,8 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>loghub-sflow</artifactId>
-    <name>LogHub :: sFlow</name>
+    <artifactId>loghub-kaitai</artifactId>
+    <name>LogHub :: Kaitai Struct</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -27,28 +27,37 @@
             <groupId>fr.loghub</groupId>
             <artifactId>loghub-core</artifactId>
             <classifier>tests</classifier>
-            <version>0.0.1-SNAPSHOT</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>fr.loghub</groupId>
-            <artifactId>loghub-kaitai</artifactId>
-            <classifier>tests</classifier>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kaitai</groupId>
+            <artifactId>kaitai-struct-runtime</artifactId>
+            <version>0.10</version>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.alibaba</groupId>-->
+<!--            <artifactId>fastjson</artifactId>-->
+<!--            <version>2.0.47</version>-->
+<!--        </dependency>-->
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <groupId>org.antlr</groupId>
-                <artifactId>antlr4-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>
                         <goals>
-                            <goal>antlr4</goal>
+                            <goal>test-jar</goal>
                         </goals>
+                        <configuration>
+                            <includes>
+                                <include>kaitai/*.class</include>
+                                <include>loghub/*.class</include>
+                            </includes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

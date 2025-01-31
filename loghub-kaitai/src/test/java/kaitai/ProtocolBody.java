@@ -1,24 +1,24 @@
-package kaitai;// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+package kaitai;
+// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
-import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
+import io.kaitai.struct.KaitaiStream;
+import java.io.IOException;
+import java.util.Map;
+import java.util.HashMap;
 
 
 /**
  * Protocol body represents particular payload on transport level (OSI
  * layer 4).
- * 
+ *
  * Typically this payload in encapsulated into network level (OSI layer
  * 3) packet, which includes "protocol number" field that would be used
  * to decide what's inside the payload and how to parse it. Thanks to
  * IANA's standardization effort, multiple network level use the same
  * IDs for these payloads named "protocol numbers".
- * 
+ *
  * This is effectively a "router" type: it expects to get protocol
  * number as a parameter, and then invokes relevant type parser based
  * on that parameter.
@@ -213,6 +213,18 @@ public class ProtocolBody extends KaitaiStruct {
                 }
                 case UDP: {
                     this.body = new UdpDatagram(this._io);
+                    break;
+                }
+                case HOPOPT: {
+                    this.body = new OptionHopByHop(this._io, this, _root);
+                    break;
+                }
+                case IPV6: {
+                    this.body = new Ipv6Packet(this._io);
+                    break;
+                }
+                case TCP: {
+                    this.body = new TcpSegment(this._io);
                     break;
                 }
                 }
