@@ -6,9 +6,7 @@ import java.nio.ByteBuffer;
 import java.security.Principal;
 import java.util.Map;
 
-import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.DynamicMessage;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -126,20 +124,8 @@ public class OpenTelemetry extends AbstractHttpReceiver<OpenTelemetry, OpenTelem
         }
         ev.putMeta("host_header", headers.get("Host"));
         send(ev);
-        Descriptors.Descriptor outDescr = decoder.getMessageDescriptor(outMessage);
-        Descriptors.FieldDescriptor partialSuccessFieldDescr = outDescr.findFieldByName("partial_success");
-        Descriptors.Descriptor partialSuccessMsgDescr = partialSuccessFieldDescr.getMessageType();
-        Descriptors.FieldDescriptor rejectedField = partialSuccessMsgDescr.findFieldByNumber(1);
-        Descriptors.FieldDescriptor errorMessageField = partialSuccessMsgDescr.findFieldByNumber(2);
-        DynamicMessage partialSuccessMsg = DynamicMessage.newBuilder(partialSuccessMsgDescr).setField(rejectedField, 0L)
-                                                   .setField(errorMessageField, "").build();
-        DynamicMessage exportServiceResponse = DynamicMessage.newBuilder(outDescr)
-                                                             .setField(partialSuccessFieldDescr, partialSuccessMsg)
-                                                             .build();
-        int size = CodedOutputStream.computeMessageSize(partialSuccessFieldDescr.getNumber(), partialSuccessMsg);
-        byte[] outBuffer = new byte[size];
-        CodedOutputStream cos = CodedOutputStream.newInstance(outBuffer);
-        cos.writeMessage(partialSuccessFieldDescr.getNumber(), partialSuccessMsg);
+        Map<String, Object> response = Map.of("partial_success", Map.of("rejected_data_points", 0L, "error_message", ""));
+        byte[] outBuffer = decoder.encode(outMessage, response);
         return Unpooled.wrappedBuffer(outBuffer);
     }
 

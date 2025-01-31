@@ -18,63 +18,67 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Duration;
+import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.Type;
 
 import lombok.Data;
 
-public class BinaryDecoder {
+public class BinaryCodec {
 
-    private final Map<String, Map<Integer, Descriptors.FieldDescriptor>> descriptors;
-    private final Map<String, FastPathFunction<?>> fastPathMap = new HashMap<>();
+    private final Map<String, MessageFastPathFunction<?>> messageFastPath = new HashMap<>();
+    private final Map<String, FieldFastPathFunction<?>> fieldFastPath = new HashMap<>();
     private final Map<String, Descriptors.Descriptor> messages = new HashMap<>();
     private final Map<String, Descriptors.MethodDescriptor> methods = new HashMap<>();
 
     @FunctionalInterface
-    public interface FastPathFunction<T> {
-        T resolve(CodedInputStream stream, List<UnknownField> unknownFields) throws IOException;
+    public interface MessageFastPathFunction<T> {
+        T resolve(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException;
     }
 
-    public BinaryDecoder(URI source) throws Descriptors.DescriptorValidationException, IOException {
+    @FunctionalInterface
+    public interface FieldFastPathFunction<T> {
+        T resolve(CodedInputStream stream, Descriptors.FieldDescriptor descriptor, List<UnknownField> unknownFields) throws IOException;
+    }
+
+    public BinaryCodec(URI source) throws Descriptors.DescriptorValidationException, IOException {
         try (InputStream is = source.toURL().openStream()) {
-            descriptors = analyseProto(is);
+            analyseProto(is);
         }
         initFastPath();
     }
 
-    public BinaryDecoder(InputStream source) throws Descriptors.DescriptorValidationException, IOException {
+    public BinaryCodec(InputStream source) throws Descriptors.DescriptorValidationException, IOException {
         if (source == null) {
             throw new IllegalArgumentException("Not defined InputStream source");
         }
-        descriptors = analyseProto(source);
+        analyseProto(source);
         initFastPath();
     }
 
-    public BinaryDecoder(Path source) throws Descriptors.DescriptorValidationException, IOException {
+    public BinaryCodec(Path source) throws Descriptors.DescriptorValidationException, IOException {
         try (InputStream is = Files.newInputStream(source)) {
-            descriptors = analyseProto(is);
+            analyseProto(is);
         }
         initFastPath();
     }
 
     protected void initFastPath() {
-        fastPathMap.put("com.google.protobuf.Any", (s, u) -> Any.parseFrom(s.readByteBuffer()));
-        fastPathMap.put("com.google.protobuf.Duration", (s, u) -> {
+        messageFastPath.put("com.google.protobuf.Any", (s, d, u) -> Any.parseFrom(s.readByteBuffer()));
+        messageFastPath.put("com.google.protobuf.Duration", (s, desc, u) -> {
             Duration d = Duration.parseFrom(s.readByteBuffer());
             return java.time.Duration.ofSeconds(d.getSeconds(), d.getNanos());
         });
-        fastPathMap.put("com.google.protobuf.Timestamp", (s, u) -> {
+        messageFastPath.put("com.google.protobuf.Timestamp", (s, d, u) -> {
             Timestamp ts = Timestamp.parseFrom(s.readByteBuffer());
             return Instant.ofEpochSecond(ts.getSeconds(), ts.getNanos());
         });
     }
 
-    private Map<String, Map<Integer, Descriptors.FieldDescriptor>> analyseProto(InputStream source)
+    private void analyseProto(InputStream source)
             throws IOException, Descriptors.DescriptorValidationException {
-        Map<String, Map<Integer, Descriptors.FieldDescriptor>> current = new HashMap<>();
         for (Descriptors.FileDescriptor fd : resolveProto(source)) {
             for (Descriptors.Descriptor dd : fd.getMessageTypes()) {
-                scanDescriptor(dd, current);
+                scanDescriptor(dd);
                 messages.put(dd.getFullName(), dd);
             }
             for (var sd : fd.getServices()) {
@@ -83,7 +87,6 @@ public class BinaryDecoder {
                 }
             }
         }
-        return current;
     }
 
     private List<Descriptors.FileDescriptor> resolveProto(InputStream source)
@@ -100,23 +103,28 @@ public class BinaryDecoder {
         return files;
     }
 
-    private void scanDescriptor(Descriptors.Descriptor dd,
-            Map<String, Map<Integer, Descriptors.FieldDescriptor>> descriptors) {
-        dd.getNestedTypes().forEach(d -> scanDescriptor(d, descriptors));
+    private void scanDescriptor(Descriptors.Descriptor dd) {
+        dd.getNestedTypes().forEach(this::scanDescriptor);
         for (Descriptors.FieldDescriptor dfd : dd.getFields()) {
             if (dfd.isExtension()) {
                 throw new UnsupportedOperationException("Extensions are no supported");
-            } else {
-                descriptors.computeIfAbsent(dd.getFullName(), k -> new HashMap<>()).put(dfd.getNumber(), dfd);
             }
         }
     }
 
-    public <T> void addFastPath(String attributeFullName, FastPathFunction<T> fastPath) {
+    public <T> void addFastPath(String attributeFullName, MessageFastPathFunction<T> fastPath) {
         if (fastPath == null) {
-            fastPathMap.remove(attributeFullName);
+            messageFastPath.remove(attributeFullName);
         } else {
-            fastPathMap.put(attributeFullName, fastPath);
+            messageFastPath.put(attributeFullName, fastPath);
+        }
+    }
+
+    public <T> void addFastPath(String attributeFullName, FieldFastPathFunction<T> fastPath) {
+        if (fastPath == null) {
+            fieldFastPath.remove(attributeFullName);
+        } else {
+            fieldFastPath.put(attributeFullName, fastPath);
         }
     }
 
@@ -128,15 +136,21 @@ public class BinaryDecoder {
         private final Object value;
     }
 
-    public Map<String, Object> parseInput(CodedInputStream stream, String messageName, List<UnknownField> unknownFields) throws IOException {
+    public Map<String, Object> decode(CodedInputStream stream, String messageName, List<UnknownField> unknownFields) throws IOException {
         return parseMessage(stream, messages.get(messageName), unknownFields);
+    }
+
+    public byte[] encode(String messageName, Map<String, Object> values) {
+        Descriptors.Descriptor outDescr = getMessageDescriptor(messageName);
+        DynamicMessage encoded = encode(outDescr, values);
+        return encoded.toByteArray();
     }
 
     @SuppressWarnings("unchecked")
     private <T> T parseMessage(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields)
             throws IOException {
-        if (fastPathMap.containsKey(descriptor.getFullName())) {
-            return (T) fastPathMap.get(descriptor.getFullName()).resolve(stream, unknownFields);
+        if (messageFastPath.containsKey(descriptor.getFullName())) {
+            return (T) messageFastPath.get(descriptor.getFullName()).resolve(stream, descriptor, unknownFields);
         } else {
             Map<String, Object> values = new HashMap<>();
             Set<Descriptors.FieldDescriptor> expected = new HashSet<>(descriptor.getFields());
@@ -179,11 +193,11 @@ public class BinaryDecoder {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> T resolveFieldValue(CodedInputStream stream, Descriptors.FieldDescriptor dfd, List<BinaryDecoder.UnknownField> unknownFields)
+    public <T> T resolveFieldValue(CodedInputStream stream, Descriptors.FieldDescriptor dfd, List<BinaryCodec.UnknownField> unknownFields)
             throws IOException {
-        if (fastPathMap.containsKey(dfd.getFullName()) && dfd.getType() != Descriptors.FieldDescriptor.Type.MESSAGE) {
+        if (fieldFastPath.containsKey(dfd.getFullName()) && dfd.getType() != Descriptors.FieldDescriptor.Type.MESSAGE) {
             // If it's a message, fast path will be resolved in readMessageField
-            return (T) fastPathMap.get(dfd.getFullName()).resolve(stream, unknownFields);
+            return (T) fieldFastPath.get(dfd.getFullName()).resolve(stream, dfd, unknownFields);
         } else {
             switch (dfd.getType()) {
             case DOUBLE:
@@ -226,14 +240,20 @@ public class BinaryDecoder {
         }
     }
 
+    public URI decodeUrl(CodedInputStream stream, Descriptors.FieldDescriptor fieldDescriptor, List<UnknownField> unknownFields)
+            throws IOException {
+        String urlString = stream.readString();
+        return URI.create(urlString);
+    }
+
     @SuppressWarnings("unchecked")
-    public <T> T readMessageField(CodedInputStream stream, Descriptors.FieldDescriptor dfd, List<BinaryDecoder.UnknownField> unknownFields)
+    public <T> T readMessageField(CodedInputStream stream, Descriptors.FieldDescriptor dfd, List<BinaryCodec.UnknownField> unknownFields)
             throws IOException {
         T val;
         int len = stream.readRawVarint32();
         int oldLimit = stream.pushLimit(len);
-        if (fastPathMap.containsKey(dfd.getFullName())) {
-            val = (T) fastPathMap.get(dfd.getFullName()).resolve(stream, unknownFields);
+        if (messageFastPath.containsKey(dfd.getFullName())) {
+            val = (T) messageFastPath.get(dfd.getFullName()).resolve(stream, dfd.getMessageType(), unknownFields);
         } else {
             val = parseMessage(stream, dfd.getMessageType(), unknownFields);
         }
@@ -260,12 +280,10 @@ public class BinaryDecoder {
         }
     }
 
-    public Descriptors.FieldDescriptor resolve(String name, int tag) {
-        int fieldNumber = (tag >> 3);
-        if (descriptors.get(name).get(fieldNumber) == null) {
-            throw new NullPointerException();
-        }
-        return descriptors.get(name).get(fieldNumber);
+    public Descriptors.FieldDescriptor resolveField(CodedInputStream codedInputStream, Descriptors.Descriptor descriptor)
+            throws IOException {
+        int tag = codedInputStream.readTag();
+        return descriptor.findFieldByNumber(tag >> 3);
     }
 
     public Descriptors.Descriptor getMessageDescriptor(String name) {
@@ -274,6 +292,19 @@ public class BinaryDecoder {
 
     public Descriptors.MethodDescriptor getMethodDescriptor(String name) {
         return methods.get(name);
+    }
+
+    private DynamicMessage encode(Descriptors.Descriptor descriptor, Map<String, Object> values) {
+        DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+        for (Map.Entry<String, Object> e: values.entrySet()) {
+            Descriptors.FieldDescriptor fd = descriptor.findFieldByName(e.getKey());
+            if (fd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE && e.getValue() instanceof Map) {
+                builder.setField(fd, encode(fd.getMessageType(), (Map<String, Object>) e.getValue()));
+            } else {
+                builder.setField(fd, e.getValue());
+            }
+        }
+        return builder.build();
     }
 
 }

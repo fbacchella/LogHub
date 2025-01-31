@@ -6,9 +6,7 @@ import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors;
@@ -19,7 +17,7 @@ import io.netty.buffer.ByteBufInputStream;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
-import loghub.protobuf.BinaryDecoder;
+import loghub.protobuf.BinaryCodec;
 import lombok.Setter;
 
 @BuilderClass(ProtoBuf.Builder.class)
@@ -44,14 +42,14 @@ public class ProtoBuf extends Decoder {
         return new ProtoBuf.Builder();
     }
 
-    private final BinaryDecoder decoder;
+    private final BinaryCodec decoder;
     private final String mappingClass;
 
     public ProtoBuf(Builder builder) {
         super(builder);
         mappingClass = builder.mappingClass;
         try {
-             decoder = new BinaryDecoder(Helpers.fileUri(builder.schemaUri));
+             decoder = new BinaryCodec(Helpers.fileUri(builder.schemaUri));
         } catch (Descriptors.DescriptorValidationException | IOException ex) {
             throw new IllegalStateException("Unusable binary schema :" + Helpers.resolveThrowableException(ex), ex);
         }
@@ -60,7 +58,7 @@ public class ProtoBuf extends Decoder {
                 Class<?> loadedClass = builder.loader.loadClass(clazz);
                 if (loadedClass.isAssignableFrom(GeneratedMessage.class)) {
                     Method builderMethod = loadedClass.getMethod("parseFrom", CodedInputStream.class);
-                    decoder.addFastPath(clazz, (s, u) -> parseFrom(builderMethod, s));
+                    decoder.addFastPath(clazz, (BinaryCodec.MessageFastPathFunction<? extends Object>) (s, d,u) -> parseFrom(builderMethod, s));
                 }
             } catch (ClassNotFoundException | NoSuchMethodException e) {
                 throw new RuntimeException(e);
@@ -88,8 +86,8 @@ public class ProtoBuf extends Decoder {
 
     private Object parse(GetInputStream getis) throws DecodeException {
         try (InputStream is = getis.get()) {
-            List<BinaryDecoder.UnknownField> unknownFields = new ArrayList<>();
-            return decoder.parseInput(CodedInputStream.newInstance(is), mappingClass, unknownFields);
+            List<BinaryCodec.UnknownField> unknownFields = new ArrayList<>();
+            return decoder.decode(CodedInputStream.newInstance(is), mappingClass, unknownFields);
         } catch (IOException ex) {
             throw new DecodeException("Failed to decode Protobuf event: " + Helpers.resolveThrowableException(ex), ex);
         }
