@@ -33,22 +33,21 @@ public class PrometheusDecoder extends BinaryDecoder {
     protected void initFastPath() {
         super.initFastPath();
         addFastPath("prometheus.WriteRequest.timeseries", this::decodeTimeseries);
-        addFastPath("prometheus.TimeSeries.samples", this::decodeSample);
-        addFastPath("prometheus.TimeSeries.labels", this::decodeLabel);
+        addFastPath("prometheus.Sample", this::decodeSample);
+        addFastPath("prometheus.Label", this::decodeLabel);
     }
 
-    private Object decodeTimeseries(CodedInputStream decodeSample) throws IOException {
+    private Object decodeTimeseries(CodedInputStream decodeSample, List<UnknownField> unknownFields) throws IOException {
         Map<String, Object> values = new HashMap<>();
         Map<String, String> labels = new HashMap<>();
         List<Sample> samples = new ArrayList<>();
 
         values.put("labels", labels);
-        List<BinaryDecoder.UnknownField> unknownFields = new ArrayList<>();
         while (!decodeSample.isAtEnd()) {
-            Descriptors.GenericDescriptor gd = resolve("prometheus.TimeSeries", decodeSample.readTag());
+            Descriptors.FieldDescriptor gd = resolve("prometheus.TimeSeries", decodeSample.readTag());
             switch (gd.getName()) {
             case "labels":
-                Map.Entry<String, String> e = parseMessage((Descriptors.FieldDescriptor)gd, decodeSample, unknownFields);
+                Map.Entry<String, String> e = resolveFieldValue(decodeSample, gd, unknownFields);
                 if ("__name__".equals(e.getKey())) {
                     values.put("name", e.getValue());
                 } else {
@@ -56,11 +55,11 @@ public class PrometheusDecoder extends BinaryDecoder {
                 }
                 break;
             case "samples":
-                Sample s = parseMessage((Descriptors.FieldDescriptor)gd, decodeSample, unknownFields);
+                Sample s = resolveFieldValue(decodeSample, gd, unknownFields);
                 samples.add(s);
                 break;
             default:
-                resolveValue((Descriptors.FieldDescriptor)gd, decodeSample, values, unknownFields);
+                values.put(gd.getName(), resolveFieldValue(decodeSample, gd, unknownFields));
                 break;
             }
         }
@@ -79,7 +78,7 @@ public class PrometheusDecoder extends BinaryDecoder {
         return values;
     }
 
-    private Sample decodeSample(CodedInputStream decodeSample) throws IOException {
+    private Sample decodeSample(CodedInputStream decodeSample, List<UnknownField> unknownFields) throws IOException {
         double value = Double.NaN;
         long time =  0;
         while (!decodeSample.isAtEnd()) {
@@ -97,27 +96,26 @@ public class PrometheusDecoder extends BinaryDecoder {
         return new Sample(t, value);
     }
 
-    private Map.Entry<String, String> decodeLabel(CodedInputStream decodeSample) throws IOException {
+    private Map.Entry<String, String> decodeLabel(CodedInputStream decodeLabel, List<UnknownField> unknownFields) throws IOException {
         String name = "";
         String value = "";
-        while (!decodeSample.isAtEnd()) {
-            Descriptors.GenericDescriptor gd = resolve("prometheus.Label", decodeSample.readTag());
+        while (!decodeLabel.isAtEnd()) {
+            Descriptors.GenericDescriptor gd = resolve("prometheus.Label", decodeLabel.readTag());
             switch (gd.getName()) {
             case "name":
-                name = decodeSample.readString();
+                name = decodeLabel.readString();
                 break;
             case "value":
-                value = decodeSample.readString();
+                value = decodeLabel.readString();
+                break;
             }
         }
         return Map.entry(name, value);
     }
 
     public Map<String, Object> parseWriteRequest(ByteBuffer buffer) throws IOException {
-        Map<String, Object> values = new HashMap<>();
         List<BinaryDecoder.UnknownField> unknownFields = new ArrayList<>();
-        parseInput(CodedInputStream.newInstance(buffer), "prometheus.WriteRequest", values, unknownFields);
-        return values;
+        return parseInput(CodedInputStream.newInstance(buffer), "prometheus.WriteRequest", unknownFields);
     }
 
 }

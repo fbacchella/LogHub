@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -56,17 +55,12 @@ public class ProtoBuf extends Decoder {
         } catch (Descriptors.DescriptorValidationException | IOException ex) {
             throw new IllegalStateException("Unusable binary schema :" + Helpers.resolveThrowableException(ex), ex);
         }
-        decoder.addFastPath("com.google.protobuf.Timestamp", s -> {
-            long seconds = s.readInt64();
-            int nanos = s.readInt32();
-            return Instant.ofEpochSecond(seconds, nanos);
-        });
         for (String clazz: builder.knowMessages) {
             try {
                 Class<?> loadedClass = builder.loader.loadClass(clazz);
                 if (loadedClass.isAssignableFrom(GeneratedMessage.class)) {
                     Method builderMethod = loadedClass.getMethod("parseFrom", CodedInputStream.class);
-                    decoder.addFastPath(clazz, s -> parseFrom(builderMethod, s));
+                    decoder.addFastPath(clazz, (s, u) -> parseFrom(builderMethod, s));
                 }
             } catch (ClassNotFoundException | NoSuchMethodException e) {
                 throw new RuntimeException(e);
@@ -94,10 +88,8 @@ public class ProtoBuf extends Decoder {
 
     private Object parse(GetInputStream getis) throws DecodeException {
         try (InputStream is = getis.get()) {
-            Map<String, Object> values = new HashMap<>();
             List<BinaryDecoder.UnknownField> unknownFields = new ArrayList<>();
-            decoder.parseInput(CodedInputStream.newInstance(is), mappingClass, values, unknownFields);
-            return values;
+            return decoder.parseInput(CodedInputStream.newInstance(is), mappingClass, unknownFields);
         } catch (IOException ex) {
             throw new DecodeException("Failed to decode Protobuf event: " + Helpers.resolveThrowableException(ex), ex);
         }

@@ -54,7 +54,7 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
     @ContentType("application/x-protobuf")
     @RequestAccept(methods = {"POST"})
     private class PrometheusWriteRequestHandler extends HttpRequestProcessing {
-        private final Snappy snappy = new Snappy();
+        private final ThreadLocal<Snappy> snappy = ThreadLocal.withInitial(Snappy::new);
 
         @Override
         protected void processRequest(FullHttpRequest request,
@@ -62,15 +62,16 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
                 throws HttpRequestFailure {
             logger.debug("Received request at {}", request::uri);
             ByteBuf content = request.content();
-            ByteBuf uncompressed = ctx.alloc().buffer(content.readableBytes() * 2, content.readableBytes() * 20);
-            byte[] inBufferArray;
+            ByteBuf uncompressed = content.duplicate();
             try {
-                snappy.reset();
-                snappy.decode(content, uncompressed);
+                if ("snappy".equalsIgnoreCase(request.headers().get("Content-Encoding"))) {
+                    uncompressed = ctx.alloc().buffer(content.readableBytes() * 20, content.readableBytes() * 20);
+                    snappy.get().reset();
+                    snappy.get().decode(content, uncompressed);
+                } else {
+                    uncompressed.retain();
+                }
                 Principal p = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
-                ByteBuffer inBuffer = uncompressed.nioBuffer();
-                inBufferArray = new byte[inBuffer.remaining()];
-                inBuffer.get(inBufferArray);
                 ConnectionContext<InetSocketAddress> cctx = Prometheus.this.getConnectionContext(ctx);
                 if (p != null) {
                     cctx.setPrincipal(p);
@@ -104,6 +105,7 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
     protected void modelSetup(ChannelPipeline pipeline) {
         // Prometheus don’t conform to HTTP compression standard for snappy content encoding
         pipeline.remove("HttpContentDeCompressor");
+        pipeline.remove("HttpContentCompressor");
         pipeline.addLast(bodyHandler);
     }
 

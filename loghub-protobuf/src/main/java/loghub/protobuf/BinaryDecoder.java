@@ -5,10 +5,13 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.CodedInputStream;
@@ -16,17 +19,20 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import com.google.protobuf.Type;
 
 import lombok.Data;
 
 public class BinaryDecoder {
 
-    private final Map<String, Map<Integer, Descriptors.GenericDescriptor>> descriptors;
-    private final Map<String, FastPathFunction> fastPathMap = new HashMap<>();
+    private final Map<String, Map<Integer, Descriptors.FieldDescriptor>> descriptors;
+    private final Map<String, FastPathFunction<?>> fastPathMap = new HashMap<>();
+    private final Map<String, Descriptors.Descriptor> messages = new HashMap<>();
+    private final Map<String, Descriptors.MethodDescriptor> methods = new HashMap<>();
 
     @FunctionalInterface
-    public interface FastPathFunction {
-        Object resolve(CodedInputStream stream) throws IOException;
+    public interface FastPathFunction<T> {
+        T resolve(CodedInputStream stream, List<UnknownField> unknownFields) throws IOException;
     }
 
     public BinaryDecoder(URI source) throws Descriptors.DescriptorValidationException, IOException {
@@ -52,20 +58,29 @@ public class BinaryDecoder {
     }
 
     protected void initFastPath() {
-        fastPathMap.put("com.google.protobuf.Any", s -> Any.parseFrom(s.readByteBuffer()));
-        fastPathMap.put("com.google.protobuf.Duration", s -> Duration.parseFrom(s.readByteBuffer()));
-        fastPathMap.put("com.google.protobuf.Timestamp", s -> Timestamp.parseFrom(s.readByteBuffer()));
+        fastPathMap.put("com.google.protobuf.Any", (s, u) -> Any.parseFrom(s.readByteBuffer()));
+        fastPathMap.put("com.google.protobuf.Duration", (s, u) -> {
+            Duration d = Duration.parseFrom(s.readByteBuffer());
+            return java.time.Duration.ofSeconds(d.getSeconds(), d.getNanos());
+        });
+        fastPathMap.put("com.google.protobuf.Timestamp", (s, u) -> {
+            Timestamp ts = Timestamp.parseFrom(s.readByteBuffer());
+            return Instant.ofEpochSecond(ts.getSeconds(), ts.getNanos());
+        });
     }
 
-    private Map<String, Map<Integer, Descriptors.GenericDescriptor>> analyseProto(InputStream source)
+    private Map<String, Map<Integer, Descriptors.FieldDescriptor>> analyseProto(InputStream source)
             throws IOException, Descriptors.DescriptorValidationException {
-        Map<String, Map<Integer, Descriptors.GenericDescriptor>> current = new HashMap<>();
+        Map<String, Map<Integer, Descriptors.FieldDescriptor>> current = new HashMap<>();
         for (Descriptors.FileDescriptor fd : resolveProto(source)) {
-            for (Descriptors.EnumDescriptor et : fd.getEnumTypes()) {
-                scanEnum(et, current);
-            }
             for (Descriptors.Descriptor dd : fd.getMessageTypes()) {
                 scanDescriptor(dd, current);
+                messages.put(dd.getFullName(), dd);
+            }
+            for (var sd : fd.getServices()) {
+                for (var md: sd.getMethods()) {
+                    methods.put(md.getFullName(), md);
+                }
             }
         }
         return current;
@@ -85,37 +100,23 @@ public class BinaryDecoder {
         return files;
     }
 
-    private void scanEnum(Descriptors.EnumDescriptor ed,
-            Map<String, Map<Integer, Descriptors.GenericDescriptor>> descriptors) {
-        for (var ev : ed.getValues()) {
-            descriptors.computeIfAbsent(ed.getFullName(), k -> new HashMap<>()).put(ev.getNumber(), ev);
-        }
-    }
-
     private void scanDescriptor(Descriptors.Descriptor dd,
-            Map<String, Map<Integer, Descriptors.GenericDescriptor>> descriptors) {
+            Map<String, Map<Integer, Descriptors.FieldDescriptor>> descriptors) {
         dd.getNestedTypes().forEach(d -> scanDescriptor(d, descriptors));
-        for (var et : dd.getEnumTypes()) {
-            scanEnum(et, descriptors);
-        }
-        for (var dfd : dd.getFields()) {
-            if (dfd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE) {
-                descriptors.computeIfAbsent(dd.getFullName(), k -> new HashMap<>()).put(dfd.getNumber(), dfd);
-            } else if (dfd.isMapField()) {
-                throw new RuntimeException();
-            } else if (dfd.isExtension()) {
-                throw new RuntimeException();
+        for (Descriptors.FieldDescriptor dfd : dd.getFields()) {
+            if (dfd.isExtension()) {
+                throw new UnsupportedOperationException("Extensions are no supported");
             } else {
                 descriptors.computeIfAbsent(dd.getFullName(), k -> new HashMap<>()).put(dfd.getNumber(), dfd);
             }
         }
     }
 
-    public void addFastPath(String messageType, FastPathFunction fastPath) {
+    public <T> void addFastPath(String attributeFullName, FastPathFunction<T> fastPath) {
         if (fastPath == null) {
-            fastPathMap.remove(messageType);
+            fastPathMap.remove(attributeFullName);
         } else {
-            fastPathMap.put(messageType, fastPath);
+            fastPathMap.put(attributeFullName, fastPath);
         }
     }
 
@@ -127,18 +128,49 @@ public class BinaryDecoder {
         private final Object value;
     }
 
-    public void parseInput(CodedInputStream stream, String messageName, Map<String, Object> values, List<UnknownField> unknownFields) throws IOException {
-        Map<Integer, Descriptors.GenericDescriptor> messageMapping = descriptors.get(messageName);
-        while (!stream.isAtEnd()) {
-            int tag = stream.readTag();
-            int fieldNumber = (tag >> 3);
-            int fieldWireType = tag & 3;
-            Descriptors.GenericDescriptor desc = messageMapping.get(fieldNumber);
-            if (desc instanceof Descriptors.FieldDescriptor) {
-                resolveValue((Descriptors.FieldDescriptor) desc, stream, values, unknownFields);
-            } else {
-                unknownFields.add(new UnknownField(messageName, fieldNumber, fieldWireType, resolveUnknownField(stream, fieldWireType)));
+    public Map<String, Object> parseInput(CodedInputStream stream, String messageName, List<UnknownField> unknownFields) throws IOException {
+        return parseMessage(stream, messages.get(messageName), unknownFields);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T parseMessage(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields)
+            throws IOException {
+        if (fastPathMap.containsKey(descriptor.getFullName())) {
+            return (T) fastPathMap.get(descriptor.getFullName()).resolve(stream, unknownFields);
+        } else {
+            Map<String, Object> values = new HashMap<>();
+            Set<Descriptors.FieldDescriptor> expected = new HashSet<>(descriptor.getFields());
+            while (!stream.isAtEnd()) {
+                int tag = stream.readTag();
+                int fieldNumber = (tag >> 3);
+                Descriptors.FieldDescriptor desc = descriptor.findFieldByNumber(fieldNumber);
+                expected.remove(desc);
+                if (desc != null) {
+                    if (desc.isRepeated()) {
+                        List<?> content = (List) values.computeIfAbsent(desc.getName(), k -> new ArrayList<>());
+                        content.add(resolveFieldValue(stream, desc, unknownFields));
+                    } else {
+                        values.put(desc.getName(), resolveFieldValue(stream, desc, unknownFields));
+                    }
+                    Descriptors.OneofDescriptor oneOf = desc.getContainingOneof();
+                    if (oneOf != null) {
+                        oneOf.getFields().forEach(expected::remove);
+                    }
+                } else {
+                    int fieldWireType = tag & 3;
+                    unknownFields.add(new UnknownField(descriptor.getFullName(), fieldNumber, fieldWireType, resolveUnknownField(stream, fieldWireType)));
+                }
             }
+            if (! expected.isEmpty()) {
+                for (Descriptors.FieldDescriptor d: expected) {
+                    if (d.isRepeated()) {
+                        values.put(d.getName(), List.of());
+                    } else {
+                        values.put(d.getName(), d.getDefaultValue());
+                    }
+                }
+            }
+            return (T) values;
         }
     }
 
@@ -146,96 +178,67 @@ public class BinaryDecoder {
         return dfd.getEnumType().findValueByNumber(enumKey).getName();
     }
 
-    public void resolveValue(Descriptors.FieldDescriptor dfd, CodedInputStream stream, Map<String, Object> values,List<BinaryDecoder.UnknownField> unknownFields)
+    @SuppressWarnings("unchecked")
+    public <T> T resolveFieldValue(CodedInputStream stream, Descriptors.FieldDescriptor dfd, List<BinaryDecoder.UnknownField> unknownFields)
             throws IOException {
-        Object val;
         if (fastPathMap.containsKey(dfd.getFullName()) && dfd.getType() != Descriptors.FieldDescriptor.Type.MESSAGE) {
-            val = fastPathMap.get(dfd.getFullName()).resolve(stream);
+            // If it's a message, fast path will be resolved in readMessageField
+            return (T) fastPathMap.get(dfd.getFullName()).resolve(stream, unknownFields);
         } else {
             switch (dfd.getType()) {
             case DOUBLE:
-                val = stream.readDouble();
-                break;
+                return (T) Double.valueOf(stream.readDouble());
             case FLOAT:
-                val = stream.readFloat();
-                break;
+                return (T) Float.valueOf(stream.readFloat());
             case INT32:
-                val = stream.readInt32();
-                break;
+                return (T) Integer.valueOf(stream.readInt32());
             case INT64:
-                val = stream.readInt64();
-                break;
+                return (T) Long.valueOf(stream.readInt64());
             case UINT32:
-                val = stream.readUInt32();
-                break;
+                return (T) Integer.valueOf(stream.readUInt32());
             case UINT64:
-                val = stream.readUInt64();
-                break;
+                return (T) Long.valueOf(stream.readUInt64());
             case SINT32:
-                val = stream.readSInt32();
-                break;
+                return (T) Integer.valueOf(stream.readSInt32());
             case SINT64:
-                val = stream.readSInt64();
-                break;
+                return (T) Long.valueOf(stream.readSInt64());
             case FIXED32:
-                val = stream.readFixed32();
-                break;
+                return (T) Integer.valueOf(stream.readFixed32());
             case FIXED64:
-                val = stream.readFixed64();
-                break;
+                return (T) Long.valueOf(stream.readFixed64());
             case SFIXED32:
-                val = stream.readSFixed32();
-                break;
+                return (T) Integer.valueOf(stream.readSFixed32());
             case SFIXED64:
-                val = stream.readSFixed64();
-                break;
+                return (T) Long.valueOf(stream.readSFixed64());
             case BOOL:
-                val = stream.readBool();
-                break;
+                return (T) Boolean.valueOf(stream.readBool());
             case STRING:
-                val = stream.readString();
-                break;
+                return (T) stream.readString();
             case BYTES:
-                val = stream.readByteArray();
-                break;
+                return (T) stream.readByteArray();
             case MESSAGE:
-                val = parseMessage(dfd, stream, unknownFields);
-                break;
+                return readMessageField(stream, dfd, unknownFields);
             case ENUM:
-                val = resolveEnum(dfd, stream.readEnum());
-                break;
+                return (T) resolveEnum(dfd, stream.readEnum());
             default:
                 throw new IllegalStateException(dfd.getType().name());
             }
         }
-        putValue(values, dfd, val);
     }
 
-    public <T> T parseMessage(Descriptors.FieldDescriptor dfd, CodedInputStream stream, List<BinaryDecoder.UnknownField> unknownFields)
+    @SuppressWarnings("unchecked")
+    public <T> T readMessageField(CodedInputStream stream, Descriptors.FieldDescriptor dfd, List<BinaryDecoder.UnknownField> unknownFields)
             throws IOException {
         T val;
         int len = stream.readRawVarint32();
         int oldLimit = stream.pushLimit(len);
         if (fastPathMap.containsKey(dfd.getFullName())) {
-            val = (T) fastPathMap.get(dfd.getFullName()).resolve(stream);
+            val = (T) fastPathMap.get(dfd.getFullName()).resolve(stream, unknownFields);
         } else {
-            Map<String, Object> messageValues = new HashMap<>();
-            parseInput(stream, dfd.getMessageType().getFullName(), messageValues, unknownFields);
-            val = (T) messageValues;
+            val = parseMessage(stream, dfd.getMessageType(), unknownFields);
         }
         stream.popLimit(oldLimit);
         return val;
-    }
-
-    private void putValue(Map<String, Object> values, Descriptors.FieldDescriptor dfd, Object value) {
-        String name = dfd.getName();
-        if (dfd.isRepeated()) {
-            @SuppressWarnings("unchecked")
-            List<Object> content = (List<Object>) values.computeIfAbsent(name, k -> new ArrayList<>());
-            content.add(value);
-        } else {
-            values.put(name, value);
-        }
     }
 
     private Object resolveUnknownField(CodedInputStream stream, int wireType) throws IOException {
@@ -257,9 +260,20 @@ public class BinaryDecoder {
         }
     }
 
-    public Descriptors.GenericDescriptor resolve(String name, int tag) {
+    public Descriptors.FieldDescriptor resolve(String name, int tag) {
         int fieldNumber = (tag >> 3);
+        if (descriptors.get(name).get(fieldNumber) == null) {
+            throw new NullPointerException();
+        }
         return descriptors.get(name).get(fieldNumber);
+    }
+
+    public Descriptors.Descriptor getMessageDescriptor(String name) {
+        return messages.get(name);
+    }
+
+    public Descriptors.MethodDescriptor getMethodDescriptor(String name) {
+        return methods.get(name);
     }
 
 }
