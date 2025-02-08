@@ -118,6 +118,7 @@ class ConfigListener extends RouteBaseListener {
 
     private static final Class[] INJECTED_BEANS_CLASSES = new Class[]{
             SSLContext.class,
+            SslContextBuilder.class,
             javax.security.auth.login.Configuration.class,
             JWTHandler.class,
             ClassLoader.class,

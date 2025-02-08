@@ -36,13 +36,11 @@ import org.apache.logging.log4j.Logger;
 import loghub.Helpers;
 import loghub.configuration.BeansPostProcess;
 import loghub.configuration.ConfigException;
+import lombok.Getter;
 import lombok.Setter;
 
-@Setter
 @BeansPostProcess(SslContextBuilder.BeansProcessor.class)
 public class SslContextBuilder {
-
-    private static final String DEFAULT_SECURERANDOM;
 
     public static class BeansProcessor extends BeansPostProcess.Processor {
         @Override
@@ -51,26 +49,32 @@ public class SslContextBuilder {
                 beans.put("trusts", SslContextBuilder.class.getDeclaredMethod("setTrusts", Object[].class));
                 beans.put("issuers", SslContextBuilder.class.getDeclaredMethod("setTrustedIssuers", Object[].class));
                 beans.put("name", SslContextBuilder.class.getDeclaredMethod("setSslContextName", String.class));
-            } catch (NoSuchMethodException e) {
-                throw new RuntimeException(e);
+            } catch (NoSuchMethodException ex) {
+                throw new UnsupportedOperationException("Missing method", ex);
             }
         }
     }
 
-    static {
-        String operatingSystem = System.getProperty("os.name", "");
-        if (operatingSystem.startsWith("Windows")) {
-            DEFAULT_SECURERANDOM = "Windows-PRNG";
-        } else {
-            DEFAULT_SECURERANDOM = "NativePRNGNonBlocking";
-        }
-    }
-    private static final KeyStore DEFAULT_KEYSTOREE;
+    private static final SecureRandom DEFAULT_SECURERANDOM;
     static {
         try {
-            DEFAULT_KEYSTOREE = KeyStore.getInstance(KeyStore.getDefaultType());
+            String operatingSystem = System.getProperty("os.name", "");
+            if (operatingSystem.startsWith("Windows")) {
+                DEFAULT_SECURERANDOM = SecureRandom.getInstance("Windows-PRNG");
+            } else {
+                DEFAULT_SECURERANDOM = SecureRandom.getInstance("NativePRNGNonBlocking");
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new UnsupportedOperationException("Default secure random not available", e);
+        }
+    }
+
+    private static final KeyStore DEFAULT_KEYSTORE;
+    static {
+        try {
+            DEFAULT_KEYSTORE = KeyStore.getInstance(KeyStore.getDefaultType());
             char[] pwdArray = "changeit".toCharArray();
-            DEFAULT_KEYSTOREE.load(null, pwdArray);
+            DEFAULT_KEYSTORE.load(null, pwdArray);
         } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
             throw new IllegalStateException("Unusable default key store", e);
         }
@@ -124,9 +128,13 @@ public class SslContextBuilder {
         Optional.ofNullable(properties.get("providerclass")).map(Object::toString).ifPresent(s -> builder.sslProviderClass = s);
         Optional.ofNullable(properties.get("keymanageralgorithm")).map(Object::toString).ifPresent(s -> builder.keyManagerAlgorithm = s);
         Optional.ofNullable(properties.get("trustmanageralgorithm")).map(Object::toString).ifPresent(s -> builder.trustManagerAlgorithm = s);
-        Optional.ofNullable(properties.get("securerandom")).map(Object::toString).ifPresent(s -> builder.secureRandom = s);
+        Optional.ofNullable(properties.get("securerandom")).map(Object::toString).ifPresent(builder::setSecureRandom);
         Optional.ofNullable(properties.get("trusts")).map(builder::getKeyStore).ifPresent(s -> builder.trusts = s);
         Optional.ofNullable(properties.get("clientAlias")).map(Object::toString).ifPresent(s -> builder.clientAlias = s);
+        Optional.ofNullable(properties.get("clientSessionTimeout")).map(Number.class::cast).ifPresent(s -> builder.clientSessionTimeout = s.intValue());
+        Optional.ofNullable(properties.get("clientSessionCacheSize")).map(Number.class::cast).ifPresent(s -> builder.clientSessionCacheSize = s.intValue());
+        Optional.ofNullable(properties.get("serverSessionTimeout")).map(Number.class::cast).ifPresent(s -> builder.serverSessionTimeout = s.intValue());
+        Optional.ofNullable(properties.get("serverSessionCacheSize")).map(Number.class::cast).ifPresent(s -> builder.serverSessionCacheSize = s.intValue());
 
         if (properties.containsKey("issuers") && properties.get("issuers") instanceof Object[]) {
             Object[] issuers = (Object[]) properties.get("issuers");
@@ -144,16 +152,35 @@ public class SslContextBuilder {
         T getInstance(String name) throws NoSuchAlgorithmException;
     }
 
+    @Setter @Getter
     private String sslContextName = "TLSv1.2";
+    @Setter
     private String sslProviderName = "";
+    @Setter
     private String sslProviderClass = "";
+    @Setter
     private String keyManagerAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
+    @Setter
     private String trustManagerAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
-    private String secureRandom = DEFAULT_SECURERANDOM;
+    @Setter
     private ClassLoader classLoader = SslContextBuilder.class.getClassLoader();
-    private KeyStore trusts = DEFAULT_KEYSTOREE;
+    private KeyStore trusts = DEFAULT_KEYSTORE;
     private Set<Principal> trustedIssuers = null;
+    @Setter @Getter
     private String clientAlias = null;
+    private TrustManagerFactory trustManagerFactory = null;
+    private KeyManagerFactory keyManagerFactory = null;
+    @Getter
+    private SecureRandom secureRandom = DEFAULT_SECURERANDOM;
+    private Provider secureProvider = null;
+    @Setter
+    private int clientSessionTimeout = -1;
+    @Setter
+    private int clientSessionCacheSize = -1;
+    @Setter
+    private int serverSessionTimeout = -1;
+    @Setter
+    private int serverSessionCacheSize = -1;
 
     private SslContextBuilder() {
     }
@@ -161,10 +188,7 @@ public class SslContextBuilder {
     public SSLContext build() {
         try {
             SSLContext newCtxt;
-            Provider secureProvider = null;
-            if (! sslProviderClass.isEmpty()) {
-                secureProvider = loadByName(classLoader, sslProviderClass);
-            }
+            getSecureProvider();
             if (! sslProviderName.isEmpty()) {
                 newCtxt = SSLContext.getInstance(sslContextName, sslProviderName);
             } else {
@@ -172,24 +196,67 @@ public class SslContextBuilder {
             }
             KeyManager[] km;
             TrustManager[] tm;
-            SecureRandom sr = SecureRandom.getInstance(secureRandom);
             X509KeyManager kmtranslator;
-            TrustManagerFactory tmf = doProvide(trustManagerAlgorithm, secureProvider, TrustManagerFactory::getInstance, TrustManagerFactory::getInstance);
-            tmf.init(trusts);
-            tm = tmf.getTrustManagers();
-
-            KeyManagerFactory kmf = doProvide(keyManagerAlgorithm, secureProvider, KeyManagerFactory::getInstance, KeyManagerFactory::getInstance);
-            kmf.init(trusts, "".toCharArray());
-            km = kmf.getKeyManagers();
+            tm = getTrustManagerFactory().getTrustManagers();
+            km = getKeyManagerFactory().getKeyManagers();
             X509ExtendedKeyManager origkm = (X509ExtendedKeyManager) km[0];
             kmtranslator = new DynamicKeyManager(origkm, trustedIssuers, clientAlias);
 
-            newCtxt.init(new KeyManager[] {kmtranslator}, tm, sr);
+            newCtxt.init(new KeyManager[] {kmtranslator}, tm, secureRandom);
+
+            if (clientSessionCacheSize >= 0) {
+                newCtxt.getClientSessionContext().setSessionCacheSize(clientSessionCacheSize);
+            }
+            if (clientSessionTimeout >= 0) {
+                newCtxt.getClientSessionContext().setSessionTimeout(clientSessionTimeout);
+            }
+            if (serverSessionCacheSize >= 0) {
+                newCtxt.getServerSessionContext().setSessionCacheSize(serverSessionCacheSize);
+            }
+            if (serverSessionTimeout >= 0) {
+                newCtxt.getServerSessionContext().setSessionTimeout(serverSessionTimeout);
+            }
             return newCtxt;
         } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException |
                  UnrecoverableKeyException | ConfigException e) {
             throw new IllegalArgumentException("Failed to configure SSL context", e);
         }
+    }
+
+    public Provider getSecureProvider() {
+        try {
+            if (secureProvider == null && ! sslProviderClass.isEmpty()) {
+                secureProvider = loadByName(classLoader, sslProviderClass);
+            } else if (secureProvider == null && ! sslProviderName.isEmpty()) {
+                secureProvider = SSLContext.getInstance(sslContextName, sslProviderName).getProvider();
+            } else {
+                secureProvider = SSLContext.getDefault().getProvider();
+            }
+            return secureProvider;
+        } catch (NoSuchProviderException | NoSuchAlgorithmException ex) {
+            throw new IllegalArgumentException("Unavailable provider", ex);
+        }
+    }
+
+    public TrustManagerFactory getTrustManagerFactory()
+            throws KeyStoreException, NoSuchAlgorithmException {
+        getSecureProvider();
+        if (trustManagerFactory == null) {
+            TrustManagerFactory tmf = doProvide(trustManagerAlgorithm, secureProvider, TrustManagerFactory::getInstance, TrustManagerFactory::getInstance);
+            tmf.init(trusts);
+            trustManagerFactory = tmf;
+        }
+        return trustManagerFactory;
+    }
+
+    public KeyManagerFactory getKeyManagerFactory()
+            throws KeyStoreException, NoSuchAlgorithmException,  UnrecoverableKeyException {
+        getSecureProvider();
+        if (keyManagerFactory == null) {
+            keyManagerFactory = doProvide(keyManagerAlgorithm, secureProvider, KeyManagerFactory::getInstance, KeyManagerFactory::getInstance);
+            keyManagerFactory.init(trusts, "".toCharArray());
+        }
+        return keyManagerFactory;
     }
 
     public void setTrusts(KeyStore keystore) {
@@ -218,17 +285,26 @@ public class SslContextBuilder {
     }
 
     public SslContextBuilder copy() {
-        SslContextBuilder newBuilder = new SslContextBuilder();
-        newBuilder.sslContextName = sslContextName;
-        newBuilder.sslProviderName = sslProviderName;
-        newBuilder.sslProviderClass = sslProviderClass;
-        newBuilder.keyManagerAlgorithm = keyManagerAlgorithm;
-        newBuilder.trustManagerAlgorithm = trustManagerAlgorithm;
-        newBuilder.secureRandom = secureRandom;
-        newBuilder.classLoader = classLoader;
-        newBuilder.trusts = trusts;
-        newBuilder.trustedIssuers = trustedIssuers != null ? Set.copyOf(trustedIssuers) : null;
-        newBuilder.clientAlias = clientAlias;
+        SslContextBuilder newBuilder;
+        try {
+            newBuilder = new SslContextBuilder();
+            newBuilder.sslContextName = sslContextName;
+            newBuilder.sslProviderName = sslProviderName;
+            newBuilder.sslProviderClass = sslProviderClass;
+            newBuilder.keyManagerAlgorithm = keyManagerAlgorithm;
+            newBuilder.trustManagerAlgorithm = trustManagerAlgorithm;
+            newBuilder.secureRandom = secureRandom;
+            newBuilder.classLoader = classLoader;
+            newBuilder.trusts = trusts;
+            newBuilder.trustedIssuers = trustedIssuers != null ? Set.copyOf(trustedIssuers) : null;
+            newBuilder.clientAlias = clientAlias;
+            newBuilder.secureProvider = getSecureProvider();
+            newBuilder.keyManagerFactory = getKeyManagerFactory();
+            newBuilder.trustManagerFactory = getTrustManagerFactory();
+        } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException e) {
+            throw new IllegalStateException("Unusable builder", e);
+        }
+
         return newBuilder;
     }
 
@@ -287,4 +363,11 @@ public class SslContextBuilder {
         return p2.getInstance(name);
     }
 
+    public void setSecureRandom(String secureRandom) {
+        try {
+            this.secureRandom = SecureRandom.getInstance(secureRandom);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalArgumentException("Unavailable secure random \"" + secureRandom + '"', e);
+        }
+    }
 }
