@@ -422,6 +422,8 @@ class ConfigListener extends RouteBaseListener {
                     Object value;
                     if (c == SSLContext.class) {
                         value = this.ssl;
+                    } else if (c == SslContextBuilder.class) {
+                        value = this.sslBuilder;
                     } else if (c == Configuration.class) {
                         value = this.jaasConfig;
                     } else if (c == JWTHandler.class) {

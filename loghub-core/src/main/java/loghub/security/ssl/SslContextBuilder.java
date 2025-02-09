@@ -123,7 +123,7 @@ public class SslContextBuilder {
         }
         SslContextBuilder builder = new SslContextBuilder();
         Optional.ofNullable(cl).ifPresent(s -> builder.classLoader = s);
-        Optional.ofNullable(properties.get("context")).map(Object::toString).ifPresent(s -> builder.sslContextName = s);
+        Optional.ofNullable(properties.get("context")).map(Object::toString).ifPresent(builder::setSslContextName);
         Optional.ofNullable(properties.get("providername")).map(Object::toString).ifPresent(s -> builder.sslProviderName = s);
         Optional.ofNullable(properties.get("providerclass")).map(Object::toString).ifPresent(s -> builder.sslProviderClass = s);
         Optional.ofNullable(properties.get("keymanageralgorithm")).map(Object::toString).ifPresent(s -> builder.keyManagerAlgorithm = s);
@@ -144,15 +144,7 @@ public class SslContextBuilder {
         return builder;
     }
 
-    private interface GetInstanceWithProvider<T> {
-        T getInstance(String name, Provider provider) throws NoSuchAlgorithmException;
-    }
-
-    private interface GetInstance<T> {
-        T getInstance(String name) throws NoSuchAlgorithmException;
-    }
-
-    @Setter @Getter
+    @Getter
     private String sslContextName = "TLSv1.2";
     @Setter
     private String sslProviderName = "";
@@ -189,16 +181,10 @@ public class SslContextBuilder {
         try {
             SSLContext newCtxt;
             getSecureProvider();
-            if (! sslProviderName.isEmpty()) {
-                newCtxt = SSLContext.getInstance(sslContextName, sslProviderName);
-            } else {
-                newCtxt = doProvide(sslContextName, secureProvider, SSLContext::getInstance, SSLContext::getInstance);
-            }
-            KeyManager[] km;
-            TrustManager[] tm;
+            newCtxt = SSLContext.getInstance(sslContextName, secureProvider);
             X509KeyManager kmtranslator;
-            tm = getTrustManagerFactory().getTrustManagers();
-            km = getKeyManagerFactory().getKeyManagers();
+            TrustManager[] tm = getTrustManagerFactory().getTrustManagers();
+            KeyManager[] km = getKeyManagerFactory().getKeyManagers();
             X509ExtendedKeyManager origkm = (X509ExtendedKeyManager) km[0];
             kmtranslator = new DynamicKeyManager(origkm, trustedIssuers, clientAlias);
 
@@ -217,7 +203,7 @@ public class SslContextBuilder {
                 newCtxt.getServerSessionContext().setSessionTimeout(serverSessionTimeout);
             }
             return newCtxt;
-        } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException |
+        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException |
                  UnrecoverableKeyException | ConfigException e) {
             throw new IllegalArgumentException("Failed to configure SSL context", e);
         }
@@ -242,9 +228,8 @@ public class SslContextBuilder {
             throws KeyStoreException, NoSuchAlgorithmException {
         getSecureProvider();
         if (trustManagerFactory == null) {
-            TrustManagerFactory tmf = doProvide(trustManagerAlgorithm, secureProvider, TrustManagerFactory::getInstance, TrustManagerFactory::getInstance);
-            tmf.init(trusts);
-            trustManagerFactory = tmf;
+            trustManagerFactory = TrustManagerFactory.getInstance(trustManagerAlgorithm, secureProvider);
+            trustManagerFactory.init(trusts);
         }
         return trustManagerFactory;
     }
@@ -253,14 +238,14 @@ public class SslContextBuilder {
             throws KeyStoreException, NoSuchAlgorithmException,  UnrecoverableKeyException {
         getSecureProvider();
         if (keyManagerFactory == null) {
-            keyManagerFactory = doProvide(keyManagerAlgorithm, secureProvider, KeyManagerFactory::getInstance, KeyManagerFactory::getInstance);
+            keyManagerFactory = KeyManagerFactory.getInstance(keyManagerAlgorithm, secureProvider);
             keyManagerFactory.init(trusts, "".toCharArray());
         }
         return keyManagerFactory;
     }
 
     public void setTrusts(KeyStore keystore) {
-        this.trusts = keystore;
+        this.trusts = getKeyStore(keystore);
     }
 
     public void setTrusts(Path keystore) {
@@ -318,6 +303,8 @@ public class SslContextBuilder {
     }
 
     private KeyStore getKeyStore(Object trusts) {
+        trustManagerFactory = null;
+        keyManagerFactory = null;
         try {
             if (trusts instanceof KeyStore) {
                 return (KeyStore) trusts;
@@ -352,17 +339,6 @@ public class SslContextBuilder {
         }
     }
 
-    private <T> T doProvide(String name, Provider provider, GetInstanceWithProvider<T> p1, GetInstance<T> p2) throws NoSuchAlgorithmException {
-        if (provider != null) {
-            try {
-                return p1.getInstance(name, provider);
-            } catch (NoSuchAlgorithmException ex) {
-                // Just fails, will try without an explicit provider
-            }
-        }
-        return p2.getInstance(name);
-    }
-
     public void setSecureRandom(String secureRandom) {
         try {
             this.secureRandom = SecureRandom.getInstance(secureRandom);
@@ -370,4 +346,10 @@ public class SslContextBuilder {
             throw new IllegalArgumentException("Unavailable secure random \"" + secureRandom + '"', e);
         }
     }
+
+    public void setSslContextName(String sslContextName) {
+        this.sslContextName = sslContextName;
+        secureProvider = null;
+    }
+
 }

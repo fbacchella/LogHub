@@ -49,7 +49,7 @@ public class TestSSL {
                 IllegalArgumentException.class,
                 () -> SslContextBuilder.getBuilder(TestSSL.class.getClassLoader(), properties).build()
         );
-        Assert.assertEquals("NOTLS SSLContext not available", ex.getCause().getMessage());
+        Assert.assertEquals("no such algorithm: NOTLS for provider SunJSSE", ex.getCause().getMessage());
     }
 
 }
