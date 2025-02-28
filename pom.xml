@@ -54,12 +54,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>5.15.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-core</artifactId>
             <version>${metrics}</version>
@@ -173,17 +167,11 @@
                     <configuration>
                         <!-- issue https://issues.apache.org/jira/browse/SUREFIRE-1588, show only on circle-ci -->
                         <useSystemClassLoader>false</useSystemClassLoader>
-                        <!-- systemProperties is deprecated, but systemPropertyVariables is broken -->
-                        <systemProperties>
-                            <property>
-                                <name>java.awt.headless</name>
-                                <value>true</value>
-                            </property>
-                            <property>
-                                <name>maven.surefire</name>
-                                <value>true</value>
-                            </property>
-                        </systemProperties>
+                        <systemPropertyVariables>
+                            <java.awt.headless>true</java.awt.headless>
+                            <maven.surefire>true</maven.surefire>
+                            <java.locale.providers>CLDR</java.locale.providers>
+                        </systemPropertyVariables>
                         <trimStackTrace>false</trimStackTrace>
                     </configuration>
                 </plugin>

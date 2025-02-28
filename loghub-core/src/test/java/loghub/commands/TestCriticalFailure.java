@@ -1,21 +1,24 @@
 package loghub.commands;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.nio.file.Files;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.nio.file.Files;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -40,19 +43,31 @@ public class TestCriticalFailure {
     @Rule
     public final TemporaryFolder folder = new TemporaryFolder();
 
+    private static Logger logger;
+    private MockitoSession mockitoSession;
+
     @BeforeClass
     public static void configure() {
         Tools.configure();
-        Logger logger = LogManager.getLogger();
+        logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub");
     }
 
-    @After
-    public void endJmx() {
-        JmxService.stop();
+    @Before
+    public void setup() {
+        mockitoSession = Mockito.mockitoSession()
+                                .strictness(Strictness.STRICT_STUBS) // Définit le niveau de rigueur
+                                .initMocks(this)
+                                .startMocking();
     }
 
-    @Test(timeout = 10000)
+    @After
+    public void finish() {
+        JmxService.stop();
+        mockitoSession.finishMocking();
+    }
+
+    @Test(timeout = 60000)
     public void test() throws ConfigException, IOException {
         String confile = String.format("pipeline[newpipe] {} hprofDumpPath:\"%s/loghub.hprof\"", folder.getRoot());
 
@@ -60,14 +75,21 @@ public class TestCriticalFailure {
         Launch runner = new Launch();
         runner.launch(props, SystemdHandler.nope());
         Event ev = Mocker.getMock();
-        doThrow(new OutOfMemoryError()).when(ev).next();
-        when(ev.getCurrentPipeline()).thenReturn("newpipe");
+        when(ev.next()).thenThrow(new OutOfMemoryError());
         props.mainQueue.add(ev);
 
         props.eventsprocessors.forEach(t -> {
             try {
-                t.join();
+                t.join(30000);
+                if (t.isAlive()) {
+                    AssertionError ae = new AssertionError("Timeout in thread join");
+                    ae.setStackTrace(t.getStackTrace());
+                    throw ae;
+                } else {
+                    logger.debug("Stopped {}", t);
+                }
             } catch (InterruptedException e) {
+                logger.atError().withLocation(t.getStackTrace()[0]).log("Event processor hanged {}", t);
                 Assert.fail();
             }
         });

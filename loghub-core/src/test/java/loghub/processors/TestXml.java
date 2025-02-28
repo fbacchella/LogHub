@@ -34,7 +34,6 @@ public class TestXml {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "javax.xml", "org.xml", "loghub");
-        System.setProperty("jaxp.debug", "1");
     }
 
     @Test

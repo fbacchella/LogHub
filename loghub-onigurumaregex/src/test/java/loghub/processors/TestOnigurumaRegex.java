@@ -1,11 +1,16 @@
 package loghub.processors;
 
-import java.util.Collections;
-
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Collections;
+import loghub.LogUtils;
 import loghub.ProcessorException;
+import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
@@ -14,6 +19,13 @@ import loghub.events.EventsFactory;
 public class TestOnigurumaRegex {
 
     private final EventsFactory factory = new EventsFactory();
+
+    @BeforeClass
+    public static void configure() {
+        Tools.configure();
+        Logger logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.OnigurumaRegex");
+    }
 
     @Test
     public void testLoadPatterns1() throws ProcessorException {

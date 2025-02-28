@@ -1,5 +1,17 @@
 package loghub;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -18,31 +30,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
 
 public class TestVarFormatter {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
         Tools.configure();
+        logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression");
         Configurator.setLevel("loghub.VarFormatter", Level.DEBUG);
     }
@@ -310,16 +310,20 @@ public class TestVarFormatter {
 
     @Test
     public void testTimeZoneLocale() {
-        for (Locale l : Locale.getAvailableLocales()) {
-            for (String ziName : ZoneId.getAvailableZoneIds()) {
-                ZoneId zi = ZoneId.of(ziName);
-                ZonedDateTime now = ZonedDateTime.now(zi);
-                String printfz = String.format(l, "%tz", now);
-                String printfZ = String.format(l, "%tZ", now);
-                VarFormatter vfz = new VarFormatter(String.format("${%%t<%s>z}", ziName), l);
-                VarFormatter vfZ = new VarFormatter(String.format("${%%t<%s>Z}", ziName), l);
-                Assert.assertEquals(printfz, vfz.format(now));
-                Assert.assertEquals(printfZ, vfZ.format(now));
+        ZonedDateTime now = ZonedDateTime.now();
+        Locale[] locales = Locale.getAvailableLocales();
+        for (String ziName : ZoneId.getAvailableZoneIds()) {
+            ZoneId zi = ZoneId.of(ziName);
+            ZonedDateTime znow = now.withZoneSameInstant(zi);
+            String formatter1 = String.format("${%%t<%s>z}", ziName);
+            String formatter2 = String.format("${%%t<%s>Z}", ziName);
+            for (Locale l : locales) {
+                String printfz = String.format(l, "%tz", znow);
+                String printfZ = String.format(l, "%tZ", znow);
+                VarFormatter vfz = new VarFormatter(formatter1, l);
+                VarFormatter vfZ = new VarFormatter(formatter2, l);
+                Assert.assertEquals(printfz, vfz.format(znow));
+                Assert.assertEquals(printfZ, vfZ.format(znow));
             }
         }
     }

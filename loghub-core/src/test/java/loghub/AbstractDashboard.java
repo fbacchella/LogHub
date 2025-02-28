@@ -1,5 +1,20 @@
 package loghub;
 
+import javax.net.ssl.SSLContext;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -10,23 +25,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import javax.net.ssl.SSLContext;
-
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-
 import loghub.configuration.Properties;
 import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.ContentType;
@@ -42,6 +40,9 @@ public abstract class AbstractDashboard {
     // Jackson use JUL for logging
     static  {
         System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+        Tools.configure();
+        Logger logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty");
     }
 
     private static final JsonFactory factory = new JsonFactory();
@@ -59,14 +60,6 @@ public abstract class AbstractDashboard {
     SSLContext sslContext;
     @Getter
     HttpClient client;
-
-    @BeforeClass
-    public static void configure() throws IOException {
-        Tools.configure();
-        Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty");
-        JmxService.start(props.jmxServiceConfiguration);
-    }
 
     @AfterClass
     public static void stopJmx() {
