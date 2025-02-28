@@ -1,5 +1,8 @@
 package loghub;
 
+import org.junit.Assert;
+
+import io.netty.util.concurrent.Future;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.ServerSocket;
@@ -17,10 +20,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-
-import org.junit.Assert;
-
-import io.netty.util.concurrent.Future;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.ConfigurationTools;

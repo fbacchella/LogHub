@@ -1,10 +1,13 @@
 package loghub;
 
-import java.util.Collections;
-
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Collections;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -13,6 +16,13 @@ import loghub.processors.Identity;
 public class TestProcessor {
 
     private final EventsFactory factory = new EventsFactory();
+
+    @BeforeClass
+    public static void configure() {
+        Tools.configure();
+        Logger logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty");
+    }
 
     @Test
     public void testPath() {

@@ -364,7 +364,7 @@ public class JmxService {
         return cs;
     }
 
-    public static void stop() {
+    public static synchronized void stop() {
         Optional.ofNullable(reporter).ifPresent(JmxReporter::stop);
         registered.forEach(t -> {
             try {

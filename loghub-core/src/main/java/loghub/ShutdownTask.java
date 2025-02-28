@@ -17,7 +17,7 @@ import lombok.Data;
 @Builder
 public class ShutdownTask implements Runnable {
 
-    private final Logger shutdownLogger =  LogManager.getLogger("loghub.Shutdown");
+    private final Logger shutdownLogger = LogManager.getLogger("loghub.Shutdown");
 
     private final Receiver<?, ?>[] receivers;
     private final EventsProcessor[] eventProcessors;
@@ -31,6 +31,7 @@ public class ShutdownTask implements Runnable {
 
     @Override
     public void run() {
+        shutdownLogger.warn("Start shutdown");
         systemd.setStatus("Stopping");
         systemd.stopping();
         loghubtimer.cancel();

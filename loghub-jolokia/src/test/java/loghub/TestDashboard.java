@@ -1,13 +1,5 @@
 package loghub;
 
-import java.io.IOException;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,6 +14,13 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import loghub.configuration.Properties;
 import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.ContentType;
@@ -35,15 +34,18 @@ public class TestDashboard {
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false));
 
+    static {
+        Tools.configure();
+        Logger logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty", "org.jolokia");
+    }
+
     private static final Properties props = new Properties(Collections.emptyMap());
     private Dashboard dashboard = null;
     private final int port = Tools.tryGetPort();
 
     @BeforeClass
     public static void configure() throws IOException {
-        Tools.configure();
-        Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty", "org.jolokia");
         JmxService.start(props.jmxServiceConfiguration);
     }
 

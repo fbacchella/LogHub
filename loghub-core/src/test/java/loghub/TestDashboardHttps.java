@@ -1,5 +1,9 @@
 package loghub;
 
+import org.junit.Assert;
+import org.junit.Test;
+
+import io.netty.channel.Channel;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.InetSocketAddress;
@@ -7,11 +11,6 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.stream.Collectors;
-
-import org.junit.Assert;
-import org.junit.Test;
-
-import io.netty.channel.Channel;
 import loghub.configuration.Properties;
 import loghub.netty.http.HstsData;
 

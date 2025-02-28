@@ -34,15 +34,18 @@ import loghub.metrics.JmxService;
 
 public class TestDashboard {
 
+    static {
+        Tools.configure();
+        Logger logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty", "io.prometheus");
+    }
+
     private static final Properties props = new Properties(Collections.emptyMap());
     private Dashboard dashboard = null;
     private final int port = Tools.tryGetPort();
 
     @BeforeClass
     public static void configure() throws IOException {
-        Tools.configure();
-        Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty", "io.prometheus");
         JmxService.start(props.jmxServiceConfiguration);
     }
 

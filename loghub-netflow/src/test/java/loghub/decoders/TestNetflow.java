@@ -181,7 +181,9 @@ public class TestNetflow {
         };
         Consumer<Netflow.Builder> configurator = b -> {
         };
-        Consumer<Event> checker = System.err::println;
+        Consumer<Event> checker = ev -> {
+            Assert.assertTrue(ev.containsKey("sequenceNumber"));
+        };
         runParsing(files, configurator, checker, e -> Assert.fail(e.getMessage()));
     }
 
