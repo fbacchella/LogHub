@@ -54,19 +54,19 @@ public class TestShutdownTask {
         Receiver<?, ?>[] receivers = conf.receivers.toArray(Receiver[]::new);
         EventsProcessor[] eventProcessors = conf.eventsprocessors.toArray(EventsProcessor[]::new);
         Sender[] senders = conf.senders.toArray(Sender[]::new);
-        Runnable shutdownTask = ShutdownTask.builder()
-                                        .eventProcessors(eventProcessors)
-                                        .loghubtimer(conf.timer)
-                                        .startTime(System.nanoTime())
-                                        .repositories(conf.eventsRepositories())
-                                        .dumpStats(false)
-                                        .eventProcessors(eventProcessors)
-                                        .systemd(SystemdHandler.nope())
-                                        .receivers(receivers)
-                                        .senders(senders)
-                                        .terminator(conf.terminator())
-                                        .build();
-        shutdownTask.run();
+        ShutdownTask.configuration()
+                    .eventProcessors(eventProcessors)
+                    .loghubtimer(conf.timer)
+                    .startTime(System.nanoTime())
+                    .repositories(conf.eventsRepositories())
+                    .dumpStats(false)
+                    .eventProcessors(eventProcessors)
+                    .systemd(SystemdHandler.nope())
+                    .receivers(receivers)
+                    .senders(senders)
+                    .terminator(conf.terminator())
+                    .register();
+        ShutdownTask.shutdown();
         Assert.assertEquals(List.of(), Arrays.stream(receivers).filter(Objects::nonNull).collect(Collectors.toList()));
         Assert.assertEquals(List.of(), Arrays.stream(eventProcessors).filter(Objects::nonNull).collect(Collectors.toList()));
         Assert.assertEquals(List.of(), Arrays.stream(senders).filter(Objects::nonNull).collect(Collectors.toList()));

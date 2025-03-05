@@ -438,7 +438,7 @@ public final class Stats {
         return getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getCount();
     }
 
-    public static Object getBlocked() {
+    public static long getBlocked() {
         return getMetric(Meter.class, Receiver.class, Stats.METRIC_RECEIVER_BLOCKED).getCount();
     }
 

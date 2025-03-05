@@ -35,7 +35,7 @@ import loghub.CanBatch;
 import loghub.Filter;
 import loghub.FilterException;
 import loghub.Helpers;
-import loghub.Start;
+import loghub.ShutdownTask;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
@@ -473,7 +473,7 @@ public abstract class Sender extends Thread implements Closeable {
         } catch (Error ex) {
             if (Helpers.isFatal(ex)) {
                 logger.fatal("Caught a fatal exception", ex);
-                Start.fatalException(ex);
+                ShutdownTask.fatalException(ex);
             } else {
                 Stats.newUnhandledException(this, ex, event);
                 logger.error("Unexpected exception: {}", Helpers.resolveThrowableException(ex));

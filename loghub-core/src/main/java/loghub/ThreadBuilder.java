@@ -42,7 +42,7 @@ public class ThreadBuilder {
 
     public static final Thread.UncaughtExceptionHandler DEFAULTUNCAUGHTEXCEPTIONHANDLER =  (t, e) -> {
         logger.fatal("Unhandled exception in thread {}", t.getName(), e);
-        Start.fatalException(e);
+        ShutdownTask.fatalException(e);
     };
 
     private Runnable task;

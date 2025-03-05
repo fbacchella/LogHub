@@ -55,7 +55,7 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.IpConnectionContext;
-import loghub.Start;
+import loghub.ShutdownTask;
 import loghub.configuration.Properties;
 import loghub.metrics.Stats;
 import lombok.Getter;
@@ -258,7 +258,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         } catch (Error ex) {
             logger.atError().withThrowable(ex).log("Got a critical error: {}", Helpers.resolveThrowableException(ex));
             if (Helpers.isFatal(ex)) {
-                Start.fatalException(ex);
+                ShutdownTask.fatalException(ex);
             }
         } finally {
             trap.setProcessed(true);

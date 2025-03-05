@@ -1,59 +1,21 @@
 package loghub;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.ParameterException;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.function.Consumer;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.ParameterException;
-
-import loghub.commands.CommandRunner;
 import loghub.commands.BaseCommand;
+import loghub.commands.CommandRunner;
 import loghub.commands.ExitCode;
 import loghub.commands.VerbCommand;
 
 public class Start {
 
-    // Prevent launching fatal shutdown many times
-    // Reset in constructor
-    private static boolean catchedcritical = false;
-
-    // Keep a reference to allow external shutdown of the processing.
-    // Needed by some tests
-    public static Thread shutdownAction;
-
-    // Memorize canexit, needed when loghub.Start is tested
-    private static boolean testscanexit = false;
-    public static Runnable hprofdump = () -> { };
-
-    /**
-     * To be called when a fatal exception is detected. It will generate a shutdown with a failure exit code.<br>
-     * To be called when a thread catch any unhandled exception, or anytime when a critical exception is catched
-     * @param t the uncatched exception
-     */
-    public static synchronized void fatalException(Throwable t) {
-        // No emergency exist on InterruptedException, it's already a controlled shutdown
-        if (! (t instanceof InterruptedException) && ! catchedcritical) {
-            hprofdump.run();
-            System.err.println("Caught a fatal exception");
-            t.printStackTrace();
-            shutdown();
-            if (testscanexit) {
-                System.exit(ExitCode.CRITICALFAILURE);
-            }
-        }
-    }
-
-    static synchronized void shutdown() {
-        if (shutdownAction != null) {
-            shutdownAction.run();
-            Runtime.getRuntime().removeShutdownHook(shutdownAction);
-            shutdownAction = null;
-        }
-    }
     // To be executed before LogManager.getLogger() to ensure that log4j2 will use the basic context selector
     // Not the smart one for web app.
     static {
@@ -63,10 +25,8 @@ public class Start {
     }
 
     public static void main(String[] args) {
-        // Reset catched criticaly, Start can be used many time in tests.
-        Start.catchedcritical = false;
-        Start.shutdownAction = null;
-        Start.testscanexit = true;
+        // Resetshutdown, Start can be used many time in tests.
+        ShutdownTask.reset();
         JCommander.Builder jcomBuilder = JCommander.newBuilder().acceptUnknownOptions(true);
         Map<String, VerbCommand> verbs = new HashMap<>();
         List<BaseCommand> commands = new ArrayList<>();

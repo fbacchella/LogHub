@@ -40,7 +40,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import loghub.ConnectionContext;
 import loghub.Helpers;
-import loghub.Start;
+import loghub.ShutdownTask;
 import loghub.ThreadBuilder;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
@@ -98,7 +98,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             if (Helpers.isFatal(cause)) {
                 logger.fatal("Caught a critical exception", cause);
-                Start.fatalException(cause);
+                ShutdownTask.fatalException(cause);
             } else {
                 LogBuilder lb = logger.atWarn()
                                       .withThrowable(logger.isDebugEnabled() ? cause : null);
@@ -298,7 +298,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
                 if (Helpers.isFatal(cause)) {
                     consumer.logFatalException(cause);
-                    Start.fatalException(cause);
+                    ShutdownTask.fatalException(cause);
                 } else {
                     consumer.exception(ctx, cause);
                 }

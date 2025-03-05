@@ -15,7 +15,7 @@ import org.zeromq.ZMsg;
 import org.zeromq.ZPoller;
 
 import loghub.Helpers;
-import loghub.Start;
+import loghub.ShutdownTask;
 
 public class ZapService extends Thread implements AutoCloseable {
 
@@ -81,7 +81,7 @@ public class ZapService extends Thread implements AutoCloseable {
         } catch (Throwable ex) {
             logger.error("Failed ZMQ processing : {}", () -> Helpers.resolveThrowableException(ex));
             if (Helpers.isFatal(ex)) {
-                Start.fatalException(ex);
+                ShutdownTask.fatalException(ex);
                 logger.catching(Level.FATAL, ex);
             } else {
                 logger.catching(Level.ERROR, ex);

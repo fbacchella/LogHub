@@ -19,7 +19,6 @@ import loghub.Helpers;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.ShutdownTask;
-import loghub.Start;
 import loghub.SystemdHandler;
 import loghub.ThreadBuilder;
 import loghub.configuration.ConfigException;
@@ -138,7 +137,6 @@ public class Launch implements BaseCommand {
     }
 
     public void launch(Properties props, SystemdHandler systemd) throws ConfigException {
-        Start.hprofdump = props.hprofdump;
         try {
             JmxService.start(props.jmxServiceConfiguration);
         } catch (IOException e) {
@@ -235,26 +233,21 @@ public class Launch implements BaseCommand {
         Receiver<?, ?>[] receivers = props.receivers.toArray(Receiver[]::new);
         EventsProcessor[] eventProcessors = props.eventsprocessors.toArray(EventsProcessor[]::new);
         Sender[] senders = props.senders.toArray(Sender[]::new);
-        Runnable shutdownTask = ShutdownTask.builder()
-                                        .eventProcessors(eventProcessors)
-                                        .loghubtimer(props.timer)
-                                        .startTime(starttime)
-                                        .repositories(props.eventsRepositories())
-                                        .dumpStats(dumpstats)
-                                        .eventProcessors(eventProcessors)
-                                        .systemd(systemd)
-                                        .receivers(receivers)
-                                        .senders(senders)
-                                        .terminator(props.terminator())
-                                        .build();
-        Start.shutdownAction = ThreadBuilder.get()
-                                 .setDaemon(false) // not a daemon, so it will prevent stopping the JVM until finished
-                                 .setTask(shutdownTask)
-                                 .setName("StopEventsProcessing")
-                                 .setShutdownHook(true)
-                                 .setExceptionHandler(null)
-                                 .build(false);
 
+        ShutdownTask.configuration()
+                    .eventProcessors(eventProcessors)
+                    .loghubtimer(props.timer)
+                    .startTime(starttime)
+                    .repositories(props.eventsRepositories())
+                    .dumpStats(dumpstats)
+                    .eventProcessors(eventProcessors)
+                    .systemd(systemd)
+                    .receivers(receivers)
+                    .senders(senders)
+                    .terminator(props.terminator())
+                    .hprofDumpPath(props.hprofdump)
+                    .asShutdownHook(true)
+                    .register();
     }
 
 }

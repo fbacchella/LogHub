@@ -9,7 +9,7 @@ import org.zeromq.ZPoller;
 
 import loghub.BuilderClass;
 import loghub.Helpers;
-import loghub.Start;
+import loghub.ShutdownTask;
 import loghub.configuration.Properties;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
@@ -100,7 +100,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         } catch (Throwable ex) {
             logger.error("Failed ZMQ processing : {}", () -> Helpers.resolveThrowableException(ex));
             if (Helpers.isFatal(ex)) {
-                Start.fatalException(ex);
+                ShutdownTask.fatalException(ex);
                 logger.catching(Level.FATAL, ex);
             } else {
                 logger.catching(Level.ERROR, ex);

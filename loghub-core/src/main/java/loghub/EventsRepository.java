@@ -185,7 +185,7 @@ public class EventsRepository<KEY> {
             Stats.pipelineHanding(paused.event.getCurrentPipeline(), PipelineStat.EXCEPTION, ex);
             if (Helpers.isFatal(ex)) {
                 logger.fatal("Caught a critical exception", ex);
-                Start.fatalException(ex);
+                ShutdownTask.fatalException(ex);
             } else {
                 logger.error("Async timeout handler failed: {}", Helpers.resolveThrowableException(ex));
                 logger.catching(Level.DEBUG, ex);

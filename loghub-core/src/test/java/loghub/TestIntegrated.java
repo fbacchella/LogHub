@@ -124,7 +124,7 @@ public class TestIntegrated {
             Assert.assertEquals(received, loghub.metrics.Stats.getReceived());
             Assert.assertEquals(received, blocked + Stats.getSent());
         }
-        Start.shutdown();
+        ShutdownTask.shutdown();
     }
 
     private static <C> long dumpstatus(MBeanServer mbs, Set<ObjectName> metrics, Function<ObjectName, Boolean> filter, Function<C, Long> counter, Class<C> proxyClass) {

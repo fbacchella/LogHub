@@ -306,7 +306,7 @@ public class EventsProcessor extends Thread {
                 // Can't do anything but die
                 if (Helpers.isFatal(ex)) {
                     logger.fatal("Caught a critical exception", ex);
-                    Start.fatalException(ex);
+                    ShutdownTask.fatalException(ex);
                 } else {
                     e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
                     Logger plogger =  e.getPipelineLogger();

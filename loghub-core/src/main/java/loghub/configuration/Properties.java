@@ -118,7 +118,7 @@ public class Properties extends HashMap<String, Object> {
     public final Dashboard dashboard;
     public final CacheManager cacheManager;
     public final Set<EventsProcessor> eventsprocessors;
-    public final Runnable hprofdump;
+    public final Path hprofdump;
     public final EventsFactory eventsFactory = new EventsFactory();
     public final HashedWheelTimer processExpiration = new HashedWheelTimer(ThreadBuilder.get().setDaemon(true).getFactory("EventsRepository-timeoutmanager"));
 
@@ -221,30 +221,11 @@ public class Properties extends HashMap<String, Object> {
         }
         eventsprocessors = Collections.unmodifiableSet(allep);
 
-        hprofdump = properties.containsKey("hprofDumpPath") ? makeHprofDump((String) properties.remove("hprofDumpPath")) : () -> { };
+        hprofdump = properties.containsKey("hprofDumpPath") ? Path.of(properties.remove("hprofDumpPath").toString()) : null;
 
         super.putAll(properties);
 
         VariablePath.compact();
-    }
-
-    private Runnable makeHprofDump(String hprofFile) {
-        Semaphore firstCrash = new Semaphore(1);
-        HotSpotDiagnosticMXBean diagnosticMBean = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
-        Path hprofPath = Path.of(hprofFile);
-        Logger logger = LogManager.getLogger("loghub");
-        return () -> {
-            // Only dump once
-           if (firstCrash.tryAcquire()) {
-               logger.warn("Dumping jvm content to " + hprofFile);
-                try {
-                    Files.deleteIfExists(hprofPath);
-                    diagnosticMBean.dumpHeap(hprofFile, true);
-                } catch (Exception ex) {
-                    logger.error("Unable to dump hprof: {}", () -> Helpers.resolveThrowableException(ex));
-                }
-            }
-        };
     }
 
     public void registerEventsRepository(EventsRepository<?> repository) {
