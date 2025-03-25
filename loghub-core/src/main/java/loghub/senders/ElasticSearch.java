@@ -432,7 +432,7 @@ public class ElasticSearch extends AbstractHttpSender {
                                       + "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true";
             Map<String, String> aliases = getAliases(indices);
             Function<JsonNode, Boolean> transform = node -> {
-                scanResults(node, aliases, missing, readonly);
+                scanResults(node, indices, aliases, missing, readonly);
                 return Boolean.TRUE;
             };
             return doquery(null, filePart, transform, Collections.emptyMap(), Boolean.FALSE);
@@ -463,20 +463,23 @@ public class ElasticSearch extends AbstractHttpSender {
         }
     }
 
-   void scanResults(JsonNode node, Map<String, String> aliases, Set<String> missing, Set<String> readonly) {
+    void scanResults(JsonNode node, Set<String> indices, Map<String, String> aliases, Set<String> missing, Set<String> readonly) {
+        Set<String> withoutAliases = new HashSet<>(indices);
         for (Map.Entry<String, String> e : aliases.entrySet()) {
+            if (! e.getKey().equals(e.getValue())) {
+                withoutAliases.remove(e.getKey());
+            }
             Optional<Boolean> status = Optional.ofNullable(node.get(e.getValue()))
-                    .map(n -> n.get("settings"))
-                    .map(n -> Optional.ofNullable(n.get("index.blocks.read_only_allow_delete"))
-                                      .map(JsonNode::asBoolean)
-                                      .orElse(false)
-                    );
-            if (status.isEmpty()) {
-                missing.add(e.getKey());
-            } else if (Boolean.TRUE.equals(status.get())) {
+                                               .map(n -> n.get("settings"))
+                                               .map(n -> Optional.ofNullable(n.get("index.blocks.read_only_allow_delete"))
+                                                                           .map(JsonNode::asBoolean)
+                                                                           .orElse(false)
+                                               );
+            if (status.isPresent() && Boolean.TRUE.equals(status.get())) {
                 readonly.add(e.getKey());
             }
         }
+        missing.addAll(withoutAliases);
     }
 
     private Boolean checkTemplate(int major) {
