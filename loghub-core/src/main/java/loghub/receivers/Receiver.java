@@ -208,19 +208,10 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
                 if (content instanceof Event) {
                     newEvent = (Event) content;
                 } else if (content.size() == 1 && content.containsKey(Event.EVENT_ENTRY)) {
-                    // Special case, the message contain a loghub event, sent from another loghub
                     @SuppressWarnings("unchecked")
                     Map<String, Object> eventContent = (Map<String, Object>) content.remove(Event.EVENT_ENTRY);
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> fields = (Map<String, Object>) eventContent.remove("@fields");
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> metas = (Map<String, Object>) eventContent.remove("@METAS");
-                    newEvent = eventsFactory.newEvent(ctx);
-                    newEvent.putAll(fields);
-                    Optional.ofNullable(eventContent.get(Event.TIMESTAMPKEY))
-                            .filter(newEvent::setTimestamp)
-                            .ifPresent(ts -> eventContent.remove(Event.TIMESTAMPKEY));
-                    metas.forEach(newEvent::putMeta);
+                    // Special case, the message contain a loghub event, sent from another loghub
+                    newEvent = eventsFactory.mapToEvent(ctx, eventContent);
                 } else {
                     newEvent = eventsFactory.newEvent(ctx);
                     Optional.ofNullable(content.get(timeStampField))
@@ -239,6 +230,17 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
             } catch (RuntimeDecodeException ex) {
                 EventsFactory.deadEvent(ctx);
                 manageDecodeException(ex.getDecodeException());
+                return null;
+            } catch (DecodeException ex) {
+                EventsFactory.deadEvent(ctx);
+                manageDecodeException(ex);
+                return null;
+            } catch (RuntimeException ex) {
+                EventsFactory.deadEvent(ctx);
+                Stats.newUnhandledException(this, ex);
+                logger.atDebug()
+                      .withThrowable(logger.isDebugEnabled() ? ex : null)
+                      .log("Invalid message received: {}", Helpers.resolveThrowableException(ex));
                 return null;
             }
         }
