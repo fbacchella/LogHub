@@ -1,4 +1,4 @@
-loghub.commands.CommandTimePattern
+loghub.commands.TimePattern
 loghub.commands.CommandJwt
 loghub.commands.CommandPassword
 loghub.commands.TestPipeline

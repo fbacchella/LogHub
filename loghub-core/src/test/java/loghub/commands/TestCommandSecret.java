@@ -8,7 +8,6 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.KeyStoreException;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -36,15 +35,15 @@ public class TestCommandSecret {
         cmd.storeFile = Paths.get(folder.getRoot().getAbsolutePath(), "secretstore").toString();
 
         cmd.create = true;
-        cmd.run(List.of());
-        Assert.assertEquals(13, cmd.run(List.of()));
+        cmd.run();
+        Assert.assertEquals(13, cmd.run());
 
         cmd.create = false;
         cmd.add = true;
         cmd.alias = "password1";
         cmd.secretValue = "secret1";
         cmd.fromConsole = false;
-        cmd.run(List.of());
+        cmd.run();
 
         File blobcontent = folder.newFile();
         Random r = new Random();
@@ -60,7 +59,7 @@ public class TestCommandSecret {
         cmd.fromFile = blobcontent.getPath();
         cmd.fromConsole = false;
         cmd.secretValue = null;
-        cmd.run(List.of());
+        cmd.run();
 
         try (SecretsHandler sh = SecretsHandler.load(cmd.storeFile)) {
             Set<String> secrets = sh.list().map(Map.Entry::getKey).collect(Collectors.toSet());
@@ -74,7 +73,7 @@ public class TestCommandSecret {
         cmd.delete = true;
         cmd.add = false;
         cmd.alias = "password2";
-        cmd.run(List.of());
+        cmd.run();
 
         try (SecretsHandler sh = SecretsHandler.load(cmd.storeFile)) {
             Set<String> secrets = sh.list().map(Map.Entry::getKey).collect(Collectors.toSet());
