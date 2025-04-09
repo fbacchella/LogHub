@@ -1,38 +1,29 @@
 package loghub.commands;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.beust.jcommander.Parameter;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import loghub.EventsProcessor;
 import loghub.Helpers;
-import loghub.Processor;
-import loghub.ProcessorException;
 import loghub.ShutdownTask;
 import loghub.SystemdHandler;
 import loghub.ThreadBuilder;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
-import loghub.configuration.TestEventProcessing;
-import loghub.events.Event;
 import loghub.metrics.JmxService;
-import loghub.processors.FieldsProcessor;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
 import loghub.sources.Source;
 
-public class Launch implements BaseCommand {
+public class Launch implements BaseParametersRunner {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -40,49 +31,34 @@ public class Launch implements BaseCommand {
     @Parameter(names = {"--configfile", "-c"}, description = "File")
     private String configFile = null;
 
-    @Parameter(names = {"--help", "-h"}, help = true)
-    private boolean help;
-
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = {"--test", "-t"}, description = "Test mode")
     private boolean test = false;
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = {"--stats", "-s"}, description = "Dump stats on exit")
     private boolean dumpstats = false;
 
-    @SuppressWarnings("CanBeFinal")
-    @Parameter(names = {"--testprocessor", "-p"}, description = "A field processor to test")
-    private String testedprocessor = null;
-
-    String pipeLineTest = null;
-
     @Override
-    public int run(List<String> unknownOptions) {
-        int exitcode = ExitCode.DONTEXIT;
-        if (testedprocessor != null) {
-            test = true;
-            dumpstats = false;
-        }
-        if (pipeLineTest != null) {
-            TestEventProcessing.check(pipeLineTest, configFile);
-        }
-
+    public int run(List<String> mainParameters) {
+        int exitcode;
         try {
             if (configFile == null) {
                 System.err.println("No configuration file given");
                 exitcode = ExitCode.INVALIDCONFIGURATION;
+            } else if (test){
+                Configuration.parse(configFile);
+                exitcode = ExitCode.OK;
             } else {
                 SystemdHandler systemd = SystemdHandler.start();
                 systemd.setStatus("Parsing configuration");
                 Properties props = Configuration.parse(configFile);
-                if (!test) {
-                    systemd.setStatus("Launching");
-                    launch(props, systemd);
-                    systemd.setStatus("Started");
-                    systemd.started();
-                    logger.warn("LogHub started");
-                } else if (testedprocessor != null) {
-                    testProcessor(props, testedprocessor);
-                }
+                systemd.setStatus("Launching");
+                launch(props, systemd);
+                systemd.setStatus("Started");
+                systemd.started();
+                logger.warn("LogHub started");
+                exitcode = ExitCode.DONTEXIT;
             }
         } catch (ConfigException e) {
             System.err.format("Error in %s: %s%n", e.getLocation(), e.getMessage());
@@ -103,36 +79,12 @@ public class Launch implements BaseCommand {
     }
 
     @Override
-    public <T> Optional<T> getField(String name, Class<T> tClass) {
-        switch (name) {
-        case "configFile":
+    @SuppressWarnings("unchecked")
+    public <T> Optional<T> getField(String name) {
+        if (name.equals("configFile")) {
             return Optional.of((T) configFile);
-        case "help":
-            return Optional.of((T) Boolean.valueOf(help));
-        default:
-            return Optional.empty();
-        }
-    }
-
-    private void testProcessor(Properties props, String testedprocessor2) {
-        Processor p = props.identifiedProcessors.get(testedprocessor2);
-        if (p == null) {
-            System.err.println("Unidentified processor");
-        } else if (! (p instanceof FieldsProcessor)) {
-            System.err.println("Not a field processor");
         } else {
-            p.configure(props);
-            FieldsProcessor fp = (FieldsProcessor) p;
-            Event ev = props.eventsFactory.newEvent();
-            new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).lines().forEach(i -> {
-                try {
-                    ev.put("message", i);
-                    fp.fieldFunction(ev, i);
-                    System.out.format("%s -> %s%n", i, ev);
-                } catch (ProcessorException e) {
-                    System.err.println("Processing failed:" + e.getMessage());
-                }
-            });
+            return Optional.empty();
         }
     }
 
@@ -170,13 +122,9 @@ public class Launch implements BaseCommand {
                     logger.error("failed to configure sender {}", s.getName());
                     failed = true;
                 }
-            } catch (Throwable e) {
-                if (Helpers.isFatal(e)) {
-                    throw e;
-                } else {
-                    logger.error("failed to start sender {}", s.getClass().getName());
-                    failed = true;
-                }
+            } catch (Exception e) {
+                logger.atError().withThrowable(e).log("failed to start sender {}: {}", () -> s.getClass().getName(), () -> Helpers.resolveThrowableException(e));
+                failed = true;
             }
         }
 

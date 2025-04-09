@@ -20,4 +20,5 @@ public class ExitCode {
     private ExitCode() {
 
     }
+
 }

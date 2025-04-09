@@ -30,7 +30,7 @@ import lombok.ToString;
 
 @Parameters(commandNames = { "jwt" })
 @ToString
-public class CommandJwt implements VerbCommand {
+public class CommandJwt implements CommandRunner {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -70,15 +70,10 @@ public class CommandJwt implements VerbCommand {
     @Parameter(names = { "--signfile", "-f" }, description = "The jwt token to sign")
     private String signfile = null;
 
-    String configFile;
+    private String configFile = null;
 
     @Override
-    public void extractFields(BaseCommand cmd) {
-        cmd.getField("configFile", String.class).ifPresent(s -> configFile = s);
-    }
-
-    @Override
-    public int run(List<String> unknownOptions) {
+    public int run() {
         if (configFile == null) {
             System.err.println("No configuration file given");
             return ExitCode.INVALIDCONFIGURATION;
@@ -112,6 +107,11 @@ public class CommandJwt implements VerbCommand {
         }
         System.out.println(handler.getToken(builder));
         return ExitCode.OK;
+    }
+
+    @Override
+    public void extractFields(BaseParametersRunner cmd) {
+        cmd.getField("configFile").map(String.class::cast).ifPresent(s -> configFile = s);
     }
 
     private int sign(String signFile, JWTHandler handler) {

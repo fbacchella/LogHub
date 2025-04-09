@@ -1,18 +1,20 @@
 package loghub;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.ParameterException;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.function.Consumer;
-import loghub.commands.BaseCommand;
-import loghub.commands.CommandRunner;
+
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.ParameterException;
+
+import loghub.commands.BaseParametersRunner;
+import loghub.commands.CommandLineHandler;
+import loghub.commands.BaseParameters;
 import loghub.commands.ExitCode;
-import loghub.commands.VerbCommand;
+import loghub.commands.CommandRunner;
 
 public class Start {
 
@@ -25,19 +27,20 @@ public class Start {
     }
 
     public static void main(String[] args) {
-        // Resetshutdown, Start can be used many time in tests.
+        // Reset shutdown, Start can be used many time in tests.
         ShutdownTask.reset();
-        JCommander.Builder jcomBuilder = JCommander.newBuilder().acceptUnknownOptions(true);
-        Map<String, VerbCommand> verbs = new HashMap<>();
-        List<BaseCommand> commands = new ArrayList<>();
-        Consumer<ServiceLoader.Provider<CommandRunner>> resolve = p -> {
+        BaseParameters baseParameters = new BaseParameters();
+        JCommander.Builder jcomBuilder = JCommander.newBuilder().acceptUnknownOptions(false).addObject(baseParameters);
+        Map<String, CommandRunner> verbs = new HashMap<>();
+        List<BaseParametersRunner> commands = new ArrayList<>();
+        Consumer<ServiceLoader.Provider<CommandLineHandler>> resolve = p -> {
             try {
-                CommandRunner cmd = p.get();
-                if (cmd instanceof BaseCommand) {
+                CommandLineHandler cmd = p.get();
+                if (cmd instanceof BaseParametersRunner) {
                     jcomBuilder.addObject(cmd);
-                    commands.add((BaseCommand) cmd);
-                } else if (cmd instanceof VerbCommand) {
-                    VerbCommand vcmd = (VerbCommand) cmd;
+                    commands.add((BaseParametersRunner) cmd);
+                } else if (cmd instanceof CommandRunner) {
+                    CommandRunner vcmd = (CommandRunner) cmd;
                     for (String v : vcmd.getVerbs()) {
                         verbs.put(v, vcmd);
                     }
@@ -47,34 +50,30 @@ public class Start {
                 System.out.format("Failed command: %s%n", Helpers.resolveThrowableException(e));
             }
         };
-        ServiceLoader<CommandRunner> serviceLoader = ServiceLoader.load(CommandRunner.class);
+        ServiceLoader<CommandLineHandler> serviceLoader = ServiceLoader.load(CommandLineHandler.class);
         serviceLoader.stream().forEach(resolve);
         JCommander jcom = jcomBuilder.build();
         try {
             jcom.parse(args);
         } catch (ParameterException e) {
-            System.err.println(e.getMessage());
+            System.err.println("Invalid parameter: " + Helpers.resolveThrowableException(e));
             System.exit(ExitCode.INVALIDARGUMENTS);
         }
-        for (BaseCommand dc : commands) {
-            dc.getField("help", Boolean.class).ifPresent(a -> {
-                if (a) {
-                    jcom.usage();
-                    System.exit(ExitCode.OK);
-                }
-            });
+        if (baseParameters.isHelp()) {
+            jcom.usage();
+            System.exit(ExitCode.OK);
         }
         String parsedCommand = jcom.getParsedCommand();
 
         if (parsedCommand != null) {
-            VerbCommand cmd = verbs.get(parsedCommand);
-            for (BaseCommand dc : commands) {
+            CommandRunner cmd = verbs.get(parsedCommand);
+            for (BaseParametersRunner dc : commands) {
                 cmd.extractFields(dc);
             }
-            System.exit(cmd.run(jcom.getUnknownOptions()));
+            System.exit(cmd.run());
         } else {
-            for (BaseCommand dc : commands) {
-                int status = dc.run(jcom.getUnknownOptions());
+            for (BaseParametersRunner dc : commands) {
+                int status = dc.run(baseParameters.getMainParams());
                 if (status >= 0) {
                     System.exit(status);
                 } else if (status == ExitCode.DONTEXIT) {

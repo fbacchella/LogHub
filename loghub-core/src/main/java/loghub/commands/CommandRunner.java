@@ -1,7 +1,14 @@
 package loghub.commands;
 
-import java.util.List;
+import com.beust.jcommander.Parameters;
 
-public interface CommandRunner {
-    int run(List<String> unknownOptions);
+public interface CommandRunner extends CommandLineHandler {
+
+    int run();
+    default String[] getVerbs() {
+        return getClass().getAnnotation(Parameters.class).commandNames();
+    }
+    default void extractFields(BaseParametersRunner cmd) {
+    }
+
 }

@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Map;
 
 import com.beust.jcommander.Parameter;
@@ -70,7 +69,7 @@ public class CommandPassword implements CommandRunner {
     }
 
     @Override
-    public int run(List<String> unknownOptions) {
+    public int run() {
         try {
             if ((add ? 1 : 0) + (delete ? 1 : 0) + (list ? 1 : 0) + (create ? 1 : 0) != 1) {
                 throw new IllegalStateException("A single action is required");

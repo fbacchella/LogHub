@@ -1,4 +1,5 @@
 loghub.commands.CommandTimePattern
-loghub.commands.Launch
 loghub.commands.CommandJwt
 loghub.commands.CommandPassword
+loghub.commands.TestPipeline
+loghub.commands.Launch

@@ -24,18 +24,15 @@ import lombok.ToString;
 
 @Parameters(commandNames={"espipeline"})
 @ToString
-public class EsPipelineConvert implements BaseCommand {
+public class EsPipelineConvert implements BaseParametersRunner {
 
     @Parameter(names = {"-p", "--pipeline"}, description = "YAML files")
     public String pipelineName;
 
-    @Parameter(names = {"--help", "-h"}, help = true)
-    private boolean help;
-
-    public int run(List<String> unknownOptions) {
+    public int run(List<String> mainParameters) {
         JacksonBuilder<YAMLMapper> builder = JacksonBuilder.get(YAMLMapper.class);
         ObjectReader reader = builder.getReader();
-        for (String pipeline: unknownOptions) {
+        for (String pipeline: mainParameters) {
             try {
                 Map<String, Object> o = reader.readValue(Helpers.fileUri(pipeline).toURL());
                 @SuppressWarnings("unchecked")
@@ -443,12 +440,4 @@ public class EsPipelineConvert implements BaseCommand {
         return params.isEmpty() ? null : params.toString();
     }
 
-    @Override
-    public <T> Optional<T> getField(String name, Class<T> tClass) {
-        if ("help".equals(name)) {
-            return Optional.of((T) Boolean.valueOf(help));
-        } else {
-            return Optional.empty();
-        }
-    }
 }

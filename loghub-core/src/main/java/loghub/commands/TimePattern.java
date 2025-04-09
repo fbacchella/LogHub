@@ -2,22 +2,21 @@ package loghub.commands;
 
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Optional;
 
 import loghub.datetime.DatetimeProcessor;
 import com.beust.jcommander.Parameter;
 
-public class CommandTimePattern  implements BaseCommand {
+public class TimePattern implements BaseParametersRunner {
 
     @SuppressWarnings("CanBeFinal")
     @Parameter(names = {"--timepattern"}, description = "A time pattern to test")
     private String timepattern = null;
 
     @Override
-    public int run(List<String> unknownOptions) {
+    public int run(List<String> mainParameters) {
         if (timepattern != null) {
             DatetimeProcessor tested = DatetimeProcessor.of(timepattern);
-            for (String date : unknownOptions) {
+            for (String date : mainParameters) {
                 try {
                     System.out.format("%s -> %s%n", date, tested.parse(date));
                 } catch (IllegalArgumentException | DateTimeParseException ex) {
@@ -30,8 +29,4 @@ public class CommandTimePattern  implements BaseCommand {
         }
     }
 
-    @Override
-    public <T> Optional<T> getField(String name, Class<T> tClass) {
-        return Optional.empty();
-    }
 }
