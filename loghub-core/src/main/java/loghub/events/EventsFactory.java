@@ -34,13 +34,16 @@ public class EventsFactory {
     }
 
     public Event newEvent() {
-        leakDetector();
-        return new EventInstance(ConnectionContext.EMPTY, this);
+        return newEvent(ConnectionContext.EMPTY, false);
     }
 
     public Event newEvent(ConnectionContext<?> ctx) {
+        return newEvent(ctx, false);
+    }
+
+    public Event newEvent(ConnectionContext<?> ctx, boolean test) {
         leakDetector();
-        return new EventInstance(ctx, this);
+        return new EventInstance(ctx, test,this);
     }
 
     public static void deadEvent(ConnectionContext<?> ctx) {
@@ -62,6 +65,10 @@ public class EventsFactory {
     }
 
     public Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> eventContent) throws DecodeException {
+        return mapToEvent(ctx, eventContent, false);
+    }
+
+    public Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> eventContent, boolean test) throws DecodeException {
         if (eventContent instanceof Event) {
             return (Event) eventContent;
         } else {
@@ -72,7 +79,7 @@ public class EventsFactory {
             Map<String, Object> fields = (Map<String, Object>) eventContent.remove("@fields");
             @SuppressWarnings("unchecked")
             Map<String, Object> metas = (Map<String, Object>) eventContent.remove("@METAS");
-            Event newEvent = newEvent(ctx);
+            Event newEvent = newEvent(ctx, test);
             newEvent.putAll(fields);
             Optional.ofNullable(eventContent.get(Event.TIMESTAMPKEY))
                     .filter(newEvent::setTimestamp)
