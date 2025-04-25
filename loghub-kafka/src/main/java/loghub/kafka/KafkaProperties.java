@@ -1,5 +1,16 @@
 package loghub.kafka;
 
+import java.net.URI;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Properties;
+import java.util.stream.Collectors;
+
+import org.apache.kafka.common.config.ConfigException;
+import org.apache.logging.log4j.Logger;
+
+import loghub.Helpers;
+
 import static org.apache.kafka.clients.CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;
 import static org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
@@ -11,17 +22,6 @@ import static org.apache.kafka.common.config.SslConfigs.SSL_KEYSTORE_PASSWORD_CO
 import static org.apache.kafka.common.config.SslConfigs.SSL_KEYSTORE_TYPE_CONFIG;
 import static org.apache.kafka.common.config.SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG;
 import static org.apache.kafka.common.config.SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG;
-
-import java.net.URL;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Properties;
-import java.util.stream.Collectors;
-
-import org.apache.kafka.common.config.ConfigException;
-import org.apache.logging.log4j.Logger;
-
-import loghub.Helpers;
 
 public interface KafkaProperties {
 
@@ -53,7 +53,7 @@ public interface KafkaProperties {
             throw new ConfigException("Topic must be specified");
         }
 
-        URL[] brokersUrl = Helpers.stringsToUrl(brokers, port, "http", getLogger());
+        URI[] brokersUrl = Helpers.stringsToUri(brokers, port, "http", getLogger());
         String resolvedBrokers = Arrays.stream(brokersUrl)
                 .map( i -> i.getHost() + ":" + i.getPort())
                 .collect(Collectors.joining(","))
