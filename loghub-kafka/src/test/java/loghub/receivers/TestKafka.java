@@ -1,51 +1,76 @@
 package loghub.receivers;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.MockConsumer;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.events.Event;
 
 public class TestKafka {
 
     private static Logger logger;
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.Kafka");
+        LogUtils.setLevel(logger, Level.TRACE, "org.apache.kafka", "loghub.receivers.Kafka");
     }
 
-    @Ignore
     @Test
     public void testone() throws InterruptedException, IOException {
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        Kafka r = new Kafka(receiver, new Pipeline(Collections.emptyList(), "testone", null));
-        r.setDecoder(new StringCodec());
-        r.setBrokers(new String[] {"192.168.0.13"});
-        r.setTopic("test");
-        Assert.assertTrue("Failed to configure trap receiver", r.configure(new Properties(Collections.emptyMap())));
-        r.start();
-        while (true) {
-            Event e = receiver.take();
-            System.out.println(e);
+        Kafka.Builder builder = Kafka.getBuilder();
+        builder.setDecoder(StringCodec.getBuilder().build());
+        builder.setBrokers(new String[] {"192.168.0.13"});
+        builder.setTopic("test");
+        builder.setDecoder(StringCodec.getBuilder().build());
+        MockConsumer<Long, byte[]> mockConsumer = getMockConsumer();
+        builder.setConsumer(mockConsumer);
+
+        try (Kafka r = builder.build()) {
+            PriorityBlockingQueue queue = new PriorityBlockingQueue();
+            r.setOutQueue(queue);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testkafka", null));
+            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            r.start();
+
+            mockConsumer.addRecord(new ConsumerRecord<>("test", 0, 0, null, "messagebody".getBytes(StandardCharsets.UTF_8)));
+            Event e = queue.poll(1, TimeUnit.SECONDS);
+            Assert.assertEquals("messagebody", e.get("message"));
+            System.err.println(e);
         }
-        //r.close();
+    }
+
+    private MockConsumer<Long, byte[]> getMockConsumer() {
+        MockConsumer<Long, byte[]> consumer = new MockConsumer(OffsetResetStrategy.EARLIEST);
+        TopicPartition partition = new TopicPartition("test", 0);
+        consumer.assign(List.of(partition));
+        Map<TopicPartition, Long> beginningOffsets = new HashMap<>();
+        beginningOffsets.put(partition, 0L);
+        consumer.updateBeginningOffsets(beginningOffsets);
+        return consumer;
     }
 
 }
