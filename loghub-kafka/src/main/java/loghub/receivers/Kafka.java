@@ -1,8 +1,5 @@
 package loghub.receivers;
 
-import java.net.InetAddress;
-import java.net.URI;
-import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -11,7 +8,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -26,7 +25,8 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
-import loghub.Helpers;
+import loghub.kafka.KafkaProperties;
+import loghub.security.ssl.ClientAuthentication;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -50,13 +50,19 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         }
     }
 
-    @Setter
-    public static class Builder extends Receiver.Builder<Kafka, Kafka.Builder> {
+    @Setter @Getter
+    public static class Builder extends Receiver.Builder<Kafka, Kafka.Builder> implements KafkaProperties {
         private String[] brokers = new String[] { "localhost"};
         private int port = 9092;
         private String topic;
         private String group ="loghub";
         private String keyDeserializer = ByteArrayDeserializer.class.getName();
+        private String compressionType;
+        private String securityProtocol;
+        private SSLContext sslContext;
+        private SSLParameters sslParams;
+        private ClientAuthentication sslClientAuthentication;
+        private String saslKerberosServiceName;
         // Only used for tests
         @Setter(AccessLevel.PACKAGE)
         private Consumer<Long, byte[]> consumer;
@@ -69,14 +75,12 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         return new Builder();
     }
 
-    private final String[] brokers;
     @Getter
     private final String topic;
     private Supplier<Consumer<Long, byte[]>> consumerSupplier;
 
     protected Kafka(Builder builder) {
         super(builder);
-        this.brokers = Arrays.copyOf(builder.brokers, builder.brokers.length);
         this.topic = builder.topic;
         if (builder.consumer != null) {
             consumerSupplier = () -> builder.consumer;
@@ -86,18 +90,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     }
 
     private Supplier<Consumer<Long,byte[]>> getConsumer(Builder builder) {
-        Map<String, Object> props = new HashMap<>();
-        URI[] brokersUrl = Helpers.stringsToUri(builder.brokers, builder.port, "http", logger);
-        String resolvedBrokers = Arrays.stream(brokersUrl)
-                                       .map( i -> i.getHost() + ":" + i.getPort())
-                                       .collect(Collectors.joining(","));
-        try {
-            props.put(ConsumerConfig.CLIENT_ID_CONFIG, InetAddress.getLocalHost().getHostName());
-        } catch (UnknownHostException e) {
-            throw new IllegalStateException(e);
-        }
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, resolvedBrokers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, builder.group);
+        Map<String, Object> props = builder.configureKafka(logger);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, builder.keyDeserializer);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         return () -> {
@@ -160,10 +153,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         } else {
             return Map.of();
         }
-    }
-
-    public String[] getBrokers() {
-        return Arrays.copyOf(brokers, brokers.length);
     }
 
 }
