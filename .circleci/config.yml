@@ -262,6 +262,7 @@ workflows:
       - testsj23:
             requires:
                 - build
+            context: "Security variables"
       - testsj21:
             requires:
                 - build
@@ -277,6 +278,7 @@ workflows:
               - testsj17
               - testsj21
               - testsj23
+          context: "Security variables"
       - savecache:
           requires:
               - publish
