@@ -8,45 +8,56 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
+import loghub.BuilderClass;
 import loghub.ProcessorException;
-import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.jackson.Helpers;
 import loghub.jackson.JacksonBuilder;
-import lombok.Getter;
 import lombok.Setter;
 
+@BuilderClass(ParseCsv.Builder.class)
 public class ParseCsv extends FieldsProcessor {
 
-    private String[] columns = new String[0];
     @Setter
-    @Getter
-    private String[] features = new String[0];
-    private char separator = ',';
-    @Getter @Setter
-    private char escapeChar = '\0';
-    @Setter
-    @Getter
-    private String nullValue = "";
-    private ObjectReader reader;
+    public static class Builder extends FieldsProcessor.Builder<ParseCsv> {
+        private String[] columns = new String[0];
+        private String[] features = new String[0];
+        private char separator = ',';
+        @Setter
+        private char escapeChar = '\0';
+        @Setter
+        private String nullValue = "";
+        public void setHeaders(String[] headers) {
+            columns = Arrays.copyOf(headers, headers.length);
+        }
+        public void setColumnSeparator(char separator) {
+            this.separator = separator;
+        }
+        public ParseCsv build() {
+            return new ParseCsv(this);
+        }
+    }
+    public static ParseCsv.Builder getBuilder() {
+        return new ParseCsv.Builder();
+    }
 
-    @Override
-    public boolean configure(Properties properties) {
+    private final ObjectReader reader;
+
+    private ParseCsv(ParseCsv.Builder builder) {
+        super(builder);
         CsvSchema.Builder sbuilder = CsvSchema.builder();
-        Arrays.stream(columns).forEach(sbuilder::addColumn);
-        sbuilder.setColumnSeparator(separator);
-        sbuilder.setNullValue(nullValue);
+        Arrays.stream(builder.columns).forEach(sbuilder::addColumn);
+        sbuilder.setColumnSeparator(builder.separator);
+        sbuilder.setNullValue(builder.nullValue);
 
-        if (escapeChar != '\0') {
-            sbuilder.setEscapeChar(escapeChar);
+        if (builder.escapeChar != '\0') {
+            sbuilder.setEscapeChar(builder.escapeChar);
         }
 
         reader =  JacksonBuilder.get(CsvMapper.class)
-                                .setSchema(sbuilder.build())
-                                .setConfigurator(m -> Helpers.csvFeatures(m, features))
-                                .getReader();
-
-        return super.configure(properties);
+                          .setSchema(sbuilder.build())
+                          .setConfigurator(m -> Helpers.csvFeatures(m, builder.features))
+                          .getReader();
     }
 
     @Override
@@ -59,22 +70,6 @@ public class ParseCsv extends FieldsProcessor {
         } catch (IOException e) {
             throw event.buildException("failed to parse csv " + value, e);
         }
-    }
-
-    public String[] getHeaders() {
-        return columns;
-    }
-
-    public void setHeaders(String[] columns) {
-        this.columns = columns;
-    }
-
-    public Character getColumnSeparator() {
-        return separator;
-    }
-
-    public void setColumnSeparator(Character separator) {
-        this.separator = separator;
     }
 
 }

@@ -33,11 +33,12 @@ public class TestParseCsv {
 
     @Test
     public void test1() throws ProcessorException {
-        ParseCsv parse = new ParseCsv();
-        parse.setHeaders(new String[]{"a", "b", "c", "d"});
-        parse.setField(VariablePath.of("message"));
-        parse.setColumnSeparator(';');
-        parse.setFeatures(new String[]{"TRIM_SPACES"});
+        ParseCsv.Builder builder = ParseCsv.getBuilder();
+        builder.setHeaders(new String[]{"a", "b", "c", "d"});
+        builder.setField(VariablePath.of("message"));
+        builder.setColumnSeparator(';');
+        builder.setFeatures(new String[]{"TRIM_SPACES"});
+        ParseCsv parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
         event.put("message", "1; \"2\";\\\";");
@@ -52,7 +53,7 @@ public class TestParseCsv {
     public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.ParseCsv"
                               , BeanChecks.BeanInfo.build("headers", BeanChecks.LSTRING)
-                              , BeanChecks.BeanInfo.build("columnSeparator", Character.class)
+                              , BeanChecks.BeanInfo.build("columnSeparator", Character.TYPE)
                               , BeanChecks.BeanInfo.build("nullValue", String.class)
                               , BeanChecks.BeanInfo.build("features", BeanChecks.LSTRING)
                               , BeanChecks.BeanInfo.build("escapeChar", Character.TYPE)
