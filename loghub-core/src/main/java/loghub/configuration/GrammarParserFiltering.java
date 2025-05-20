@@ -73,6 +73,7 @@ public class GrammarParserFiltering {
         OPTIONAL_ARRAY,
         LAMBDA,
         VARIABLE_PATH,
+        VARIABLE_PATH_ARRAY,
     }
 
     private static final Map<String, String> IMPLICIT_OBJECT = Map.ofEntries(
@@ -178,6 +179,8 @@ public class GrammarParserFiltering {
                 currentBeanType =  BEANTYPE.CHARACTER;
             } else if (String.class.equals(clazz)) {
                 currentBeanType =  BEANTYPE.STRING;
+            } else if (VariablePath[].class.equals(clazz)) {
+                currentBeanType =  BEANTYPE.VARIABLE_PATH_ARRAY;
             } else if (clazz.isArray()) {
                 currentBeanType =  BEANTYPE.ARRAY;
             } else if (clazz.isEnum()) {
@@ -216,8 +219,11 @@ public class GrammarParserFiltering {
         case IMPLICIT_OBJECT:
             return currentBeanType == BEANTYPE.IMPLICIT_OBJECT;
         case VARIABLE_PATH:
-            // VARIABLE_PATH is valid only when explicitely required
+            // VARIABLE_PATH is valid only when explicitly required
             return currentBeanType == BEANTYPE.VARIABLE_PATH;
+        case VARIABLE_PATH_ARRAY:
+            // VARIABLE_PATH_ARRAY is valid only when explicitly required
+            return currentBeanType == BEANTYPE.VARIABLE_PATH_ARRAY;
         default:
             return currentBeanType == null || currentBeanType == proposition;
         }

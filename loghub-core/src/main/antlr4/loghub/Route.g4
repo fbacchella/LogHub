@@ -104,6 +104,7 @@ beanValue
     | {filter.allowedBeanType(BEANTYPE.SECRET)}? secret
     | {filter.allowedBeanType(BEANTYPE.LAMBDA)}? lambda
     | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
+    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH_ARRAY)}? vparray
     | {filter.allowedBeanType(BEANTYPE.ARRAY)}? array
     | {filter.allowedBeanType(BEANTYPE.OPTIONAL_ARRAY)}? (stringLiteral | array)
     | {filter.allowedBeanType(BEANTYPE.MAP)}? map
@@ -262,6 +263,11 @@ expressionsList
 matchOperator
     :   '=~'
     |   '==~'
+    ;
+
+vparray
+    : '[' (eventVariable ( ',' eventVariable)* ','?) ?']'
+    | '[' (stringLiteral ( ',' stringLiteral)* ','?) ?']'
     ;
 
 array

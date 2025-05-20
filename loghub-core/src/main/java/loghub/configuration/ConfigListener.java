@@ -60,6 +60,7 @@ import loghub.RouteParser.ExpressionsListContext;
 import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FireContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
+import loghub.RouteParser.ForeachContext;
 import loghub.RouteParser.ForkpiperefContext;
 import loghub.RouteParser.ForwardpiperefContext;
 import loghub.RouteParser.InputContext;
@@ -86,7 +87,7 @@ import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.RouteParser.VarPathContext;
-import loghub.RouteParser.ForeachContext;
+import loghub.RouteParser.VparrayContext;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.groovy.GroovyMethods;
@@ -759,6 +760,32 @@ class ConfigListener extends RouteBaseListener {
         @SuppressWarnings("unchecked")
         ObjectWrapped<Source> source = (ObjectWrapped<Source>) stack.pop();
         sources.get(ctx.identifier().getText()).set(source.wrapped);
+    }
+
+    @Override
+    public void enterVparray(VparrayContext ctx) {
+        stack.push(StackMarker.ARRAY);
+    }
+
+    @Override
+    public void exitVparray(VparrayContext ctx) {
+        if (ctx.eventVariable().isEmpty() && ctx.stringLiteral().isEmpty()) {
+            stack.push(new ObjectWrapped<>(new VariablePath[0]));
+        } else {
+            List<VariablePath> array = new ArrayList<>(ctx.eventVariable().size() + ctx.stringLiteral().size());
+            // Don't try to be rigorous here, it's already filtered by antlr parsing
+            for (EventVariableContext evc: ctx.eventVariable()) {
+                array.add(convertEventVariable(evc));
+            }
+            for (StringLiteralContext evc: ctx.stringLiteral()) {
+                array.add(VariablePath.of(evc.getText()));
+            }
+            while (StackMarker.ARRAY != stack.pop()) {
+                // Cleaning the stack
+            }
+
+            stack.push(new ObjectWrapped<>(array.toArray(VariablePath[]::new)));
+        }
     }
 
     @Override
