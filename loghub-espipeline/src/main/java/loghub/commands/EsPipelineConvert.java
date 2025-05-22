@@ -297,6 +297,9 @@ public class EsPipelineConvert implements BaseParametersRunner {
         case "integer":
             className = "java.lang.Integer";
             break;
+        case "boolean":
+            className = "java.lang.Boolean";
+            break;
         case "string":
             className = "java.lang.String";
             break;
@@ -352,7 +355,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
         List<String> target_fields = (List<String>) params.remove("target_fields");
         List<VariablePath> fields = target_fields.stream().map(VariablePath::parse).collect(Collectors.toList());
         attributes.put("headers", fields);
-        System.err.println(attributes);
         doProcessor(prefix, "loghub.processors.ParseCsv", filterComments(params, attributes), attributes);
     }
 
