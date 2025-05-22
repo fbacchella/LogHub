@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import loghub.Helpers;
+import loghub.VariablePath;
 import loghub.jackson.JacksonBuilder;
 import lombok.ToString;
 
@@ -112,6 +113,9 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 break;
             case "user_agent":
                 userAgent(params, prefix);
+                break;
+            case "csv":
+                csv(params, prefix);
                 break;
             default:
                 System.out.println(prefix + "// " + processor);
@@ -340,6 +344,16 @@ public class EsPipelineConvert implements BaseParametersRunner {
         attributes.put("field", resolveField(params.remove("field")));
         attributes.put("destination", resolveField(Optional.ofNullable(params.remove("target_field")).orElse("user_agent")));
         doProcessor(prefix, "loghub.processors.UserAgent", filterComments(params, attributes), attributes);
+    }
+
+    private void csv(Map<String, Object> params, String prefix) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("field", resolveField(params.remove("field")));
+        List<String> target_fields = (List<String>) params.remove("target_fields");
+        List<VariablePath> fields = target_fields.stream().map(VariablePath::parse).collect(Collectors.toList());
+        attributes.put("headers", fields);
+        System.err.println(attributes);
+        doProcessor(prefix, "loghub.processors.ParseCsv", filterComments(params, attributes), attributes);
     }
 
     private void doProcessor(String prefix, String processor, String comment, Map<String, Object> fields) {

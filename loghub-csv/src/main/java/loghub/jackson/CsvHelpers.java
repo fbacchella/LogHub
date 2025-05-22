@@ -7,9 +7,9 @@ import com.fasterxml.jackson.dataformat.csv.CsvGenerator;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvParser;
 
-public class Helpers {
+public class CsvHelpers {
 
-    private Helpers() {
+    private CsvHelpers() {
         // Only static usage
     }
     public static void csvFeatures(CsvMapper mapper, String[] features) {

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import loghub.BuilderClass;
-import loghub.jackson.Helpers;
+import loghub.jackson.CsvHelpers;
 import loghub.jackson.JacksonBuilder;
 import lombok.Setter;
 
@@ -47,7 +47,7 @@ public class Csv extends AbstractStringJackson<Csv.Builder, CsvMapper> {
 
         return JacksonBuilder.get(CsvMapper.class)
                              .setSchema(sbuilder.build())
-                             .setConfigurator(m -> Helpers.csvFeatures(m, builder.features));
+                             .setConfigurator(m -> CsvHelpers.csvFeatures(m, builder.features));
     }
 
 }

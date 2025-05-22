@@ -22,7 +22,7 @@ import loghub.Expression;
 import loghub.IgnoredEventException;
 import loghub.ProcessorException;
 import loghub.events.Event;
-import loghub.jackson.Helpers;
+import loghub.jackson.CsvHelpers;
 import loghub.jackson.JacksonBuilder;
 import lombok.Setter;
 
@@ -59,7 +59,7 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
         String[] features = Arrays.stream(builder.features).map(Object::toString).toArray(String[]::new);
         return JacksonBuilder.get(CsvMapper.class)
                              .setSchema(sbuilder.build())
-                             .setConfigurator(m -> Helpers.csvGeneratorFeatures(m, features));
+                             .setConfigurator(m -> CsvHelpers.csvGeneratorFeatures(m, features));
     }
 
     @Override
