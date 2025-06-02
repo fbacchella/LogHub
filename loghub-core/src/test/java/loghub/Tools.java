@@ -1,10 +1,8 @@
 package loghub;
 
-import org.junit.Assert;
-
-import io.netty.util.concurrent.Future;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
 import java.net.ServerSocket;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -19,15 +17,22 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
+
+import org.junit.Assert;
+
+import io.netty.util.concurrent.Future;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 import loghub.security.ssl.MultiKeyStoreProvider;
+import loghub.senders.BlockingConnectionContext;
 
 import static loghub.EventsProcessor.ProcessingStatus.DISCARD;
 import static loghub.EventsProcessor.ProcessingStatus.DROPED;
@@ -191,6 +196,23 @@ public class Tools {
 
     public static  Object evalExpression(String exp) throws ProcessorException {
         return evalExpression(exp, null);
+    }
+
+    public static Event processEventWithPipeline(EventsFactory factory, String configuration, String pipelineName,
+                                                 Consumer<Event> populateEvent)
+            throws IOException, InterruptedException {
+        Properties props = Tools.loadConf(new StringReader(configuration));
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100, props.repository);
+        ep.start();
+        BlockingConnectionContext ctx = new BlockingConnectionContext();
+        Event ev = factory.newEvent(ctx);
+        populateEvent.accept(ev);
+        ev.inject(props.namedPipeLine.get(pipelineName), props.mainQueue, true);
+        boolean computed = ctx.getLocalAddress().tryAcquire(5, TimeUnit.SECONDS);
+        Assert.assertTrue(computed);
+        ep.interrupt();
+        ep.join();
+        return ev;
     }
 
 }

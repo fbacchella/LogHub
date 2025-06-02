@@ -1,13 +1,12 @@
 package loghub;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -25,7 +24,6 @@ import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 import loghub.processors.Identity;
-import loghub.senders.BlockingConnectionContext;
 
 public class TestEvent {
 
@@ -123,16 +121,7 @@ public class TestEvent {
     @Test
     public void testDrop() throws IOException, InterruptedException {
         String confile = "pipeline[main] {[a] = true | drop}";
-        Properties props = Tools.loadConf(new StringReader(confile));
-        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100, props.repository);
-        ep.start();
-        BlockingConnectionContext ctx = new BlockingConnectionContext();
-        Event ev = factory.newEvent(ctx);
-        ev.inject(props.namedPipeLine.get("main"), props.mainQueue, true);
-        boolean computed = ctx.getLocalAddress().tryAcquire(5, TimeUnit.SECONDS);
-        Assert.assertTrue(computed);
-        ep.interrupt();
-        ep.join();
+        Event ev = Tools.processEventWithPipeline(factory, confile, "main", e -> {});
         Assert.assertTrue((Boolean) ev.get("a"));
         Assert.assertEquals(1, Stats.getDropped());
         Assert.assertEquals(0, Stats.getInflight());
@@ -167,24 +156,17 @@ public class TestEvent {
     }
 
     @Test
-    public void testWrapEmptyPath() throws IOException {
+    public void testWrapEmptyPath() throws IOException, InterruptedException {
         String confile = "pipeline[main] {path[a]([.b]=1)}";
-        Properties conf = Tools.loadConf(new StringReader(confile));
-        Event sent = factory.newEvent();
-        Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Event received = conf.mainQueue.remove();
+        Event received = Tools.processEventWithPipeline(factory, confile, "main", e -> {});
         Assert.assertFalse(received.containsKey("a"));
         Assert.assertTrue(received.containsKey("b"));
     }
 
     @Test
-    public void testWrapEmptyProcessor() throws IOException {
+    public void testWrapEmptyProcessor() throws IOException, InterruptedException {
         String confile = "pipeline[main] {loghub.processors.Grok{pattern: \"a%{GREEDYDATA:a}\", field: [.message], path: [a]}}";
-        Properties conf = Tools.loadConf(new StringReader(confile));
-        Event sent = factory.newEvent();
-        sent.put("message", "bc");
-        Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Event received = conf.mainQueue.remove();
+        Event received = Tools.processEventWithPipeline(factory, confile, "main", e -> e.put("message", "bc"));
         Assert.assertFalse(received.containsKey("a"));
         Assert.assertTrue(received.containsKey("message"));
     }
@@ -225,26 +207,19 @@ public class TestEvent {
 
     @Test(timeout = 1000)
     public void testWrapperFailed() throws IOException, InterruptedException {
-        BlockingConnectionContext waitingContext = new BlockingConnectionContext();
-        Event event = factory.newEvent(waitingContext);
-        Map<String, Object> wrapped = new HashMap<>((Map.of("b", NullOrMissingValue.NULL, "c", NullOrMissingValue.MISSING)));
-        // Map.of doesn't allow null value;
-        wrapped.put("a", null);
-        event.put("top", wrapped);
-        for (String key : List.of("a", "b", "c")) {
-            Assert.assertThrows(IgnoredEventException.class, () -> event.wrap(VariablePath.of(List.of("top", key))));
-        }
-        // Should not neither descend nor create [d e]
         String confile = "pipeline[main] {path[top a](path[d]([e]=false)) | [f]=true} ";
-        Properties props = Tools.loadConf(new StringReader(confile));
-        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100, props.repository);
-        event.inject(props.namedPipeLine.get("main"), props.mainQueue, false);
-        props.mainQueue.put(event);
-        ep.start();
-        waitingContext.getLocalAddress().acquire();
-        ep.stopProcessing();
-        Assert.assertFalse(event.containsAtPath(VariablePath.of(List.of("d"))));
-        Assert.assertTrue((Boolean) event.getAtPath(VariablePath.of(List.of("f"))));
+        Consumer<Event> evConsumer = e -> {
+            Map<String, Object> wrapped = new HashMap<>((Map.of("b", NullOrMissingValue.NULL, "c", NullOrMissingValue.MISSING)));
+            // Map.of doesn't allow null value;
+            wrapped.put("a", null);
+            e.put("top", wrapped);
+            for (String key : List.of("a", "b", "c")) {
+                Assert.assertThrows(IgnoredEventException.class, () -> e.wrap(VariablePath.of(List.of("top", key))));
+            }
+        };
+        Event received = Tools.processEventWithPipeline(factory, confile, "main", evConsumer);
+        Assert.assertFalse(received.containsAtPath(VariablePath.of(List.of("d"))));
+        Assert.assertTrue((Boolean) received.getAtPath(VariablePath.of(List.of("f"))));
     }
 
 }
