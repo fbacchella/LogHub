@@ -414,12 +414,17 @@ public final class Stats {
         return getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).time();
     }
 
-    public static void eventEnd(int stepsCount) {
+    public static void eventEnd(String pipeline, int stepsCount) {
+        if (pipeline != null) {
+            Stats.pipelineHanding(pipeline, PipelineStat.INFLIGHTDOWN);
+        }
         getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).dec();
         getMetric(Histogram.class, Stats.class, Stats.METRIC_ALL_STEPS).update(stepsCount);
     }
 
     public static void eventLeaked() {
+        // Leaking event are rare, don't try to resolve the leaking pipeline
+        // It's needs overcomplicated code for that
         getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).dec();
         getMetric(Counter.class, METRIC_ALL_EVENT_LEAKED).inc();
     }

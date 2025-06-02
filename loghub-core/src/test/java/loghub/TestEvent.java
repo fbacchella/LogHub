@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -15,10 +16,14 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
+
 import loghub.EventsProcessor.ProcessingStatus;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 import loghub.processors.Identity;
 import loghub.senders.BlockingConnectionContext;
 
@@ -113,6 +118,26 @@ public class TestEvent {
         }
         Assert.assertTrue("Breaking early", e.processingDone() >= props.maxSteps);
         e.end();
+    }
+
+    @Test
+    public void testDrop() throws IOException, InterruptedException {
+        String confile = "pipeline[main] {[a] = true | drop}";
+        Properties props = Tools.loadConf(new StringReader(confile));
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100, props.repository);
+        ep.start();
+        BlockingConnectionContext ctx = new BlockingConnectionContext();
+        Event ev = factory.newEvent(ctx);
+        ev.inject(props.namedPipeLine.get("main"), props.mainQueue, true);
+        boolean computed = ctx.getLocalAddress().tryAcquire(5, TimeUnit.SECONDS);
+        Assert.assertTrue(computed);
+        ep.interrupt();
+        ep.join();
+        Assert.assertTrue((Boolean) ev.get("a"));
+        Assert.assertEquals(1, Stats.getDropped());
+        Assert.assertEquals(0, Stats.getInflight());
+        Assert.assertEquals(1, Stats.getMetric(Meter.class, "main", "dropped").getCount());
+        Assert.assertEquals(0, Stats.getMetric(Counter.class, "main", "inflight").getCount());
     }
 
     @Test
