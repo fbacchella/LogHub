@@ -13,7 +13,7 @@
     <name>LogHub :: Core</name>
 
     <properties>
-        <netty.version>4.1.118.Final</netty.version>
+        <netty.version>4.2.1.Final</netty.version>
     </properties>
 
     <dependencies>
@@ -75,7 +75,7 @@
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>
-            <version>3.0.23</version>
+            <version>3.0.25</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
@@ -223,7 +223,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
-            <version>1.13.0</version>
+            <version>1.14.0</version>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>
@@ -255,7 +255,7 @@
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.5.6-10</version>
+            <version>1.5.7-3</version>
         </dependency>
         <dependency>
             <groupId>org.brotli</groupId>
@@ -279,7 +279,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.15.2</version>
+            <version>5.18.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
