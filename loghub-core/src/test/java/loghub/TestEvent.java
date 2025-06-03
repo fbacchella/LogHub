@@ -120,13 +120,15 @@ public class TestEvent {
 
     @Test
     public void testDrop() throws IOException, InterruptedException {
-        String confile = "pipeline[main] {[a] = true | drop}";
+        String confile = "pipeline[main] { $dropper} pipeline[dropper] {[a] = true | drop}";
         Event ev = Tools.processEventWithPipeline(factory, confile, "main", e -> {});
         Assert.assertTrue((Boolean) ev.get("a"));
         Assert.assertEquals(1, Stats.getDropped());
         Assert.assertEquals(0, Stats.getInflight());
-        Assert.assertEquals(1, Stats.getMetric(Meter.class, "main", "dropped").getCount());
+        Assert.assertEquals(0, Stats.getMetric(Meter.class, "main", "dropped").getCount());
         Assert.assertEquals(0, Stats.getMetric(Counter.class, "main", "inflight").getCount());
+        Assert.assertEquals(1, Stats.getMetric(Meter.class, "dropper", "dropped").getCount());
+        Assert.assertEquals(0, Stats.getMetric(Counter.class, "dropper", "inflight").getCount());
     }
 
     @Test

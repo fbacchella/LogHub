@@ -140,7 +140,12 @@ class EventInstance extends Event {
         Optional.ofNullable(ctx).ifPresent(ConnectionContext::acknowledge);
         if (! test) {
             EventsFactory.finishEvent(false, timer);
-            Stats.eventEnd(currentPipeline, stepsCount);
+            String pipeName = Optional.of(executionStack)
+                                      .map(Queue::peek)
+                                      .map(e -> e.pipe)
+                                      .map(Pipeline::getName)
+                                      .orElse(null);
+            Stats.eventEnd(pipeName, stepsCount);
         } else {
             synchronized (this) {
                 notify();
