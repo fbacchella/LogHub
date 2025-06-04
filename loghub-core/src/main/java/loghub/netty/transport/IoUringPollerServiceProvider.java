@@ -3,8 +3,6 @@ package loghub.netty.transport;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
-import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,14 +11,14 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
-import io.netty.incubator.channel.uring.IOUring;
-import io.netty.incubator.channel.uring.IOUringChannelOption;
-import io.netty.incubator.channel.uring.IOUringDatagramChannel;
-import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
-import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
-import io.netty.incubator.channel.uring.IOUringSocketChannel;
+import io.netty.channel.uring.IoUring;
+import io.netty.channel.uring.IoUringChannelOption;
+import io.netty.channel.uring.IoUringDatagramChannel;
+import io.netty.channel.uring.IoUringIoHandler;
+import io.netty.channel.uring.IoUringServerSocketChannel;
+import io.netty.channel.uring.IoUringSocketChannel;
 import loghub.Helpers;
 
 public class IoUringPollerServiceProvider implements PollerServiceProvider {
@@ -39,7 +37,7 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
                 accessible = -2;
             }
         } catch (IOException | NumberFormatException e) {
-            logger.warn("io_uring status can't be identified: {}", () -> Helpers.resolveThrowableException(e));
+            logger.info("io_uring status can't be identified: {}", () -> Helpers.resolveThrowableException(e));
             accessible = -1;
         }
         IO_URING_ACCESSIBLE = accessible;
@@ -47,8 +45,8 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
 
     @Override
     public ServerChannel serverChannelProvider(TRANSPORT transport) {
-        if (Objects.requireNonNull(transport) == TRANSPORT.TCP) {
-            return new IOUringServerSocketChannel();
+        if (transport == TRANSPORT.TCP) {
+            return new IoUringServerSocketChannel();
         } else {
             throw new UnsupportedOperationException(transport.name());
         }
@@ -56,20 +54,15 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
     @Override
     public Channel clientChannelProvider(TRANSPORT transport) {
         switch (transport) {
-        case TCP: return new IOUringSocketChannel();
-        case UDP: return new IOUringDatagramChannel();
+        case TCP: return new IoUringSocketChannel();
+        case UDP: return new IoUringDatagramChannel();
         default: throw new UnsupportedOperationException(transport.name());
         }
     }
 
     @Override
-    public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
-        return new IOUringEventLoopGroup(threads, threadFactory);
-    }
-
-    @Override
-    public EventLoopGroup getEventLoopGroup() {
-        return new IOUringEventLoopGroup();
+    public IoHandlerFactory getIoHandlerFactory() {
+        return makeFactory(IoUringIoHandler::newFactory);
     }
 
     @Override
@@ -79,10 +72,10 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
 
     @Override
     public boolean isValid() {
-        if (IOUring.isAvailable()) {
+        if (IoUring.isAvailable()) {
             return IO_URING_ACCESSIBLE >= -1 && IO_URING_ACCESSIBLE <= 1;
         } else {
-            logger.warn("io_uring not available: {}", Helpers.resolveThrowableException(IOUring.unavailabilityCause()));
+            logger.info("io_uring not available: {}", () -> Helpers.resolveThrowableException(IoUring.unavailabilityCause()));
             return false;
         }
     }
@@ -94,23 +87,23 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
 
     @Override
     public void setKeepAlive(ServerBootstrap bootstrap, int cnt, int idle, int intvl) {
-        bootstrap.childOption(IOUringChannelOption.TCP_KEEPCNT, 3);
-        bootstrap.childOption(IOUringChannelOption.TCP_KEEPIDLE, 60);
-        bootstrap.childOption(IOUringChannelOption.TCP_KEEPINTVL, 10);
+        bootstrap.childOption(IoUringChannelOption.TCP_KEEPCNT, 3);
+        bootstrap.childOption(IoUringChannelOption.TCP_KEEPIDLE, 60);
+        bootstrap.childOption(IoUringChannelOption.TCP_KEEPINTVL, 10);
     }
 
     @Override
     public void setKeepAlive(Bootstrap bootstrap, int cnt, int idle, int intvl) {
-        bootstrap.option(IOUringChannelOption.TCP_KEEPCNT, 3);
-        bootstrap.option(IOUringChannelOption.TCP_KEEPIDLE, 60);
-        bootstrap.option(IOUringChannelOption.TCP_KEEPINTVL, 10);
+        bootstrap.option(IoUringChannelOption.TCP_KEEPCNT, 3);
+        bootstrap.option(IoUringChannelOption.TCP_KEEPIDLE, 60);
+        bootstrap.option(IoUringChannelOption.TCP_KEEPINTVL, 10);
     }
 
     @Override
     public void setKeepAlive(ChannelConfig config, int cnt, int idle, int intvl) {
-        config.setOption(IOUringChannelOption.TCP_KEEPCNT, 3);
-        config.setOption(IOUringChannelOption.TCP_KEEPIDLE, 60);
-        config.setOption(IOUringChannelOption.TCP_KEEPINTVL, 10);
+        config.setOption(IoUringChannelOption.TCP_KEEPCNT, 3);
+        config.setOption(IoUringChannelOption.TCP_KEEPIDLE, 60);
+        config.setOption(IoUringChannelOption.TCP_KEEPINTVL, 10);
     }
 
 }

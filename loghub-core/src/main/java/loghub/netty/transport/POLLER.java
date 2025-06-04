@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -16,14 +17,20 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
+import lombok.Getter;
 
+@Getter
 public enum POLLER {
     NIO,
     EPOLL,
     OIO,
     KQUEUE,
-    IO_URING;
+    IO_URING,
+    LOCAL;
+
+    private final AtomicReference<IoHandlerFactory> handlerFactoryReference = new AtomicReference<>();
 
     private static final Logger logger = LogManager.getLogger();
 

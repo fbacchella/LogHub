@@ -1,7 +1,5 @@
 package loghub.netty.transport;
 
-import java.util.concurrent.ThreadFactory;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -9,18 +7,17 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollDatagramChannel;
 import io.netty.channel.epoll.EpollDomainDatagramChannel;
 import io.netty.channel.epoll.EpollDomainSocketChannel;
-import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollIoHandler;
 import io.netty.channel.epoll.EpollServerDomainSocketChannel;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.local.LocalChannel;
 import io.netty.channel.local.LocalServerChannel;
 import loghub.Helpers;
 
@@ -41,7 +38,6 @@ public class EpollPollerServiceProvider implements PollerServiceProvider {
     @Override
     public Channel clientChannelProvider(TRANSPORT transport) {
         switch (transport) {
-        case LOCAL: return new LocalChannel();
         case TCP: return new EpollSocketChannel();
         case UDP: return new EpollDatagramChannel();
         case UNIX_STREAM: return new EpollDomainSocketChannel();
@@ -51,13 +47,8 @@ public class EpollPollerServiceProvider implements PollerServiceProvider {
     }
 
     @Override
-    public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
-        return new EpollEventLoopGroup(threads, threadFactory);
-    }
-
-    @Override
-    public EventLoopGroup getEventLoopGroup() {
-        return new EpollEventLoopGroup();
+    public IoHandlerFactory getIoHandlerFactory() {
+        return makeFactory(EpollIoHandler::newFactory);
     }
 
     @Override
@@ -70,7 +61,7 @@ public class EpollPollerServiceProvider implements PollerServiceProvider {
         if (Epoll.isAvailable()) {
             return true;
         } else {
-            logger.warn("Epoll not available: {}", Helpers.resolveThrowableException(Epoll.unavailabilityCause()));
+            logger.info("Epoll not available: {}", () -> Helpers.resolveThrowableException(Epoll.unavailabilityCause()));
             return false;
         }
     }

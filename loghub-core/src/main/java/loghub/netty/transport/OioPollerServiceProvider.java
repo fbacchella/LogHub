@@ -1,9 +1,7 @@
 package loghub.netty.transport;
 
-import java.util.concurrent.ThreadFactory;
-
 import io.netty.channel.Channel;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
 
 public class OioPollerServiceProvider implements PollerServiceProvider {
@@ -19,12 +17,7 @@ public class OioPollerServiceProvider implements PollerServiceProvider {
     }
 
     @Override
-    public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
-        throw new UnsupportedOperationException("Deprecated OIO");
-    }
-
-    @Override
-    public EventLoopGroup getEventLoopGroup() {
+    public IoHandlerFactory getIoHandlerFactory() {
         throw new UnsupportedOperationException("Deprecated OIO");
     }
 

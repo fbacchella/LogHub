@@ -3,6 +3,7 @@ package loghub.netty;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -59,7 +60,6 @@ public class TestSimpleReceiver {
 
         protected TesterReceiver(TestSimpleReceiver.TesterReceiver.Builder builder) {
             super(builder);
-            //builder.setThreadPrefix("ReceiverTest");
         }
 
         @Override
@@ -124,10 +124,12 @@ public class TestSimpleReceiver {
 
             NettyTransport.Builder<?, ?, ?, ?> config = transport.getBuilder();
             config.setEndpoint(host);
+            config.setPoller(poller);
             if (config instanceof AbstractIpTransport.Builder) {
                 AbstractIpTransport.Builder<?, ?, ?> ipbuilder = (AbstractIpTransport.Builder<?, ?, ?>) config;
                 ipbuilder.setPort(port);
             }
+            AtomicReference<Throwable> exceptionReference = new AtomicReference<>();
             config.setConsumer(new ChannelConsumer() {
                 @Override
                 public void addHandlers(ChannelPipeline pipe) {
@@ -136,12 +138,12 @@ public class TestSimpleReceiver {
 
                 @Override
                 public void exception(ChannelHandlerContext ctx, Throwable cause) {
-                    cause.printStackTrace();
+                    exceptionReference.set(cause);
                 }
 
                 @Override
                 public void logFatalException(Throwable ex) {
-                    ex.printStackTrace();
+                    exceptionReference.set(ex);
                 }
             });
             NettyTransport<?, ?, ?, ?> client = config.build();
@@ -152,12 +154,13 @@ public class TestSimpleReceiver {
 
             Event e = receiver.take();
             Assert.assertEquals("Message", e.get("message"));
+            Assert.assertNull(exceptionReference.get());
         }
     }
 
     @Test(timeout = 5000)
     public void testLocal() throws InterruptedException {
-        runTest(TRANSPORT.LOCAL, POLLER.DEFAULTPOLLER, TestSimpleReceiver.class.getCanonicalName(), -1);
+        runTest(TRANSPORT.LOCAL, POLLER.LOCAL, TestSimpleReceiver.class.getCanonicalName(), -1);
     }
 
     @Test(timeout = 5000)

@@ -62,7 +62,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         @Setter
         protected int bufferSize = -1;
         @Setter
-        protected int workerThreads;
+        protected int workerThreads = 1;
         @Setter
         protected ChannelConsumer consumer;
         @Setter
@@ -205,7 +205,10 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
                 cf.await().channel();
                 cf.get();
             } catch (ExecutionException | InterruptedException e) {
-                listeningChannels.stream().map(ChannelFuture::channel).forEach(Channel::close);
+                listeningChannels.stream()
+                                 .map(ChannelFuture::channel)
+                                 .filter(Channel::isActive)
+                                 .forEach(Channel::close);
                 listeningChannels.clear();
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();

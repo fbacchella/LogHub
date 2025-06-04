@@ -3,3 +3,4 @@ loghub.netty.transport.OioPollerServiceProvider
 loghub.netty.transport.EpollPollerServiceProvider
 loghub.netty.transport.IoUringPollerServiceProvider
 loghub.netty.transport.KQueuePollerServiceProvider
+loghub.netty.transport.LocalPollerServiceProvider

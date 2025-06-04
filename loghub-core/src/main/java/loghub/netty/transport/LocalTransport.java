@@ -13,6 +13,7 @@ public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf, LocalT
     public static class Builder extends NettyTransport.Builder<LocalAddress, ByteBuf, LocalTransport, LocalTransport.Builder> {
         @Override
         public LocalTransport build() {
+            this.poller = POLLER.LOCAL;
             return new LocalTransport(this);
         }
     }
