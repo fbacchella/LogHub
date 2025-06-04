@@ -26,6 +26,12 @@
             <groupId>com.github.jsendnsca</groupId>
             <artifactId>jsendnsca</artifactId>
             <version>2.2.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>prov-jdk15on</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>fr.loghub</groupId>
@@ -39,8 +45,8 @@
         <dependencies>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
-                <artifactId>bcprov-jdk15on</artifactId>
-                <version>1.70</version>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>1.80</version>
                 <scope>provided</scope>
             </dependency>
         </dependencies>

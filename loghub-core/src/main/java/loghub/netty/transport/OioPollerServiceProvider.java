@@ -1,8 +1,11 @@
 package loghub.netty.transport;
 
+import java.util.function.Supplier;
+
 import io.netty.channel.Channel;
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.nio.NioIoHandler;
 
 public class OioPollerServiceProvider implements PollerServiceProvider {
 
@@ -17,7 +20,7 @@ public class OioPollerServiceProvider implements PollerServiceProvider {
     }
 
     @Override
-    public IoHandlerFactory getIoHandlerFactory() {
+    public Supplier<IoHandlerFactory> getFactorySupplier() {
         throw new UnsupportedOperationException("Deprecated OIO");
     }
 

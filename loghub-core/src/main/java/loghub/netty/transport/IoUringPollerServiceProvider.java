@@ -3,6 +3,7 @@ package loghub.netty.transport;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -61,8 +62,8 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
     }
 
     @Override
-    public IoHandlerFactory getIoHandlerFactory() {
-        return makeFactory(IoUringIoHandler::newFactory);
+    public Supplier<IoHandlerFactory> getFactorySupplier() {
+        return IoUringIoHandler::newFactory;
     }
 
     @Override

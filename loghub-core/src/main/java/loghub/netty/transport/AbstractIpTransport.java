@@ -165,8 +165,8 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
             SSLSession sess = sslHandler.engine().getSession();
             logger.trace("SSL started with {}", () -> sess);
             Principal principal = checkSslClient(sslClientAuthentication, sess);
-            logger.debug("Got SSL client identity '{}'", () -> (principal != null ? principal.getName() : ""));
             if (principal != null) {
+                logger.debug("Got SSL client identity '{}'", principal::getName);
                 f.get().attr(PRINCIPALATTRIBUTE).set(principal);
             }
             f.get().attr(SSLSESSIONATTRIBUTE).set(sess);

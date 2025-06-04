@@ -1,5 +1,7 @@
 package loghub.netty.transport;
 
+import java.util.function.Supplier;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -41,8 +43,8 @@ public class KQueuePollerServiceProvider implements PollerServiceProvider {
     }
 
     @Override
-    public IoHandlerFactory getIoHandlerFactory() {
-        return makeFactory(KQueueIoHandler::newFactory);
+    public Supplier<IoHandlerFactory> getFactorySupplier() {
+        return KQueueIoHandler::newFactory;
     }
 
     @Override

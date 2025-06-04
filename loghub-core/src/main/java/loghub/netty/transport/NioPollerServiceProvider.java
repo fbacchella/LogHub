@@ -1,11 +1,10 @@
 package loghub.netty.transport;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import io.netty.channel.Channel;
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.local.LocalIoHandler;
 import io.netty.channel.local.LocalServerChannel;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.sctp.nio.NioSctpChannel;
@@ -36,8 +35,8 @@ public class NioPollerServiceProvider implements PollerServiceProvider {
     }
 
     @Override
-    public IoHandlerFactory getIoHandlerFactory() {
-        return makeFactory(NioIoHandler::newFactory);
+    public Supplier<IoHandlerFactory> getFactorySupplier() {
+        return NioIoHandler::newFactory;
     }
 
     @Override

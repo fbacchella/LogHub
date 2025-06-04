@@ -84,12 +84,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
             nettyBuilder.setPoller(builder.poller);
         } else if (builder.properties != null && builder.properties.containsKey(POLLER_PROPERTY_NAME)) {
             String pollerName = builder.properties.get(POLLER_PROPERTY_NAME).toString();
-            try {
-                POLLER poller = BeansManager.constructFromString(POLLER.class, pollerName);
-                nettyBuilder.setPoller(poller);
-            } catch (InvocationTargetException e) {
-                throw new IllegalArgumentException("Unhandled poller: \"" + pollerName + "\"", e);
-            }
+            nettyBuilder.setPoller(POLLER.resolve(pollerName));
         } else {
             nettyBuilder.setPoller(POLLER.DEFAULTPOLLER);
         }

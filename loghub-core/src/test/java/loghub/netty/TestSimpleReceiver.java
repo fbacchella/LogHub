@@ -212,7 +212,7 @@ public class TestSimpleReceiver {
     @Test
     public void testWrongPollerProperty() {
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> parseReceiverConfig("poller: \"NONE\" input {\n" + "    loghub.netty.TestSimpleReceiver$TesterReceiver { transport: \"TCP\",             }\n" + "} | $main pipeline[main]{}\n"));
-        Assert.assertEquals("Unhandled poller: \"NONE\": loghub.netty.transport.POLLER: Not matching value NONE", ex.getMessage());
+        Assert.assertEquals("Unhandled poller: \"NONE\"", ex.getMessage());
     }
 
 }

@@ -227,7 +227,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         int localWorkersThread = this.workerThreads;
         bootstrap.channelFactory(() -> poller.clientChannelProvider(transport));
         if (bufferSize > 0) {
-            bootstrap.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(bufferSize));
+            bootstrap.option(ChannelOption.RECVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(bufferSize));
         }
         // Needed because Netty's UDP is not multi-thread, see http://marrachem.blogspot.fr/2014/09/multi-threaded-udp-server-with-netty-on.html
         if (poller.isUnixSocket() && workerThreads > 1) {

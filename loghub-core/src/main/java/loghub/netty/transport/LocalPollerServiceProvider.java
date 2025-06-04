@@ -1,6 +1,7 @@
 package loghub.netty.transport;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import io.netty.channel.Channel;
 import io.netty.channel.IoHandlerFactory;
@@ -45,8 +46,8 @@ public class LocalPollerServiceProvider implements PollerServiceProvider {
     }
 
     @Override
-    public IoHandlerFactory getIoHandlerFactory() {
-        return makeFactory(LocalIoHandler::newFactory);
+    public Supplier<IoHandlerFactory> getFactorySupplier() {
+        return LocalIoHandler::newFactory;
     }
 
 }

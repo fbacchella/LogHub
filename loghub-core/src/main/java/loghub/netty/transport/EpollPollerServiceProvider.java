@@ -1,5 +1,7 @@
 package loghub.netty.transport;
 
+import java.util.function.Supplier;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,8 +49,8 @@ public class EpollPollerServiceProvider implements PollerServiceProvider {
     }
 
     @Override
-    public IoHandlerFactory getIoHandlerFactory() {
-        return makeFactory(EpollIoHandler::newFactory);
+    public Supplier<IoHandlerFactory> getFactorySupplier() {
+        return EpollIoHandler::newFactory;
     }
 
     @Override

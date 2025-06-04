@@ -7,6 +7,7 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -18,10 +19,9 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.IoHandlerFactory;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.ServerChannel;
-import lombok.Getter;
 
-@Getter
 public enum POLLER {
     NIO,
     EPOLL,
@@ -30,9 +30,9 @@ public enum POLLER {
     IO_URING,
     LOCAL;
 
-    private final AtomicReference<IoHandlerFactory> handlerFactoryReference = new AtomicReference<>();
-
     private static final Logger logger = LogManager.getLogger();
+
+    private final AtomicReference<IoHandlerFactory> handlerFactoryReference = new AtomicReference<>();
 
     public boolean isAvailable() {
         return pollers[ordinal()] != null;
@@ -51,11 +51,16 @@ public enum POLLER {
     }
 
     public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
-        return pollers[ordinal()].getEventLoopGroup(threads, threadFactory);
+        return new MultiThreadIoEventLoopGroup(threads, threadFactory, getIoHandlerFactory());
     }
 
     public EventLoopGroup getEventLoopGroup() {
-        return pollers[ordinal()].getEventLoopGroup();
+        return new MultiThreadIoEventLoopGroup(getIoHandlerFactory());
+    }
+
+    private IoHandlerFactory getIoHandlerFactory() {
+        Supplier<IoHandlerFactory> factorySupplier = pollers[ordinal()].getFactorySupplier();
+        return handlerFactoryReference.updateAndGet(v -> v == null ? factorySupplier.get() : v);
     }
 
     public void setKeepAlive(ServerBootstrap bootstrap, int cnt, int idle, int intvl) {
@@ -102,7 +107,12 @@ public enum POLLER {
         if ("DEFAULT".equals(pollerName)) {
             return DEFAULTPOLLER;
         } else {
-            POLLER poller = POLLER.valueOf(pollerName);
+            POLLER poller;
+            try {
+                poller = POLLER.valueOf(pollerName);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Unhandled poller: \"" + pollerName + "\"");
+            }
             if (! poller.isAvailable()) {
                 throw new IllegalArgumentException("Unavailable poller on this platform: " + poller);
             } else {
