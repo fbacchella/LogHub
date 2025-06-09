@@ -560,6 +560,7 @@ Pattern
 fragment
 PatternCharacter
     :   '\\' [\r\n] [\r\n]?   // A unix-macos-windows line feed needs to be escaped
+    |   '\\/'
     |   ~[\r\n]
     ;
 
