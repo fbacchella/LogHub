@@ -131,7 +131,7 @@ public class TestTrap {
             Assert.assertTrue(r.configure(new Properties(props)));
             r.start();
 
-            InetSocketAddress isa = (InetSocketAddress) r.getAddress();
+            InetSocketAddress isa = InetSocketAddress.createUnresolved("127.0.0.1", 1161);
             TransportIpAddress address = (protocol == SnmpTrap.PROTOCOL.tcp)
                                                   ? new TcpAddress(InetAddress.getByName("127.0.0.1"), isa.getPort())
                                                   : new UdpAddress(InetAddress.getByName("127.0.0.1"), isa.getPort());

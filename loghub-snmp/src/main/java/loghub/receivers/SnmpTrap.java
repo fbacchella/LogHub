@@ -1,7 +1,9 @@
 package loghub.receivers;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Array;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
@@ -9,8 +11,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
@@ -88,6 +94,12 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
     private static final byte TAG_FLOAT = (byte) 0x78;
     private static final byte TAG_DOUBLE = (byte) 0x79;
 
+    private static final AtomicReference<OIDFormatter> formatter = new AtomicReference<>();
+
+    private interface GenerateMapping<A extends TransportIpAddress>  {
+        TransportMapping<A> instantiate(A address) throws IOException;
+    }
+
     @Setter
     public static class Builder extends Receiver.Builder<SnmpTrap, SnmpTrap.Builder> {
         private PROTOCOL protocol = PROTOCOL.udp;
@@ -104,13 +116,10 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         return new Builder();
     }
 
-    private static OIDFormatter formatter = null;
-
     private final Snmp snmp;
     @Getter
     private final String receiverName;
-    @Getter
-    private final SocketAddress address;
+    private Supplier<TransportMapping<? extends TransportIpAddress>> transportsSuppliers;
 
     protected SnmpTrap(Builder builder) {
         super(builder);
@@ -120,54 +129,53 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         dispatcher.addMessageProcessingModel(new MPv1());
         dispatcher.addMessageProcessingModel(new MPv2c());
         Address listenAddress = GenericAddress.parse(builder.protocol + ":" + builder.listen + "/" + builder.port);
-        TransportMapping<?> transport;
+
+        switch (builder.protocol) {
+        case udp:
+            transportsSuppliers = () -> generate((UdpAddress) listenAddress, builder.rcvBuf);
+            break;
+        case tcp:
+            transportsSuppliers = () -> generate((TcpAddress) listenAddress);
+            break;
+        default:
+            throw new IllegalArgumentException("Unhandled protocol: " + builder.protocol);
+        }
+        snmp = new Snmp(dispatcher);
+        receiverName = "SnmpTrap/" + builder.protocol + "/" + Helpers.ListenString(builder.listen) + "/" + builder.port;
+    }
+
+    private <A extends TransportIpAddress> TransportMapping<A> generate(A listenAddress, GenerateMapping<A> generator) {
         try {
-            switch (builder.protocol) {
-            case udp:
-                transport = new DefaultUdpTransportMapping((UdpAddress) listenAddress);
-                if (builder.rcvBuf > 0){
-                    ((DefaultUdpTransportMapping)transport).setReceiveBufferSize(builder.rcvBuf);
-                }
-                break;
-            case tcp:
-                transport = new DefaultTcpTransportMapping((TcpAddress) listenAddress);
-                break;
-            default:
-                throw new IllegalArgumentException("Unhandled protocol: " + builder.protocol);
-            }
-            transport.addTransportListener(this::doStats);
-            snmp = new Snmp(dispatcher, transport);
+            return generator.instantiate(listenAddress);
         } catch (IOException ex) {
             throw new IllegalArgumentException("can't bind to " + listenAddress + ": " + Helpers.resolveThrowableException(ex), ex);
         }
-        receiverName = "SnmpTrap/" + builder.protocol + "/" + Helpers.ListenString(builder.listen) + "/" + builder.port;
-        TransportIpAddress tia = (TransportIpAddress)transport.getListenAddress();
-        // Needed because transport.getSocketAddress() always return 0 for the port
-        address = new InetSocketAddress(tia.getInetAddress(), tia.getPort());
     }
 
-    private static synchronized void reconfigure(Logger logger, Properties properties) {
-        if (formatter == null && properties.containsKey("mibdirs")) {
-            Object mibdirsProperty = properties.get("mibdirs");
-            try {
-                String[] mibdirs = Arrays.stream((Object[]) mibdirsProperty).map(Object::toString).toArray(String[]::new);
-                formatter = OIDFormatter.register(mibdirs);
-            } catch (ClassCastException e) {
-                logger.error("mibdirs property is not an array, but {}", mibdirsProperty.getClass());
-                logger.catching(Level.DEBUG, e.getCause());
-            }
-        } else if (formatter == null) {
-            formatter = OIDFormatter.register();
+    private TransportMapping<UdpAddress> generate(UdpAddress listenAddress, int rcvBuf) {
+        GenerateMapping<UdpAddress> generator = a -> new DefaultUdpTransportMapping(listenAddress);
+        DefaultUdpTransportMapping tm = (DefaultUdpTransportMapping) generate(listenAddress, generator);
+        if (rcvBuf > 0) {
+            tm.setReceiveBufferSize(rcvBuf);
         }
+        return tm;
+    }
+
+    private TransportMapping<TcpAddress> generate(TcpAddress listenAddress) {
+        return generate(listenAddress, a -> new DefaultTcpTransportMapping(listenAddress));
     }
 
     public static synchronized void resetMibDirs() {
-        formatter = null;
+        formatter.set(null);
     }
 
     @Override
     public boolean configure(Properties properties) {
-        reconfigure(logger, properties);
+        TransportMapping<? extends TransportIpAddress> transport = transportsSuppliers.get();
+        transportsSuppliers = null;
+        transport.addTransportListener(this::doStats);
+        snmp.addTransportMapping(transport);
+        formatter.updateAndGet(v -> v == null ? register(properties) : v);
         try {
             snmp.listen();
         } catch (IOException e) {
@@ -177,6 +185,22 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         return super.configure(properties);
     }
 
+    private OIDFormatter register(Properties properties) {
+        if (properties.containsKey("mibdirs")) {
+            Object mibdirsProperty = properties.get("mibdirs");
+            try {
+                String[] mibdirs = Arrays.stream((Object[]) mibdirsProperty).map(Object::toString).toArray(String[]::new);
+                return OIDFormatter.register(mibdirs);
+            } catch (ClassCastException e) {
+                logger.error("mibdirs property is not an array, but {}", mibdirsProperty.getClass());
+                logger.catching(Level.DEBUG, e.getCause());
+                return OIDFormatter.register();
+            }
+        } else {
+            return OIDFormatter.register();
+        }
+    }
+
     @Override
     public void start() {
         // Useless receiver thread, don't bother to start it
@@ -184,6 +208,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
 
     @Override
     public void run() {
+         // Unsused
     }
 
     private <A extends Address> void doStats(TransportMapping<? super A> transportMapping, A a,
@@ -234,7 +259,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                 if (pduv1.getGenericTrap() != PDUv1.ENTERPRISE_SPECIFIC) {
                     eventMap.put("generic_trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
                 } else {
-                    String resolved = formatter.format(pduv1.getEnterprise(), new Integer32(pduv1.getSpecificTrap()), true);
+                    String resolved = formatter.get().format(pduv1.getEnterprise(), new Integer32(pduv1.getSpecificTrap()), true);
                     eventMap.put("specific_trap", resolved);
                 }
                 eventMap.put("time_stamp", 1.0 * pduv1.getTimestamp() / 100.0);
@@ -267,7 +292,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
 
     @SuppressWarnings("unchecked")
     private void smartPut(Map<String, Object> e, OID oid, Object value) {
-        Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
+        Map<String, Object> oidindex = formatter.get().store.parseIndexOID(oid.getValue());
         if (oidindex.isEmpty()) {
             e.put(oid.format(), value);
         } else if (oidindex.size() == 1) {
@@ -319,7 +344,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                 return null;
             case BER.OID: {
                 OID oid = (OID) variable;
-                Map<String, Object> parsed = formatter.store.parseIndexOID(oid.getValue());
+                Map<String, Object> parsed = formatter.get().store.parseIndexOID(oid.getValue());
                 // If an empty map was return or a single entry map, it's not a table entry, just format the OID
                 return parsed.size() <= 1 ? oid.format() : parsed;
             }
