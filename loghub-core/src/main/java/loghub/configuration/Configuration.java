@@ -46,6 +46,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.jul.Log4jBridgeHandler;
 
 import loghub.Helpers;
+import loghub.NullOrMissingValue;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.RouteLexer;
@@ -70,6 +71,13 @@ public class Configuration {
     private static final int DEFAULTQUEUEDEPTH = 100;
     private static final int DEFAULTQUEUEWEIGHT = 4;
 
+    private static final String PROPERTY_LOCALE = "locale";
+    private static final String PROPERTY_TIMEZONE = "timezone";
+    private static final String PROPERTY_LOG4J_URL = "log4j.configURL";
+    private static final String PROPERTY_LOG4J_FILE = "log4j.configFile";
+    private static final String PROPERTY_SECRET = "secrets.source";
+
+
     private Set<String> inputpipelines = new HashSet<>();
     private Set<String> outputpipelines = new HashSet<>();
     private final GrammarParserFiltering filter = new GrammarParserFiltering();
@@ -84,17 +92,32 @@ public class Configuration {
 
     public static Properties parse(String fileName) throws IOException, ConfigException {
         Configuration conf = new Configuration();
-        return conf.runparsing(CharStreams.fromFileName(fileName));
+        return conf.runparsing(CharStreams.fromFileName(fileName), Map.of());
+    }
+
+    public static Properties parse(String fileName, Map<String, Object> properties) throws IOException, ConfigException {
+        Configuration conf = new Configuration();
+        return conf.runparsing(CharStreams.fromFileName(fileName), properties);
     }
 
     public static Properties parse(InputStream is) throws IOException, ConfigException {
         Configuration conf = new Configuration();
-        return conf.runparsing(CharStreams.fromStream(is));
+        return conf.runparsing(CharStreams.fromStream(is), Map.of());
+    }
+
+    public static Properties parse(InputStream is, Map<String, Object> properties) throws IOException, ConfigException {
+        Configuration conf = new Configuration();
+        return conf.runparsing(CharStreams.fromStream(is), properties);
     }
 
     public static Properties parse(Reader r) throws ConfigException, IOException {
         Configuration conf = new Configuration();
-        return conf.runparsing(CharStreams.fromReader(r));
+        return conf.runparsing(CharStreams.fromReader(r), Map.of());
+    }
+
+    public static Properties parse(Reader r, Map<String, Object> properties) throws ConfigException, IOException {
+        Configuration conf = new Configuration();
+        return conf.runparsing(CharStreams.fromReader(r), properties);
     }
 
     @lombok.Builder
@@ -209,11 +232,11 @@ public class Configuration {
         // Don’t change order, it's meaningfully
         // locale and timezone first, to check for output format
         // everything else must be set latter
-        Optional.ofNullable(currentProperties.remove("locale")).ifPresent(this::processLocaleProperty);
-        Optional.ofNullable(currentProperties.remove("timezone")).ifPresent(this::processTimezoneProperty);
-        Optional.ofNullable(currentProperties.remove("log4j.configURL")).ifPresent(pc -> processLog4jUriProperty("log4j.configURL", pc, tree));
-        Optional.ofNullable(currentProperties.remove("log4j.configFile")).ifPresent(pc -> processLog4jUriProperty("log4j.configFile", pc, tree));
-        Optional.ofNullable(currentProperties.remove("secrets.source")).ifPresent(pc -> processSecretSource(pc, tree));
+        Optional.ofNullable(currentProperties.remove(PROPERTY_LOCALE)).map(pc -> pc.beanValue().getText()).ifPresent(this::processLocaleProperty);
+        Optional.ofNullable(currentProperties.remove(PROPERTY_TIMEZONE)).map(pc -> pc.beanValue().getText()).ifPresent(this::processTimezoneProperty);
+        Optional.ofNullable(currentProperties.remove(PROPERTY_LOG4J_URL)).ifPresent(pc -> processLog4jUriProperty(pc, tree));
+        Optional.ofNullable(currentProperties.remove(PROPERTY_LOG4J_FILE)).ifPresent(pc -> processLog4jUriProperty(pc, tree));
+        Optional.ofNullable(currentProperties.remove(PROPERTY_SECRET)).ifPresent(pc -> processSecretSource(pc, tree));
 
         currentProperties.forEach((key, value) -> configurationProperties.put(key, resolveBean(value.beanValue())));
     }
@@ -253,28 +276,32 @@ public class Configuration {
 
     private void processSecretSource(PropertyContext pc, Tree tree) {
         try {
-            String secretsSource = pc.beanValue().getText();
-            secrets = SecretsHandler.load(secretsSource);
-            logger.debug("Loaded secrets source {}", secretsSource);
-            lockedProperties.add("secrets.source");
+            processSecretSource(pc.beanValue().getText());
         } catch (IOException ex) {
             throw new ConfigException("can't load secret store: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
         }
     }
 
-    private void processLog4jUriProperty(String propertyName, PropertyContext pc, Tree tree) {
-        URI log4JUri =  Helpers.fileUri(pc.beanValue().getText());
-        resolverLogger(log4JUri, pc, tree);
-        logger.debug("Configured log4j URL to {}", log4JUri);
-        lockedProperties.add(propertyName);
+    private void processSecretSource(String secretsSource) throws IOException {
+        secrets = SecretsHandler.load(secretsSource);
+        logger.debug("Loaded secrets source {}", secretsSource);
+        lockedProperties.add(PROPERTY_SECRET);
     }
 
-    private void resolverLogger(URI log4JUri, PropertyContext pc, Tree tree) {
+    private void processLog4jUriProperty(PropertyContext pc, Tree tree) {
+        URI log4JUri =  Helpers.fileUri(pc.beanValue().getText());
+        try {
+            resolverLogger(log4JUri);
+        } catch (IOException e) {
+            throw new ConfigException(e.getMessage(), tree.stream.getSourceName(), pc.start, e);
+        }
+        logger.debug("Configured log4j URL to {}", log4JUri);
+    }
+
+    private void resolverLogger(URI log4JUri) throws IOException {
         // Try to read the log4j configuration, because log4j2 intercept possible exceptions and don't forward them
         try (InputStream ignored = log4JUri.toURL().openStream()) {
             log4JUri.toURL().getContent();
-        } catch (IOException e) {
-            throw new ConfigException(e.getMessage(), tree.stream.getSourceName(), pc.start, e);
         }
         LoggerContext ctx = (LoggerContext) LogManager.getContext(filter.getClassLoader(), true);
         // Possible exception are already catched (I hope)
@@ -283,8 +310,7 @@ public class Configuration {
         Log4jBridgeHandler.install(true, "", true);
     }
 
-    private void processTimezoneProperty(PropertyContext pc) {
-        String tz = pc.beanValue().getText();
+    private void processTimezoneProperty(String tz) {
         if (tz != null) {
             try {
                 logger.debug("setting time zone to {}", tz);
@@ -294,20 +320,61 @@ public class Configuration {
                 logger.error("Invalid timezone {}: {}", tz, e.getMessage());
             }
         }
-        lockedProperties.add("timezone");
+        lockedProperties.add(PROPERTY_TIMEZONE);
     }
 
-    private void processLocaleProperty(PropertyContext pc) {
-        String localString = pc.beanValue().getText();
+    private void processLocaleProperty(String localString) {
         if (localString != null) {
             logger.debug("setting locale to {}", localString);
             Locale l = Locale.forLanguageTag(localString);
             Locale.setDefault(l);
         }
-        lockedProperties.add("locale");
+        lockedProperties.add(PROPERTY_LOCALE);
     }
 
-    private Properties runparsing(CharStream cs) throws ConfigException {
+    private Properties runparsing(CharStream cs, Map<String, Object> properties) throws ConfigException {
+        // All provided properties can't be latter overridden
+        lockedProperties.addAll(properties.keySet());
+        properties = new HashMap<>(
+                properties.entrySet()
+                          .stream()
+                          .filter(e -> ! (e.getValue() instanceof NullOrMissingValue))
+                          .collect(Collectors.toMap(Entry::getKey, Entry::getValue))
+        );
+        // Don’t change order, it's meaningfully
+        // locale and timezone first, to check for output format
+        // everything else must be set latter
+        Optional.ofNullable(properties.remove(PROPERTY_LOCALE)).map(Object::toString).ifPresent(this::processLocaleProperty);
+        Optional.ofNullable(properties.remove(PROPERTY_TIMEZONE)).map(Object::toString).ifPresent(this::processTimezoneProperty);
+        Optional.ofNullable(properties.remove(PROPERTY_LOG4J_URL))
+                .map(u -> (u instanceof URI) ? (URI) u: Helpers.fileUri(u.toString()))
+                .ifPresent(pc -> {
+            try {
+                resolverLogger(pc);
+                lockedProperties.add(PROPERTY_LOG4J_FILE);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+        Optional.ofNullable(properties.remove(PROPERTY_LOG4J_FILE))
+                .map(Object::toString)
+                .map(Helpers::fileUri)
+                .ifPresent(pc -> {
+            try {
+                resolverLogger(pc);
+                lockedProperties.add(PROPERTY_LOG4J_URL);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+        Optional.ofNullable(properties.remove(PROPERTY_SECRET)).map(Object::toString).ifPresent(pc -> {
+            try {
+                processSecretSource(pc);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+        configurationProperties.putAll(properties);
         try {
             List<Tree> trees = new ArrayList<>();
 
