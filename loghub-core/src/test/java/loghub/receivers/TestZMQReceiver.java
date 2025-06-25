@@ -1,13 +1,16 @@
 package loghub.receivers;
 
 import java.beans.IntrospectionException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore.PrivateKeyEntry;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -30,11 +33,13 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.ZMQFactory;
 import loghub.ZMQFlow;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
+import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
 import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
@@ -58,7 +63,8 @@ public class TestZMQReceiver {
     @Rule(order = 2)
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
-    private void dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure) throws IOException, InterruptedException {
+    private Event dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure) throws
+            InterruptedException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
 
         ZMQSocketFactory ctx = tctxt.getFactory();
@@ -78,7 +84,10 @@ public class TestZMQReceiver {
         builder.setListen(rendezvous);
         configure.accept(builder);
 
-        Properties p = new Properties(Collections.singletonMap("zmq.keystore", Paths.get(testFolder.newFolder().getAbsolutePath(), "zmqtest.jks").toString()));
+        Properties p = new Properties(new HashMap<>(Map.of(
+                "zmq.keystore", tctxt.getSecurityFolder().resolve("zmqtest.jks").toString(),
+                "zmq.certsDirectory", tctxt.getSecurityFolder().resolve("certs").toString()
+        )));
         try (ZMQFlow flow = flowbuilder.build(); ZMQ receiver = builder.build()) {
             receiver.setOutQueue(receiveQueue);
             receiver.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
@@ -91,13 +100,14 @@ public class TestZMQReceiver {
             Assert.assertTrue(ZMQ_SOCKETADDRESS_PATTERN.matcher(connectionContext.getRemoteAddress()).matches());
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertTrue(e.get("message").toString().startsWith("message "));
+            return e;
         } finally {
             p.getZMQSocketFactory().close();
         }
     }
 
     @Test(timeout = 5000)
-    public void testConnect() throws InterruptedException, IOException {
+    public void testConnect() throws InterruptedException {
         dotest(r -> {
             r.setMethod(Method.CONNECT);
             r.setType(SocketType.PULL);
@@ -105,7 +115,7 @@ public class TestZMQReceiver {
     }
 
     @Test(timeout = 5000)
-    public void testBind() throws InterruptedException, IOException {
+    public void testBind() throws InterruptedException {
         dotest(r -> {
             r.setMethod(Method.BIND);
             r.setType(SocketType.PULL);
@@ -113,7 +123,7 @@ public class TestZMQReceiver {
     }
 
     @Test(timeout = 5000)
-    public void testSub() throws InterruptedException, IOException {
+    public void testSub() throws InterruptedException {
         dotest(r -> {
             r.setMethod(Method.BIND);
             r.setType(SocketType.SUB);
@@ -122,40 +132,57 @@ public class TestZMQReceiver {
     }
 
     @Test(timeout = 5000)
-    public void testCurveServer() throws InterruptedException, IOException {
-        Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
-        String keyPub;
-        try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
-            Files.copy(keyPubpath, pubkeyBuffer);
-            keyPub = pubkeyBuffer.toString(StandardCharsets.UTF_8);
-        }
+    public void testCurveExplicitClient() throws InterruptedException, IOException, GeneralSecurityException {
+        Path keyPath = Paths.get("remote.jks");
+        PrivateKeyEntry pve = tctxt.createKeyStore(keyPath, Map.of());
+        String publicKey = ZMQHelper.makeServerIdentity(pve.getCertificate());
         dotest(r -> {
             r.setMethod(Method.BIND);
             r.setType(SocketType.PULL);
             r.setSecurity(Mechanisms.CURVE);
-            r.setServerKey(keyPub);
+            r.setServerKey(publicKey);
         },
-               s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity(Mechanisms.CURVE).setKeyEntry(tctxt.getFactory().getKeyEntry()));
+               s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity(Mechanisms.CURVE).setKeyEntry(pve)
+        );
     }
 
     @Test(timeout = 5000)
-    public void testCurveClient() throws InterruptedException, IOException {
-        Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
-        String keyPub;
-        try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
-            Files.copy(keyPubpath, pubkeyBuffer);
-            keyPub = pubkeyBuffer.toString(StandardCharsets.UTF_8);
-        }
-
+    public void testCurveAnyClient()
+            throws InterruptedException, IOException, GeneralSecurityException {
+        Path keyPath = Paths.get("remote.jks");
+        PrivateKeyEntry pve = tctxt.createKeyStore(keyPath, Map.of());
         dotest(r -> {
-            r.setMethod(Method.BIND);
-            r.setType(SocketType.PULL);
-            r.setSecurity(Mechanisms.CURVE);
-            r.setServerKey(keyPub);
-        },
-               s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity(Mechanisms.CURVE));
+                r.setMethod(Method.BIND);
+                r.setType(SocketType.PULL);
+                r.setSecurity(Mechanisms.CURVE);
+                r.setZapHandler(ZapDomainHandlerProvider.ALLOW);
+            },
+            s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity(Mechanisms.CURVE).setKeyEntry(pve).setServerKey(tctxt.loadServerPublicKey())
+        );
 
     }
+
+    @Test//(timeout = 5000)
+    public void testCertificateClient() throws InterruptedException, IOException, GeneralSecurityException {
+        Path keyPath = Paths.get("remote.jks");
+        PrivateKeyEntry pve = tctxt.createKeyStore(keyPath, Map.of("pipeline", "tester", "User-Id", "loghub"));
+        Files.copy(tctxt.getRootFolder().resolve("remote.zpl"), tctxt.getSecurityFolder().resolve("certs").resolve("remote.zpl"));
+        Files.copy(tctxt.getSecurityFolder().resolve("certs").resolve("remote.zpl"), System.err);
+        tctxt.getFactory();
+        Event ev = dotest (r -> {
+                    r.setMethod(Method.BIND);
+                    r.setType(SocketType.PULL);
+                    r.setSecurity(Mechanisms.CURVE);
+                    r.setZapHandler(ZapDomainHandlerProvider.METADATA);
+                },
+                s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity(Mechanisms.CURVE).setKeyEntry(pve).setServerKey(tctxt.loadServerPublicKey())
+        );
+        Assert.assertEquals("loghub", ev.getConnectionContext().getPrincipal().getName());
+        Assert.assertEquals("tester", ev.getMeta("pipeline"));
+        System.err.println(new VarFormatter("${%j}").format(ev));
+        System.err.println(ev.getConnectionContext().getPrincipal());
+    }
+
 
     @Test
     public void testBeans() throws IntrospectionException, ReflectiveOperationException {

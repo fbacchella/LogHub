@@ -2,7 +2,6 @@ package loghub.zmq;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -72,7 +71,8 @@ public class TestCurve {
 
     @Test(timeout = 5000)
     public void testSecureConnectOneWay() throws ZMQCheckedException, IOException {
-        Path securePath = Paths.get(testFolder.getRoot().getAbsolutePath(), "secure");
+        tctxt.getFactory();
+        Path securePath = tctxt.getSecurityFolder();
 
         Path zplPath = securePath.resolve("zmqtest.zpl");
         ZConfig zplConfig = ZConfig.load(zplPath.toString());
@@ -183,6 +183,8 @@ public class TestCurve {
 
     @Test
     public void testEncoding() throws NoSuchAlgorithmException, InvalidKeyException, InvalidKeySpecException {
+        // Ensure the NaCl factory is inserted
+        Assert.assertNotNull(ZMQHelper.NACLKEYFACTORY);
         KeyFactory kf = KeyFactory.getInstance(NaclProvider.NAME);
         KeyPairGenerator kpg = KeyPairGenerator.getInstance(kf.getAlgorithm());
         kpg.initialize(256);
@@ -194,8 +196,8 @@ public class TestCurve {
 
     @Test
     public void testSocketFactory() throws InvalidKeySpecException {
-        for (String kstype : new String[] {"jceks"/*, "jks"*/}) {
-            Path kspath = Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqsocketfactory." + kstype).toAbsolutePath();
+        for (String kstype : new String[] {"jceks", "jks"}) {
+            Path kspath = tctxt.getRootFolder().resolve("zmqsocketfactory." + kstype).toAbsolutePath();
             PrivateKeyEntry pke1;
             ZMQSocketFactory.ZMQSocketFactoryBuilder builder = new ZMQSocketFactory.ZMQSocketFactoryBuilder();
             builder.zmqKeyStore(kspath);

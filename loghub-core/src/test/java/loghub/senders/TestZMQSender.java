@@ -1,13 +1,13 @@
 package loghub.senders;
 
 import java.beans.IntrospectionException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore.PrivateKeyEntry;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -39,6 +39,7 @@ import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
 import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
@@ -79,7 +80,7 @@ public class TestZMQSender {
         received.setLength(0);
         ZMQSocketFactory ctx = tctxt.getFactory();
 
-        Properties p = new Properties(Collections.singletonMap("zmq.keystore", tctxt.getCertDir().resolve("zmqtest.jks").toString()));
+        Properties p = new Properties(Collections.singletonMap("zmq.keystore", tctxt.getSecurityFolder().resolve("zmqtest.jks").toString()));
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
 
@@ -156,37 +157,39 @@ public class TestZMQSender {
         }, s -> s.setMethod(Method.CONNECT), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
     }
 
-    private String getRemoteIdentity(String dir) {
-        try {
-            Path keyPubpath = tctxt.getCertDir().resolve("zmqtest.pub");
-            try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
-                Files.copy(keyPubpath, pubkeyBuffer);
-                return pubkeyBuffer.toString(StandardCharsets.UTF_8);
-            }
-        } catch (IOException ex) {
-            throw new UncheckedIOException(ex);
-        }
+    @Test(timeout = 5000)
+    public void curveClient() throws InterruptedException, GeneralSecurityException, IOException {
+        Path keyPath = Paths.get("remote.jks");
+        PrivateKeyEntry pve = tctxt.createKeyStore(keyPath, Map.of());
+        String publicKey = ZMQHelper.makeServerIdentity(pve.getCertificate());
+        dotest(
+            s -> {
+                s.setMethod(Method.BIND);
+                s.setSecurity(Mechanisms.CURVE);
+                s.setServerKey(publicKey);
+            },
+            s -> s.setMethod(Method.CONNECT)
+                                .setKeyEntry(pve)
+                                .setSecurity(Mechanisms.CURVE),
+            "(\\{\"message\":\\d+\\})+"
+            );
     }
 
     @Test(timeout = 5000)
-    public void curveClient() throws InterruptedException {
-        dotest(s -> {
-            s.setMethod(Method.BIND);
-            s.setSecurity(Mechanisms.CURVE);
-            s.setServerKey(getRemoteIdentity("secure"));
-        },
-               s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setSecurity(Mechanisms.CURVE),
-                        "(\\{\"message\":\\d+\\})+");
-    }
-
-    @Test(timeout = 5000)
-    public void curveServer() throws InterruptedException {
-        dotest(s -> {
-            s.setMethod(Method.BIND);
-            s.setSecurity(Mechanisms.CURVE);
-        },
-               s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setServerKey(getRemoteIdentity("server")).setSecurity(Mechanisms.CURVE),
-                        "(\\{\"message\":\\d+\\})+");
+    public void curveServer() throws InterruptedException, GeneralSecurityException, IOException {
+        Path keyPath = Paths.get("remote.jks");
+        PrivateKeyEntry pve = tctxt.createKeyStore(keyPath, Map.of());
+        dotest(
+            s -> {
+                s.setMethod(Method.BIND);
+                s.setSecurity(Mechanisms.CURVE);
+            },
+            s -> s.setMethod(Method.CONNECT)
+                                .setKeyEntry(pve)
+                                .setServerKey(tctxt.loadServerPublicKey())
+                                .setSecurity(Mechanisms.CURVE),
+            "(\\{\"message\":\\d+\\})+"
+        );
     }
 
     @Test(timeout = 2000)

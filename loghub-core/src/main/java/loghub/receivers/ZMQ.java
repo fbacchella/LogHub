@@ -18,6 +18,7 @@ import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import loghub.zmq.ZmqConnectionContext;
 import lombok.Setter;
 import zmq.Msg;
+import zmq.io.Metadata;
 import zmq.io.mechanism.Mechanisms;
 
 @Blocking
@@ -90,8 +91,19 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
                     continue;
                 }
                 byte[] message = msg.data();
+                ZmqConnectionContext zctxt = new ZmqConnectionContext(msg, security);
+                Metadata md = msg.getMetadata();
+                // Remove some know useless meta data
+                md.remove("curve/public-key");
+                md.remove("Socket-Type");
+                md.remove(Metadata.PEER_ADDRESS);
+                md.remove(Metadata.USER_ID);
+                md.remove("X-Self-Address");
                 if (message != null) {
-                    decodeStream(new ZmqConnectionContext(msg, security), message).forEach(this::send);
+                    decodeStream(zctxt, message).forEach(ev -> {
+                        md.entrySet().forEach(e -> ev.putMeta(e.getKey(), e.getValue()));
+                        send(ev);
+                    });
                 }
             }
         } catch (ZMQCheckedException | IllegalArgumentException ex) {
