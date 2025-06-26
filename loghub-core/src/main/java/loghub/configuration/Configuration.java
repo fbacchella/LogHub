@@ -333,6 +333,12 @@ public class Configuration {
     }
 
     private Properties runparsing(CharStream cs, Map<String, Object> properties) throws ConfigException {
+        if (properties.containsKey(PROPERTY_LOG4J_FILE)) {
+            lockedProperties.add(PROPERTY_LOG4J_URL);
+        }
+        if (properties.containsKey(PROPERTY_LOG4J_URL)) {
+            lockedProperties.add(PROPERTY_LOG4J_FILE);
+        }
         // All provided properties can't be latter overridden
         lockedProperties.addAll(properties.keySet());
         properties = new HashMap<>(
@@ -351,7 +357,6 @@ public class Configuration {
                 .ifPresent(pc -> {
             try {
                 resolverLogger(pc);
-                lockedProperties.add(PROPERTY_LOG4J_FILE);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
@@ -362,7 +367,6 @@ public class Configuration {
                 .ifPresent(pc -> {
             try {
                 resolverLogger(pc);
-                lockedProperties.add(PROPERTY_LOG4J_URL);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
