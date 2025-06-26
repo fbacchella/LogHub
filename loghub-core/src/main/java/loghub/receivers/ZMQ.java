@@ -1,6 +1,11 @@
 package loghub.receivers;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.zeromq.SocketType;
@@ -24,6 +29,11 @@ import zmq.io.mechanism.Mechanisms;
 @Blocking
 @BuilderClass(ZMQ.Builder.class)
 public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
+
+    private static final Collector<Entry<String, String>, ?, Map<String, String>> METADATA_COLLECTOR;
+    static {
+        METADATA_COLLECTOR = Collectors.toUnmodifiableMap(Entry::getKey, Entry::getValue);
+    }
 
     @Setter
     public static class Builder extends Receiver.Builder<ZMQ, ZMQ.Builder> {
@@ -87,21 +97,17 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
             handler.start();
             while (handler.isRunning()) {
                 Msg msg = handler.dispatch(null);
-                if (msg == null) {
-                    continue;
-                }
-                byte[] message = msg.data();
-                ZmqConnectionContext zctxt = new ZmqConnectionContext(msg, security);
-                Metadata md = msg.getMetadata();
-                // Remove some know useless meta data
-                md.remove("curve/public-key");
-                md.remove("Socket-Type");
-                md.remove(Metadata.PEER_ADDRESS);
-                md.remove(Metadata.USER_ID);
-                md.remove("X-Self-Address");
-                if (message != null) {
+                byte[] message = Optional.ofNullable(msg).map(Msg::data).orElse(new byte[0]);
+                if (message.length > 0) {
+                    ZmqConnectionContext zctxt = new ZmqConnectionContext(msg, security);
+                    // Needs a copy because metadata are reused
+                    Map<String, String> md = msg.getMetadata()
+                                                .entrySet()
+                                                .stream()
+                                                .filter(this::filterMetaData)
+                                                .collect(METADATA_COLLECTOR);
                     decodeStream(zctxt, message).forEach(ev -> {
-                        md.entrySet().forEach(e -> ev.putMeta(e.getKey(), e.getValue()));
+                        md.forEach(ev::putMeta);
                         send(ev);
                     });
                 }
@@ -121,6 +127,20 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
             handler.close();
         }
     }
+
+    boolean filterMetaData(Map.Entry<String, String> entry) {
+        // Remove some know useless meta data
+        switch (entry.getKey()) {
+        case "curve/public-key":
+        case "Socket-Type":
+        case Metadata.PEER_ADDRESS:
+        case Metadata.USER_ID:
+        case "X-Self-Address":
+            return false;
+        default:
+            return true;
+        }
+     }
 
     @Override
     public void close() {
