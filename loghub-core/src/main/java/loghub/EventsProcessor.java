@@ -2,11 +2,13 @@ package loghub;
 
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -143,7 +145,8 @@ public class EventsProcessor extends Thread {
                 }
                 processor = event.next();
                 // If next processor is null, refill the event
-                while (processor == null && event.getNextPipeline() != null) {
+                // Tests event are not forwarded to next pipeline
+                while (processor == null && event.getNextPipeline() != null && ! event.isTest()) {
                     event.getPipelineLogger().trace("next pipeline is {}", event.getNextPipeline());
                     // Send to another pipeline, loop in the main processing queue
                     Pipeline next = namedPipelines.get(event.getNextPipeline());
@@ -166,6 +169,11 @@ public class EventsProcessor extends Thread {
                     // A test event, it will not be sent an output queue
                     // Checked after pipeline forwarding, but before output sending
                     TestEventProcessing.log(event);
+                    try {
+                        outQueues.get(event.getCurrentPipeline()).put(event);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                     event.end();
                 } else if (event.getCurrentPipeline() != null && outQueues.containsKey(event.getCurrentPipeline())) {
                     // Put in the output queue, where the wanting output will come to take it
