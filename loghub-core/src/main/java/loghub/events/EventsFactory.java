@@ -71,6 +71,8 @@ public class EventsFactory {
     public Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> eventContent, boolean test) throws DecodeException {
         if (eventContent instanceof Event) {
             return (Event) eventContent;
+        } else if (eventContent.get("loghub.Event") instanceof Map){
+            return mapToEvent(ctx, (Map<String, Object>)eventContent.get("loghub.Event"), test);
         } else {
             if (! eventContent.containsKey("@fields") || ! eventContent.containsKey("@METAS")) {
                 throw new DecodeException("Not a event map");

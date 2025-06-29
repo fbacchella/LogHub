@@ -13,7 +13,6 @@ import java.util.Queue;
 import java.util.Spliterators;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -49,7 +48,7 @@ import lombok.ToString;
 @ToString
 public class TestPipeline implements CommandRunner {
 
-    private static class EventProducer implements Iterator<Event> {
+    static class EventProducer implements Iterator<Event> {
         private final Queue<String> files;
         private final JsonFactory jf;
         private final JsonMapper mapper;
@@ -99,8 +98,25 @@ public class TestPipeline implements CommandRunner {
     @Parameter(description = "Main parameters")
     @Getter
     private List<String> mainParams = new ArrayList<>();
-
+    final JsonMapper mapper;
+    final ObjectWriter jsonWritter;
     private int exitCode = ExitCode.OK;
+
+    public TestPipeline() {
+        mapper = JacksonBuilder.get(JsonMapper.class)
+                               .setConfigurator(this::mapperConfigurator)
+                               .feature(JsonWriteFeature.ESCAPE_NON_ASCII)
+                               .addSerializer(new EventSerializer())
+                               .getMapper();
+        jsonWritter = mapper.writerFor(JacksonBuilder.OBJECTREF)
+                            .without(Feature.AUTO_CLOSE_TARGET)
+                            .withDefaultPrettyPrinter();
+    }
+
+    private void mapperConfigurator(JsonMapper m) {
+        m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+         .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+    }
 
     @Override
     public int run() {
@@ -123,16 +139,6 @@ public class TestPipeline implements CommandRunner {
         BlockingQueue<Event> testQueue = new ArrayBlockingQueue<>(10);
         props.outputQueues.put(pipeline, testQueue);
 
-        Consumer<JsonMapper> configurator = m -> m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                                                              .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-        JsonMapper mapper = JacksonBuilder.get(JsonMapper.class)
-                                          .setConfigurator(configurator)
-                                          .feature(JsonWriteFeature.ESCAPE_NON_ASCII)
-                                          .addSerializer(new EventSerializer())
-                                          .getMapper();
-        ObjectWriter jsonWritter = mapper.writerFor(JacksonBuilder.OBJECTREF)
-                                         .without(Feature.AUTO_CLOSE_TARGET)
-                                         .withDefaultPrettyPrinter();
         Iterator<Event> iterator = new EventProducer(mainParams, mapper);
         Stream<Event> eventSource = StreamSupport.stream(
                 Spliterators.spliteratorUnknownSize(iterator, 0),
@@ -153,7 +159,7 @@ public class TestPipeline implements CommandRunner {
         } catch (InterruptedException ex) {
             // Ignore, just stop waiting
         }
-        return ExitCode.OK;
+        return exitCode;
     }
 
     @Override
@@ -161,7 +167,7 @@ public class TestPipeline implements CommandRunner {
         cmd.getField("configFile").map(String.class::cast).ifPresent(s -> configFile = s);
     }
 
-    protected Stream<Event> process(Properties props, Stream<Event> events) {
+    Stream<Event> process(Properties props, Stream<Event> events) {
         Pipeline pipe = props.namedPipeLine.get(pipeline);
         if (pipe == null) {
             System.err.println("Unknown pipeline " + pipeline);
