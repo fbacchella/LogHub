@@ -1,6 +1,5 @@
 package loghub.netty;
 
-import java.lang.reflect.InvocationTargetException;
 import java.net.SocketAddress;
 import java.util.Objects;
 import java.util.Optional;
@@ -14,7 +13,6 @@ import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import loghub.ConnectionContext;
 import loghub.Helpers;
-import loghub.configuration.BeansManager;
 import loghub.configuration.ConfigurationProperties;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;

@@ -1,7 +1,5 @@
 package loghub.configuration;
 
-import java.lang.management.ManagementFactory;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -16,7 +14,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 
@@ -26,10 +23,7 @@ import javax.net.ssl.SSLParameters;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-
-import com.sun.management.HotSpotDiagnosticMXBean;
 
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.Future;

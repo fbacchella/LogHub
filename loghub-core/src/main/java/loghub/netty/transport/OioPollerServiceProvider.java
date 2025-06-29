@@ -5,7 +5,6 @@ import java.util.function.Supplier;
 import io.netty.channel.Channel;
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.nio.NioIoHandler;
 
 public class OioPollerServiceProvider implements PollerServiceProvider {
 
