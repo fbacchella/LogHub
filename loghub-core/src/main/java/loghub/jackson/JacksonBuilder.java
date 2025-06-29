@@ -22,14 +22,12 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.cfg.MapperBuilder;
 import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
 import loghub.Helpers;
 import lombok.Setter;
-import lombok.Singular;
 import lombok.experimental.Accessors;
 
 @Accessors(chain = true)
@@ -81,8 +79,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
 
     @Setter
     private FormatSchema schema = null;
-    @Setter @Singular
-    Set<JsonSerializer<?>> serializers = new HashSet<>();
+    private final Set<JsonSerializer<?>> serializers = new HashSet<>();
     @Setter
     TypeReference<?> typeReference = null;
     @Setter
@@ -136,6 +133,11 @@ public class JacksonBuilder<T extends ObjectMapper> {
 
     public JacksonBuilder<T> module(Module m) {
         builder.addModule(m);
+        return this;
+    }
+
+    public JacksonBuilder<T> addSerializer(JsonSerializer<?> s) {
+        serializers.add(s);
         return this;
     }
 

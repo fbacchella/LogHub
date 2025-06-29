@@ -1,18 +1,28 @@
 package loghub.commands;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Spliterators;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator.Feature;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -39,6 +49,47 @@ import lombok.ToString;
 @ToString
 public class TestPipeline implements CommandRunner {
 
+    private static class EventProducer implements Iterator<Event> {
+        private final Queue<String> files;
+        private final JsonFactory jf;
+        private final JsonMapper mapper;
+        private JsonParser parser;
+        private final EventsFactory factory = new EventsFactory();
+        private JsonToken nextToken = null;
+        EventProducer(List<String> files, JsonMapper mapper) {
+            this.jf = mapper.getFactory();
+            this.mapper = mapper;
+            this.files = new LinkedList<>(files);
+        }
+
+        @Override
+        public boolean hasNext() {
+            try {
+                if (parser != null) {
+                    nextToken = parser.nextToken();
+                }
+                return (nextToken != null) || ! files.isEmpty();
+            } catch (IOException ex) {
+                throw new IllegalStateException(ex);
+            }
+        }
+
+        @Override
+        public Event next() {
+            try {
+                if ((parser == null || nextToken == null) && ! files.isEmpty()) {
+                    parser = jf.createParser(Helpers.fileUri(files.poll()).toURL());
+                } else if (nextToken == null) {
+                    throw new NoSuchElementException();
+                }
+                Map<String, Object> o = mapper.readValue(parser, Map.class);
+                return factory.mapToEvent(ConnectionContext.EMPTY, o, true);
+            } catch (IOException | DecodeException ex) {
+                throw new IllegalStateException(ex);
+            }
+        }
+    }
+
     private String configFile = null;
 
     @SuppressWarnings("CanBeFinal")
@@ -48,6 +99,8 @@ public class TestPipeline implements CommandRunner {
     @Parameter(description = "Main parameters")
     @Getter
     private List<String> mainParams = new ArrayList<>();
+
+    private int exitCode = ExitCode.OK;
 
     @Override
     public int run() {
@@ -67,28 +120,8 @@ public class TestPipeline implements CommandRunner {
             System.err.format("Error in %s: %s%n", e.getLocation(), e.getMessage());
             return ExitCode.INVALIDCONFIGURATION;
         }
-        Pipeline pipe = props.namedPipeLine.get(pipeline);
-        if (pipe == null) {
-            System.err.println("Unknown pipeline " + pipeline);
-            return ExitCode.INVALIDARGUMENTS;
-        }
-
-        try {
-            Helpers.parallelStartProcessor(props);
-            for (EventsProcessor ep : props.eventsprocessors) {
-                ep.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
-                ep.start();
-            }
-            Helpers.waitAllThreads(props.eventsprocessors.stream());
-        } catch (IllegalStateException e) {
-            // Thrown by launch when a component failed to start, details are in the logs
-            System.err.format("Failed to start loghub: %s%n", Helpers.resolveThrowableException(e));
-            return ExitCode.FAILEDSTART;
-        }
-        System.err.format("outputQueues %s%n", props.outputQueues.keySet());
-        BlockingQueue<Event> testQueue = new ArrayBlockingQueue(10);
+        BlockingQueue<Event> testQueue = new ArrayBlockingQueue<>(10);
         props.outputQueues.put(pipeline, testQueue);
-        EventsFactory factory = new EventsFactory();
 
         Consumer<JsonMapper> configurator = m -> m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
                                                               .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
@@ -100,25 +133,18 @@ public class TestPipeline implements CommandRunner {
         ObjectWriter jsonWritter = mapper.writerFor(JacksonBuilder.OBJECTREF)
                                          .without(Feature.AUTO_CLOSE_TARGET)
                                          .withDefaultPrettyPrinter();
-        JsonFactory jf = mapper.getFactory();
-        for (String eventJsonFile: mainParams) {
+        Iterator<Event> iterator = new EventProducer(mainParams, mapper);
+        Stream<Event> eventSource = StreamSupport.stream(
+                Spliterators.spliteratorUnknownSize(iterator, 0),
+                false
+        );
+        process(props, eventSource).forEach(e -> {
             try {
-                try (JsonParser parser = jf.createParser(Helpers.fileUri(eventJsonFile).toURL())){
-                    while (parser.nextToken() != null){
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> o = mapper.readValue(parser, Map.class);
-                        Event ev = factory.mapToEvent(ConnectionContext.EMPTY, o, true);
-                        ev.inject(pipe, props.mainQueue, true);
-                        Event processed = testQueue.take();
-                        jsonWritter.writeValue(System.out, processed);
-                    }
-                }
-            } catch (IOException | DecodeException e) {
-                System.err.format("Can't read event JSON file file %s: %s%n", eventJsonFile, Helpers.resolveThrowableException(e));
-            } catch (InterruptedException e) {
-                break;
+                jsonWritter.writeValue(System.out, e);
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
             }
-        }
+        });
         try {
             for (EventsProcessor ep : props.eventsprocessors) {
                 ep.stopProcessing();
@@ -133,6 +159,42 @@ public class TestPipeline implements CommandRunner {
     @Override
     public void extractFields(BaseParametersRunner cmd) {
         cmd.getField("configFile").map(String.class::cast).ifPresent(s -> configFile = s);
+    }
+
+    protected Stream<Event> process(Properties props, Stream<Event> events) {
+        Pipeline pipe = props.namedPipeLine.get(pipeline);
+        if (pipe == null) {
+            System.err.println("Unknown pipeline " + pipeline);
+            exitCode = ExitCode.INVALIDARGUMENTS;
+            return Stream.empty();
+        }
+
+        try {
+            Helpers.parallelStartProcessor(props);
+            for (EventsProcessor ep : props.eventsprocessors) {
+                ep.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+                ep.start();
+            }
+            Helpers.waitAllThreads(props.eventsprocessors.stream());
+        } catch (IllegalStateException e) {
+            // Thrown by launch when a component failed to start, details are in the logs
+            System.err.format("Failed to start loghub: %s%n", Helpers.resolveThrowableException(e));
+            return Stream.empty();
+        }
+        BlockingQueue<Event> testQueue = new ArrayBlockingQueue<>(10);
+        props.outputQueues.put(pipeline, testQueue);
+        return StreamSupport.stream(
+                Spliterators.spliteratorUnknownSize(events.iterator(), 0),
+                false
+        ).map(e -> {
+            e.inject(pipe, props.mainQueue, true);
+            try {
+                return testQueue.take();
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }).takeWhile(Objects::nonNull);
     }
 
 }
