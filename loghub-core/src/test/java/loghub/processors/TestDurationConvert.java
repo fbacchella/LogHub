@@ -11,6 +11,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -21,11 +22,13 @@ import loghub.events.EventsFactory;
 
 import static loghub.processors.DurationConvert.DurationUnit.CENTI;
 import static loghub.processors.DurationConvert.DurationUnit.DECI;
+import static loghub.processors.DurationConvert.DurationUnit.DURATION;
 import static loghub.processors.DurationConvert.DurationUnit.MICRO;
 import static loghub.processors.DurationConvert.DurationUnit.MILLI;
 import static loghub.processors.DurationConvert.DurationUnit.NANO;
 import static loghub.processors.DurationConvert.DurationUnit.SECOND;
 import static loghub.processors.DurationConvert.DurationUnit.SECOND_FLOAT;
+import static loghub.processors.DurationConvert.DurationUnit.STRING;
 
 public class TestDurationConvert {
 
@@ -71,14 +74,19 @@ public class TestDurationConvert {
         Assert.assertEquals(100L, process(1, DECI, MILLI));
         Assert.assertEquals(1_000_000L, process(1, MILLI, NANO));
         Assert.assertEquals(1_000_000L, process(Duration.ofMillis(1), MILLI, NANO));
+        Assert.assertEquals(100L, process(Duration.ofMillis(100), DURATION, MILLI));
+        Assert.assertEquals(Duration.ofMillis(1), process(1, MILLI, DURATION));
+        Assert.assertEquals(Duration.parse("PT20.345S"), process("PT20.345S", STRING, DURATION));
+        Assert.assertEquals("PT20.345S", process(Duration.parse("PT20.345S"), STRING, STRING));
     }
 
     @Test
     public void testFailure() {
         ProcessorException ex = Assert.assertThrows(ProcessorException.class, () -> process("a", MILLI, NANO));
-        Assert.assertEquals("Field with path \"[field]\" invalid: Can't scan period a", ex.getMessage());
+        Assert.assertEquals("Field with path \"[field]\" invalid: Can't parse duration a", ex.getMessage());
         ProcessorException ex2 = Assert.assertThrows(ProcessorException.class, () -> process(Instant.ofEpochSecond(0), MILLI, NANO));
-        Assert.assertEquals("Field with path \"[field]\" invalid: Can't scan period 1970-01-01T00:00:00Z", ex2.getMessage());
+        Assert.assertEquals("Field with path \"[field]\" invalid: Can't resolve period 1970-01-01T00:00:00Z", ex2.getMessage());
+        Assert.assertThrows(IgnoredEventException.class, () -> process(Instant.ofEpochSecond(0), DURATION, NANO));
     }
 
 }
