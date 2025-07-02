@@ -25,8 +25,8 @@ import loghub.Helpers;
 import loghub.security.ssl.ClientAuthentication;
 
 import static org.apache.kafka.clients.CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;
-import static org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG;
 import static org.apache.kafka.clients.CommonClientConfigs.GROUP_ID_CONFIG;
+import static org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG;
 import static org.apache.kafka.common.config.SaslConfigs.SASL_KERBEROS_SERVICE_NAME;
 import static org.apache.kafka.common.config.SslConfigs.SSL_ENGINE_FACTORY_CLASS_CONFIG;
 
@@ -71,7 +71,7 @@ public interface KafkaProperties {
         }
         @Override
         public void close() {
-
+            // Nothing special to do when closing
         }
 
         @Override
@@ -130,8 +130,10 @@ public interface KafkaProperties {
             }
         }
 
-        return props;
+        props.put("buffer.memory", 33554432);
+        props.put("max.in.flight.requests.per.connection", 5);
 
+        return props;
     }
 
     SSLContext getSslContext();

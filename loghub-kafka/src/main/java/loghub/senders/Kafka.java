@@ -1,8 +1,8 @@
 package loghub.senders;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -12,28 +12,58 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.Serializer;
+import org.apache.logging.log4j.Level;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
+import loghub.Expression;
+import loghub.Helpers;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
 import loghub.kafka.KafkaProperties;
+import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
 @BuilderClass(Kafka.Builder.class)
-@CanBatch
+@AsyncSender
 public class Kafka extends Sender {
+
+    private class KafkaKeySerializer implements Serializer<Event> {
+        private final Expression keySerializer;
+
+        private KafkaKeySerializer(Expression keySerializer) {
+            this.keySerializer = keySerializer;
+        }
+
+        /**
+         * Convert {@code data} into a byte array.
+         *
+         * @param topic topic associated with data
+         * @param data  typed data
+         * @return serialized bytes
+         */
+        @Override
+        public byte[] serialize(String topic, Event data) {
+            try {
+                return keySerializer.eval(data, topic).toString().getBytes(StandardCharsets.UTF_8);
+            } catch (ProcessorException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
 
     @Setter @Getter
     public static class Builder extends Sender.Builder<Kafka> implements KafkaProperties {
-        private String[] brokers = new String[] { "localhost"};
+        private String[] brokers = new String[] {"localhost"};
         private int port = 9092;
         private String topic;
         private String group = "loghub";
@@ -43,14 +73,15 @@ public class Kafka extends Sender {
         private String securityProtocol;
         private String saslKerberosServiceName;
 
-        private String keySerializer = ByteArraySerializer.class.getName();
-        private String compressionType = null;
+        private Expression keySerializer = new Expression("random", ed -> Math.random());
+        private String compressionType;
         int retries = -1;
-        String acks = null;
+        String acks;
+        int linger = -1;
 
         // Only used for tests
         @Setter(AccessLevel.PACKAGE)
-        private Producer<Long, byte[]> producer;
+        private Producer<Event, byte[]> producer;
         @Override
         public Kafka build() {
             return new Kafka(this);
@@ -62,8 +93,8 @@ public class Kafka extends Sender {
 
     @Getter
     private final String topic;
-    private Supplier<Producer<Long, byte[]>> producerSupplier;
-    private Producer<Long, byte[]> producer;
+    private Supplier<Producer<Event, byte[]>> producerSupplier;
+    private Producer<Event, byte[]> producer;
 
     public Kafka(Builder builder) {
         super(builder);
@@ -82,7 +113,7 @@ public class Kafka extends Sender {
         return super.configure(properties);
     }
 
-    private Supplier<Producer<Long,byte[]>> getProducer(Kafka.Builder builder) {
+    private Supplier<Producer<Event, byte[]>> getProducer(Kafka.Builder builder) {
         Map<String, Object> props = builder.configureKafka(logger);
         if (builder.compressionType != null) {
             props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, builder.compressionType);
@@ -93,26 +124,36 @@ public class Kafka extends Sender {
         if (builder.retries > 0) {
             props.put(ProducerConfig.RETRIES_CONFIG, builder.retries);
         }
+        if (builder.linger > 0) {
+            props.put(ProducerConfig.LINGER_MS_CONFIG, builder.linger);
+        }
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, builder.keySerializer);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-        return () -> {
-            Producer<Long,byte[]> producer = new KafkaProducer<>(props);
-            return producer;
-        };
+        // Needs to resolve the class path problem
+        // props.put(ProducerConfig.BATCH_SIZE_CONFIG, builder.batchSize);
+
+        return () -> new KafkaProducer<>(props, new KafkaKeySerializer(builder.keySerializer), new ByteArraySerializer());
     }
 
     @Override
-    protected boolean send(Event event) throws SendException, EncodeException {
-        try {
-            ProducerRecord<Long, byte[]> record = new ProducerRecord<>(topic, -1, event.getTimestamp().getTime(), null, encode(event));
-            producer.send(record).get();
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        } catch (ExecutionException e) {
-            throw new SendException(e.getCause());
-        }
+    protected boolean send(Event event) throws EncodeException {
+        ProducerRecord<Event, byte[]> kRecord = new ProducerRecord<>(topic, null, event.getTimestamp().getTime(), event, encode(event));
+        producer.send(kRecord, (m, ex) -> {
+            if (ex != null) {
+                // All kafka exception are handled as IO exception, logged without stack unless requested
+                if (ex instanceof KafkaException) {
+                    Stats.failedSentEvent(this, ex, event);
+                    logger.atError()
+                          .withThrowable(logger.isDebugEnabled() ? ex : null)
+                          .log("Sending exception: {}", Helpers.resolveThrowableException(ex));
+                } else {
+                    handleException(ex, event);
+                }
+            } else {
+                processStatus(event, true);
+            }
+        });
+        return true;
     }
 
     @Override
