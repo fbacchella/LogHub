@@ -1,12 +1,17 @@
 package loghub;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.net.Inet4Address;
@@ -19,17 +24,22 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.Period;
 import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 import loghub.events.EventsFactory;
 import loghub.types.MacAddress;
@@ -37,6 +47,12 @@ import loghub.zmq.ZmqConnectionContext;
 import lombok.Getter;
 
 public class FastExternalizeObject {
+
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface Immutable {
+    }
 
     private enum TYPE {
         NULL,
@@ -52,17 +68,42 @@ public class FastExternalizeObject {
         CHAR,
         DATE,
         ARRAY,
-        LINKEDMAP,
-        HASHMAP,
+        MAP,
         LIST,
         EMPTY_CONTEXT,
         SOCKETADDRESS,
         INEDADDRESS,
+        TEMPORAL,
         IMMUTABLE,
         FASTER,
         OTHER,
     }
     private static final TYPE[] TYPES = TYPE.values();
+
+    private enum MAPCONSTRUCTOR {
+        IDENTITYHASHMAP(n -> new IdentityHashMap<Object, Object>(n * 2)),
+        CONCURRENTHASHMAP(n -> new ConcurrentHashMap<Object, Object>(n * 2)),
+        HASHMAP(n -> new HashMap<Object, Object>(n * 2)),
+        LINKEDHASHMAP(n -> new LinkedHashMap<Object, Object>(n * 2));
+
+        private final Function<Integer, Map<Object, Object>> constructor;
+
+        MAPCONSTRUCTOR(Function<Integer, Map<Object, Object>> constructor) {
+            this.constructor = constructor;
+        }
+
+        Map<Object, Object> generate(int n) {
+            return constructor.apply(n);
+        }
+    }
+    private static final MAPCONSTRUCTOR[] MAPCONSTRUCTORS = MAPCONSTRUCTOR.values();
+
+    private static final Map<Class<? extends Map>, MAPCONSTRUCTOR> MAP_MAPPING = Map.ofEntries(
+            Map.entry(IdentityHashMap.class, MAPCONSTRUCTOR.IDENTITYHASHMAP),
+            Map.entry(ConcurrentHashMap.class, MAPCONSTRUCTOR.CONCURRENTHASHMAP),
+            Map.entry(HashMap.class, MAPCONSTRUCTOR.HASHMAP),
+            Map.entry(LinkedHashMap.class, MAPCONSTRUCTOR.LINKEDHASHMAP)
+    );
 
     public static class FastObjectInputStream extends ObjectInputStream {
 
@@ -77,14 +118,17 @@ public class FastExternalizeObject {
         }
 
         private <K, V> Map<K, V> readMap() throws IOException, ClassNotFoundException {
-            Map<K, V> map = new HashMap<>();
-            return readMap(map);
-        }
-
-        @SuppressWarnings("unchecked")
-        private <K, V> Map<K, V> readLinkedMap() throws IOException, ClassNotFoundException {
-            Map<Object, Object> map = new LinkedHashMap<>();
-            return (Map<K, V>) readMap(map);
+            int constructor = readInt();
+            int size = readInt();
+            Map<K, V> map = (Map<K, V>) MAPCONSTRUCTORS[constructor].generate(size);
+            for (int i = 0; i < size; i++) {
+                @SuppressWarnings("unchecked")
+                K key = (K) readObjectFast();
+                @SuppressWarnings("unchecked")
+                V value = (V) readObjectFast();
+                map.put(key, value);
+            }
+            return map;
         }
 
         public <K, V> Map<K, V> readMap(Map<K, V> map) throws IOException, ClassNotFoundException {
@@ -137,13 +181,12 @@ public class FastExternalizeObject {
                 return new Date(readLong());
             case INEDADDRESS:
             case SOCKETADDRESS:
+            case TEMPORAL:
             case IMMUTABLE:
                 return readReference();
             case ARRAY:
                 return readArray();
-            case LINKEDMAP:
-                return readLinkedMap();
-            case HASHMAP:
+            case MAP:
                 return readMap();
             case LIST:
                 return readList();
@@ -268,7 +311,13 @@ public class FastExternalizeObject {
             } else if (o.getClass().isEnum()) {
                 write(TYPE.IMMUTABLE.ordinal());
                 writeReference(o);
+            } else if (o instanceof Temporal || o instanceof TemporalUnit) {
+                write(TYPE.TEMPORAL.ordinal());
+                writeReference(o);
             } else if (immutables.contains(o.getClass())) {
+                write(TYPE.IMMUTABLE.ordinal());
+                writeReference(o);
+            } else if (o.getClass().isAnnotationPresent(Immutable.class)) {
                 write(TYPE.IMMUTABLE.ordinal());
                 writeReference(o);
             } else if (faster.containsKey(o.getClass())) {
@@ -281,13 +330,11 @@ public class FastExternalizeObject {
                          InvocationTargetException e) {
                     throw new IllegalStateException(e);
                 }
-            } else if (o instanceof LinkedHashMap) {
-                write(TYPE.LINKEDMAP.ordinal());
+            } else if (o instanceof Map && MAP_MAPPING.containsKey(o.getClass())) {
+                write(TYPE.MAP.ordinal());
+                writeInt(MAP_MAPPING.get(o.getClass()).ordinal());
                 writeMap((Map<?, ?>) o);
-            } else if (o instanceof HashMap) {
-                write(TYPE.HASHMAP.ordinal());
-                writeMap((Map<?, ?>) o);
-            } else if (o instanceof ArrayList || o instanceof LinkedList) {
+            } else if (o instanceof List) {
                 write(TYPE.LIST.ordinal());
                 writeList((List<?>) o);
             } else if (ConnectionContext.EMPTY.equals(o)) {
@@ -395,8 +442,6 @@ public class FastExternalizeObject {
         immutables.add(InetAddress.class);
         immutables.add(Inet4Address.class);
         immutables.add(Inet6Address.class);
-        immutables.add(MacAddress.class);
-        immutables.add(ZmqConnectionContext.class);
     }
 
     public static <T> void register(Class<T> clazz, Class<? extends ObjectFaster<T>> of) {
@@ -405,7 +450,9 @@ public class FastExternalizeObject {
     public static void registerImmutable(Class<?> clazz) {
         immutables.add(clazz);
     }
+
     private FastExternalizeObject() {
         // Not instantiable class
     }
+
 }

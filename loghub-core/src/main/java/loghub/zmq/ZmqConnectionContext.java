@@ -4,11 +4,13 @@ import java.io.Serializable;
 import java.security.Principal;
 
 import loghub.ConnectionContext;
+import loghub.FastExternalizeObject.Immutable;
 import lombok.Data;
 import zmq.Msg;
 import zmq.io.Metadata;
 import zmq.io.mechanism.Mechanisms;
 
+@Immutable
 public class ZmqConnectionContext extends ConnectionContext<String> {
 
     private final String selfAddress;
