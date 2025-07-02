@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -260,7 +261,7 @@ public class TestTrap {
             Assert.assertNull(dodValues.get("2.1.4.20.1.4.0"));
             Assert.assertEquals("enterprises", dodValues.get("2.1.4.20.1.5.0"));
             Assert.assertEquals(localhost, dodValues.get("2.1.4.20.1.6.0"));
-            Assert.assertEquals(1.11, dodValues.get("2.1.4.20.1.7.0"));
+            Assert.assertEquals(Duration.ofMillis(1110), dodValues.get("2.1.4.20.1.7.0"));
             Assert.assertEquals(123.0f, dodValues.get("2.1.4.20.1.8.0"));
             Assert.assertEquals(3.87028163190784E14, dodValues.get("2.1.4.20.1.9.0"));
             Assert.assertEquals(4, dodValues.get("2.1.4.20.1.10.0"));

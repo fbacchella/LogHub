@@ -6,6 +6,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -349,7 +350,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             case BER.GAUGE32:
                 return variable.toLong();
             case BER.TIMETICKS:
-                return 1.0 * ((TimeTicks)variable).toMilliseconds() / 1000.0;
+                return Duration.ofMillis(((TimeTicks)variable).toMilliseconds());
             case BER.OPAQUE:
                 return resolvOpaque((Opaque) variable);
             default:

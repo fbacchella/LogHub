@@ -1,5 +1,6 @@
 package loghub.jackson;
 
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Date;
@@ -46,6 +47,8 @@ public class TestEventSerializer {
         ev.putAtPath(VariablePath.of("a", "b"), 1);
         ev.putAtPath(VariablePath.of("a", "c"), null);
         ev.putAtPath(VariablePath.of("d"), d);
+        // Ensure that Duration are serialized as a numerical value
+        ev.putAtPath(VariablePath.of("e"), Duration.ofMillis(1001));
         ZonedDateTime now = ZonedDateTime.now().withZoneSameInstant(ZoneId.of("Z"));
         ev.putAtPath(VariablePath.of("b"), now);
         @SuppressWarnings("unchecked")
@@ -62,6 +65,7 @@ public class TestEventSerializer {
         Assert.assertEquals(Map.of("ma", 1),  readEvent.get("@METAS"));
         Assert.assertEquals(a,  fields.get("a"));
         Assert.assertEquals(DatetimeProcessor.of("iso_nanos").print(now),  fields.get("b"));
+        Assert.assertEquals(1.001,  (double) fields.get("e"), 1e-10);
     }
 
 }

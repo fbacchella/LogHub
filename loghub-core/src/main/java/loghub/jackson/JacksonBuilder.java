@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.cfg.MapperBuilder;
 import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -61,10 +62,11 @@ public class JacksonBuilder<T extends ObjectMapper> {
         builder.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
         builder.addModule(new JavaTimeModule());
         builder.addModule(new Jdk8Module());
-        builder.addModule(new AfterburnerModule());
         builder.addModule(new JacksonModule());
         builder.addModule(new NullOrMissingValue.JacksonModule());
+        builder.addModule(new AfterburnerModule());
         builder.enable(StreamReadFeature.USE_FAST_DOUBLE_PARSER);
+        builder.enable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
     }
 
     public static <T extends ObjectMapper, B extends MapperBuilder<T, B>> JacksonBuilder<T> get(B builder) {
