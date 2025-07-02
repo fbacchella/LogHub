@@ -14,7 +14,11 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.Period;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -373,6 +377,10 @@ public class FastExternalizeObject {
     private static final Set<Class<?>> immutables = new HashSet<>();
     static {
         immutables.add(Instant.class);
+        immutables.add(Period.class);
+        immutables.add(Duration.class);
+        immutables.add(ZonedDateTime.class);
+        immutables.add(OffsetDateTime.class);
         immutables.add(Character.class);
         immutables.add(String.class);
         immutables.add(Boolean.class);
