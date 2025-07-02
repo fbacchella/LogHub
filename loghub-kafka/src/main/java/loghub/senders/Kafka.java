@@ -2,7 +2,6 @@ package loghub.senders;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -16,10 +15,8 @@ import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Serializer;
-import org.apache.logging.log4j.Level;
 
 import loghub.BuilderClass;
-import loghub.CanBatch;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;
@@ -37,7 +34,7 @@ import lombok.Setter;
 @AsyncSender
 public class Kafka extends Sender {
 
-    private class KafkaKeySerializer implements Serializer<Event> {
+    private static class KafkaKeySerializer implements Serializer<Event> {
         private final Expression keySerializer;
 
         private KafkaKeySerializer(Expression keySerializer) {
@@ -75,9 +72,11 @@ public class Kafka extends Sender {
 
         private Expression keySerializer = new Expression("random", ed -> Math.random());
         private String compressionType;
-        int retries = -1;
-        String acks;
-        int linger = -1;
+        private int retries = -1;
+        private String acks;
+        private int linger = -1;
+        // To be removed once heritage problem is solved
+        private int batchSize = -1;
 
         // Only used for tests
         @Setter(AccessLevel.PACKAGE)
@@ -129,8 +128,7 @@ public class Kafka extends Sender {
         }
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, builder.keySerializer);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-        // Needs to resolve the class path problem
-        // props.put(ProducerConfig.BATCH_SIZE_CONFIG, builder.batchSize);
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, builder.batchSize);
 
         return () -> new KafkaProducer<>(props, new KafkaKeySerializer(builder.keySerializer), new ByteArraySerializer());
     }
