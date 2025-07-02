@@ -7,6 +7,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -19,6 +20,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -109,39 +111,44 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     public void run() {
         try (Consumer<Long, byte[]> consumer = consumerSupplier.get()) {
             consumerSupplier = null;
-            boolean broke = false;
             Duration pollingInterval = Duration.ofMillis(100);
+            AtomicReference<ConsumerRecord<Long, byte[]>> brokenRecordHolder = new AtomicReference<>();
             while (! isInterrupted()) {
-                ConsumerRecords<Long, byte[]> consumerRecords = consumer.poll(pollingInterval);
-                if (consumerRecords.count() == 0) {
-                    continue;
-                }
-                for (ConsumerRecord<Long, byte[]> kafakRecord: consumerRecords) {
-                    logger.trace("Got a record {}", kafakRecord);
-                    KafkaContext ctxt = new KafkaContext(kafakRecord.topic());
-                    Optional<Date> timestamp = Optional.empty().map(ts ->  kafakRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafakRecord.timestamp()) : null);
-                    byte[] content = kafakRecord.value();
-                    decodeStream(ctxt, content).forEach( e -> {
-                        timestamp.ifPresent(e::setTimestamp);
-                        getHeaders(kafakRecord).forEach(e::putMeta);
-                        e.putMeta("kafka_topic", kafakRecord.topic());
-                        e.putMeta("kafka_partition", kafakRecord.partition());
-                        send(e);
-                    });
-                    if (isInterrupted()) {
-                        consumer.commitSync(Collections.singletonMap(new TopicPartition(kafakRecord.topic(), kafakRecord.partition()), new OffsetAndMetadata(kafakRecord.offset())));
-                        broke = true;
-                        break;
+                try {
+                    ConsumerRecords<Long, byte[]> consumerRecords = consumer.poll(pollingInterval);
+                    if (consumerRecords.count() == 0) {
+                        continue;
                     }
-                }
-                if (! broke) {
-                    consumer.commitAsync();
-                } else {
+                    processRecords(consumer, consumerRecords, brokenRecordHolder);
+                } catch (WakeupException e) {
+                    ConsumerRecord<Long, byte[]> brokenRecord = brokenRecordHolder.get();
+                    consumer.commitSync(Collections.singletonMap(new TopicPartition(brokenRecord.topic(), brokenRecord.partition()), new OffsetAndMetadata(brokenRecord.offset())));
                     break;
                 }
             }
         }
         close();
+    }
+
+    void processRecords(Consumer<Long, byte[]> consumer, ConsumerRecords<Long, byte[]> consumerRecords, AtomicReference<ConsumerRecord<Long, byte[]>> brokenRecordHolder) {
+        for (ConsumerRecord<Long, byte[]> kafakRecord: consumerRecords) {
+            logger.trace("Got a record {}", kafakRecord);
+            KafkaContext ctxt = new KafkaContext(kafakRecord.topic());
+            Optional<Date> timestamp = Optional.empty().map(ts ->  kafakRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafakRecord.timestamp()) : null);
+            byte[] content = kafakRecord.value();
+            decodeStream(ctxt, content).forEach( e -> {
+                timestamp.ifPresent(e::setTimestamp);
+                getHeaders(kafakRecord).forEach(e::putMeta);
+                e.putMeta("kafka_topic", kafakRecord.topic());
+                e.putMeta("kafka_partition", kafakRecord.partition());
+                send(e);
+            });
+            if (isInterrupted()) {
+                brokenRecordHolder.compareAndSet(null, kafakRecord);
+                consumer.wakeup();
+                break;
+            }
+        }
     }
 
     private Map<String, byte[]> getHeaders(ConsumerRecord<Long, byte[]> kafakRecord) {
