@@ -2,19 +2,17 @@ package loghub.receivers;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 
 import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -24,10 +22,13 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.LongDeserializer;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import loghub.Helpers;
 import loghub.kafka.KafkaProperties;
+import loghub.kafka.range.RangeCollection;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -39,8 +40,10 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
     public static class KafkaContext extends ConnectionContext<Object> {
         public final String topic;
-        KafkaContext(String topic) {
+        private final Runnable onAcknowledge;
+        KafkaContext(String topic, Runnable onAcknowledge) {
             this.topic = topic;
+            this.onAcknowledge = onAcknowledge;
         }
         @Override
         public Object getLocalAddress() {
@@ -50,6 +53,11 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         public Object getRemoteAddress() {
             return null;
         }
+        @Override
+        public void acknowledge() {
+            super.acknowledge();
+            onAcknowledge.run();
+        }
     }
 
     @Setter @Getter
@@ -58,7 +66,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         private int port = 9092;
         private String topic;
         private String group ="loghub";
-        private String keyDeserializer = ByteArrayDeserializer.class.getName();
         private String compressionType;
         private String securityProtocol;
         private SSLContext sslContext;
@@ -80,6 +87,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     @Getter
     private final String topic;
     private Supplier<Consumer<Long, byte[]>> consumerSupplier;
+    private final RangeCollection range = new RangeCollection();
 
     protected Kafka(Builder builder) {
         super(builder);
@@ -93,11 +101,9 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
     private Supplier<Consumer<Long,byte[]>> getConsumer(Builder builder) {
         Map<String, Object> props = builder.configureKafka(logger);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, builder.keyDeserializer);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         return () -> {
-            Consumer<Long,byte[]> consumer = new KafkaConsumer<>(props);
-            consumer.subscribe(Collections.singletonList(topic));
+            Consumer<Long,byte[]> consumer = new KafkaConsumer<>(props, new LongDeserializer(), new ByteArrayDeserializer());
+            consumer.subscribe(List.of(topic));
             return consumer;
         };
     }
@@ -112,28 +118,42 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         try (Consumer<Long, byte[]> consumer = consumerSupplier.get()) {
             consumerSupplier = null;
             Duration pollingInterval = Duration.ofMillis(100);
-            AtomicReference<ConsumerRecord<Long, byte[]>> brokenRecordHolder = new AtomicReference<>();
             while (! isInterrupted()) {
                 try {
                     ConsumerRecords<Long, byte[]> consumerRecords = consumer.poll(pollingInterval);
-                    if (consumerRecords.count() == 0) {
-                        continue;
+                    if (consumerRecords.count() != 0) {
+                        processRecords(consumer, consumerRecords);
                     }
-                    processRecords(consumer, consumerRecords, brokenRecordHolder);
+                    commit(consumer);
                 } catch (WakeupException e) {
-                    ConsumerRecord<Long, byte[]> brokenRecord = brokenRecordHolder.get();
-                    consumer.commitSync(Collections.singletonMap(new TopicPartition(brokenRecord.topic(), brokenRecord.partition()), new OffsetAndMetadata(brokenRecord.offset())));
                     break;
                 }
             }
+            commit(consumer);
         }
         close();
     }
 
-    void processRecords(Consumer<Long, byte[]> consumer, ConsumerRecords<Long, byte[]> consumerRecords, AtomicReference<ConsumerRecord<Long, byte[]>> brokenRecordHolder) {
+    private void commit(Consumer<Long, byte[]> consumer) {
+        long lastAck = range.merge();
+        if (lastAck >= 0) {
+            TopicPartition tp = new TopicPartition(this.topic, -1);
+            consumer.commitAsync(Map.of(tp, new OffsetAndMetadata(lastAck)), this::onComplete);
+        }
+    }
+
+    private void onComplete(Map<TopicPartition,OffsetAndMetadata> offsets, Exception exception) {
+        if (exception != null) {
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? exception : null)
+                  .log("Failed commit {}: {}", () -> offsets, () -> Helpers.resolveThrowableException(exception));
+        }
+    }
+
+    void processRecords(Consumer<Long, byte[]> consumer, ConsumerRecords<Long, byte[]> consumerRecords) {
         for (ConsumerRecord<Long, byte[]> kafakRecord: consumerRecords) {
             logger.trace("Got a record {}", kafakRecord);
-            KafkaContext ctxt = new KafkaContext(kafakRecord.topic());
+            KafkaContext ctxt = new KafkaContext(kafakRecord.topic(), () -> range.addValue(kafakRecord.offset()));
             Optional<Date> timestamp = Optional.empty().map(ts ->  kafakRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafakRecord.timestamp()) : null);
             byte[] content = kafakRecord.value();
             decodeStream(ctxt, content).forEach( e -> {
@@ -144,7 +164,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                 send(e);
             });
             if (isInterrupted()) {
-                brokenRecordHolder.compareAndSet(null, kafakRecord);
                 consumer.wakeup();
                 break;
             }
