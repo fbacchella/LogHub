@@ -144,7 +144,6 @@ public abstract class Sender extends Thread implements Closeable {
         this.classLoader = builder.classLoader;
         filter = builder.filter;
         setDaemon(true);
-        setName("sender-" + getSenderName());
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         encoder = builder.encoder;
         boolean onlyBatch = Optional.ofNullable(getClass().getAnnotation(CanBatch.class)).map(CanBatch::only).orElse(false);
@@ -159,7 +158,7 @@ public abstract class Sender extends Thread implements Closeable {
             threads = new Thread[builder.workers];
             batches = new LinkedBlockingQueue<>(threads.length * 2);
             publisher = getPublisher();
-            batch = new AtomicReference<>(new Batch(this));
+            batch = new AtomicReference<>();
         } else {
             flushInterval = 0;
             isAsync = getClass().getAnnotation(AsyncSender.class) != null;
@@ -177,6 +176,8 @@ public abstract class Sender extends Thread implements Closeable {
         if (threads != null) {
             buildSyncer(properties);
         }
+        setName("sender-" + getSenderName());
+        Optional.ofNullable(batch).ifPresent(b -> b.set(new Batch(this)));
         if (encoder != null) {
             return encoder.configure(properties, this);
         } else if (getClass().getAnnotation(SelfEncoder.class) == null) {

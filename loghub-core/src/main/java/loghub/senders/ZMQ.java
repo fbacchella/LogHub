@@ -56,9 +56,14 @@ public class ZMQ extends Sender {
     private final ZMQHandler<byte[]> handler;
     private final Thread publisher;
     private final CountDownLatch latch;
+    private final String senderName;
 
     public ZMQ(Builder builder) {
         super(builder);
+        senderName = "ZMQ/" + builder.getDestination()
+                                     .replace("://", "/")
+                                     .replace(":", "/")
+                                     .replace("*", "0.0.0.0");
         if (! isWithBatch()) {
             latch = null;
             exchanger = null;
@@ -163,7 +168,7 @@ public class ZMQ extends Sender {
 
     @Override
     public String getSenderName() {
-        return "ZMQ";
+        return senderName;
     }
 
     @Override

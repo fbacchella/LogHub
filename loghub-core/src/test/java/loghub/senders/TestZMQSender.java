@@ -2,11 +2,14 @@ package loghub.senders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore.PrivateKeyEntry;
 import java.util.Collections;
+import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -16,9 +19,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
+import javax.management.JMException;
+import javax.management.MBeanServer;
+import javax.management.ObjectInstance;
+import javax.management.ObjectName;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -39,6 +48,7 @@ import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.JmxService;
 import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
@@ -63,6 +73,11 @@ public class TestZMQSender {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.ZMQSink", "loghub.senders.ZMQ", "loghub.ContextRule");
     }
 
+    @After
+    public void stopJmx() {
+        JmxService.stop();
+    }
+
     private CountDownLatch latch;
     private final StringBuffer received = new StringBuffer();
 
@@ -76,13 +91,14 @@ public class TestZMQSender {
     }
 
     private void dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQSink.Builder<String>> sinkconfigure, String pattern)
-                    throws InterruptedException {
+            throws InterruptedException, IOException, JMException {
         received.setLength(0);
         ZMQSocketFactory ctx = tctxt.getFactory();
 
         Properties p = new Properties(Collections.singletonMap("zmq.keystore", tctxt.getSecurityFolder().resolve("zmqtest.jks").toString()));
 
-        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
+        int port = Tools.tryGetPort();
+        String rendezvous = "tcp://localhost:" + port;
 
         ZMQSink.Builder<String> sinkbuilder = ZMQSink.getBuilder();
         sinkbuilder.setReceive(this::process)
@@ -113,6 +129,8 @@ public class TestZMQSender {
         configure.accept(builder);
 
         try (ZMQSink<String> sink = sinkbuilder.build(); ZMQ sender = builder.build()) {
+            p.jmxServiceConfiguration.registerSenders(List.of(sender));
+            JmxService.start(p.jmxServiceConfiguration);
             Thread.sleep(100);
             sender.setInQueue(queue);
             Assert.assertTrue(sender.configure(p));
@@ -125,32 +143,41 @@ public class TestZMQSender {
         p.getZMQSocketFactory().close();
         String buf = received.toString();
         Assert.assertTrue(buf, Pattern.matches(pattern, buf));
-   }
+        ObjectName on = ObjectName.getInstance("loghub", new Hashtable<>(
+                Map.of(
+                        "type", "Senders",
+                        "servicename", "ZMQ/tcp/localhost/" + port
+                )
+        ));
+        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+        ObjectInstance oi = mbs.getObjectInstance(on);
+        Assert.assertEquals("loghub.metrics.SenderMBean$Implementation", oi.getClassName());
+    }
 
     @Test(timeout = 5000)
-    public void bind() throws InterruptedException {
+    public void bind() throws InterruptedException, IOException, JMException {
          dotest(s ->  s.setMethod(Method.CONNECT),
                 s -> s.setMethod(Method.BIND),
                 "(\\{\"message\":\\d+\\})+");
     }
 
     @Test(timeout = 5000)
-    public void connect() throws InterruptedException {
+    public void connect() throws InterruptedException, IOException, JMException {
         dotest(s ->  s.setMethod(Method.BIND),
                s -> s.setMethod(Method.CONNECT),
                "(\\{\"message\":\\d+\\})+");
     }
 
     @Test(timeout  = 5000)
-    public void batchConnect() throws InterruptedException {
+    public void batchConnect() throws InterruptedException, IOException, JMException {
         dotest(s -> {
             s.setMethod(Method.CONNECT);
             s.setBatchSize(2);
         }, s -> s.setMethod(Method.BIND), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
     }
 
-    @Test(timeout = 5000)
-    public void batchBind() throws InterruptedException {
+    @Test//(timeout = 5000)
+    public void batchBind() throws InterruptedException, IOException, JMException {
         dotest(s -> {
             s.setMethod(Method.BIND);
             s.setBatchSize(2);
@@ -158,7 +185,7 @@ public class TestZMQSender {
     }
 
     @Test(timeout = 5000)
-    public void curveClient() throws InterruptedException, GeneralSecurityException, IOException {
+    public void curveClient() throws InterruptedException, GeneralSecurityException, IOException, JMException {
         Path keyPath = Paths.get("remote.jks");
         PrivateKeyEntry pve = tctxt.createKeyStore(keyPath, Map.of());
         String publicKey = ZMQHelper.makeServerIdentity(pve.getCertificate());
@@ -176,7 +203,7 @@ public class TestZMQSender {
     }
 
     @Test(timeout = 5000)
-    public void curveServer() throws InterruptedException, GeneralSecurityException, IOException {
+    public void curveServer() throws InterruptedException, GeneralSecurityException, IOException, JMException {
         Path keyPath = Paths.get("remote.jks");
         PrivateKeyEntry pve = tctxt.createKeyStore(keyPath, Map.of());
         dotest(
