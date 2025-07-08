@@ -23,6 +23,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import loghub.FastExternalizeObject.Immutable;
 import loghub.Helpers;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,6 +32,7 @@ import lombok.Setter;
 @BuilderClass(Kafka.Builder.class)
 public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
+    @Immutable
     public static class KafkaContext extends ConnectionContext<Object> {
         public final String topic;
         KafkaContext(String topic) {

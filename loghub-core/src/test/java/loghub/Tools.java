@@ -202,6 +202,12 @@ public class Tools {
                                                  Consumer<Event> populateEvent)
             throws IOException, InterruptedException {
         Properties props = Tools.loadConf(new StringReader(configuration));
+        return processEventWithPipeline(factory, props, pipelineName, populateEvent);
+    }
+
+    public static Event processEventWithPipeline(EventsFactory factory, Properties props, String pipelineName,
+            Consumer<Event> populateEvent)
+            throws InterruptedException {
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100, props.repository);
         ep.start();
         BlockingConnectionContext ctx = new BlockingConnectionContext();

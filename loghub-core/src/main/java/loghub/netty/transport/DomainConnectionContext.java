@@ -2,13 +2,10 @@ package loghub.netty.transport;
 
 import io.netty.channel.unix.DomainSocketAddress;
 import loghub.ConnectionContext;
-import loghub.FastExternalizeObject;
+import loghub.FastExternalizeObject.Immutable;
 
+@Immutable
 public class DomainConnectionContext extends ConnectionContext<DomainSocketAddress> {
-
-    static {
-        FastExternalizeObject.registerImmutable(DomainConnectionContext.class);
-    }
 
     private final DomainSocketAddress remoteaddr;
     private final DomainSocketAddress localaddr;
