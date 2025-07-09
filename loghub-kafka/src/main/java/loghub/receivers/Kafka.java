@@ -25,6 +25,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.TimestampType;
@@ -109,6 +110,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     private final Map<Integer, RangeCollection> ranges = new ConcurrentHashMap<>();
     private final Class<?> clazz;
     private boolean withAutoCommit;
+    private final ClassLoader classLoader;
 
     protected Kafka(Builder builder) {
         super(builder);
@@ -118,9 +120,10 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         } else {
             consumerSupplier = getConsumer(builder);
         }
+        classLoader = builder.classLoader;
         if (builder.keyClassName != null) {
             try {
-                clazz = builder.classLoader.loadClass(builder.keyClassName);
+                clazz = classLoader.loadClass(builder.keyClassName);
             } catch (ClassNotFoundException e) {
                 throw new IllegalArgumentException("Class '" + builder.keyClassName + "' not found");
             }
@@ -152,6 +155,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
     @Override
     public void run() {
+        Thread.currentThread().setContextClassLoader(classLoader);
         try (Consumer<byte[], byte[]> consumer = consumerSupplier.get()) {
             consumerSupplier = null;
             Duration pollingInterval = Duration.ofMillis(100);
@@ -162,7 +166,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                         processRecords(consumer, consumerRecords);
                     }
                     commit(consumer);
-                } catch (WakeupException | org.apache.kafka.common.errors.InterruptException e) {
+                } catch (WakeupException | InterruptException e) {
                     break;
                 } catch (KafkaException ex) {
                     logger.atError().withThrowable(ex).log("Failed Kafka received: {}", Helpers.resolveThrowableException(ex));
