@@ -45,6 +45,13 @@ public class TestFastExternalizeObject {
     }
     private final UnserializableObject CANARY = new UnserializableObject();
 
+    public static class CloneableObject implements Cloneable {
+        @Override
+        public Object clone() throws CloneNotSupportedException {
+            return this;
+        }
+    }
+
     private void checkIdentity(Object o) throws IOException, ClassNotFoundException {
         Assert.assertSame(o, FastExternalizeObject.duplicate(o));
     }
@@ -74,6 +81,7 @@ public class TestFastExternalizeObject {
         checkIdentity(new MacAddress("01:02:03:04:05:06"));
         checkIdentity(UUID.randomUUID());
         checkIdentity(Map.of());
+        checkIdentity(new CloneableObject());
         // Avoid static compilation of a constant
         checkIdentity(new StringBuffer("Log").append("Hub").toString());
         checkEquality(new Date());

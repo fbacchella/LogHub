@@ -16,6 +16,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
@@ -326,9 +327,23 @@ public class FastExternalizeObject {
                 write(TYPE.EMPTY_CONTEXT.ordinal());
             } else if (o.getClass().isArray()) {
                 writeArray(o);
+            } else if (o instanceof Cloneable) {
+                tryClone(o);
             } else {
                 write(TYPE.OTHER.ordinal());
                 writeObject(o);
+            }
+        }
+
+        private void tryClone(Object obj) throws IOException {
+            try {
+                Method cloneMethod = obj.getClass().getMethod("clone");
+                Object cloned = cloneMethod.invoke(obj);
+                write(TYPE.IMMUTABLE.ordinal());
+                writeReference(cloned);
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                write(TYPE.OTHER.ordinal());
+                writeObject(obj);
             }
         }
 
