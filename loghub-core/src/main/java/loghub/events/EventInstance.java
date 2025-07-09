@@ -57,8 +57,9 @@ class EventInstance extends Event {
                 throw new IllegalStateException();
             } else {
                 FastObjectInputStream fois = (FastObjectInputStream) input;
+                EventsFactory factory = (EventsFactory) fois.readObjectFast();
                 ConnectionContext<?> ctx = (ConnectionContext<?>) fois.readObjectFast();
-                value = (EventInstance) fois.getFactory().newEvent(ctx);
+                value = (EventInstance) factory.newEvent(ctx);
                 value.timestamp = new Date(fois.readLong());
                 value.currentPipeline = fois.readUTF();
                 boolean nextPipeline = fois.readBoolean();
@@ -77,6 +78,7 @@ class EventInstance extends Event {
                 throw new IllegalStateException();
             } else {
                 FastObjectOutputStream foos = (FastObjectOutputStream) output;
+                foos.writeObjectFast(value.factory);
                 foos.writeObjectFast(value.getConnectionContext());
                 foos.writeLong(value.timestamp.getTime());
                 foos.writeUTF(value.currentPipeline);
@@ -173,14 +175,8 @@ class EventInstance extends Event {
      * @return a copy of this event, with a different key
      */
     public Event duplicate() throws ProcessorException {
-        // FastObjectInputStream
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); FastObjectOutputStream oos = new FastObjectOutputStream(bos)) {
-            oos.writeObjectFast(this);
-            oos.flush();
-            bos.flush();
-            try (FastObjectInputStream ois = new FastObjectInputStream(bos.toByteArray(), factory, oos)) {
-                return ((EventInstance) ois.readObjectFast());
-            }
+        try {
+            return FastExternalizeObject.duplicate(this);
         } catch (ClassNotFoundException | IOException | RuntimeException ex) {
             throw new ProcessorException(this, "Unable to serialise event : " + Helpers.resolveThrowableException(ex), ex);
         }

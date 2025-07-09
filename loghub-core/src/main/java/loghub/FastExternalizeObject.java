@@ -1,6 +1,7 @@
 package loghub;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -43,12 +44,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-
-import loghub.events.EventsFactory;
-import lombok.Getter;
 
 public class FastExternalizeObject {
 
@@ -101,7 +100,7 @@ public class FastExternalizeObject {
     private static final MAPCONSTRUCTOR[] MAPCONSTRUCTORS = MAPCONSTRUCTOR.values();
 
     private static final Map<Class<? extends Map>, MAPCONSTRUCTOR> MAP_MAPPING = Map.ofEntries(
-            Map.entry(Map.of().getClass(), MAPCONSTRUCTOR.EMPTYMAP),
+            Map.entry(Map.of().getClass(), MAPCONSTRUCTOR.HASHMAP),
             Map.entry(Map.of(1, 2).getClass(), MAPCONSTRUCTOR.HASHMAP),
             Map.entry(IdentityHashMap.class, MAPCONSTRUCTOR.IDENTITYHASHMAP),
             Map.entry(ConcurrentHashMap.class, MAPCONSTRUCTOR.CONCURRENTHASHMAP),
@@ -110,14 +109,10 @@ public class FastExternalizeObject {
     );
 
     public static class FastObjectInputStream extends ObjectInputStream {
-
-        @Getter
-        private final EventsFactory factory;
         private final FastObjectOutputStream out;
 
-        public FastObjectInputStream(byte[] buffer, EventsFactory factory, FastObjectOutputStream out) throws IOException {
+        public FastObjectInputStream(byte[] buffer, FastObjectOutputStream out) throws IOException {
             super(new ByteArrayInputStream(buffer));
-            this.factory = factory;
             this.out = out;
         }
 
@@ -317,6 +312,9 @@ public class FastExternalizeObject {
                          InvocationTargetException e) {
                     throw new IllegalStateException(e);
                 }
+            } else if (o  == Map.of()) {
+                write(TYPE.IMMUTABLE.ordinal());
+                writeReference(o);
             } else if (o instanceof Map && MAP_MAPPING.containsKey(o.getClass())) {
                 write(TYPE.MAP.ordinal());
                 writeInt(MAP_MAPPING.get(o.getClass()).ordinal());
@@ -372,6 +370,14 @@ public class FastExternalizeObject {
             }
         }
 
+        private static boolean isImmutable(Class<?> oClass) {
+            return SocketAddress.class.isAssignableFrom(oClass)
+                           || InetAddress.class.isAssignableFrom(oClass)
+                           || oClass.isEnum()
+                           || immutables.contains(oClass)
+                           || oClass.isAnnotationPresent(Immutable.class);
+        }
+
         @Override
         public void writeUTF(String str) throws IOException {
             writeReference(str);
@@ -390,14 +396,6 @@ public class FastExternalizeObject {
             immutableObjectsCache.clear();
         }
 
-    }
-
-    private static boolean isImmutable(Class<?> oClass) {
-        return SocketAddress.class.isAssignableFrom(oClass)
-               || InetAddress.class.isAssignableFrom(oClass)
-               || oClass.isEnum()
-               || immutables.contains(oClass)
-               || oClass.isAnnotationPresent(Immutable.class);
     }
 
     public abstract static class ObjectFaster<T> implements Externalizable {
@@ -431,8 +429,7 @@ public class FastExternalizeObject {
                 newMap.clear();
                 foos.writeReference(newMap);
                 foos.writeInt(value.size());
-                for(Object i: get().entrySet()) {
-                    Map.Entry<?, ?>  e = (Map.Entry<?, ?>)i;
+                for(Map.Entry<?, ?> e: get().entrySet()) {
                     foos.writeObjectFast(e.getKey());
                     foos.writeObjectFast(e.getValue());
                 }
@@ -482,6 +479,7 @@ public class FastExternalizeObject {
         immutables.add(Long.class);
         immutables.add(Float.class);
         immutables.add(Double.class);
+        immutables.add(UUID.class);
 
         faster.put(EnumMap.class, EnumMapSerializer.class);
     }
@@ -491,6 +489,19 @@ public class FastExternalizeObject {
     }
     public static void registerImmutable(Class<?> clazz) {
         immutables.add(clazz);
+    }
+
+    public static <T> T duplicate(T object) throws IOException, ClassNotFoundException {
+        // FastObjectInputStream
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); FastObjectOutputStream oos = new FastObjectOutputStream(bos)) {
+            oos.writeObjectFast(object);
+            oos.flush();
+            bos.flush();
+            try (FastObjectInputStream ois = new FastObjectInputStream(bos.toByteArray(), oos)) {
+                return ((T) ois.readObjectFast());
+            }
+        }
+
     }
 
     private FastExternalizeObject() {
