@@ -26,6 +26,7 @@ import org.apache.kafka.common.serialization.LongDeserializer;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import loghub.FastExternalizeObject.Immutable;
 import loghub.Helpers;
 import loghub.kafka.KafkaProperties;
 import loghub.kafka.range.RangeCollection;
@@ -38,6 +39,7 @@ import lombok.Setter;
 @BuilderClass(Kafka.Builder.class)
 public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
+    @Immutable
     public static class KafkaContext extends ConnectionContext<Object> {
         public final String topic;
         private final Runnable onAcknowledge;

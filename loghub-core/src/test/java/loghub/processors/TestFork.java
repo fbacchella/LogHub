@@ -5,13 +5,20 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -23,7 +30,7 @@ import org.junit.Test;
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
 import loghub.LogUtils;
-import loghub.Pipeline;
+import loghub.NullOrMissingValue;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
@@ -43,64 +50,78 @@ public class TestFork {
     }
 
     @Test
-    public void testFork() throws ConfigException, IOException {
-        String confile = "pipeline[newpipe] {}";
-
+    public void testFork() throws ConfigException, IOException, InterruptedException {
+        String confile = "pipeline[newpipe] {} pipeline[main] { +$newpipe}";
         Properties conf = Tools.loadConf(new StringReader(confile));
-        Forker forker = new Forker();
-        forker.setDestination("newpipe");
-        Assert.assertTrue(forker.configure(conf));
-        Event event = factory.newTestEvent();
-        Pipeline ppl = new Pipeline(Collections.emptyList(), "main", null);
-        event.inject(ppl, conf.mainQueue, true);
+
+        Map<String, Object> m =  new HashMap<>();
+        InetAddress inet4Address = InetAddress.getByName("8.8.8.8");
+        InetAddress inet6Address = InetAddress.getByName("2001:4860:4860::8888");
         Map<?, ?> boolMap = new HashMap<>(Map.of("a", true, "b", false));
         Map<?, ?> intMap = new HashMap<>(Map.of("a", (byte) 1, "b", (short) 2, "c", 3, "d", 4L));
         Map<?, ?> floatMap = new HashMap<>(Map.of("a", 1.0f, "b", 2.0));
         Map<?, ?> textMap = new HashMap<>(Map.of("a", 'a', "b", "b"));
         Map<?, ?> timeMap = new HashMap<>(Map.of("a", new Date(1), "b", Instant.ofEpochSecond(2, 3)));
+        InetSocketAddress inetSocketAddress = new InetSocketAddress("8.8.8.8", 53);
         List<Object> list = new ArrayList<>(List.of(ConnectionContext.EMPTY));
         list.add(null);
-
-        Map<String, Object> m =  new HashMap<>();
-        m.put("boolMap", boolMap);
-        m.put("intMap", intMap);
-        m.put("floatMap", floatMap);
-        m.put("textMap", textMap);
-        m.put("timeMap", timeMap);
-        m.put("list", list);
-        InetAddress inetAddress = InetAddress.getByName("8.8.8.8");
-        m.put("inetAddress", inetAddress);
-        InetAddress inet6Address = InetAddress.getByName("2001:4860:4860::8888");
-        m.put("inet6Address", inet6Address);
-        InetSocketAddress inetSocketAddress = new InetSocketAddress("8.8.8.8", 53);
-        m.put("inetSocketAddress", inetSocketAddress);
-        event.put("message", m);
-        event.put("arrayBool", new Boolean[]{true, false});
-        event.put("arrayInt", new Integer[]{1, 2});
-        event.put("arrayInstant", new Instant[]{Instant.ofEpochSecond(0)});
-        event.put("uuid", new Instant[]{Instant.ofEpochSecond(0)});
-
-        event.putMeta("meta", 1);
-        forker.fork(event);
-
-        // Removing the original event
-        conf.mainQueue.remove();
-        Event forked = conf.mainQueue.remove();
-        Map<?, ?> message = (Map<?, ?>) forked.get("message");
-        Assert.assertEquals(boolMap, message.get("boolMap"));
-        Assert.assertEquals(intMap, message.get("intMap"));
-        Assert.assertEquals(floatMap, message.get("floatMap"));
-        Assert.assertEquals(textMap, message.get("textMap"));
-        Assert.assertEquals(timeMap, message.get("timeMap"));
-        Assert.assertEquals(list, message.get("list"));
-        Assert.assertEquals(1, forked.getMeta("meta"));
-        Assert.assertEquals(ConnectionContext.EMPTY, forked.getConnectionContext());
-        Assert.assertEquals(System.identityHashCode(inetAddress), System.identityHashCode(message.get("inetAddress")));
-        Assert.assertEquals(System.identityHashCode(inetSocketAddress), System.identityHashCode(message.get("inetSocketAddress")));
-        Assert.assertEquals(System.identityHashCode(inet6Address), System.identityHashCode(message.get("inet6Address")));
-        Assert.assertArrayEquals(new Boolean[]{true, false}, (Boolean[]) event.get("arrayBool"));
-        Assert.assertArrayEquals(new Integer[]{1, 2}, (Integer[]) event.get("arrayInt"));
-        Assert.assertArrayEquals(new Instant[]{Instant.ofEpochSecond(0)}, (Instant[]) event.get("arrayInstant"));
+        Instant now = Instant.now();
+        ZonedDateTime zdtNow = ZonedDateTime.now();
+        Map<DayOfWeek, Integer> daysMapping = Arrays.stream(DayOfWeek.values()).collect(Collectors.toMap(
+                d -> d, DayOfWeek::getValue,
+                (a, b) -> b,
+                () -> new EnumMap<>(DayOfWeek.class)));
+        Event processed = Tools.processEventWithPipeline(factory, conf, "main", e -> {
+            m.put("boolMap", boolMap);
+            m.put("intMap", intMap);
+            m.put("floatMap", floatMap);
+            m.put("textMap", textMap);
+            m.put("timeMap", timeMap);
+            m.put("list", list);
+            m.put("inet4Address", inet4Address);
+            m.put("inet6Address", inet6Address);
+            m.put("inetSocketAddress", inetSocketAddress);
+            e.put("message", m);
+            e.put("arrayBool", new Boolean[]{true, false});
+            e.put("arrayInt", new Integer[]{1, 2});
+            e.put("arrayInstant", new Temporal[]{now, zdtNow});
+            e.put("uuid", new Instant[]{Instant.ofEpochSecond(0)});
+            e.put("null", new Object[]{null, NullOrMissingValue.NULL});
+            e.put("emptyMap", Map.of());
+            e.put("staticMap", Map.of(1, 2));
+            e.put("daysMapping", daysMapping);
+            e.putMeta("meta", 1);
+        });
+        Consumer<Event> checkEvent = e -> {
+            Map<?, ?> message = (Map<?, ?>) e.get("message");
+            Assert.assertEquals(boolMap, message.get("boolMap"));
+            Assert.assertEquals(intMap, message.get("intMap"));
+            Assert.assertEquals(floatMap, message.get("floatMap"));
+            Assert.assertEquals(textMap, message.get("textMap"));
+            Assert.assertEquals(timeMap, message.get("timeMap"));
+            @SuppressWarnings("unchecked")
+            List<Object> newList = (List<Object>)message.get("list");
+            Assert.assertSame(ConnectionContext.EMPTY, newList.get(0));
+            Assert.assertEquals(NullOrMissingValue.NULL, newList.get(1));
+            Assert.assertEquals(1, e.getMeta("meta"));
+            Assert.assertSame(inet4Address, message.get("inet4Address"));
+            Assert.assertSame(inet6Address, message.get("inet6Address"));
+            Assert.assertSame(inetSocketAddress, message.get("inetSocketAddress"));
+            Assert.assertArrayEquals(new Boolean[]{true, false}, (Boolean[]) e.get("arrayBool"));
+            Assert.assertArrayEquals(new Integer[]{1, 2}, (Integer[]) e.get("arrayInt"));
+            Temporal[] arrayInstant = (Temporal[]) e.get("arrayInstant");
+            Assert.assertEquals(2, arrayInstant.length);
+            Assert.assertSame(now, arrayInstant[0]);
+            Assert.assertSame(zdtNow, arrayInstant[1]);
+            Assert.assertSame(Map.of(), e.get("emptyMap"));
+            Assert.assertEquals(Map.of(1, 2), e.get("staticMap"));
+            Assert.assertEquals(daysMapping, e.get("daysMapping"));
+        };
+        checkEvent.accept(processed);
+        Event forked = conf.mainQueue.poll(100, TimeUnit.MILLISECONDS);
+        Assert.assertNotNull(forked);
+        checkEvent.accept(forked);
+        Assert.assertArrayEquals(new Object[]{NullOrMissingValue.NULL, NullOrMissingValue.NULL}, (Object[]) forked.get("null"));
     }
 
     @Test

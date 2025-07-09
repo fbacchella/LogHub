@@ -6,10 +6,12 @@ import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import loghub.FastExternalizeObject.Immutable;
 import loghub.VarFormatter;
 import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode
+@Immutable
 public class MacAddress {
 
     private static final Pattern macPattern = Pattern.compile("([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})(?:[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2}))?");

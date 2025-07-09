@@ -12,9 +12,11 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Timer;
 
 import loghub.ConnectionContext;
+import loghub.FastExternalizeObject.Immutable;
 import loghub.Pipeline;
 import loghub.decoders.DecodeException;
 
+@Immutable
 public class EventsFactory {
 
     private static final Logger logger = LogManager.getLogger();

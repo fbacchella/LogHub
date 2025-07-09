@@ -11,12 +11,14 @@ import javax.naming.ldap.Rdn;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import loghub.FastExternalizeObject.Immutable;
 import loghub.Helpers;
 import lombok.Data;
 import lombok.Getter;
 
 @Getter
 @Data
+@Immutable
 public class Dn {
 
     private final LdapName name;
