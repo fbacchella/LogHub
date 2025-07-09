@@ -110,7 +110,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     private final Map<Integer, RangeCollection> ranges = new ConcurrentHashMap<>();
     private final Class<?> clazz;
     private boolean withAutoCommit;
-    private final ClassLoader classLoader;
 
     protected Kafka(Builder builder) {
         super(builder);
@@ -120,10 +119,9 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         } else {
             consumerSupplier = getConsumer(builder);
         }
-        classLoader = builder.classLoader;
         if (builder.keyClassName != null) {
             try {
-                clazz = classLoader.loadClass(builder.keyClassName);
+                clazz = builder.classLoader.loadClass(builder.keyClassName);
             } catch (ClassNotFoundException e) {
                 throw new IllegalArgumentException("Class '" + builder.keyClassName + "' not found");
             }
@@ -131,6 +129,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             clazz = null;
         }
         withAutoCommit = builder.withAutoCommit;
+        setContextClassLoader(builder.classLoader);
     }
 
     private Supplier<Consumer<byte[], byte[]>> getConsumer(Builder builder) {
@@ -155,7 +154,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
     @Override
     public void run() {
-        Thread.currentThread().setContextClassLoader(classLoader);
         try (Consumer<byte[], byte[]> consumer = consumerSupplier.get()) {
             consumerSupplier = null;
             Duration pollingInterval = Duration.ofMillis(100);

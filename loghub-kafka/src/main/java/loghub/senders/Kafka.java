@@ -69,6 +69,7 @@ public class Kafka extends Sender {
         private ClientAuthentication sslClientAuthentication;
         private String securityProtocol;
         private String saslKerberosServiceName;
+        private ClassLoader classLoader = Kafka.class.getClassLoader();
 
         private Expression keySerializer = new Expression("random", ed -> Math.random());
         private String compressionType;
@@ -103,6 +104,7 @@ public class Kafka extends Sender {
         } else {
             producerSupplier = getProducer(builder);
         }
+        setContextClassLoader(builder.classLoader);
     }
 
     @Override
