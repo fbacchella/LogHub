@@ -33,20 +33,20 @@ public class TestKafka {
     private static Logger logger;
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "org.apache.kafka", "loghub.receivers.Kafka");
     }
 
     @Test
-    public void testone() throws InterruptedException, IOException {
+    public void testone() throws InterruptedException {
         Kafka.Builder builder = Kafka.getBuilder();
         builder.setDecoder(StringCodec.getBuilder().build());
         builder.setBrokers(new String[] {"192.168.0.13"});
         builder.setTopic("test");
         builder.setDecoder(StringCodec.getBuilder().build());
-        MockConsumer<Long, byte[]> mockConsumer = getMockConsumer();
+        MockConsumer<byte[], byte[]> mockConsumer = getMockConsumer();
         builder.setConsumer(mockConsumer);
 
         try (Kafka r = builder.build()) {
@@ -63,8 +63,8 @@ public class TestKafka {
         }
     }
 
-    private MockConsumer<Long, byte[]> getMockConsumer() {
-        MockConsumer<Long, byte[]> consumer = new MockConsumer(OffsetResetStrategy.EARLIEST);
+    private MockConsumer<byte[], byte[]> getMockConsumer() {
+        MockConsumer<byte[], byte[]> consumer = new MockConsumer<>("earliest");
         TopicPartition partition = new TopicPartition("test", 0);
         consumer.assign(List.of(partition));
         Map<TopicPartition, Long> beginningOffsets = new HashMap<>();
