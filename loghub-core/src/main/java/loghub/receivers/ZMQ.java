@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -101,11 +102,12 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
                 if (message.length > 0) {
                     ZmqConnectionContext zctxt = new ZmqConnectionContext(msg, security);
                     // Needs a copy because metadata are reused
-                    Map<String, String> md = msg.getMetadata()
-                                                .entrySet()
-                                                .stream()
-                                                .filter(this::filterMetaData)
-                                                .collect(METADATA_COLLECTOR);
+                    Map<String, String> md = Optional.ofNullable(msg.getMetadata())
+                                                     .map(Metadata::entrySet)
+                                                     .orElse(Set.of())
+                                                     .stream()
+                                                     .filter(this::filterMetaData)
+                                                     .collect(METADATA_COLLECTOR);
                     decodeStream(zctxt, message).forEach(ev -> {
                         md.forEach(ev::putMeta);
                         send(ev);
