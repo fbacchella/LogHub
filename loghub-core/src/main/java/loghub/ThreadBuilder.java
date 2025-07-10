@@ -51,6 +51,7 @@ public class ThreadBuilder {
     private Boolean daemon = null;
     private boolean shutdownHook = false;
     private Thread.UncaughtExceptionHandler exceptionHandler = DEFAULTUNCAUGHTEXCEPTIONHANDLER;
+    private ClassLoader contextClassLoader = null;
 
     private ThreadFactory factory = null;
 
@@ -82,6 +83,7 @@ public class ThreadBuilder {
         if (name != null) t.setName(name);
         if (shutdownHook) Runtime.getRuntime().addShutdownHook(t);
         if (exceptionHandler != null) t.setUncaughtExceptionHandler(exceptionHandler);
+        if (contextClassLoader != null) t.setContextClassLoader(contextClassLoader);
         if (start) t.start();
         return t;
     }
@@ -98,6 +100,7 @@ public class ThreadBuilder {
         newBuilder.shutdownHook = shutdownHook;
         newBuilder.exceptionHandler = exceptionHandler;
         newBuilder.factory = factory;
+        newBuilder.contextClassLoader = contextClassLoader;
 
         return r -> {
             // synchronized so the ThreadFactory is thread safe

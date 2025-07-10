@@ -537,7 +537,12 @@ public final class Helpers {
      */
     public static void parallelStartProcessor(Properties props) {
         // Running processor init in parallel, as Groovy expression parsing is slow
-        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+        ExecutorService executor = Executors.newFixedThreadPool(
+                Runtime.getRuntime().availableProcessors() * 2,
+                ThreadBuilder.get()
+                             .setContextClassLoader(props.classloader)
+                             .getFactory("ProcessorStart")
+        );
         List<Future<Boolean>> results = new ArrayList<>(props.pipelines.size());
         props.pipelines.forEach(p -> p.configure(props, executor, results));
         executor.shutdown();
