@@ -2,6 +2,7 @@ package loghub.senders;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -108,10 +109,14 @@ public class Kafka extends Sender {
     }
 
     @Override
-    public boolean configure(Properties properties) {
+    public void run() {
         producer = producerSupplier.get();
         producerSupplier = null;
-        return super.configure(properties);
+        try {
+            super.run();
+        } finally {
+            Optional.ofNullable(producer).ifPresent(Producer::close);
+        }
     }
 
     private Supplier<Producer<Event, byte[]>> getProducer(Kafka.Builder builder) {
