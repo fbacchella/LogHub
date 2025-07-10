@@ -24,6 +24,7 @@ import loghub.ProcessorException;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
 import loghub.kafka.KafkaProperties;
+import loghub.kafka.KeyTypes;
 import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.AccessLevel;
@@ -34,36 +35,12 @@ import lombok.Setter;
 @AsyncSender
 public class Kafka extends Sender {
 
-    private static class KafkaKeySerializer implements Serializer<Event> {
-        private final Expression keySerializer;
-
-        private KafkaKeySerializer(Expression keySerializer) {
-            this.keySerializer = keySerializer;
-        }
-
-        /**
-         * Convert {@code data} into a byte array.
-         *
-         * @param topic topic associated with data
-         * @param data  typed data
-         * @return serialized bytes
-         */
-        @Override
-        public byte[] serialize(String topic, Event data) {
-            try {
-                return keySerializer.eval(data, topic).toString().getBytes(StandardCharsets.UTF_8);
-            } catch (ProcessorException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-    }
-
     @Setter @Getter
     public static class Builder extends Sender.Builder<Kafka> implements KafkaProperties {
         private String[] brokers = new String[] {"localhost"};
         private int port = 9092;
-        private String topic;
-        private String group = "loghub";
+        private String topic = "LogHub";
+        private String group = "LogHub";
         private SSLContext sslContext;
         private SSLParameters sslParams;
         private ClientAuthentication sslClientAuthentication;
@@ -79,7 +56,7 @@ public class Kafka extends Sender {
 
         // Only used for tests
         @Setter(AccessLevel.PACKAGE)
-        private Producer<Event, byte[]> producer;
+        private Producer<byte[], byte[]> producer;
         @Override
         public Kafka build() {
             return new Kafka(this);
@@ -91,12 +68,15 @@ public class Kafka extends Sender {
 
     @Getter
     private final String topic;
-    private Supplier<Producer<Event, byte[]>> producerSupplier;
-    private Producer<Event, byte[]> producer;
+    private final Expression keySerializer;
+    private Supplier<Producer<byte[], byte[]>> producerSupplier;
+    private Producer<byte[], byte[]> producer;
+    private final Serializer<byte[]> nopeSerializer = new ByteArraySerializer();
 
     public Kafka(Builder builder) {
         super(builder);
         this.topic = builder.topic;
+        this.keySerializer = builder.keySerializer;
         if (builder.producer != null) {
             producerSupplier = () -> builder.producer;
         } else {
@@ -115,7 +95,7 @@ public class Kafka extends Sender {
         }
     }
 
-    private Supplier<Producer<Event, byte[]>> getProducer(Kafka.Builder builder) {
+    private Supplier<Producer<byte[], byte[]>> getProducer(Kafka.Builder builder) {
         Map<String, Object> props = builder.configureKafka(logger);
         if (builder.compressionType != null) {
             props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, builder.compressionType);
@@ -129,16 +109,27 @@ public class Kafka extends Sender {
         if (builder.linger > 0) {
             props.put(ProducerConfig.LINGER_MS_CONFIG, builder.linger);
         }
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, builder.keySerializer);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, nopeSerializer);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, builder.batchSize);
 
-        return () -> new KafkaProducer<>(props, new KafkaKeySerializer(builder.keySerializer), new ByteArraySerializer());
+        return () -> new KafkaProducer<>(props, nopeSerializer, new ByteArraySerializer());
     }
 
     @Override
     protected boolean send(Event event) throws EncodeException {
-        ProducerRecord<Event, byte[]> kRecord = new ProducerRecord<>(topic, null, event.getTimestamp().getTime(), event, encode(event));
+        byte[] keyData;
+        byte keyClass;
+        try {
+            Object key = keySerializer.eval(event, topic);
+            KeyTypes type = KeyTypes.resolve(key);
+            keyData = type.write(key);
+            keyClass = type.getId();
+        } catch (ProcessorException e) {
+            throw new EncodeException("Key serialization failed", e);
+        }
+        ProducerRecord<byte[], byte[]> kRecord = new ProducerRecord<>(topic, null, event.getTimestamp().getTime(), keyData, encode(event));
+        kRecord.headers().add(KeyTypes.HEADER_NAME, new byte[]{keyClass});
         producer.send(kRecord, (m, ex) -> {
             if (ex != null) {
                 // All kafka exception are handled as IO exception, logged without stack unless requested

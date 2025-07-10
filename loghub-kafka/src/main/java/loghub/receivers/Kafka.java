@@ -36,6 +36,7 @@ import loghub.ConnectionContext;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.kafka.KafkaProperties;
+import loghub.kafka.KeyTypes;
 import loghub.kafka.range.RangeCollection;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.AccessLevel;
@@ -210,17 +211,31 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             );
             Optional<Date> timestamp = Optional.empty().map(ts ->  kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null);
             byte[] content = kafkaRecord.value();
-            byte[] key = kafkaRecord.key();
             decodeStream(ctxt, content).forEach( e -> {
                 timestamp.ifPresent(e::setTimestamp);
                 getHeaders(kafkaRecord).forEach(e::putMeta);
                 e.putMeta("kafka_topic", kafkaRecord.topic());
                 e.putMeta("kafka_partition", kafkaRecord.partition());
+                byte[] keyBytes = kafkaRecord.key();
                 if (clazz != null) {
                     try {
-                        e.putMeta("kafka_key", Expression.convertObject(clazz, key, StandardCharsets.UTF_8, ByteOrder.BIG_ENDIAN));
+                        e.putMeta("kafka_key", Expression.convertObject(clazz, keyBytes, StandardCharsets.UTF_8, ByteOrder.BIG_ENDIAN));
                     } catch (UnknownHostException | InvocationTargetException ex) {
                         logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Unable to decode key: {}", () -> Helpers.resolveThrowableException(ex));
+                    }
+                } else if (kafkaRecord.headers().lastHeader(KeyTypes.HEADER_NAME) != null){
+                    byte[] keyTypeHeaderValue = kafkaRecord.headers().lastHeader(KeyTypes.HEADER_NAME).value();
+                    if (keyTypeHeaderValue.length == 1) {
+                        byte keyType = keyTypeHeaderValue[0];
+                        try {
+                            e.putMeta("kafka_key", KeyTypes.getById(keyType).read(keyBytes));
+                        } catch (IllegalArgumentException ex) {
+                            e.putMeta("kafka_key", keyBytes);
+                            e.putMeta("kafka_keyType", keyType);
+                        }
+                    } else {
+                        e.putMeta("kafka_key", keyBytes);
+                        e.putMeta("kafka_keyType", keyTypeHeaderValue);
                     }
                 }
                 send(e);
@@ -236,7 +251,9 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         Header[] h = kafakRecord.headers().toArray();
         if (h.length > 0) {
             Map<String, byte[]> headersMap = new HashMap<>(h.length);
-            Arrays.stream(h).forEach( i-> headersMap.put(i.key(), i.value()));
+            Arrays.stream(h)
+                  .filter(e -> ! KeyTypes.HEADER_NAME.equals(e.key()))
+                  .forEach( i-> headersMap.put(i.key(), i.value()));
             return headersMap;
         } else {
             return Map.of();
