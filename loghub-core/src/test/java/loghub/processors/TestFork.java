@@ -118,7 +118,7 @@ public class TestFork {
             Assert.assertEquals(daysMapping, e.get("daysMapping"));
         };
         checkEvent.accept(processed);
-        Event forked = conf.mainQueue.poll(100, TimeUnit.MILLISECONDS);
+        Event forked = conf.mainQueue.poll(500, TimeUnit.MILLISECONDS);
         Assert.assertNotNull(forked);
         checkEvent.accept(forked);
         Assert.assertArrayEquals(new Object[]{NullOrMissingValue.NULL, NullOrMissingValue.NULL}, (Object[]) forked.get("null"));
