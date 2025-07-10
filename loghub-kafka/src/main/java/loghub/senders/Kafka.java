@@ -21,7 +21,6 @@ import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;
-import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
 import loghub.kafka.KafkaProperties;
@@ -70,8 +69,6 @@ public class Kafka extends Sender {
         private ClientAuthentication sslClientAuthentication;
         private String securityProtocol;
         private String saslKerberosServiceName;
-        private ClassLoader classLoader = Kafka.class.getClassLoader();
-
         private Expression keySerializer = new Expression("random", ed -> Math.random());
         private String compressionType;
         private int retries = -1;
@@ -105,7 +102,6 @@ public class Kafka extends Sender {
         } else {
             producerSupplier = getProducer(builder);
         }
-        setContextClassLoader(builder.classLoader);
     }
 
     @Override

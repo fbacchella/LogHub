@@ -259,6 +259,7 @@ public class GrammarParserFiltering {
                                              .toArray(String[]::new);
                 classLoader = doClassLoader(paths, classLoader);
             }
+            Thread.currentThread().setContextClassLoader(classLoader);
             refreshPropertiesTypes();
         } catch (IOException ex) {
             throw new ConfigException("Not valid includes path: " + Helpers.resolveThrowableException(ex), ex);

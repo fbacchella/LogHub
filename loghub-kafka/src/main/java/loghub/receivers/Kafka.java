@@ -129,7 +129,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             clazz = null;
         }
         withAutoCommit = builder.withAutoCommit;
-        setContextClassLoader(builder.classLoader);
     }
 
     private Supplier<Consumer<byte[], byte[]>> getConsumer(Builder builder) {

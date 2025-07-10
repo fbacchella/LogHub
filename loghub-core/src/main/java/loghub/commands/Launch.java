@@ -89,6 +89,7 @@ public class Launch implements BaseParametersRunner {
     }
 
     public void launch(Properties props, SystemdHandler systemd) throws ConfigException {
+        Thread.currentThread().setContextClassLoader(props.classloader);
         try {
             JmxService.start(props.jmxServiceConfiguration);
         } catch (IOException e) {
@@ -115,6 +116,7 @@ public class Launch implements BaseParametersRunner {
 
         for (Sender s : props.senders) {
             s.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+            s.setContextClassLoader(props.classloader);
             try {
                 if (s.configure(props)) {
                     s.start();
@@ -131,6 +133,7 @@ public class Launch implements BaseParametersRunner {
         if (! failed) {
             for (EventsProcessor ep : props.eventsprocessors) {
                 ep.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+                ep.setContextClassLoader(props.classloader);
                 ep.start();
             }
             Helpers.waitAllThreads(props.eventsprocessors.stream());
@@ -138,6 +141,7 @@ public class Launch implements BaseParametersRunner {
 
         for (Receiver<?, ?> r : props.receivers) {
             r.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+            r.setContextClassLoader(props.classloader);
             try {
                 if (r.configure(props)) {
                     // Only start if not failed. Avoid swallowing events and latter discard them
