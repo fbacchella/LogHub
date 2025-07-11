@@ -1,5 +1,8 @@
 package loghub.kafka;
 
+import java.io.UncheckedIOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -7,17 +10,25 @@ import java.nio.charset.StandardCharsets;
 import lombok.Getter;
 
 public enum KeyTypes {
-    DOUBLE(0) {
+    UNKNOWN(0) {
+        public Object read(byte[] content) {
+            return new String(content, StandardCharsets.UTF_8);
+        }
+        public byte[] write(Object value) {
+            return value.toString().getBytes(StandardCharsets.UTF_8);
+        }
+    },
+    DOUBLE(1) {
         public Object read(byte[] content) {
             return ByteBuffer.wrap(content).order(BYTE_ORDER).getDouble();
         }
         public byte[] write(Object value) {
-            byte[] buffer = new byte[8]; // Correction: double fait 8 bytes
+            byte[] buffer = new byte[8];
             ByteBuffer.wrap(buffer).order(BYTE_ORDER).putDouble((Double)value);
             return buffer;
         }
     },
-    FLOAT(1) {
+    FLOAT(2) {
         public Object read(byte[] content) {
             return ByteBuffer.wrap(content).order(BYTE_ORDER).getFloat();
         }
@@ -27,7 +38,7 @@ public enum KeyTypes {
             return buffer;
         }
     },
-    LONG(2) {
+    LONG(3) {
         public Object read(byte[] content) {
             return ByteBuffer.wrap(content).order(BYTE_ORDER).getLong();
         }
@@ -37,7 +48,7 @@ public enum KeyTypes {
             return buffer;
         }
     },
-    INTEGER(3) {
+    INTEGER(4) {
         public Object read(byte[] content) {
             return ByteBuffer.wrap(content).order(BYTE_ORDER).getInt();
         }
@@ -47,7 +58,7 @@ public enum KeyTypes {
             return buffer;
         }
     },
-    SHORT(4) {
+    SHORT(5) {
         public Object read(byte[] content) {
             return ByteBuffer.wrap(content).order(BYTE_ORDER).getShort();
         }
@@ -57,7 +68,7 @@ public enum KeyTypes {
             return buffer;
         }
     },
-    BYTE(5) {
+    BYTE(6) {
         public Object read(byte[] content) {
             return content[0];
         }
@@ -65,7 +76,7 @@ public enum KeyTypes {
             return new byte[] { (Byte)value };
         }
     },
-    BOOLEAN(6) {
+    BOOLEAN(7) {
         public Object read(byte[] content) {
             return content[0] != 0;
         }
@@ -73,7 +84,7 @@ public enum KeyTypes {
             return new byte[] { (byte)((boolean)value ? 1 : 0) };
         }
     },
-    CHARACTER(7) {
+    CHARACTER(8) {
         public Object read(byte[] content) {
             return ByteBuffer.wrap(content).order(BYTE_ORDER).getChar();
         }
@@ -83,7 +94,7 @@ public enum KeyTypes {
             return buffer;
         }
     },
-    STRING(8) {
+    STRING(9) {
         public Object read(byte[] content) {
             return new String(content, StandardCharsets.UTF_8);
         }
@@ -91,14 +102,27 @@ public enum KeyTypes {
             return ((String)value).getBytes(StandardCharsets.UTF_8);
         }
     },
-    BYTE_ARRAY(9) {
+    BYTE_ARRAY(10) {
         public Object read(byte[] content) {
             return content.clone();
         }
         public byte[] write(Object value) {
             return ((byte[])value).clone();
         }
-    };
+    },
+    INET_ADDRESS(11) {
+        public Object read(byte[] content) {
+            try {
+                return InetAddress.getByAddress(content);
+            } catch (UnknownHostException ex) {
+                throw new UncheckedIOException(ex);
+            }
+        }
+        public byte[] write(Object value) {
+            return ((InetAddress) value).getAddress();
+        }
+    }
+    ;
 
     private static final ByteOrder BYTE_ORDER = ByteOrder.LITTLE_ENDIAN;
     private static final KeyTypes[] ID_CACHE = new KeyTypes[KeyTypes.values().length];
@@ -140,8 +164,10 @@ public enum KeyTypes {
             return STRING;
         } else if (value instanceof byte[]) {
             return BYTE_ARRAY;
+        } else if (value instanceof InetAddress) {
+            return INET_ADDRESS;
         } else {
-            throw new IllegalArgumentException("Unsupported type: " + value.getClass().getName());
+            return UNKNOWN;
         }
     }
 

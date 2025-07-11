@@ -33,8 +33,9 @@ public class RangeCollection {
     }
 
     private void addRange(LongRange newRange) {
-        if (newRange == null)
+        if (newRange == null || newRange == LongRange.EMPTY) {
             return;
+        }
 
         lock.readLock().lock();
         try {

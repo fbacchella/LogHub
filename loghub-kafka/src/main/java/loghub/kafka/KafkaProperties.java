@@ -16,19 +16,15 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.auth.SslEngineFactory;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
 import loghub.security.ssl.ClientAuthentication;
-
-import static org.apache.kafka.clients.CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;
-import static org.apache.kafka.clients.CommonClientConfigs.GROUP_ID_CONFIG;
-import static org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG;
-import static org.apache.kafka.common.config.SaslConfigs.SASL_KERBEROS_SERVICE_NAME;
-import static org.apache.kafka.common.config.SslConfigs.SSL_ENGINE_FACTORY_CLASS_CONFIG;
 
 public interface KafkaProperties {
 
@@ -93,11 +89,10 @@ public interface KafkaProperties {
 
     default Map<String, Object> configureKafka(Logger logger) {
         Map<String, Object> props = new HashMap<>();
+        props.putAll(getKafkaProperties());
         String[] brokers = getBrokers();
         int port = getPort();
         String topic = getTopic();
-        String securityProtocol = getSecurityProtocol();
-        String saslKerberosServiceName = getSaslKerberosServiceName();
 
         if (brokers == null) {
             throw new ConfigException("The bootstrap servers property must be specified");
@@ -107,33 +102,31 @@ public interface KafkaProperties {
         }
 
         try {
-            props.put(ConsumerConfig.CLIENT_ID_CONFIG, InetAddress.getLocalHost().getHostName());
+            props.put(CommonClientConfigs.CLIENT_ID_CONFIG, InetAddress.getLocalHost().getHostName());
         } catch (UnknownHostException e) {
             throw new IllegalStateException(e);
         }
-        props.put(GROUP_ID_CONFIG, getGroup());
+        props.put(CommonClientConfigs.GROUP_ID_CONFIG, getGroup());
         URI[] brokersUrl = Helpers.stringsToUri(brokers, port, "http", logger);
         String resolvedBrokers = Arrays.stream(brokersUrl)
                                        .map( i -> i.getHost() + ":" + i.getPort())
-                                       .collect(Collectors.joining(","))
-                ;
-        props.put(BOOTSTRAP_SERVERS_CONFIG, resolvedBrokers);
-        props.put(SSL_ENGINE_FACTORY_CLASS_CONFIG, LoghubSslEngineFactory.class);
-        props.put("loghub.sslContext", getSslContext());
-        props.put("loghub.sslparams", getSslParams());
-        props.put("loghub.sslClientAuthentication", getSslClientAuthentication());
+                                       .collect(Collectors.joining(","));
+        props.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, resolvedBrokers);
+        SecurityProtocol securityProtocol = getSecurityProtocol();
         if (securityProtocol != null) {
-            props.put(SECURITY_PROTOCOL_CONFIG, securityProtocol);
-            // Is security protocol sasl with kerberos ?
-            if (securityProtocol.contains("SASL") && saslKerberosServiceName != null) {
-                props.put(SASL_KERBEROS_SERVICE_NAME, saslKerberosServiceName);
+            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol.toString());
+            if (securityProtocol == SecurityProtocol.SSL || securityProtocol == SecurityProtocol.SASL_SSL) {
+                props.put(SslConfigs.SSL_ENGINE_FACTORY_CLASS_CONFIG, LoghubSslEngineFactory.class);
+                props.put("loghub.sslContext", getSslContext());
+                props.put("loghub.sslparams", getSslParams());
+                props.put("loghub.sslClientAuthentication", getSslClientAuthentication());
             }
         }
-
-        props.put("buffer.memory", 33554432);
-        props.put("max.in.flight.requests.per.connection", 5);
-
         return props;
+    }
+
+    default String getName(String kind) {
+        return String.format("%s/%s/%s/%s", kind, getTopic(), getGroup());
     }
 
     SSLContext getSslContext();
@@ -143,7 +136,6 @@ public interface KafkaProperties {
     String[] getBrokers();
     int getPort();
     String getTopic();
-    String getSaslKerberosServiceName();
-    String getSecurityProtocol();
-
+    SecurityProtocol getSecurityProtocol();
+    Map<String, Object> getKafkaProperties();
 }

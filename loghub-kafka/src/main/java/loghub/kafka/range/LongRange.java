@@ -44,10 +44,14 @@ class LongRange implements Comparable<LongRange> {
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof LongRange)) return false;
-        LongRange range = (LongRange) obj;
-        return start == range.start && end == range.end;
+        if (this == obj) {
+            return true;
+        } else if (!(obj instanceof LongRange)) {
+            return false;
+        } else {
+            LongRange range = (LongRange) obj;
+            return start == range.start && end == range.end;
+        }
     }
 
     @Override
@@ -67,8 +71,9 @@ class LongRange implements Comparable<LongRange> {
     static LongRange of(long start, long end) {
         if (start > end) {
             throw new IllegalArgumentException("Start must be <= end");
+        } else {
+            return new LongRange(start, end);
         }
-        return new LongRange(start, end);
     }
 
     static LongRange of(long value) {

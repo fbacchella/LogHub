@@ -29,6 +29,7 @@ import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 import loghub.BuilderClass;
@@ -82,17 +83,17 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     public static class Builder extends Receiver.Builder<Kafka, Kafka.Builder> implements KafkaProperties {
         private String[] brokers = new String[] { "localhost"};
         private int port = 9092;
-        private String topic;
-        private String group ="loghub";
-        private String keyClassName;
+        private String topic = "LogHub";
+        private String group = "LogHub";
+        private Class<?> keyClass;
         private ClassLoader classLoader = Kafka.class.getClassLoader();
         private String compressionType;
-        private String securityProtocol;
+        private SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
         private SSLContext sslContext;
         private SSLParameters sslParams;
         private ClientAuthentication sslClientAuthentication;
-        private String saslKerberosServiceName;
         private boolean withAutoCommit = true;
+        private Map<String, Object> kafkaProperties = Map.of();
         // Only used for tests
         @Setter(AccessLevel.PACKAGE)
         private Consumer<byte[], byte[]> consumer;
@@ -109,7 +110,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     private final String topic;
     private Supplier<Consumer<byte[], byte[]>> consumerSupplier;
     private final Map<Integer, RangeCollection> ranges = new ConcurrentHashMap<>();
-    private final Class<?> clazz;
+    private final Class<?> keyClass;
     private boolean withAutoCommit;
 
     protected Kafka(Builder builder) {
@@ -120,14 +121,10 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         } else {
             consumerSupplier = getConsumer(builder);
         }
-        if (builder.keyClassName != null) {
-            try {
-                clazz = builder.classLoader.loadClass(builder.keyClassName);
-            } catch (ClassNotFoundException e) {
-                throw new IllegalArgumentException("Class '" + builder.keyClassName + "' not found");
-            }
+        if (builder.keyClass != null) {
+            keyClass = builder.keyClass;
         } else {
-            clazz = null;
+            keyClass = null;
         }
         withAutoCommit = builder.withAutoCommit;
     }
@@ -172,6 +169,10 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             }
             commit(consumer);
             close();
+        } catch (KafkaException ex) {
+            logger.atError()
+                    .withThrowable(logger.isDebugEnabled() ? ex : null)
+                    .log("Kafka receiver failed: {}", () -> Helpers.resolveThrowableException(ex));
         }
     }
 
@@ -209,7 +210,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                     kafkaRecord.partition(),
                     () -> getPartitionRange(kafkaRecord.partition()).addValue(kafkaRecord.offset())
             );
-            Optional<Date> timestamp = Optional.empty().map(ts ->  kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null);
+            Optional<Date> timestamp = Optional.ofNullable(kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null);
             byte[] content = kafkaRecord.value();
             decodeStream(ctxt, content).forEach( e -> {
                 timestamp.ifPresent(e::setTimestamp);
@@ -217,9 +218,9 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                 e.putMeta("kafka_topic", kafkaRecord.topic());
                 e.putMeta("kafka_partition", kafkaRecord.partition());
                 byte[] keyBytes = kafkaRecord.key();
-                if (clazz != null) {
+                if (keyClass != null) {
                     try {
-                        e.putMeta("kafka_key", Expression.convertObject(clazz, keyBytes, StandardCharsets.UTF_8, ByteOrder.BIG_ENDIAN));
+                        e.putMeta("kafka_key", Expression.convertObject(keyClass, keyBytes, StandardCharsets.UTF_8, ByteOrder.LITTLE_ENDIAN));
                     } catch (UnknownHostException | InvocationTargetException ex) {
                         logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Unable to decode key: {}", () -> Helpers.resolveThrowableException(ex));
                     }
