@@ -469,21 +469,24 @@ public abstract class Sender extends Thread implements Closeable {
             Thread.currentThread().interrupt();
         } catch (SendException | EncodeException | IOException | UncheckedIOException ex) {
             Stats.failedSentEvent(this, ex, event);
-            logger.error("Sending exception: {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Sending exception: {}", Helpers.resolveThrowableException(ex));
         } catch (Error ex) {
             if (Helpers.isFatal(ex)) {
                 logger.fatal("Caught a fatal exception", ex);
                 ShutdownTask.fatalException(ex);
             } else {
                 Stats.newUnhandledException(this, ex, event);
-                logger.error("Unexpected exception: {}", Helpers.resolveThrowableException(ex));
-                logger.catching(Level.ERROR, ex);
+                logger.atError()
+                      .withThrowable(ex)
+                      .log("Unexpected critical exception: {}", Helpers.resolveThrowableException(ex));
             }
         } catch (Throwable ex) {
             Stats.newUnhandledException(this, ex, event);
-            logger.error("Unexpected exception: {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.ERROR, ex);
+            logger.atError()
+                  .withThrowable(ex)
+                  .log("Unexpected exception: {}", Helpers.resolveThrowableException(ex));
         }
         if (event != null) {
             event.end();
