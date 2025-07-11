@@ -125,10 +125,6 @@ public interface KafkaProperties {
         return props;
     }
 
-    default String getName(String kind) {
-        return String.format("%s/%s/%s/%s", kind, getTopic(), getGroup());
-    }
-
     SSLContext getSslContext();
     SSLParameters getSslParams();
     ClientAuthentication getSslClientAuthentication();
