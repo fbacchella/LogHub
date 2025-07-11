@@ -363,7 +363,7 @@ class ConfigListener extends RouteBaseListener {
         assert (beanName != null);
         assert (beanValue != null);
         try {
-            beansManager.beanSetter(beanObject.wrapped, beanName, value);
+            beansManager.beanSetter(beanObject.wrapped, beanName, value, classLoader);
         } catch (IntrospectionException | InvocationTargetException | UndeclaredThrowableException e) {
             throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
         }

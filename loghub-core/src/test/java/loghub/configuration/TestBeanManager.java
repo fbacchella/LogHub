@@ -30,6 +30,7 @@ public class TestBeanManager {
         private TimeUnit enumeration = null;
         private BeanContener[] bc;
         private Expression ex;
+        private Class<?> clazz;
     }
 
     private final BeansManager beansManager = new BeansManager();
@@ -131,7 +132,8 @@ public class TestBeanManager {
         Assert.assertEquals(TimeUnit.HOURS, c.getEnumeration());
         beansManager.beanSetter(c, "enumeration", TimeUnit.HOURS.name().toLowerCase());
         Assert.assertEquals(TimeUnit.HOURS, c.getEnumeration());
-        InvocationTargetException ex = Assert.assertThrows(InvocationTargetException.class, () -> beansManager.beanSetter(c, "enumeration", "badenum"));
+        InvocationTargetException ex = Assert.assertThrows(InvocationTargetException.class,
+                () -> beansManager.beanSetter(c, "enumeration", "badenum"));
         Assert.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
         Assert.assertEquals("Not matching value badenum", ex.getCause().getMessage());
     }
@@ -139,7 +141,7 @@ public class TestBeanManager {
     @Test
     public void testIntegerArray() throws InvocationTargetException, IntrospectionException {
         BeanContener c = new BeanContener();
-        BeanContener[] integers = new BeanContener[]{new BeanContener(), new BeanContener()};
+        BeanContener[] integers = new BeanContener[] { new BeanContener(), new BeanContener() };
         beansManager.beanSetter(c, "bc", integers);
         Assert.assertArrayEquals(integers, c.getBc());
     }
@@ -155,6 +157,13 @@ public class TestBeanManager {
                 throw new UndeclaredThrowableException(ex);
             }
         });
+    }
+
+    @Test
+    public void testClass() throws IntrospectionException, InvocationTargetException {
+        BeanContener c = new BeanContener();
+        beansManager.beanSetter(c, "clazz", String.class.getName());
+        Assert.assertEquals(String.class, c.clazz);
     }
 
 }

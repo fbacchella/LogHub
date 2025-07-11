@@ -72,7 +72,13 @@ public class BeansManager {
      * @param beanValue the bean value
      * @throws InvocationTargetException if unable to set bean
      */
-    public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException, IntrospectionException {
+    public void beanSetter(Object beanObject, String beanName, Object beanValue)
+            throws InvocationTargetException, IntrospectionException {
+        beanSetter(beanObject, beanName, beanValue, beanObject.getClass().getClassLoader());
+    }
+
+    public void beanSetter(Object beanObject, String beanName, Object beanValue, ClassLoader classLoader)
+            throws InvocationTargetException, IntrospectionException {
         Method setMethod = beanResolver(beanObject, beanName);
         if (setMethod == null) {
             throw new IntrospectionException("Unknown bean '" + beanName + "' for " + beanObject.getClass().getName().replace("$Builder", ""));
@@ -81,10 +87,11 @@ public class BeansManager {
             // If it's not already an expression, it's a constant value that was not detected by the parser
             beanValue = beanValue instanceof Expression ? (Expression) beanValue : new Expression(beanValue);
         }
-        beanSetter(beanName, beanObject, beanObject.getClass().getName().replace("$Builder", ""), setMethod, beanValue);
+        beanSetter(beanName, beanObject, beanObject.getClass().getName().replace("$Builder", ""), setMethod, beanValue, classLoader);
     }
 
-    public void beanSetter(String beanName, Object object, String objectClassName, Method setMethod, Object beanValue) throws InvocationTargetException, IntrospectionException {
+    public void beanSetter(String beanName, Object object, String objectClassName, Method setMethod, Object beanValue, ClassLoader classLoader)
+            throws InvocationTargetException, IntrospectionException {
         if (setMethod == null) {
             throw new IntrospectionException("Unknown bean '" + beanName + "' for " + objectClassName);
         }
@@ -103,6 +110,13 @@ public class BeansManager {
                 setMethod.invoke(object, newValue);
             } else if (beanValue == null || setArgType.isAssignableFrom(beanValue.getClass())) {
                 setMethod.invoke(object, beanValue);
+            } else if (beanValue instanceof String && setMethod.getParameterTypes()[0] == Class.class) {
+                try {
+                    Object argInstance = classLoader.loadClass((String) beanValue);
+                    setMethod.invoke(object, argInstance);
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalArgumentException("Class '" + beanValue + "' not found");
+                }
             } else if (beanValue instanceof String) {
                 Object argInstance = BeansManager.constructFromString(setArgType, (String) beanValue);
                 setMethod.invoke(object, argInstance);
