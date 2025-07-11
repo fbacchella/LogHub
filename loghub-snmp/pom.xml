@@ -12,7 +12,7 @@
     <name>LogHub :: Snmp Traps</name>
 
     <properties>
-        <snmp4j.version>3.9.3</snmp4j.version>
+        <snmp4j.version>3.9.6</snmp4j.version>
     </properties>
 
     <dependencies>

@@ -11,16 +11,17 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>11</maven.compiler.release>
-        <log4j.version>2.24.3</log4j.version>
+        <log4j.version>2.25.0</log4j.version>
         <antlr>4.13.2</antlr>
-        <jackson>2.19.0</jackson>
-        <metrics>4.2.32</metrics>
+        <jackson>2.19.1</jackson>
+        <metrics>4.2.33</metrics>
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
         <jcommander.version>1.82</jcommander.version>
         <slf4j.version>2.0.17</slf4j.version>
         <lombok.version>1.18.38</lombok.version>
+        <bouncycastle.version>1.81</bouncycastle.version>
         <dependency.locations.enabled>true</dependency.locations.enabled>
         <!-- Indirection needed to keep optionnal jacoco settings and external argument lines-->
         <arg.line></arg.line>
@@ -76,7 +77,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>3.6.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -203,7 +204,7 @@
                 <plugin>
                     <groupId>org.sonarsource.scanner.maven</groupId>
                     <artifactId>sonar-maven-plugin</artifactId>
-                    <version>3.10.0.2594</version>
+                    <version>3.11.0.3922</version>
                 </plugin>
                 <plugin>
                     <groupId>org.projectlombok</groupId>
@@ -228,7 +229,7 @@
                 <plugin>
                     <groupId>org.sonatype.central</groupId>
                     <artifactId>central-publishing-maven-plugin</artifactId>
-                    <version>0.7.0</version>
+                    <version>0.8.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>

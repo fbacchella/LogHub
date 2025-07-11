@@ -14,7 +14,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <prometheus.version>1.3.8</prometheus.version>
+        <prometheus.version>1.3.10</prometheus.version>
     </properties>
 
     <dependencies>
