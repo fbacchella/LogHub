@@ -228,7 +228,7 @@ public abstract class Sender extends Thread implements Closeable {
 
     protected void buildSyncer(Properties properties) {
         for (int i = 0; i < threads.length; i++) {
-            threads[i] = ThreadBuilder.get().setName(getName() + "Publisher" + i)
+            threads[i] = ThreadBuilder.get().setName("sender-" + getSenderName() + "-batch" + i)
                                             .setTask(publisher)
                                             .setDaemon(false)
                                             .build(true);
