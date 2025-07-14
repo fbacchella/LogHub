@@ -1,6 +1,5 @@
 package loghub.events;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -38,7 +37,7 @@ import loghub.VariablePath;
 import loghub.metrics.Stats.PipelineStat;
 
 @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class)
-public abstract class Event extends HashMap<String, Object> implements Serializable {
+public abstract class Event extends HashMap<String, Object> implements Cloneable {
 
     public static final String TIMESTAMPKEY = "@timestamp";
     public static final String LASTEXCEPTIONKEY = "@lastException";

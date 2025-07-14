@@ -1,9 +1,5 @@
 package loghub.events;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,9 +21,6 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Timer.Context;
 
 import loghub.ConnectionContext;
-import loghub.FastExternalizeObject;
-import loghub.FastExternalizeObject.FastObjectInputStream;
-import loghub.FastExternalizeObject.FastObjectOutputStream;
 import loghub.Helpers;
 import loghub.NullOrMissingValue;
 import loghub.Pipeline;
@@ -36,68 +29,15 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.SubPipeline;
 import loghub.VariablePath;
+import loghub.cloners.DeepCloner;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 import lombok.Getter;
 
 class EventInstance extends Event {
 
-    public static class EventSerializer extends FastExternalizeObject.ObjectFaster<EventInstance> {
-
-        public EventSerializer(EventInstance event) {
-            super(event);
-        }
-
-        public EventSerializer() {
-            // Empty, needed by readExternal
-        }
-
-        public void readExternal(ObjectInput input) throws ClassNotFoundException, IOException {
-            if (! (input instanceof FastObjectInputStream)) {
-                throw new IllegalStateException();
-            } else {
-                FastObjectInputStream fois = (FastObjectInputStream) input;
-                EventsFactory factory = (EventsFactory) fois.readObjectFast();
-                ConnectionContext<?> ctx = (ConnectionContext<?>) fois.readObjectFast();
-                value = (EventInstance) factory.newEvent(ctx);
-                value.timestamp = new Date(fois.readLong());
-                value.currentPipeline = fois.readUTF();
-                boolean nextPipeline = fois.readBoolean();
-                if (nextPipeline) {
-                    value.nextPipeline = fois.readUTF();
-                }
-                value.stepsCount = fois.readInt();
-                value.test = fois.readBoolean();
-                fois.readMap(value.metas);
-                fois.readMap(value);
-            }
-        }
-
-        public void writeExternal(ObjectOutput output) throws IOException {
-            if (! (output instanceof FastObjectOutputStream)) {
-                throw new IllegalStateException();
-            } else {
-                FastObjectOutputStream foos = (FastObjectOutputStream) output;
-                foos.writeObjectFast(value.factory);
-                foos.writeObjectFast(value.getConnectionContext());
-                foos.writeLong(value.timestamp.getTime());
-                foos.writeUTF(value.currentPipeline);
-                boolean nextPipeline = value.nextPipeline != null;
-                foos.writeBoolean(nextPipeline);
-                if (nextPipeline) {
-                    foos.writeUTF(value.nextPipeline);
-                }
-                foos.writeInt(value.stepsCount);
-                foos.writeBoolean(value.test);
-                foos.writeMap(value.metas);
-                foos.writeMap(value);
-            }
-        }
-
-    }
-
     static {
-        FastExternalizeObject.register(EventInstance.class, EventSerializer.class);
+        DeepCloner.register(EventInstance.class, o -> ((EventInstance)o).clone());
     }
 
     private static final Logger logger = LogManager.getLogger();
@@ -176,8 +116,8 @@ class EventInstance extends Event {
      */
     public Event duplicate() throws ProcessorException {
         try {
-            return FastExternalizeObject.duplicate(this);
-        } catch (ClassNotFoundException | IOException | RuntimeException ex) {
+            return DeepCloner.clone(this);
+        } catch (RuntimeException ex) {
             throw new ProcessorException(this, "Unable to serialise event : " + Helpers.resolveThrowableException(ex), ex);
         }
     }
@@ -411,6 +351,20 @@ class EventInstance extends Event {
 
     public Logger getPipelineLogger() {
         return pipeLineLogger != null ? pipeLineLogger : LogManager.getLogger();
+    }
+
+    public Object doClone() {
+        EventInstance newEvent = (EventInstance) factory.newEvent(ctx);
+        newEvent.setTimestamp(timestamp);
+        newEvent.currentPipeline = currentPipeline;
+        newEvent.nextPipeline = nextPipeline;
+        newEvent.stepsCount = stepsCount;
+        newEvent.test = test;
+        newEvent.metas.clear();
+        metas.forEach((k, v) -> newEvent.metas.put(k, DeepCloner.clone(v)));
+        newEvent.clear();
+        forEach((k, v) -> newEvent.put(k, DeepCloner.clone(v)));
+        return newEvent;
     }
 
 }

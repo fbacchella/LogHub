@@ -5,7 +5,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.local.LocalAddress;
 import io.netty.channel.local.LocalChannel;
 import loghub.ConnectionContext;
-import loghub.FastExternalizeObject.Immutable;
+import loghub.cloners.Immutable;
 
 @TransportEnum(TRANSPORT.LOCAL)
 public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf, LocalTransport, LocalTransport.Builder> {

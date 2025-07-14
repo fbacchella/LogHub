@@ -1,4 +1,4 @@
-package loghub;
+package loghub.cloners;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.EnumMap;
 import java.util.LinkedList;
@@ -23,12 +24,14 @@ import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Test;
 
+import loghub.ConnectionContext;
+import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.types.Dn;
 import loghub.types.MacAddress;
 
-public class TestFastExternalizeObject {
+public class TestDeepCloner {
 
     private final EventsFactory factory = new EventsFactory();
 
@@ -52,20 +55,22 @@ public class TestFastExternalizeObject {
         }
     }
 
-    private void checkIdentity(Object o) throws IOException, ClassNotFoundException {
-        Assert.assertSame(o, FastExternalizeObject.duplicate(o));
+    private void checkIdentity(Object o) {
+        Assert.assertSame(o, CloneOpaque.clone(o));
+        Assert.assertSame(o, DeepCloner.clone(o));
     }
 
-    private void checkEquality(Object o) throws IOException, ClassNotFoundException {
-        Object duplicated = FastExternalizeObject.duplicate(o);
+    private void checkEquality(Object o) {
+        Object duplicated = CloneOpaque.clone(o);
         Assert.assertNotSame(o, duplicated);
         Assert.assertEquals(o, duplicated);
     }
 
     @Test
-    public void testIdentity() throws IOException, ClassNotFoundException {
+    public void testIdentity() throws IOException {
         checkIdentity(1l);
         checkIdentity(1);
+        checkIdentity((byte)1);
         checkIdentity(true);
         checkIdentity(false);
         checkIdentity('a');
@@ -81,6 +86,9 @@ public class TestFastExternalizeObject {
         checkIdentity(new MacAddress("01:02:03:04:05:06"));
         checkIdentity(UUID.randomUUID());
         checkIdentity(Map.of());
+        checkIdentity(List.of());
+        checkIdentity(Collections.emptyMap());
+        checkIdentity(Collections.emptyList());
         checkIdentity(new CloneableObject());
         // Avoid static compilation of a constant
         checkIdentity(new StringBuffer("Log").append("Hub").toString());
@@ -88,36 +96,46 @@ public class TestFastExternalizeObject {
         checkEquality(1.0f);
         checkEquality(1.0);
         Object[] array = new Object[]{true, false, 1.0f, 1.0};
-        Assert.assertArrayEquals(array, FastExternalizeObject.duplicate(array));
+        Assert.assertArrayEquals(array, CloneOpaque.clone(array));
         int[] intArray = new int[]{1, 2, 3};
-        Assert.assertArrayEquals(intArray, FastExternalizeObject.duplicate(intArray));
+        Assert.assertArrayEquals(intArray, CloneOpaque.clone(intArray));
         byte[] byteArray = new byte[]{1, 2, 3};
-        Assert.assertArrayEquals(byteArray, FastExternalizeObject.duplicate(byteArray));
+        Assert.assertArrayEquals(byteArray, CloneOpaque.clone(byteArray));
         double[] doubleArray = new double[]{1, 2, 3};
-        Assert.assertArrayEquals(doubleArray, FastExternalizeObject.duplicate(doubleArray), 1e-5);
+        Assert.assertArrayEquals(doubleArray, CloneOpaque.clone(doubleArray), 1e-5);
         Map<DayOfWeek, Integer> daysMapping = Arrays.stream(DayOfWeek.values()).collect(
                 Collectors.toMap(
                         d -> d, DayOfWeek::getValue,
                         (a, b) -> b,
                         () -> new EnumMap<>(DayOfWeek.class)));
         // Ensure that the type is kept
-        EnumMap<DayOfWeek, Integer> duplicatedEnumMap = (EnumMap<DayOfWeek, Integer>) FastExternalizeObject.duplicate(daysMapping);
+        EnumMap<DayOfWeek, Integer> duplicatedEnumMap = (EnumMap<DayOfWeek, Integer>) DeepCloner.clone(daysMapping);
         Assert.assertEquals(daysMapping, duplicatedEnumMap);
         Map<?, ?> map = Map.of("a", true, 'b', false);
-        Assert.assertEquals(map, FastExternalizeObject.duplicate(map));
+        Assert.assertEquals(map, DeepCloner.clone(map));
         List l1 = new ArrayList<>(List.of(1, 2, 3));
-        Assert.assertEquals(l1, FastExternalizeObject.duplicate(l1));
+        Assert.assertEquals(l1, DeepCloner.clone(l1));
         List l2 = new LinkedList<>(l1);
-        Assert.assertEquals(l2, FastExternalizeObject.duplicate(l2));
+        Assert.assertEquals(l2, DeepCloner.clone(l2));
     }
 
     @Test
     public void fails() {
-        Assert.assertThrows(IOException.class, () -> FastExternalizeObject.duplicate(Map.of("canary", CANARY)));
+        Assert.assertThrows(IllegalStateException.class, () -> DeepCloner.clone(Map.of("canary", CANARY)));
         Event ev = factory.newEvent();
         ev.putMeta("canary", Map.of("canary", CANARY));
         loghub.ProcessorException pe = Assert.assertThrows(loghub.ProcessorException.class, ev::duplicate);
-        Assert.assertSame(IOException.class, pe.getCause().getClass());
+        Assert.assertSame(IllegalStateException.class, pe.getCause().getClass());
+    }
+
+    @Test
+    public void testEvent() {
+        Event ev = factory.newEvent();
+        ev.put("message", "message");
+        ev.putAtPath(VariablePath.of("a", "b"), 1);
+        Assert.assertEquals(Map.copyOf(ev), Map.copyOf(DeepCloner.clone(ev)));
+        Event wrapped = ev.wrap(VariablePath.of("a"));
+        Assert.assertEquals(Map.copyOf(wrapped), Map.copyOf(DeepCloner.clone(wrapped)));
     }
 
 }

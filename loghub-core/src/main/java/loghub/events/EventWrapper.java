@@ -17,11 +17,17 @@ import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
+import loghub.cloners.DeepCloner;
 import loghub.metrics.Stats.PipelineStat;
 import lombok.AccessLevel;
 import lombok.Getter;
 
 class EventWrapper extends Event {
+
+    static {
+        DeepCloner.register(EventWrapper.class, o -> ((EventWrapper)o).doClone());
+    }
+
     private final Event event;
 
     @Getter(AccessLevel.PACKAGE)
@@ -299,6 +305,10 @@ class EventWrapper extends Event {
             t = event.popException();
         }
         return t;
+    }
+
+    public Object doClone() {
+        return ((Event) event.clone()).wrap(path);
     }
 
 }

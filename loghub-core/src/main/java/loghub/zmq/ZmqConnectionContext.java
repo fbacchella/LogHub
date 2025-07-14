@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.security.Principal;
 
 import loghub.ConnectionContext;
-import loghub.FastExternalizeObject.Immutable;
+import loghub.cloners.Immutable;
 import lombok.Data;
 import zmq.Msg;
 import zmq.io.Metadata;

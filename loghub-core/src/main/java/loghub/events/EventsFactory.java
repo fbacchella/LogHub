@@ -12,7 +12,7 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Timer;
 
 import loghub.ConnectionContext;
-import loghub.FastExternalizeObject.Immutable;
+import loghub.cloners.Immutable;
 import loghub.Pipeline;
 import loghub.decoders.DecodeException;
 

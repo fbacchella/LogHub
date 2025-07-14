@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import loghub.FastExternalizeObject.Immutable;
+import loghub.cloners.Immutable;
 import loghub.VarFormatter;
 import lombok.EqualsAndHashCode;
 

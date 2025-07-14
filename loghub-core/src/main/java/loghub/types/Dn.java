@@ -11,7 +11,7 @@ import javax.naming.ldap.Rdn;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import loghub.FastExternalizeObject.Immutable;
+import loghub.cloners.Immutable;
 import loghub.Helpers;
 import lombok.Data;
 import lombok.Getter;

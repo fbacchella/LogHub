@@ -2,7 +2,7 @@ package loghub.netty.transport;
 
 import io.netty.channel.unix.DomainSocketAddress;
 import loghub.ConnectionContext;
-import loghub.FastExternalizeObject.Immutable;
+import loghub.cloners.Immutable;
 
 @Immutable
 public class DomainConnectionContext extends ConnectionContext<DomainSocketAddress> {

@@ -4,10 +4,12 @@ import java.net.InetSocketAddress;
 
 import javax.net.ssl.SSLSession;
 
+import loghub.cloners.DeepCloner;
+
 public class IpConnectionContext extends ConnectionContext<InetSocketAddress> {
 
     static {
-        FastExternalizeObject.registerImmutable(IpConnectionContext.class);
+        DeepCloner.registerImmutable(IpConnectionContext.class);
     }
 
     private final InetSocketAddress remoteaddr;
