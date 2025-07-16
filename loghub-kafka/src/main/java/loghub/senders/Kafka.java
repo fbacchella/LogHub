@@ -10,13 +10,11 @@ import javax.net.ssl.SSLParameters;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Serializer;
 
@@ -40,6 +38,8 @@ import lombok.Setter;
 @AsyncSender
 @CanBatch
 public class Kafka extends Sender {
+
+    private static final Serializer<byte[]> PASSTHROUGH_SERIALIZER = new ByteArraySerializer();
 
     @Setter @Getter
     public static class Builder extends Sender.Builder<Kafka> implements KafkaProperties {
@@ -72,7 +72,6 @@ public class Kafka extends Sender {
     private final Expression keySerializer;
     private Supplier<Producer<byte[], byte[]>> producerSupplier;
     private Producer<byte[], byte[]> producer;
-    private final Serializer<byte[]> nopeSerializer = new ByteArraySerializer();
 
     public Kafka(Builder builder) {
         super(builder);
@@ -104,7 +103,7 @@ public class Kafka extends Sender {
 
     private Supplier<Producer<byte[], byte[]>> getProducer(Kafka.Builder builder) {
         Map<String, Object> props = builder.configureKafka(logger);
-        return () -> new KafkaProducer<>(props, nopeSerializer, new ByteArraySerializer());
+        return () -> new KafkaProducer<>(props, PASSTHROUGH_SERIALIZER, PASSTHROUGH_SERIALIZER);
     }
 
     @Override
@@ -219,7 +218,9 @@ public class Kafka extends Sender {
             throw new EncodeException("Key serialization failed", e);
         }
         ProducerRecord<byte[], byte[]> kRecord = new ProducerRecord<>(topic, null, event.getTimestamp().getTime(), keyData, encode(event));
-        kRecord.headers().add(KeyTypes.HEADER_NAME, new byte[]{keyClass});
+        if (keyClass >= 0) {
+            kRecord.headers().add(KeyTypes.HEADER_NAME, new byte[]{keyClass});
+        }
         return kRecord;
     }
 

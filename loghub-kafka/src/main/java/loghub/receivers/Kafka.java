@@ -171,8 +171,8 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             close();
         } catch (KafkaException ex) {
             logger.atError()
-                    .withThrowable(logger.isDebugEnabled() ? ex : null)
-                    .log("Kafka receiver failed: {}", () -> Helpers.resolveThrowableException(ex));
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Kafka receiver failed: {}", () -> Helpers.resolveThrowableException(ex));
         }
     }
 
@@ -186,7 +186,8 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             long lastAck = range.merge();
             if (lastAck >= 0) {
                 TopicPartition tp = new TopicPartition(this.topic, i.getKey());
-                toCommit.put(tp, new OffsetAndMetadata(lastAck));
+                // commit is not the last accepted offset, but the next expected offset
+                toCommit.put(tp, new OffsetAndMetadata(lastAck + 1));
             }
         }
         if (! toCommit.isEmpty()) {
@@ -212,7 +213,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             );
             Optional<Date> timestamp = Optional.ofNullable(kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null);
             byte[] content = kafkaRecord.value();
-            decodeStream(ctxt, content).forEach( e -> {
+            decodeStream(ctxt, content).forEach(e -> {
                 timestamp.ifPresent(e::setTimestamp);
                 getHeaders(kafkaRecord).forEach(e::putMeta);
                 e.putMeta("kafka_topic", kafkaRecord.topic());
