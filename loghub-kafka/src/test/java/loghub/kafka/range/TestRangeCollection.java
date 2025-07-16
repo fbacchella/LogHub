@@ -22,6 +22,7 @@ public class TestRangeCollection {
         rc.merge();
         Assert.assertEquals(List.of(LongRange.of(1,2)), rc.getRanges());
     }
+
     @Test
     public void test2() {
         RangeCollection rc = new RangeCollection();
@@ -31,6 +32,7 @@ public class TestRangeCollection {
         }
         Assert.assertEquals(List.of(LongRange.of(0,20)), rc.getRanges());
     }
+
     @Test
     public void test3() {
         RangeCollection rc = new RangeCollection();
@@ -40,6 +42,7 @@ public class TestRangeCollection {
         rc.merge();
         Assert.assertEquals(List.of(LongRange.of(1, 2), LongRange.of(4, 5), LongRange.of(7, 8)), rc.getRanges());
     }
+
     @Test
     public void test4() {
         RangeCollection rc = new RangeCollection();
@@ -49,6 +52,7 @@ public class TestRangeCollection {
         rc.merge();
         Assert.assertEquals(List.of(LongRange.of(1, 2), LongRange.of(4, 8)), rc.getRanges());
     }
+
     @Test
     public void test5() {
         RangeCollection collection = new RangeCollection();
@@ -99,6 +103,14 @@ public class TestRangeCollection {
                 Assert.assertTrue(rc.contains(i));
             }
         }
+    }
+
+    @Test
+    public void testSingle() {
+        RangeCollection rc = new RangeCollection();
+        rc.addValue(1);
+        Assert.assertEquals(List.of(LongRange.of(1)), rc.getRanges());
+        Assert.assertEquals(1, rc.merge());
     }
 
 }

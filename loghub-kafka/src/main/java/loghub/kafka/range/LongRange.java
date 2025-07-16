@@ -68,6 +68,23 @@ class LongRange implements Comparable<LongRange> {
         }
     }
 
+    @Override
+    public int compareTo(LongRange other) {
+        if (equals(other)) {
+            return 0;
+        } else if (this == EMPTY) {
+            return -1;
+        } else if (other == EMPTY) {
+            return 1;
+        } else {
+            if (this.start == other.start) {
+                return this.end < other.end ? -1 : 1;
+            } else {
+                return this.start < other.start ? -1 : 1;
+            }
+        }
+    }
+
     static LongRange of(long start, long end) {
         if (start > end) {
             throw new IllegalArgumentException("Start must be <= end");
@@ -84,18 +101,4 @@ class LongRange implements Comparable<LongRange> {
         return EMPTY;
     }
 
-    @Override
-    public int compareTo(LongRange other) {
-        if (equals(other)) {
-            return 0;
-        } else if (other == EMPTY) {
-            return 1;
-        } else {
-            if (this.start == other.start) {
-                return this.end < other.end ? -1 : 1;
-            } else {
-                return this.start < other.start ? -1 : 1;
-            }
-        }
-    }
 }

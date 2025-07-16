@@ -38,8 +38,10 @@ public class TestLongRange {
         Assert.assertEquals(0, LongRange.of(1).compareTo(LongRange.of(1)));
         Assert.assertEquals(-1, LongRange.of(1).compareTo(LongRange.of(1, 2)));
         Assert.assertEquals(1, LongRange.of(1, 2).compareTo(LongRange.of(1)));
-        Assert.assertEquals(1, LongRange.of().compareTo(LongRange.of(1)));
+        Assert.assertEquals(0, LongRange.of(1, 2).compareTo(LongRange.of(1, 2)));
+        Assert.assertEquals(-1, LongRange.of().compareTo(LongRange.of(1)));
         Assert.assertEquals(1, LongRange.of(1).compareTo(LongRange.of()));
+        Assert.assertEquals(0, LongRange.of().compareTo(LongRange.of()));
     }
 
 }

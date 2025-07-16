@@ -15,6 +15,10 @@ public class RangeCollection {
     private final ConcurrentSkipListSet<LongRange> ranges = new ConcurrentSkipListSet<>();
     private long lastCommited = -1;
 
+    public RangeCollection() {
+        ranges.add(LongRange.EMPTY);
+    }
+
     public void addValue(long value) {
         addRange(LongRange.of(value));
     }
@@ -48,15 +52,12 @@ public class RangeCollection {
     public long merge() {
         lock.writeLock().lock();
         try {
-            if (ranges.size() <= 1) {
-                return -1;
-            }
+            boolean mergeDone = ranges.remove(LongRange.EMPTY);
+            boolean lastModified = false;
             Iterator<LongRange> ri = ranges.iterator();
             LongRange current = LongRange.EMPTY;
             Set<LongRange> toAdd = new HashSet<>();
             Set<LongRange> toRemove = new HashSet<>();
-            boolean mergeDone = false;
-            boolean lastModified = false;
             while (ri.hasNext()){
                 lastModified = false;
                 LongRange next = ri.next();
@@ -112,18 +113,19 @@ public class RangeCollection {
     }
 
     public void clear() {
-        lock.readLock().lock();
+        lock.writeLock().lock();
         try {
             ranges.clear();
+            ranges.add(LongRange.EMPTY);
         } finally {
             lock.readLock().unlock();
         }
     }
 
     public boolean isEmpty() {
-        lock.readLock().lock();
+        lock.writeLock().lock();
         try {
-            return ranges.isEmpty();
+            return ranges.isEmpty() || (ranges.size() == 1 && ranges.first() == LongRange.EMPTY);
         } finally {
             lock.readLock().unlock();
         }
@@ -133,7 +135,7 @@ public class RangeCollection {
     public String toString() {
         lock.readLock().lock();
         try {
-            return ranges.toString();
+            return getRanges().toString();
         } finally {
             lock.readLock().unlock();
         }
@@ -142,7 +144,7 @@ public class RangeCollection {
     List<LongRange> getRanges() {
         lock.readLock().lock();
         try {
-            return new ArrayList<>(ranges);
+            return new ArrayList<>(ranges.tailSet(LongRange.EMPTY, false));
         } finally {
             lock.readLock().unlock();
         }
