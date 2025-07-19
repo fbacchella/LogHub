@@ -37,7 +37,7 @@ import lombok.Getter;
 class EventInstance extends Event {
 
     static {
-        DeepCloner.register(EventInstance.class, o -> ((EventInstance)o).clone());
+        DeepCloner.register(EventInstance.class, o -> ((EventInstance)o).doClone());
     }
 
     private static final Logger logger = LogManager.getLogger();
