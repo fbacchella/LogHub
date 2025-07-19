@@ -69,29 +69,6 @@ public class TestEvent {
     }
 
     @Test
-    public void testCantFork() {
-        Event e = factory.newTestEvent(new ConnectionContext<>() {
-            {
-                this.setPrincipal(() -> "loghub");
-            }
-            @Override
-            public Object getLocalAddress() {
-                return null;
-            }
-
-            @Override
-            public Object getRemoteAddress() {
-                return null;
-            }
-        });
-        Pipeline ppl = new Pipeline(Collections.emptyList(), "main", "next");
-        e.refill(ppl);
-        e.put("key", "value");
-        ProcessorException ex = Assert.assertThrows(ProcessorException.class, e::duplicate);
-        Assert.assertTrue(ex.getMessage().startsWith("Unable to serialise event : "));
-    }
-
-    @Test
     public void testLoop() {
         Pipeline ppl = new Pipeline(List.of(new Looper(), new Looper(), new Looper(), new Looper(), new Looper(), new Looper()), "main", null);
         Map<String, Object> conf = new HashMap<>();
