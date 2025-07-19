@@ -15,9 +15,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -117,6 +120,8 @@ public class TestDeepCloner {
         Assert.assertEquals(l1, DeepCloner.clone(l1));
         List l2 = new LinkedList<>(l1);
         Assert.assertEquals(l2, DeepCloner.clone(l2));
+        Set s1 = new HashSet<>(l1);
+        Assert.assertEquals(s1, DeepCloner.clone(s1));
     }
 
     @Test
@@ -136,6 +141,16 @@ public class TestDeepCloner {
         Assert.assertEquals(Map.copyOf(ev), Map.copyOf(DeepCloner.clone(ev)));
         Event wrapped = ev.wrap(VariablePath.of("a"));
         Assert.assertEquals(Map.copyOf(wrapped), Map.copyOf(DeepCloner.clone(wrapped)));
+    }
+
+    @Test
+    public void testProp() {
+        Properties p = new Properties();
+        p.put("a", List.of(1));
+        Properties pc = DeepCloner.clone(p);
+        Assert.assertEquals(p, pc);
+        Assert.assertNotSame(p.get("a"), pc.get("a"));
+        Assert.assertEquals(p.get("a"), pc.get("a"));
     }
 
 }

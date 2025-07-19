@@ -143,7 +143,7 @@ public class DeepCloner {
         } else if (o instanceof Map) {
             return (T) MapCloner.clone((Map<?, ?>) o);
         } else if (o instanceof Collection) {
-            return (T) CloneCollection.clone((List<Object>) o);
+            return (T) CloneCollection.clone((Collection<Object>) o);
         } else if (o.getClass().isArray()) {
             return (T) CloneArray.clone(o);
         } else if (o instanceof Cloneable) {
