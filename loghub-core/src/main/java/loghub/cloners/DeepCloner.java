@@ -19,6 +19,7 @@ import java.time.chrono.HijrahDate;
 import java.time.chrono.JapaneseDate;
 import java.time.chrono.MinguoDate;
 import java.time.chrono.ThaiBuddhistDate;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -64,7 +65,7 @@ public class DeepCloner {
         immutables.add(UUID.class);
         immutables.add(Class.class);
 
-        faster.put(EnumMap.class, o -> EnumMapCloner.clone((EnumMap<? extends Enum, ?>) o));
+        faster.put(EnumMap.class, o -> EnumMapCloner.clone((EnumMap<? extends Enum<?>, ?>) o));
 
         singlotons.add(Map.of());
         singlotons.add(Collections.emptyMap());
@@ -139,10 +140,10 @@ public class DeepCloner {
             return o;
         } else if (faster.containsKey(o.getClass())) {
             return ((Cloner<T>) faster.get(o.getClass())).clone(o);
-        } else if (o instanceof Map && MapCloner.MAP_MAPPING.containsKey(o.getClass())) {
+        } else if (o instanceof Map) {
             return (T) MapCloner.clone((Map<?, ?>) o);
-        } else if (o instanceof List) {
-            return (T) CloneList.clone((List<Object>) o);
+        } else if (o instanceof Collection) {
+            return (T) CloneCollection.clone((List<Object>) o);
         } else if (o.getClass().isArray()) {
             return (T) CloneArray.clone(o);
         } else if (o instanceof Cloneable) {

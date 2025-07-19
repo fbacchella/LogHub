@@ -97,8 +97,8 @@ public class CloneOpaque {
 
     }
 
+    @SuppressWarnings("unchecked")
     public static class FastObjectOutputStream extends ObjectOutputStream {
-
         // Immutable objects can be reused, just forward a reference
         private final Map<Long, Object> immutableObjectsCache = new HashMap<>();
         private final AtomicLong ref = new AtomicLong(0);
@@ -143,7 +143,7 @@ public class CloneOpaque {
                 writeReference(MapCloner.clone((Map<?, ?>) o));
             } else if (o instanceof List) {
                 write(TYPE.IMMUTABLE.ordinal());
-                writeReference(CloneList.clone((List<Object>) o));
+                writeReference(CloneCollection.clone((List<Object>) o));
             } else if (o.getClass().isArray()) {
                 write(TYPE.IMMUTABLE.ordinal());
                 writeReference(CloneArray.clone(o));
@@ -176,6 +176,7 @@ public class CloneOpaque {
 
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> T clone(T object) {
         // FastObjectInputStream
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); FastObjectOutputStream oos = new FastObjectOutputStream(bos)) {
