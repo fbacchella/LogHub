@@ -37,7 +37,7 @@ import lombok.Getter;
 class EventInstance extends Event {
 
     static {
-        DeepCloner.register(EventInstance.class, o -> ((EventInstance)o).doClone());
+        DeepCloner.register(EventInstance.class, o -> ((EventInstance)o).clone());
     }
 
     private static final Logger logger = LogManager.getLogger();
@@ -353,7 +353,8 @@ class EventInstance extends Event {
         return pipeLineLogger != null ? pipeLineLogger : LogManager.getLogger();
     }
 
-    public Object doClone() {
+    @Override
+    public Object clone() {
         EventInstance newEvent = (EventInstance) factory.newEvent(ctx);
         newEvent.setTimestamp(timestamp);
         newEvent.currentPipeline = currentPipeline;

@@ -25,7 +25,7 @@ import lombok.Getter;
 class EventWrapper extends Event {
 
     static {
-        DeepCloner.register(EventWrapper.class, o -> ((EventWrapper)o).doClone());
+        DeepCloner.register(EventWrapper.class, o -> ((EventWrapper)o).clone());
     }
 
     private final Event event;
@@ -307,7 +307,8 @@ class EventWrapper extends Event {
         return t;
     }
 
-    public Object doClone() {
+    @Override
+    public Object clone() {
         return ((Event) event.clone()).wrap(path);
     }
 
