@@ -57,6 +57,29 @@ public class TestSlicer {
         Assert.assertEquals("1", ev1.getAtPath(VariablePath.of("a", "b")));
         Event ev2 = main.poll();
         Assert.assertEquals("2", ev2.getAtPath(VariablePath.of("a", "b")));
+        Assert.assertTrue(main.isEmpty());
+    }
+
+    @Test
+    public void testSingleFlatten() throws IOException, InterruptedException {
+        Consumer<Event> populate = ev -> ev.putAtPath(
+                VariablePath.of("a"), List.of(java.util.Map.of("b", "1"))
+        );
+        PriorityBlockingQueue main = run(new StringReader("pipeline[main]{ loghub.processors.Slicer{ toSlice: [a], flatten: true } }"), populate);
+        Event ev1 = main.poll();
+        Assert.assertEquals("1", ev1.getAtPath(VariablePath.of("a", "b")));
+        Assert.assertTrue(main.isEmpty());
+    }
+
+    @Test
+    public void testSingleNoFlatten() throws IOException, InterruptedException {
+        Consumer<Event> populate = ev -> ev.putAtPath(
+                VariablePath.of("a"), List.of(java.util.Map.of("b", "1"))
+        );
+        PriorityBlockingQueue main = run(new StringReader("pipeline[main]{ loghub.processors.Slicer{ toSlice: [a], flatten: false } }"), populate);
+        Event ev1 = main.poll();
+        Assert.assertEquals(List.of(java.util.Map.of("b", "1")), ev1.getAtPath(VariablePath.of("a")));
+        Assert.assertTrue(main.isEmpty());
     }
 
     @Test
@@ -69,6 +92,7 @@ public class TestSlicer {
         Assert.assertEquals(List.of(Map.of("b", "1")), ev1.getAtPath(VariablePath.of("a")));
         Event ev2 = main.poll();
         Assert.assertEquals(List.of(Map.of("b", "2")), ev2.getAtPath(VariablePath.of("a")));
+        Assert.assertTrue(main.isEmpty());
     }
 
     @Test
@@ -81,6 +105,7 @@ public class TestSlicer {
         Assert.assertEquals(List.of(Map.of("b", 1), Map.of("b", 3)), ev1.getAtPath(VariablePath.of("a")));
         Event ev2 = main.poll();
         Assert.assertEquals(List.of(Map.of("b", 2), Map.of("b", 4)), ev2.getAtPath(VariablePath.of("a")));
+        Assert.assertTrue(main.isEmpty());
     }
 
     public PriorityBlockingQueue run(Reader r, Consumer<Event> populate)

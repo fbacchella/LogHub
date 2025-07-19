@@ -60,20 +60,19 @@ public class Slicer extends Processor {
     @SuppressWarnings("java:S3776")
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Map<Object, Event> events = new LinkedHashMap<>();
         Stream<Object> enumerator;
         Object values = event.getAtPath(toSlice);
         if (values instanceof Collection) {
             @SuppressWarnings("unchecked")
             Collection<Object> collection = ((Collection<Object>) values);
-            if (collection.size() <= 1) {
+            if (collection.isEmpty()) {
                 throw IgnoredEventException.INSTANCE;
             } else {
                 enumerator = collection.stream();
             }
         } else if (values.getClass().isArray() && Object.class.isAssignableFrom(values.getClass().getComponentType())) {
             Object[] array = (Object[]) values;
-            if (array.length <= 1) {
+            if (array.length == 0) {
                 throw IgnoredEventException.INSTANCE;
             } else {
                 enumerator = Arrays.stream(array);
@@ -81,40 +80,27 @@ public class Slicer extends Processor {
         } else {
             throw IgnoredEventException.INSTANCE;
         }
-        Iterator<Object> iter = enumerator.iterator();
         try {
-            while (iter.hasNext()) {
-                Object i = iter.next();
+            Map<Object, List<Object>> newValues = new LinkedHashMap<>();
+            for (Iterator<Object> it = enumerator.iterator(); it.hasNext();) {
+                Object i = it.next();
                 event.putAtPath(toSlice, i);
                 Object key = bucket.eval(event.wrap(toSlice));
-                Event newEvent = events.computeIfAbsent(key, k -> buildNewEvent(event));
-                ((List<Object>) newEvent.getAtPath(toSlice)).add(i);
+                newValues.computeIfAbsent(key, k -> new ArrayList<>()).add(i);
             }
-            for (Event ev : events.values()) {
-                if (flatten) {
-                    List<Object> sub = ((List<Object>) ev.getAtPath(toSlice));
-                    if (sub.size() == 1) {
-                        ev.putAtPath(toSlice, sub.get(0));
-                    }
+            for (List<Object> sub : newValues.values()) {
+                Event ev = event.duplicate();
+                if (flatten && sub.size() == 1) {
+                    ev.putAtPath(toSlice, sub.get(0));
+                } else {
+                    ev.putAtPath(toSlice, sub);
                 }
                 ev.reinject(event, mainQueue);
             }
+            throw DiscardedEventException.INSTANCE;
         } catch (ProcessorException | RuntimeException ex) {
-            throw ex;
-        } finally {
             event.putAtPath(toSlice, values);
-        }
-        throw DiscardedEventException.INSTANCE;
-    }
-
-    private Event buildNewEvent(Event oldEvent) {
-        try {
-            Event newEvent;
-            newEvent = oldEvent.duplicate();
-            newEvent.putAtPath(toSlice, new ArrayList<>());
-            return newEvent;
-        } catch (ProcessorException e) {
-            throw IgnoredEventException.INSTANCE;
+            throw ex;
         }
     }
 
