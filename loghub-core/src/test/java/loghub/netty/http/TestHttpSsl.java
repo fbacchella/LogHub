@@ -6,6 +6,9 @@ import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,6 +18,7 @@ import java.util.function.Function;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -98,17 +102,35 @@ public class TestHttpSsl {
         cnx.disconnect();
     }
 
-    @Test(expected = javax.net.ssl.SSLHandshakeException.class)
+    @Test
+    public void testHttpClient() throws IOException, InterruptedException, URISyntaxException {
+        URL theURL = startHttpServer(Collections.emptyMap(), i -> { });
+        resource.setModelHandlers(new SimpleHandler());
+        HttpClient client = HttpClient.newBuilder()
+                                    .sslContext(getContext.apply(Collections.emptyMap()))
+                                    .build();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                                      .uri(theURL.toURI())
+                                      .GET()
+                                      .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        Assert.assertNotNull(response.body());
+        Assert.assertEquals(200, response.statusCode());
+        Assert.assertEquals("CN=localhost", response.sslSession().get().getPeerPrincipal().getName());
+    }
+
+    @Test
     public void testGoogle() throws IOException, URISyntaxException {
         URL google = new URI("https://www.google.com").toURL();
         HttpsURLConnection cnx = (HttpsURLConnection) google.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
-        cnx.connect();
-        Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
-        try (Scanner s = new Scanner(cnx.getInputStream())) {
-            s.skip(".*");
+        try {
+            Assert.assertThrows(SSLHandshakeException.class, cnx::connect);
+        } finally {
+            cnx.disconnect();
         }
-        cnx.disconnect();
     }
 
     @Test
@@ -126,39 +148,44 @@ public class TestHttpSsl {
         cnx.disconnect();
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testClientAuthenticationFailed()
             throws IOException, IllegalArgumentException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
         HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.singletonMap("issuers", new String[] {"cn=notlocalhost"})).getSocketFactory());
-        cnx.connect();
-        cnx.disconnect();
+        try {
+            Assert.assertThrows(SocketException.class, cnx::connect);
+        } finally {
+            cnx.disconnect();
+        }
     }
 
-    @Test(expected = javax.net.ssl.SSLHandshakeException.class)
+    @Test
     public void testChangedAlias()
             throws IOException, IllegalArgumentException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
-        cnx.connect();
-        Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
-        try (Scanner s = new Scanner(cnx.getInputStream())) {
-            s.skip(".*");
+        try {
+            Assert.assertThrows(SSLHandshakeException.class, cnx::connect);
+        } finally {
+            cnx.disconnect();
         }
-        cnx.disconnect();
     }
 
-    @Test(expected = SocketException.class)
+    @Test
     public void testNoSsl() throws IOException, IllegalArgumentException, URISyntaxException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         URL nohttpsurl = new URI("http", null, theURL.getHost(), theURL.getPort(), theURL.getFile(), null, null).toURL();
         HttpURLConnection cnx = (HttpURLConnection) nohttpsurl.openConnection();
         // This generate two log lines, HttpURLConnection retry the connection
         cnx.connect();
-        cnx.getResponseCode();
-        cnx.disconnect();
+        try {
+            Assert.assertThrows(SocketException.class, cnx::getResponseCode);
+        } finally {
+            cnx.disconnect();
+        }
     }
 
 }

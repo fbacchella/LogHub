@@ -1,15 +1,27 @@
 package loghub.security.ssl;
 
+import java.net.IDN;
 import java.net.Socket;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import javax.net.ssl.ExtendedSSLSession;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIMatcher;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509ExtendedKeyManager;
+
+import loghub.Helpers;
 
 import static loghub.netty.transport.AbstractIpTransport.DEFINEDSSLALIAS;
 
@@ -54,9 +66,62 @@ public class DynamicKeyManager extends X509ExtendedKeyManager {
             }
         } else if (engine.getPeerPort() == DEFINEDSSLALIAS) {
             return null;
+        } else if (engine.getHandshakeSession() instanceof ExtendedSSLSession) {
+            ExtendedSSLSession handshakeSession = (ExtendedSSLSession)engine.getHandshakeSession();
+            List<SNIServerName> requestNames = handshakeSession.getRequestedServerNames();
+            return Optional.ofNullable(resolveWithSni(keyType, issuers, requestNames)).orElseGet(() -> origkm.chooseEngineServerAlias(keyType, issuers, engine));
         } else {
             return origkm.chooseEngineServerAlias(keyType, issuers, engine);
         }
+    }
+
+    String resolveWithSni(String keyType, Principal[] issuers, List<SNIServerName> requestNames) {
+        // Both the certificat and the SNIServerName uses punycode, so bytes are ASCII string
+        // RFC 6066 only define the type 0, host_name, so the byte[] will only be handled as an ASCII string using punycode
+        // Native chooseEngineServerAlias is not serious, use custom handling
+        Stream<String> aliases = Optional.ofNullable(origkm.getServerAliases(keyType, issuers))
+                                         .stream()
+                                         .flatMap(Arrays::stream);
+        String foundAlias = null;
+        for (Iterator<String> i = aliases.iterator(); i.hasNext(); ) {
+            String alias = i.next();
+            X509Certificate cert = origkm.getCertificateChain(alias)[0];
+            try {
+                boolean canBeServer = Optional.ofNullable(cert.getExtendedKeyUsage())
+                                              .orElse(List.of())
+                                              .stream()
+                                              .anyMatch("1.3.6.1.5.5.7.3.1"::equals);
+                if (! canBeServer) {
+                    continue;
+                }
+                if (requestNames.isEmpty()) {
+                    // No explicit name requested, use the first one found
+                    foundAlias = alias;
+                    break;
+                } else {
+                    Stream<?> altNames = Optional.ofNullable(cert.getSubjectAlternativeNames())
+                                                 .orElse(List.of())
+                                                 .stream();
+                    for (Iterator<?> j = altNames.iterator(); j.hasNext() ; ) {
+                        @SuppressWarnings("unchecked")
+                        List<Object> desc = (List<Object>) j.next();
+                        int certType = (Integer) desc.get(0);
+                        if (certType == 2) {
+                            // Only hostname is handled in SNI
+                            String value = (String) desc.get(1);
+                            SNIMatcher matcher = SNIHostName.createSNIMatcher(Helpers.convertGlobToRegex(IDN.toUnicode(value)).pattern());
+                            if (requestNames.stream().anyMatch(matcher::matches)) {
+                                foundAlias = alias;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (CertificateParsingException e) {
+                // skip the broken certificate
+            }
+        }
+        return foundAlias;
     }
 
     @Override
