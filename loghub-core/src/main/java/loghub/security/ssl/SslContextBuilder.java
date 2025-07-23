@@ -186,7 +186,7 @@ public class SslContextBuilder {
             TrustManager[] tm = getTrustManagerFactory().getTrustManagers();
             KeyManager[] km = getKeyManagerFactory().getKeyManagers();
             X509ExtendedKeyManager origkm = (X509ExtendedKeyManager) km[0];
-            kmtranslator = new DynamicKeyManager(origkm, trustedIssuers, clientAlias);
+            kmtranslator = new SmartKeyManager(origkm, trustedIssuers, clientAlias);
 
             newCtxt.init(new KeyManager[] {kmtranslator}, tm, secureRandom);
 

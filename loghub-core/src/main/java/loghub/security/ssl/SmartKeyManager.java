@@ -27,14 +27,14 @@ import loghub.Helpers;
 
 import static loghub.netty.transport.AbstractIpTransport.DEFINEDSSLALIAS;
 
-public class DynamicKeyManager extends X509ExtendedKeyManager {
+public class SmartKeyManager extends X509ExtendedKeyManager {
 
     private final X509ExtendedKeyManager origkm;
     private final Set<Principal> trustedIssuers;
     private final String clientAlias;
     final Map<String, Map<SNIServerName, String>> sniCache = new ConcurrentHashMap<>();
 
-    public DynamicKeyManager(X509ExtendedKeyManager origkm, Set<Principal> trustedIssuers, String clientAlias) {
+    public SmartKeyManager(X509ExtendedKeyManager origkm, Set<Principal> trustedIssuers, String clientAlias) {
         this.origkm = origkm;
         this.trustedIssuers = trustedIssuers;
         this.clientAlias = clientAlias;

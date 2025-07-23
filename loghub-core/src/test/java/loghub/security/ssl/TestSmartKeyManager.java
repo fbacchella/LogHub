@@ -33,7 +33,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class TestDynamicKeyManager {
+public class TestSmartKeyManager {
 
     private PrivateKeyEntry generateCertificate(String dn, List<String> altNames, boolean asServer) throws Exception {
         KeyPair keyPair = generateKeyPair();
@@ -128,7 +128,7 @@ public class TestDynamicKeyManager {
         PrivateKeyEntry certOther = generateCertificate(dn, List.of("www.google.com"), false);
         PrivateKeyEntry certClient = generateCertificate(dn, List.of("loghub.com", "www.loghub.com"), false);
         PrivateKeyEntry certServer = generateCertificate(dn, List.of("loghub.com", "www.loghub.com"), true);
-        DynamicKeyManager kmtranslator = new DynamicKeyManager(buildTrustManagersFromCertificates(List.of(certOther, certClient, certServer)), null, null);
+        SmartKeyManager kmtranslator = new SmartKeyManager(buildTrustManagersFromCertificates(List.of(certOther, certClient, certServer)), null, null);
         Assert.assertEquals("cert-2", kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("loghub.com"))));
         Assert.assertEquals("cert-2", kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("www.loghub.com"))));
         // Second run, should use the cache
@@ -145,7 +145,7 @@ public class TestDynamicKeyManager {
         altNames.add("*.loghub.com");
 
         PrivateKeyEntry cert = generateCertificate(dn, altNames, true);
-        DynamicKeyManager kmtranslator = new DynamicKeyManager(buildTrustManagersFromCertificates(List.of(cert)), null, null);
+        SmartKeyManager kmtranslator = new SmartKeyManager(buildTrustManagersFromCertificates(List.of(cert)), null, null);
         String alias = kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("www.loghub.com")));
         Assert.assertEquals("cert-0", alias);
     }
@@ -157,7 +157,7 @@ public class TestDynamicKeyManager {
         altNames.add("xn--uf-via.com");
 
         PrivateKeyEntry cert = generateCertificate(dn, altNames, true);
-        DynamicKeyManager kmtranslator = new DynamicKeyManager(buildTrustManagersFromCertificates(List.of(cert)), null, null);
+        SmartKeyManager kmtranslator = new SmartKeyManager(buildTrustManagersFromCertificates(List.of(cert)), null, null);
         String alias = kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("xn--uf-via.com")));
         Assert.assertEquals("cert-0", alias);
     }
@@ -169,7 +169,7 @@ public class TestDynamicKeyManager {
         altNames.add("xn--uf-via.com");
 
         PrivateKeyEntry cert = generateCertificate(dn, altNames, false);
-        DynamicKeyManager kmtranslator = new DynamicKeyManager(buildTrustManagersFromCertificates(List.of(cert)), null, null);
+        SmartKeyManager kmtranslator = new SmartKeyManager(buildTrustManagersFromCertificates(List.of(cert)), null, null);
         String alias = kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("xn--uf-via.com")));
         Assert.assertNull(alias);
     }
