@@ -123,20 +123,23 @@ public class TestDynamicKeyManager {
     }
 
     @Test
-    public void testSimple() throws Exception {
+    public void testGeneric() throws Exception {
         String dn = "CN=loghub.com";
-        List<String> altNames = new ArrayList<>();
-        altNames.add("loghub.com");
-        altNames.add("www.loghub.com");
-
-        PrivateKeyEntry cert = generateCertificate(dn, altNames, true);
-        DynamicKeyManager kmtranslator = new DynamicKeyManager(buildTrustManagersFromCertificates(List.of(cert)), null, null);
-        Assert.assertEquals("cert-0", kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("loghub.com"))));
-        Assert.assertEquals("cert-0", kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("www.loghub.com"))));
+        PrivateKeyEntry certOther = generateCertificate(dn, List.of("www.google.com"), false);
+        PrivateKeyEntry certClient = generateCertificate(dn, List.of("loghub.com", "www.loghub.com"), false);
+        PrivateKeyEntry certServer = generateCertificate(dn, List.of("loghub.com", "www.loghub.com"), true);
+        DynamicKeyManager kmtranslator = new DynamicKeyManager(buildTrustManagersFromCertificates(List.of(certOther, certClient, certServer)), null, null);
+        Assert.assertEquals("cert-2", kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("loghub.com"))));
+        Assert.assertEquals("cert-2", kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("www.loghub.com"))));
+        // Second run, should use the cache
+        Assert.assertEquals("cert-2", kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("loghub.com"))));
+        Assert.assertEquals("cert-2", kmtranslator.resolveWithSni("RSA", null, List.of(new SNIHostName("www.loghub.com"))));
+        Assert.assertEquals("cert-2", kmtranslator.sniCache.get("RSA").get(new SNIHostName("loghub.com")));
+        Assert.assertEquals("cert-2", kmtranslator.sniCache.get("RSA").get(new SNIHostName("www.loghub.com")));
     }
 
     @Test
-    public void testWildKey() throws Exception {
+    public void testWildcardCertificate() throws Exception {
         String dn = "CN=loghub.com";
         List<String> altNames = new ArrayList<>();
         altNames.add("*.loghub.com");

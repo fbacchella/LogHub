@@ -9,8 +9,10 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -30,6 +32,7 @@ public class DynamicKeyManager extends X509ExtendedKeyManager {
     private final X509ExtendedKeyManager origkm;
     private final Set<Principal> trustedIssuers;
     private final String clientAlias;
+    final Map<String, Map<SNIServerName, String>> sniCache = new ConcurrentHashMap<>();
 
     public DynamicKeyManager(X509ExtendedKeyManager origkm, Set<Principal> trustedIssuers, String clientAlias) {
         this.origkm = origkm;
@@ -69,6 +72,14 @@ public class DynamicKeyManager extends X509ExtendedKeyManager {
         } else if (engine.getHandshakeSession() instanceof ExtendedSSLSession) {
             ExtendedSSLSession handshakeSession = (ExtendedSSLSession)engine.getHandshakeSession();
             List<SNIServerName> requestNames = handshakeSession.getRequestedServerNames();
+            Map<SNIServerName, String> cacheKey = sniCache.computeIfAbsent(keyType, k -> new ConcurrentHashMap<>());
+            if (issuers == null) {
+                for (SNIServerName sni: requestNames) {
+                    if (cacheKey.containsKey(sni)) {
+                        return cacheKey.get(sni);
+                    }
+                }
+            }
             return Optional.ofNullable(resolveWithSni(keyType, issuers, requestNames)).orElseGet(() -> origkm.chooseEngineServerAlias(keyType, issuers, engine));
         } else {
             return origkm.chooseEngineServerAlias(keyType, issuers, engine);
@@ -110,9 +121,12 @@ public class DynamicKeyManager extends X509ExtendedKeyManager {
                             // Only hostname is handled in SNI
                             String value = (String) desc.get(1);
                             SNIMatcher matcher = SNIHostName.createSNIMatcher(Helpers.convertGlobToRegex(IDN.toUnicode(value)).pattern());
-                            if (requestNames.stream().anyMatch(matcher::matches)) {
-                                foundAlias = alias;
-                                break;
+                            for (SNIServerName sni: requestNames) {
+                                if (matcher.matches(sni)) {
+                                    sniCache.computeIfAbsent(keyType, k -> new ConcurrentHashMap<>()).computeIfAbsent(sni, k -> alias);
+                                    foundAlias = alias;
+                                    break;
+                                }
                             }
                         }
                     }
