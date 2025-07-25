@@ -33,7 +33,7 @@ public class DurationTagHandler extends CborTagHandler<Duration> {
     @Override
     public CBORGenerator write(Duration data, CBORGenerator p) throws IOException {
         double seconds = data.getSeconds();
-        long nanos = data.getNano();
+        double nanos = data.getNano();
         p.writeNumber(seconds + nanos / 1_000_000_000);
         return p;
     }

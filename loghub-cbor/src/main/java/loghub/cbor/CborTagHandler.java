@@ -10,18 +10,14 @@ import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 import lombok.Getter;
 
+@Getter
 public abstract class CborTagHandler<T> {
-    @Getter
     private final int tag;
     private final List<Class<?>> targetTypes;
 
     CborTagHandler(int tag, Class<?>... targetType) {
         this.tag = tag;
-        this.targetTypes = Arrays.stream(targetType).collect(Collectors.toList());
-    }
-
-    public List<Class<?>> getTargetTypes() {
-        return targetTypes;
+        this.targetTypes = List.copyOf(Arrays.stream(targetType).collect(Collectors.toList()));
     }
 
     public abstract T parse(CBORParser p) throws IOException ;
