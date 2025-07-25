@@ -309,6 +309,7 @@
         <module>loghub-protobuf</module>
         <module>loghub-sflow</module>
         <module>loghub-netflow</module>
+        <module>loghub-cbor</module>
     </modules>
 
     <profiles>

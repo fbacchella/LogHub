@@ -1,0 +1,8 @@
+loghub.cbor.UUIDTagHandler
+loghub.cbor.ZonedDateTimeTagHandler
+loghub.cbor.EpochTagHandler
+loghub.cbor.URITagHandler
+loghub.cbor.PositiveBigIntegerTagHandler
+loghub.cbor.NegativeBigIntegerTagHandler
+loghub.cbor.DurationTagHandler
+
