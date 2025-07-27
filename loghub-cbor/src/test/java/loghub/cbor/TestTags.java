@@ -3,6 +3,7 @@ package loghub.cbor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.InetAddress;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -145,7 +146,6 @@ public class TestTags {
     private <T> void testParsing(Class<T> clazz, T i, String s, BiConsumer<T, T> o) throws IOException {
         BigInteger bi = new BigInteger(s, 16);
         byte[] cborData = bi.toByteArray();
-        CBORFactory factory = new CBORFactory();
         try (CborParser parser = new CborParser(factory.createParser(new ByteArrayInputStream(cborData, (cborData[0] == 0) && cborData.length > 1 ? 1 : 0, cborData.length)))){
             parser.run(v -> o.accept(i, (T) v));
         }
@@ -155,6 +155,25 @@ public class TestTags {
         try (CborParser parser = new CborParser(factory.createParser(new ByteArrayInputStream(buffer)))){
             parser.run(v -> o.accept(i, (T) v));
         }
+    }
+
+    @Test
+    public void testRfc9164() throws IOException {
+        testParsing(InetAddress.class, InetAddress.getByName("192.0.2.1"), "D83444C0000201", Assert::assertEquals);
+        testParsing(String.class, "192.0.2.0/24", "D83482181843C00002", Assert::assertEquals);
+        testParsing(String.class, "192.0.2.0/24", "D8348244C00002011818", Assert::assertEquals);
+
+        testParsing(InetAddress.class, InetAddress.getByName("2001:db8:1234:deed:beef:cafe:face:feed"), "D8365020010DB81234DEEDBEEFCAFEFACEFEED", Assert::assertEquals);
+        testParsing(String.class, "2001:db8:1234:0:0:0:0:0/48", "D8368218304620010DB81234", Assert::assertEquals);
+        testParsing(String.class, "2001:db8:1234:de00:0:0:0:0/56", "D836825020010DB81234DEEDBEEFCAFEFACEFEED1838", Assert::assertEquals);
+        testParsing(String.class, "fe80:0:0:202:0:0:0:0/64%eth0", "D8368350FE8000000000020202FFFFFFFE03030318404465746830", Assert::assertEquals);
+        testParsing(String.class, "fe80:0:0:202:0:0:0:0/64%42", "D8368350FE8000000000020202FFFFFFFE0303031840182A", Assert::assertEquals);
+        testParsing(String.class, "fe80:0:0:202:2ff:ffff:fe03:303/128%42", "D8368350FE8000000000020202FFFFFFFE030303F6182A", Assert::assertEquals);
+
+        testParsing(String.class, "2001:db8:1230:0:0:0:0:0/44", "D83682182c4620010DB81230", Assert::assertEquals);
+        testParsing(String.class, "2001:db8:1230:0:0:0:0:0/44", "D83682182c4620010DB81233", Assert::assertEquals);
+        testParsing(String.class, "2001:db8:1230:0:0:0:0:0/44", "D83682182c4620010DB8123F", Assert::assertEquals);
+        testParsing(String.class, "2001:db8:1230:0:0:0:0:0/44", "D83682182c4720010DB8123012", Assert::assertEquals);
     }
 
 }

@@ -5,4 +5,8 @@ loghub.cbor.URITagHandler
 loghub.cbor.PositiveBigIntegerTagHandler
 loghub.cbor.NegativeBigIntegerTagHandler
 loghub.cbor.DurationTagHandler
+loghub.cbor.Base64TagHandler
+loghub.cbor.Base64UrlTagHandler
+loghub.cbor.Ipv6TagHandler
+loghub.cbor.Ipv4TagHandler
 
