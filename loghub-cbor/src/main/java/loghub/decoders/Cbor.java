@@ -6,7 +6,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
-import loghub.cbor.CborParser;
+import loghub.cbor.CborParser.CborParserFactory;
+import loghub.cbor.CborTagHandlerService;
 import lombok.Setter;
 
 @BuilderClass(Cbor.Builder.class)
@@ -14,6 +15,7 @@ public class Cbor extends Decoder {
 
     @Setter
     public static class Builder extends Decoder.Builder<Cbor> {
+        private ClassLoader classLoader = Cbor.getBuilder().classLoader;
         @Override
         public Cbor build() {
             return new Cbor(this);
@@ -24,15 +26,18 @@ public class Cbor extends Decoder {
         return new Builder();
     }
 
+    private final CborParserFactory factory;
     private Cbor(Builder builder) {
         super(builder);
+        factory = new CborParserFactory(new CborTagHandlerService(builder.classLoader));
     }
 
     @Override
     protected Object decodeObject(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length)
             throws DecodeException {
+
         try {
-            return CborParser.parse(msg, offset, length);
+            return factory.getParser(msg, offset, length).run();
         } catch (IOException e) {
             throw new DecodeException("Unable to read CBOR buffer", e);
         }
@@ -41,7 +46,7 @@ public class Cbor extends Decoder {
     @Override
     protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         try {
-            return CborParser.parse(new ByteBufInputStream(bbuf));
+            return factory.getParser(new ByteBufInputStream(bbuf)).run();
         } catch (IOException e) {
             throw new DecodeException("Unable to read CBOR buffer", e);
         }

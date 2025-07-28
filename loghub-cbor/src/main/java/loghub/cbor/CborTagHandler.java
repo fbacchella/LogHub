@@ -11,8 +11,9 @@ import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import loghub.cbor.CborTagHandlerService.CustomParser;
 import loghub.cbor.CborTagHandlerService.CustomWriter;
 import lombok.Getter;
+import lombok.Setter;
 
-@Getter
+@Getter @Setter
 public abstract class CborTagHandler<T> {
     private final int tag;
     private final List<Class<?>> targetTypes;

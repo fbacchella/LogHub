@@ -12,10 +12,8 @@ public class CborSerializer<T> extends JsonSerializer<T> {
     private final CborTagHandler<T> tag;
     private final Class<T> handledClass;
 
-    @SuppressWarnings("unchecked")
-    public CborSerializer(Class<T> handledClass) {
-        this.tag = (CborTagHandler<T>) CborTagHandlerService.getByType(handledClass)
-                                                            .orElseThrow();
+    public CborSerializer(CborTagHandler<T> tag, Class<T> handledClass) {
+        this.tag = tag;
         this.handledClass = handledClass;
     }
 

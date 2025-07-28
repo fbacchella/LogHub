@@ -4,6 +4,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -17,15 +19,52 @@ import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import com.fasterxml.jackson.dataformat.cbor.CBORReadContext;
 
-public class CborParser implements Closeable {
-    private final CBORParser parser;
-    private static final CBORFactory factory = new CBORFactory();
+import loghub.Helpers;
 
-    public CborParser(CBORParser parser) {
-        this.parser = parser;
+public class CborParser implements Closeable {
+
+    public static class CborParserFactory {
+        private final CborTagHandlerService service;
+        private final CBORFactory factory = new CBORFactory();
+
+        public CborParserFactory(CborTagHandlerService service) {
+            this.service = service;
+        }
+
+        public CborParserFactory(ClassLoader clLoader) {
+            this.service = new CborTagHandlerService(clLoader);
+        }
+
+        public CborParserFactory() {
+            this.service = new CborTagHandlerService();
+        }
+
+        public CborParser getParser(byte[] data, int offset, int len) throws IOException {
+            return new CborParser(service, factory.createParser(data, offset, len));
+        }
+
+        public CborParser getParser(byte[] data) throws IOException {
+            return new CborParser(service, factory.createParser(data));
+        }
+
+        public CborParser getParser(InputStream source) throws IOException {
+            return new CborParser(service, factory.createParser(source));
+        }
+
+        public CborParser getParser(Path source) throws IOException {
+            return new CborParser(service, factory.createParser(Files.newInputStream(source)));
+        }
     }
 
-    public <T> void run(Consumer<T> consumer) throws IOException {
+    private final CBORParser parser;
+    private final CborTagHandlerService service;
+
+    private CborParser(CborTagHandlerService service, CBORParser parser) {
+        this.parser = parser;
+        this.service = service;
+    }
+
+    public <T> void forEach(Consumer<T> consumer) throws IOException {
         while (!parser.isClosed()) {
             JsonToken token = parser.nextToken();
             if (token == null) {
@@ -35,22 +74,29 @@ public class CborParser implements Closeable {
         }
     }
 
-    public <T> Iterator<T> run() {
-        return new Iterator<>() {
+    public <T> Iterable<T> run() {
+        return () -> new Iterator<>() {
+            JsonToken token;
             @Override
             public boolean hasNext() {
-                return !parser.isClosed();
+                boolean hasNext;
+                try {
+                    hasNext = ! parser.isClosed() && (token = parser.nextToken()) != null;
+                    if (! hasNext) {
+                        parser.close();
+                    }
+                    return hasNext;
+               } catch (IOException e) {
+                    throw new NoSuchElementException("Broken input source " + Helpers.resolveThrowableException(e));
+                }
             }
 
             @Override
             public T next() {
                 try {
-                    JsonToken token = parser.nextToken();
-                    if (token == null)
-                        throw new NoSuchElementException();
                     return readValue(token);
                 } catch (IOException e) {
-                    throw new IllegalStateException(e);
+                    throw new NoSuchElementException("Broken input source " + Helpers.resolveThrowableException(e));
                 }
             }
         };
@@ -61,11 +107,11 @@ public class CborParser implements Closeable {
         int tag = parser.getCurrentTag();
         if (tag >= 0) {
             try {
-                return (T) CborTagHandlerService.getByTag(tag)
+                return (T) service.getByTag(tag)
                                .map(this::parseTaggedValue)
                                .orElseGet(() -> {
                                    try {
-                                       return parseRawValue(token);
+                                       return List.of((Object)tag, parseRawValue(token));
                                    } catch (IOException e) {
                                        throw new UncheckedIOException(e);
                                    }
@@ -93,6 +139,7 @@ public class CborParser implements Closeable {
         case VALUE_NUMBER_FLOAT:
             return (T) parser.getNumberValue();
         case VALUE_STRING:
+        case FIELD_NAME:
             return (T) parser.getValueAsString();
         case VALUE_FALSE:
             return (T) Boolean.FALSE;
@@ -174,18 +221,6 @@ public class CborParser implements Closeable {
     @Override
     public void close() throws IOException {
         parser.close();
-    }
-
-    public static <T> Iterator<T> parse(byte[] data, int offset, int len) throws IOException {
-        try (CborParser parser = new CborParser(factory.createParser(data, offset, len))){
-            return parser.run();
-        }
-    }
-
-    public static <T> Iterator<T> parse(InputStream source) throws IOException {
-        try (CborParser parser = new CborParser(factory.createParser(source))){
-            return parser.run();
-        }
     }
 
 }
