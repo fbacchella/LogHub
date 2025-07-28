@@ -31,11 +31,13 @@ import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.receivers.Udp;
 
 public class TestNetflow {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -232,8 +234,10 @@ public class TestNetflow {
     private void runParsing(String[] captures, Consumer<Netflow.Builder> configure, Consumer<Event> checker, Consumer<DecodeException> onException) {
         Udp.Builder udpBuilder = Udp.getBuilder();
         udpBuilder.setPort(2055);
+        udpBuilder.setEventsFactory(factory);
 
         Netflow.Builder netFlowBuilder = Netflow.getBuilder();
+        netFlowBuilder.setFactory(factory);
         configure.accept(netFlowBuilder);
         Netflow nfd = netFlowBuilder.build();
         nfd.configure(new Properties(new HashMap<>()), udpBuilder.build());

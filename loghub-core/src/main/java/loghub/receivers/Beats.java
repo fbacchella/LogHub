@@ -112,8 +112,6 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
     @Getter
     private final int workers;
 
-    private EventsFactory factory;
-
     public Beats(Builder builder) {
         super(builder);
         this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
@@ -151,7 +149,7 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
             public void onNewMessage(ChannelHandlerContext ctx, Message beatsMessage) {
                 logger.trace("new beats message {}", beatsMessage::getData);
                 ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
-                Event newEvent = factory.newEvent(cctx);
+                Event newEvent = getEventsFactory().newEvent(cctx);
                 beatsMessage.getData().forEach((i, j) -> {
                     String key = i;
                     if (key.startsWith("@")) {
@@ -162,12 +160,6 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
                 ctx.fireChannelRead(newEvent);
             }
         };
-    }
-
-    @Override
-    public boolean configure(Properties properties) {
-        factory = properties.eventsFactory;
-        return super.configure(properties);
     }
 
     @Override

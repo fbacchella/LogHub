@@ -37,6 +37,7 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
@@ -45,6 +46,7 @@ import loghub.security.ssl.SslContextBuilder;
 public class TestBeats {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -181,9 +183,10 @@ public class TestBeats {
         queue = new PriorityBlockingQueue();
         Beats.Builder builder = Beats.getBuilder();
         builder.setPort(port);
+        builder.setEventsFactory(factory);
         prepare.accept(builder);
 
-        receiver = new Beats(builder);
+        receiver = builder.build();
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));

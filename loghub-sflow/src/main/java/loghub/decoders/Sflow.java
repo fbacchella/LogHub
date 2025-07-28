@@ -48,6 +48,7 @@ public class Sflow extends Decoder {
     public static class Builder extends Decoder.Builder<Sflow> {
         String[] xdrPaths = new String[]{};
         ClassLoader classLoader = getClass().getClassLoader();
+        EventsFactory factory;
         @Override
         public Sflow build() {
             return new Sflow(this);
@@ -60,7 +61,7 @@ public class Sflow extends Decoder {
 
     private final ObjectMapper objectMapper = JacksonBuilder.get(JsonMapper.class).getMapper();
     private final SflowParser sflowRegistry = new SflowParser();
-    private EventsFactory factory;
+    private final EventsFactory factory;
 
     protected Sflow(Builder builder) {
         super(builder);
@@ -88,12 +89,7 @@ public class Sflow extends Decoder {
             }
         }).filter(Objects::nonNull).forEach(readXdr);
         sflowRegistry.addTypes(knownTypes);
-    }
-
-    @Override
-    public boolean configure(Properties properties, Receiver<?, ?> receiver) {
-        factory = properties.eventsFactory;
-        return super.configure(properties, receiver);
+        factory = builder.factory;
     }
 
     @Override
@@ -113,8 +109,8 @@ public class Sflow extends Decoder {
                 ev.putAtPath(VariablePath.of("observer"), observer);
                 events.add(ev);
             }
-        } catch (IOException e) {
-            throw new DecodeException("Failed decoding sFlow packet", e);
+        } catch (IOException | RuntimeException e) {
+            throw new DecodeException("Failed decoding sFlow packet from " + ctx.getRemoteAddress(), e);
         }
         return events;
     }

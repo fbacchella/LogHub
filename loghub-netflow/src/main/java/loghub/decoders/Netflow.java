@@ -52,6 +52,7 @@ public class Netflow extends Decoder {
     public static class Builder extends Decoder.Builder<Netflow> {
         private boolean snakeCase = false;
         private boolean flowSignature = false;
+        private EventsFactory factory;
         @Override
         public Netflow build() {
             return new Netflow(this);
@@ -66,7 +67,7 @@ public class Netflow extends Decoder {
     private static final Pattern SNAKE_CASE3 = Pattern.compile("([A-Z]+)([A-Z][a-z])");    // Handle HTTPRequest and like
 
     private final NetflowRegistry registry;
-    private EventsFactory factory;
+    private final EventsFactory factory;
     private final boolean snakeCase;
     private final boolean flowSignature;
 
@@ -75,11 +76,11 @@ public class Netflow extends Decoder {
         registry = new NetflowRegistry();
         snakeCase = builder.snakeCase;
         flowSignature = builder.flowSignature;
+        factory = builder.factory;
     }
 
     @Override
     public boolean configure(Properties properties, Receiver<?, ?> receiver) {
-        factory = properties.eventsFactory;
         return super.configure(properties, receiver);
     }
 
