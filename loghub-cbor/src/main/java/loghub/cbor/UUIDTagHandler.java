@@ -31,11 +31,11 @@ public class UUIDTagHandler extends CborTagHandler<UUID> {
     }
 
     @Override
-    public CBORGenerator write(UUID uuid, CBORGenerator p) throws IOException {
+    public void write(UUID uuid, CBORGenerator p) throws IOException {
         ByteBuffer buffer = ByteBuffer.allocate(16);
         buffer.putLong(uuid.getMostSignificantBits());
         buffer.putLong(uuid.getLeastSignificantBits());
         p.writeBinary(buffer.array());
-        return p;
     }
+
 }

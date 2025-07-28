@@ -27,7 +27,7 @@ public class CborSerializer<T> extends JsonSerializer<T> {
     @Override
     public void serialize(T value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         ((CBORGenerator)gen).writeTag(tag.getTag());
-        tag.write(value, (CBORGenerator) gen);
+        tag.doWrite(value, (CBORGenerator) gen);
     }
 
 }

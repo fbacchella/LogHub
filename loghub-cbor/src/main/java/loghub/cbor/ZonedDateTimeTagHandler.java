@@ -23,8 +23,8 @@ public class ZonedDateTimeTagHandler extends CborTagHandler<ZonedDateTime> {
     }
 
     @Override
-    public CBORGenerator write(ZonedDateTime data, CBORGenerator p) throws IOException {
+    public void write(ZonedDateTime data, CBORGenerator p) throws IOException {
         p.writeString(parser.print(data));
-        return p;
     }
+
 }

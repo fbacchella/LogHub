@@ -32,7 +32,7 @@ public class EpochTagHandler extends CborTagHandler<Object> {
     }
 
     @Override
-    public CBORGenerator write(Object data, CBORGenerator p) throws IOException {
+    public void write(Object data, CBORGenerator p) throws IOException {
         Instant t;
         if (data instanceof Date) {
             t = ((Date) data).toInstant();
@@ -43,6 +43,6 @@ public class EpochTagHandler extends CborTagHandler<Object> {
         }
         double seconds = t.getEpochSecond() + t.getNano() / 1_000_000_000.0;
         p.writeNumber(seconds);
-        return p;
     }
+
 }

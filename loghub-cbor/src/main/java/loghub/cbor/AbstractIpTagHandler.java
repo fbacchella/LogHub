@@ -102,12 +102,13 @@ public class AbstractIpTagHandler extends CborTagHandler<Object> {
     }
 
     @Override
-    public CBORGenerator write(Object data, CBORGenerator p) throws IOException {
+    public void write(Object data, CBORGenerator p) throws IOException {
         if (data instanceof InetAddress) {
             byte[] buffer = ((InetAddress)data).getAddress();
             p.writeBinary(buffer);
+        } else {
+            throw new IOException("Invalid input InetAddress");
         }
-        return p;
     }
 
 }

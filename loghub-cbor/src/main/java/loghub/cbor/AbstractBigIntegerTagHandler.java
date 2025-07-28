@@ -13,10 +13,9 @@ public abstract class AbstractBigIntegerTagHandler extends CborTagHandler<BigInt
     }
 
     @Override
-    public CBORGenerator write(BigInteger data, CBORGenerator p) throws IOException {
+    public void write(BigInteger data, CBORGenerator p) throws IOException {
         byte[] buffer = data.abs().toByteArray();
         p.writeBytes(buffer, 0, buffer.length);
-        return p;
     }
 
     @Override

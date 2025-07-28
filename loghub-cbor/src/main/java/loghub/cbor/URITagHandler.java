@@ -18,9 +18,8 @@ public class URITagHandler extends CborTagHandler<URI> {
     }
 
     @Override
-    public CBORGenerator write(URI data, CBORGenerator p) throws IOException {
+    public void write(URI data, CBORGenerator p) throws IOException {
         p.writeString(data.toString());
-        return p;
     }
 
 }

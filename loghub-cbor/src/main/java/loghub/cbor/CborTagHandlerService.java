@@ -1,15 +1,33 @@
 package loghub.cbor;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 
+import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
+import com.fasterxml.jackson.dataformat.cbor.CBORParser;
+
 public final class CborTagHandlerService {
 
     private static final Map<Integer, CborTagHandler<?>> handlersByTag;
     private static final Map<Class<?>, CborTagHandler<?>> handlersByType;
+
+    public interface CustomParser<T> {
+        default boolean usable(CBORParser p) {
+            return true;
+        }
+        T parse(CBORParser p) throws IOException;
+    }
+
+    public interface CustomWriter<T> {
+        default boolean usable(T data, CBORGenerator pp) {
+            return true;
+        }
+        void write(T data, CBORGenerator p) throws IOException;
+    }
 
     static {
         ServiceLoader<CborTagHandler> loader = ServiceLoader.load(CborTagHandler.class);
