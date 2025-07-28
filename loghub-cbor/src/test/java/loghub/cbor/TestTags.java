@@ -39,15 +39,6 @@ public class TestTags {
         mapper = jbuilder.getMapper();
     }
 
-    public String toHex(byte[] data) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : data) {
-            sb.append(String.format("%02X ", b)); // ou "%02x" pour minuscule
-        }
-        sb.deleteCharAt(sb.length() - 1);
-        return sb.toString();
-    }
-
     private <T> void roundTrip(Supplier<T> source, BiConsumer<T, T> asserter)  throws IOException {
         T value = source.get();
         byte[] buffer = mapper.writeValueAsBytes(value);
@@ -65,6 +56,7 @@ public class TestTags {
         });
         roundTrip(() -> URI.create("https://github.com/fbacchella/LogHub"), Assert::assertEquals);
         roundTrip(UUID::randomUUID, Assert::assertEquals);
+        roundTrip(InetAddress::getLoopbackAddress, Assert::assertEquals);
     }
 
     @Test
@@ -152,7 +144,7 @@ public class TestTags {
     }
 
     private <T> void testParsing(T i, byte[] buffer, BiConsumer<T, T> o) throws IOException {
-        try (CborParser parser = new CborParser(factory.createParser(new ByteArrayInputStream(buffer)))){
+        try (CborParser parser = new CborParser(factory.createParser(buffer))){
             parser.run(v -> o.accept(i, (T) v));
         }
     }

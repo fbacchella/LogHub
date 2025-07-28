@@ -105,7 +105,7 @@ public class AbstractIpTagHandler extends CborTagHandler<Object> {
     public CBORGenerator write(Object data, CBORGenerator p) throws IOException {
         if (data instanceof InetAddress) {
             byte[] buffer = ((InetAddress)data).getAddress();
-            p.writeBytes(buffer, 0, buffer.length);
+            p.writeBinary(buffer);
         }
         return p;
     }
