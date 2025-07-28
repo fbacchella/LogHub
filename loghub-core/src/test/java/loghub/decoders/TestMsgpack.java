@@ -179,6 +179,7 @@ public class TestMsgpack {
 
         TestReceiver.Builder builder = TestReceiver.getBuilder();
         builder.setTimeStampField("f");
+        builder.setEventsFactory(factory);
         Msgpack d = AbstractBuilder.resolve(Msgpack.class).build();
         builder.setDecoder(d);
 

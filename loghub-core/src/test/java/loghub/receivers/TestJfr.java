@@ -29,10 +29,12 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 
 public class TestJfr {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @Rule
     public final TemporaryFolder tempFolder = new TemporaryFolder();
@@ -130,6 +132,7 @@ public class TestJfr {
         Jfr.Builder builder = Jfr.getBuilder();
         builder.setJfrFile(jfrFile.toString());
         builder.setDurationUnit(durationFormat);
+        builder.setEventsFactory(factory);
         try (Jfr jfr = builder.build()) {
             Assert.assertTrue(jfr.configure(new Properties(new HashMap<>())));
             Event ev = jfr.getStream().filter(e -> {

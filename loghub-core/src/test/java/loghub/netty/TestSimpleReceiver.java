@@ -33,12 +33,15 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
 
 public class TestSimpleReceiver {
+
+    private final EventsFactory factory = new EventsFactory();
 
     @CloseOnError
     @BuilderClass(TesterReceiver.Builder.class)
@@ -116,6 +119,7 @@ public class TestSimpleReceiver {
         builder.setPoller(poller);
         builder.setHost(host);
         builder.setPort(port);
+        builder.setEventsFactory(factory);
 
         try (TestSimpleReceiver.TesterReceiver r = builder.build()) {
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));

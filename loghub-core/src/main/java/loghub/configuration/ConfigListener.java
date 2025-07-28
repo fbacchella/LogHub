@@ -90,6 +90,7 @@ import loghub.RouteParser.VarPathContext;
 import loghub.RouteParser.VparrayContext;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.events.EventsFactory;
 import loghub.groovy.GroovyMethods;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
@@ -125,6 +126,7 @@ class ConfigListener extends RouteBaseListener {
             ClassLoader.class,
             CacheManager.class,
             ConfigurationProperties.class,
+            EventsFactory.class
     };
 
     private enum StackMarker {
@@ -247,6 +249,7 @@ class ConfigListener extends RouteBaseListener {
     private final CacheManager cacheManager;
     private final BeansManager beansManager;
     private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets;
+    private final EventsFactory eventsFactory;
     final ConfigurationProperties properties;
 
     private Parser parser;
@@ -255,7 +258,7 @@ class ConfigListener extends RouteBaseListener {
     @Builder
     private ConfigListener(ClassLoader classLoader, SecretsHandler secrets,
             SslContextBuilder sslBuilder, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager,
-            ConfigurationProperties properties, BeansManager beansManager, Map<RouteParser.BeanValueContext, Class<?>> implicitObjets) {
+            ConfigurationProperties properties, BeansManager beansManager, Map<RouteParser.BeanValueContext, Class<?>> implicitObjets, EventsFactory eventsFactory) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.beansManager = beansManager != null ? beansManager : new BeansManager();
@@ -266,6 +269,7 @@ class ConfigListener extends RouteBaseListener {
         this.cacheManager = cacheManager;
         this.properties = Optional.ofNullable(properties).filter(Objects::nonNull).orElseGet(ConfigurationProperties::new);
         this.implicitObjets = Optional.ofNullable(implicitObjets).filter(Objects::nonNull).orElseGet(Map::of);
+        this.eventsFactory = eventsFactory;
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -435,6 +439,8 @@ class ConfigListener extends RouteBaseListener {
                         value = this.cacheManager;
                     } else if (c == ConfigurationProperties.class) {
                         value = this.properties;
+                    } else if (c == EventsFactory.class) {
+                        value = this.eventsFactory;
                     } else {
                         throw new IllegalStateException("Unhandled bean injection value");
                     }

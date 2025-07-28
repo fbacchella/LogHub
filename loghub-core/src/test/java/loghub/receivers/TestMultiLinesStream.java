@@ -31,12 +31,14 @@ import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestMultiLinesStream {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -148,6 +150,7 @@ public class TestMultiLinesStream {
         queue = new PriorityBlockingQueue();
         MultiLinesStream.Builder builder = MultiLinesStream.getBuilder();
         builder.setPort(port);
+        builder.setEventsFactory(factory);
         prepare.accept(builder);
 
         MultiLinesStream receiver = builder.build();

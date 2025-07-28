@@ -55,6 +55,7 @@ import lombok.AllArgsConstructor;
 public class Properties extends HashMap<String, Object> {
 
     enum PROPSNAMES {
+        EVENTSFACTORY,
         JWTHANDLER,
         JAASCONFIG,
         SSLCONTEXT,
@@ -113,7 +114,7 @@ public class Properties extends HashMap<String, Object> {
     public final CacheManager cacheManager;
     public final Set<EventsProcessor> eventsprocessors;
     public final Path hprofdump;
-    public final EventsFactory eventsFactory = new EventsFactory();
+    public final EventsFactory eventsFactory;
     public final HashedWheelTimer processExpiration = new HashedWheelTimer(ThreadBuilder.get().setDaemon(true).getFactory("EventsRepository-timeoutmanager"));
 
     public final Timer timer = new Timer("loghubtimer", true);
@@ -132,6 +133,8 @@ public class Properties extends HashMap<String, Object> {
                               .orElseGet(Properties.class::getClassLoader);
         cacheManager = Optional.ofNullable((CacheManager) properties.remove(PROPSNAMES.CACHEMANGER.toString()))
                                     .orElseGet(() -> new CacheManager(classloader));
+        eventsFactory = Optional.ofNullable((EventsFactory) properties.remove(PROPSNAMES.CACHEMANGER.toString()))
+                                .orElseGet(() -> new EventsFactory());
 
         if (properties.containsKey("log4j.defaultlevel")) {
             String levelname = (String) properties.remove("log4j.defaultlevel");

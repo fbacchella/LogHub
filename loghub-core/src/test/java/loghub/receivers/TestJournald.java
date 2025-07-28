@@ -29,11 +29,13 @@ import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestJournald {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -63,6 +65,7 @@ public class TestJournald {
         Journald.Builder httpbuilder = Journald.getBuilder();
         httpbuilder.setHost(hostname);
         httpbuilder.setPort(port);
+        httpbuilder.setEventsFactory(factory);
         prepare.accept(httpbuilder);
 
         receiver = httpbuilder.build();

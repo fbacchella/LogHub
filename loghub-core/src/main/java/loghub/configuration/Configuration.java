@@ -57,7 +57,9 @@ import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.SourcesContext;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.Output;
+import loghub.configuration.Properties.PROPSNAMES;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.SslContextBuilder;
@@ -347,6 +349,8 @@ public class Configuration {
                           .filter(e -> ! (e.getValue() instanceof NullOrMissingValue))
                           .collect(Collectors.toMap(Entry::getKey, Entry::getValue))
         );
+        EventsFactory eventsFactory = new EventsFactory();
+        properties.put(PROPSNAMES.EVENTSFACTORY.toString(), eventsFactory);
         // Don’t change order, it's meaningfully
         // locale and timezone first, to check for output format
         // everything else must be set latter
@@ -404,6 +408,7 @@ public class Configuration {
                                                         .properties(new ConfigurationProperties(configurationProperties))
                                                         .beansManager(filter.getManager())
                                                         .implicitObjets(filter.getImplicitObjets())
+                                                        .eventsFactory(eventsFactory)
                                                         .build();
             logger.debug("Walk configuration");
             trees.forEach(t -> {

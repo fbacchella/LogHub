@@ -32,11 +32,13 @@ import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.netty.transport.POLLER;
 
 public class TestUdp {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -57,6 +59,7 @@ public class TestUdp {
 
     private Udp getReceiver(Consumer<Udp.Builder> configure) {
         Udp.Builder b = Udp.getBuilder();
+        b.setEventsFactory(factory);
         configure.accept(b);
         return b.build();
     }

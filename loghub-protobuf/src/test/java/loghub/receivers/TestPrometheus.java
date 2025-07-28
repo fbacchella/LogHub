@@ -37,12 +37,14 @@ import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.security.ssl.ClientAuthentication;
 import prometheus.Remote;
 
 public class TestPrometheus {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -66,6 +68,7 @@ public class TestPrometheus {
         Prometheus.Builder httpbuilder = Prometheus.getBuilder();
         httpbuilder.setHost(hostname);
         httpbuilder.setPort(port);
+        httpbuilder.setEventsFactory(factory);
         prepare.accept(httpbuilder);
 
         receiver = httpbuilder.build();

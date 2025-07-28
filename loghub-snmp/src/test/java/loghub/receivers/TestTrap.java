@@ -57,12 +57,14 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestTrap {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -71,7 +73,6 @@ public class TestTrap {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.SnmpTrap", "loghub.receivers", "org.snmp4j");
         Configurator.setLevel("fr.jrds.SmiExtensions", Level.ERROR);
         SnmpTrap.resetMibDirs();
-
     }
 
     private void doTest(Supplier<PDU> getPdu, Consumer<CommandResponderEvent<UdpAddress>> dosecurity, Consumer<Event> checkEvent)
@@ -79,6 +80,7 @@ public class TestTrap {
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
         builder.setPort(0);
+        builder.setEventsFactory(factory);
 
         try (SnmpTrap r = builder.build()) {
             r.setOutQueue(receiver);
@@ -122,6 +124,7 @@ public class TestTrap {
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
         builder.setPort(1161);
         builder.setProtocol(protocol);
+        builder.setEventsFactory(factory);
 
         try (SnmpTrap r = builder.build();
              Snmp snmp = getSnmp()) {

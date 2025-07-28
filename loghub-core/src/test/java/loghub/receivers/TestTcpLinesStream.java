@@ -37,6 +37,7 @@ import loghub.decoders.Decoder;
 import loghub.decoders.Json;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
@@ -44,12 +45,17 @@ import loghub.security.ssl.SslContextBuilder;
 public class TestTcpLinesStream {
 
     private static Logger logger;
+    private static SSLContext sslctx;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.TcpLinesStream", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
+        SslContextBuilder builder = SslContextBuilder.getBuilder();
+        builder.setTrusts(Tools.getDefaultKeyStore());
+        sslctx = builder.build();
     }
 
     private int port;
@@ -133,11 +139,6 @@ public class TestTcpLinesStream {
 
     @Test(timeout = 5000)
     public void testSSL() throws IOException, InterruptedException {
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("trusts", Tools.getDefaultKeyStore());
-        SslContextBuilder builder = SslContextBuilder.getBuilder();
-        builder.setTrusts(Tools.getDefaultKeyStore());
-        SSLContext sslctx = builder.build();
         try (TcpLinesStream ignored = makeReceiver(i -> {
                     i.setSslContext(sslctx);
                     i.setWithSSL(true);
@@ -169,6 +170,7 @@ public class TestTcpLinesStream {
         TcpLinesStream.Builder builder = TcpLinesStream.getBuilder();
         builder.setPort(port);
         builder.setDecoder(decodsup.get());
+        builder.setEventsFactory(factory);
         prepare.accept(builder);
 
         TcpLinesStream receiver = builder.build();

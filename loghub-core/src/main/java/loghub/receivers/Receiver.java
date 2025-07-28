@@ -57,8 +57,10 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
         protected String timeStampField = Event.TIMESTAMPKEY;
         protected Filter filter;
         protected boolean blocking = true;
+        protected EventsFactory eventsFactory;
     }
 
+    @Getter
     protected final Logger logger;
 
     @Getter
@@ -77,6 +79,8 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     private final Filter filter;
     @Getter
     private final AuthenticationHandler authenticationHandler;
+    @Getter
+    private final EventsFactory eventsFactory;
 
     @Setter
     private PriorityBlockingQueue outQueue;
@@ -84,8 +88,6 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     private Pipeline pipeline;
     private final boolean blocking;
     protected final Decoder decoder;
-    @Getter
-    private EventsFactory eventsFactory;
 
     protected Receiver(B builder) {
         setDaemon(true);
@@ -107,6 +109,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
         this.timeStampField = builder.timeStampField;
         this.filter = builder.filter;
         this.authenticationHandler = buildAuthenticationHandler(builder);
+        this.eventsFactory = builder.eventsFactory;
     }
 
     /**
@@ -121,7 +124,6 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     }
 
     public boolean configure(Properties properties) {
-        eventsFactory = properties.eventsFactory;
         setName("receiver." + getReceiverName());
         if (decoder != null) {
             return decoder.configure(properties, this);

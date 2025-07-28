@@ -39,6 +39,7 @@ import loghub.ZMQFlow;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
@@ -48,6 +49,7 @@ import zmq.io.mechanism.Mechanisms;
 public class TestZMQReceiver {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -82,6 +84,7 @@ public class TestZMQReceiver {
         builder.setType(SocketType.PULL);
         builder.setDecoder(StringCodec.getBuilder().build());
         builder.setListen(rendezvous);
+        builder.setEventsFactory(factory);
         configure.accept(builder);
 
         Properties p = new Properties(new HashMap<>(Map.of(

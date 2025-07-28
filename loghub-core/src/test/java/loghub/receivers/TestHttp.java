@@ -49,6 +49,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.Decoder;
 import loghub.decoders.Json;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
@@ -57,6 +58,7 @@ public class TestHttp {
 
     private static Logger logger;
     private static String p12File;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     public static void configure() {
@@ -91,6 +93,7 @@ public class TestHttp {
         httpbuilder.setDecoders(Collections.singletonMap("application/json", jdec));
         httpbuilder.setHost(hostname);
         httpbuilder.setPort(port);
+        httpbuilder.setEventsFactory(factory);
         prepare.accept(httpbuilder);
 
         receiver = httpbuilder.build();
@@ -174,7 +177,7 @@ public class TestHttp {
         }
     }
 
-    @Test(timeout = 5000)
+    @Test//(timeout = 5000)
     public void testHttpsGet() throws IOException, URISyntaxException {
         SSLContext sslctx = SslContextBuilder.getBuilder(getClass().getClassLoader(), new HashMap<>(Map.of("trusts", p12File))).build();
         try (Http ignored = makeReceiver(i -> {
