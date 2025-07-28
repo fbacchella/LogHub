@@ -57,6 +57,7 @@ public class TestTags {
         roundTrip(() -> URI.create("https://github.com/fbacchella/LogHub"), Assert::assertEquals);
         roundTrip(UUID::randomUUID, Assert::assertEquals);
         roundTrip(InetAddress::getLoopbackAddress, Assert::assertEquals);
+        roundTrip(() -> BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN), Assert::assertEquals);
     }
 
     @Test
