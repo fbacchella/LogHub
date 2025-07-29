@@ -20,7 +20,6 @@ import io.netty.buffer.ByteBuf;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.IpConnectionContext;
-import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.netflow.IpfixPacket;
@@ -30,7 +29,6 @@ import loghub.netflow.NetflowPacket;
 import loghub.netflow.NetflowRegistry;
 import loghub.netflow.Template;
 import loghub.netflow.TemplateBasedPacket;
-import loghub.receivers.Receiver;
 import lombok.Setter;
 
 @BuilderClass(Netflow.Builder.class)
@@ -77,11 +75,6 @@ public class Netflow extends Decoder {
         snakeCase = builder.snakeCase;
         flowSignature = builder.flowSignature;
         factory = builder.factory;
-    }
-
-    @Override
-    public boolean configure(Properties properties, Receiver<?, ?> receiver) {
-        return super.configure(properties, receiver);
     }
 
     @Override
