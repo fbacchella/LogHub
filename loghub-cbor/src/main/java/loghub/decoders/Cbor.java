@@ -7,10 +7,8 @@ import io.netty.buffer.ByteBufInputStream;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.cbor.CborParser.CborParserFactory;
-import loghub.cbor.CborTagHandlerService;
-import loghub.configuration.Properties;
+import loghub.cbor.LogHubEventTagHandler;
 import loghub.events.EventsFactory;
-import loghub.receivers.Receiver;
 import lombok.Setter;
 
 @BuilderClass(Cbor.Builder.class)
@@ -33,7 +31,9 @@ public class Cbor extends Decoder {
     private final CborParserFactory factory;
     private Cbor(Builder builder) {
         super(builder);
-        factory = new CborParserFactory(new CborTagHandlerService(builder.classLoader));
+        factory = new CborParserFactory(builder.classLoader);
+        factory.setCustomHandling(LogHubEventTagHandler.EVENT_TAG, LogHubEventTagHandler.eventParser(
+                builder.eventsFactory), null);
     }
 
     @Override
