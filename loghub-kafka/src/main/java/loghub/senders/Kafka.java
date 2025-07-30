@@ -97,7 +97,11 @@ public class Kafka extends Sender {
                   .withThrowable(logger.isDebugEnabled() ? ex : null)
                   .log("Kafka sender failed: {}", () -> Helpers.resolveThrowableException(ex));
         } finally {
-            Optional.ofNullable(producer).ifPresent(Producer::close);
+            try {
+                Optional.ofNullable(producer).ifPresent(Producer::close);
+            } catch (org.apache.kafka.common.KafkaException ex) {
+                logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Kafka stop failed: {}", Helpers.resolveThrowableException(ex));
+            }
         }
     }
 
