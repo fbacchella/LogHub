@@ -150,7 +150,9 @@ public class EventsProcessor extends Thread {
                     Pipeline next = namedPipelines.get(event.getNextPipeline());
                     if (next == null) {
                         event.getPipelineLogger().error("Failed to forward to pipeline {}, not found", event.getNextPipeline());
-                        event.drop();
+                        event.doMetric(PipelineStat.FAILURE);
+                        event.end();
+                        event = null;
                         break;
                     } else {
                         event.finishPipeline();
