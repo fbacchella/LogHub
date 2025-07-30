@@ -6,7 +6,6 @@ import java.util.Date;
 
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 public class EpochTagHandler extends CborTagHandler<Object> {
 
@@ -15,14 +14,14 @@ public class EpochTagHandler extends CborTagHandler<Object> {
     }
 
     @Override
-    public Object parse(CBORParser p) throws IOException {
+    public Object parse(CborParser p) throws IOException {
         long seconds;
         long nanos;
         if (p.currentToken() == JsonToken.VALUE_NUMBER_INT) {
-            seconds = p.getLongValue();
+            seconds = p.readLong();
             nanos = 0;
         } else if (p.currentToken() == JsonToken.VALUE_NUMBER_FLOAT) {
-            double epochSeconds = p.getDoubleValue();
+            double epochSeconds = p.readDouble();
             seconds = (long) epochSeconds;
             nanos = (long) ((epochSeconds - seconds) * 1_000_000_000);
         } else {

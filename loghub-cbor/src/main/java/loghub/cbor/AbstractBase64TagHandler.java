@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.Base64;
 
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 public abstract class AbstractBase64TagHandler extends CborTagHandler<byte[]> {
 
@@ -13,9 +12,9 @@ public abstract class AbstractBase64TagHandler extends CborTagHandler<byte[]> {
     }
 
     @Override
-    public byte[] parse(CBORParser p) throws IOException {
+    public byte[] parse(CborParser p) throws IOException {
         Base64.Decoder decoder = getTag() == 33 ? Base64.getUrlDecoder() : Base64.getDecoder();
-        return decoder.decode(p.getText());
+        return decoder.decode(p.readText());
     }
 
     @Override

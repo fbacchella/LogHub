@@ -5,10 +5,10 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Objects;
 
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 public class AbstractIpTagHandler extends CborTagHandler<Object> {
 
@@ -17,11 +17,11 @@ public class AbstractIpTagHandler extends CborTagHandler<Object> {
     }
 
     @Override
-    public Object parse(CBORParser p) throws IOException {
+    public Object parse(CborParser p) throws IOException {
         int tag = p.getCurrentTag();
         if (p.currentToken() == JsonToken.VALUE_EMBEDDED_OBJECT) {
             // ipvx-address
-            byte[] buffer = p.getBinaryValue();
+            byte[] buffer = p.readBytes();
             return InetAddress.getByAddress(buffer);
         } else if (p.currentToken() == JsonToken.START_ARRAY) {
             JsonToken nextToken = p.nextToken();
@@ -40,28 +40,28 @@ public class AbstractIpTagHandler extends CborTagHandler<Object> {
         }
     }
 
-    private String ipPrefix(CBORParser p, int tag) throws IOException {
-        int prefixLength = p.getIntValue();
+    private String ipPrefix(CborParser p, int tag) throws IOException {
+        int prefixLength = p.readInt();
         JsonToken nextToken = p.nextToken();
         assert nextToken == JsonToken.VALUE_EMBEDDED_OBJECT;
-        byte[] buffer = p.getBinaryValue();
+        byte[] buffer = p.readBytes();
         InetAddress addr = mask(buffer, tag, prefixLength);
         nextToken = p.nextToken();
         assert nextToken == JsonToken.END_ARRAY;
         return String.format("%s/%d", addr.getHostAddress(), prefixLength);
     }
 
-    private String ipAddressWithPrefix(CBORParser p, int tag, int length) throws IOException {
-        byte[] buffer = p.getBinaryValue();
+    private String ipAddressWithPrefix(CborParser p, int tag, int length) throws IOException {
+        byte[] buffer = p.readBytes();
         JsonToken nextToken = p.nextToken();
         int prefixLength;
         if (nextToken == JsonToken.VALUE_NULL) {
             prefixLength = tag == 54 ? 128 : 32;
         } else {
-            prefixLength = p.getIntValue();
+            prefixLength = p.readInt();
         }
         if (prefixLength < 0 || prefixLength > (tag == 54 ? 128 : 32)) {
-            throw new IOException("Invalid input Inetaddress");
+            throw new IOException("Invalid input Inet address");
         }
 
         InetAddress addr = mask(buffer, tag, prefixLength);
@@ -69,13 +69,13 @@ public class AbstractIpTagHandler extends CborTagHandler<Object> {
         if (length == 3) {
             nextToken = p.nextToken();
             if (nextToken.isNumeric()) {
-                interfaceIdentifier = "%" + p.getIntValue();
+                interfaceIdentifier = "%" + p.readInt();
             } else if (nextToken == JsonToken.VALUE_STRING){
-                interfaceIdentifier = "%" + p.getValueAsString();
+                interfaceIdentifier = "%" + p.readText();
             } else if (nextToken == JsonToken.VALUE_EMBEDDED_OBJECT){
-                interfaceIdentifier = "%" + new String(p.getBinaryValue(), StandardCharsets.UTF_8);
+                interfaceIdentifier = "%" + new String(p.readBytes(), StandardCharsets.UTF_8);
             } else {
-                throw new IOException("Invalid input Inetaddress");
+                throw new IOException("Invalid input Inet address");
             }
         } else {
             interfaceIdentifier = "";
@@ -107,7 +107,7 @@ public class AbstractIpTagHandler extends CborTagHandler<Object> {
             byte[] buffer = ((InetAddress)data).getAddress();
             p.writeBinary(buffer);
         } else {
-            throw new IOException("Invalid input InetAddress");
+            throw new IOException("Not an instance of InetAddress, " + (Objects.nonNull(data) ? data.getClass().getName() : "null"));
         }
     }
 

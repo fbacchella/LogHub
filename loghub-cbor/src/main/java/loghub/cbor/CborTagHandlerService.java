@@ -9,19 +9,19 @@ import java.util.ServiceLoader;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
+@SuppressWarnings("java:S1452")
 public class CborTagHandlerService {
 
-    private final Map<Integer, CborTagHandler<Object>> handlersByTag;
-    private final Map<Class<Object>, CborTagHandler<Object>> handlersByType;
+    private final Map<Integer, CborTagHandler<?>> handlersByTag;
+    private final Map<Class<?>, CborTagHandler<?>> handlersByType;
 
     public interface CustomParser<T> {
         @SuppressWarnings("unused")
-        default boolean usable(CBORParser p) {
+        default boolean usable(CborParser p) {
             return true;
         }
-        T parse(CBORParser p) throws IOException;
+        T parse(CborParser parser) throws IOException;
     }
 
     public interface CustomWriter<T> {
@@ -54,23 +54,23 @@ public class CborTagHandlerService {
         this(ServiceLoader.load(CborTagHandler.class, clLoader));
     }
 
-   public Optional<CborTagHandler<Object>> getByTag(int tag) {
+   public Optional<CborTagHandler<?>> getByTag(int tag) {
         return Optional.ofNullable(handlersByTag.get(tag));
     }
 
-    public Optional<CborTagHandler<Object>> getByType(Class<?> clazz) {
+    public Optional<CborTagHandler<?>> getByType(Class<?> clazz) {
         return Optional.ofNullable(handlersByType.get(clazz));
     }
 
-    public Collection<CborTagHandler<Object>> allHandlers() {
+    public Collection<CborTagHandler<?>> allHandlers() {
         return handlersByTag.values();
     }
 
-    public Collection<Class<Object>> allHandledClasses() {
+    public Collection<Class<?>> allHandledClasses() {
         return handlersByType.keySet();
     }
 
-    public Stream<CborSerializer<Object>> makeSerializers() {
+    public Stream<CborSerializer<?, ?>> makeSerializers() {
         return handlersByType.entrySet().stream().map(e -> new CborSerializer<>(e.getValue(), e.getKey()));
     }
 

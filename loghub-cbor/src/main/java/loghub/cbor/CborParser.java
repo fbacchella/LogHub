@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import com.fasterxml.jackson.core.JsonToken;
@@ -20,23 +21,30 @@ import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import com.fasterxml.jackson.dataformat.cbor.CBORReadContext;
 
 import loghub.Helpers;
+import loghub.cbor.CborTagHandlerService.CustomParser;
+import loghub.cbor.CborTagHandlerService.CustomWriter;
+import lombok.Getter;
 
 public class CborParser implements Closeable {
 
     public static class CborParserFactory {
         private final CborTagHandlerService service;
         private final CBORFactory factory = new CBORFactory();
+        private final boolean shared;
 
         public CborParserFactory(CborTagHandlerService service) {
             this.service = service;
+            shared = true;
         }
 
         public CborParserFactory(ClassLoader clLoader) {
             this.service = new CborTagHandlerService(clLoader);
+            shared = false;
         }
 
         public CborParserFactory() {
             this.service = new CborTagHandlerService();
+            shared = false;
         }
 
         public CborParser getParser(byte[] data, int offset, int len) throws IOException {
@@ -54,8 +62,21 @@ public class CborParser implements Closeable {
         public CborParser getParser(Path source) throws IOException {
             return new CborParser(service, factory.createParser(Files.newInputStream(source)));
         }
+
+        @SuppressWarnings("unchecked")
+        public <T> void  setCustomHandling(int tag, CustomParser<T> customParser, CustomWriter<T> customWriter) {
+            if (shared) {
+                throw new IllegalArgumentException("Shared tag handlers, can't be updated");
+            }
+            CborTagHandler<T> th = (CborTagHandler<T>) service.getByTag(tag).orElse(null);
+            if (th != null) {
+                th.setCustomParser(customParser);
+                th.setCustomWriter(customWriter);
+            }
+        }
     }
 
+    @Getter
     private final CBORParser parser;
     private final CborTagHandlerService service;
 
@@ -70,7 +91,7 @@ public class CborParser implements Closeable {
             if (token == null) {
                 break;
             }
-            consumer.accept(readValue(token));
+            consumer.accept(readValue());
         }
     }
 
@@ -94,7 +115,7 @@ public class CborParser implements Closeable {
             @Override
             public T next() {
                 try {
-                    return readValue(token);
+                    return readValue();
                 } catch (IOException e) {
                     throw new NoSuchElementException("Broken input source " + Helpers.resolveThrowableException(e));
                 }
@@ -103,30 +124,67 @@ public class CborParser implements Closeable {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> T readValue(JsonToken token) throws IOException {
+    public <T> T readValue() throws IOException {
         int tag = parser.getCurrentTag();
         if (tag >= 0) {
             try {
                 return (T) service.getByTag(tag)
                                .map(this::parseTaggedValue)
-                               .orElseGet(() -> {
-                                   try {
-                                       return List.of((Object)tag, parseRawValue(token));
-                                   } catch (IOException e) {
-                                       throw new UncheckedIOException(e);
-                                   }
-                               });
+                               .orElseGet(() -> makeTaggedObject(tag, parser.currentToken()));
             } catch (UncheckedIOException e) {
                 throw e.getCause();
             }
         } else {
-            return parseRawValue(token);
+            return parseRawValue(parser.currentToken());
+        }
+    }
+
+    public String readText() throws IOException {
+        assert parser.currentToken() == JsonToken.VALUE_STRING;
+        return parser.getValueAsString();
+    }
+
+    public <T> T readFieldKey() throws IOException {
+        assert parser.currentToken() == JsonToken.FIELD_NAME;
+        return readValue();
+    }
+
+    public Number readNumber() throws IOException {
+        assert parser.currentToken() == JsonToken.VALUE_NUMBER_INT || parser.currentToken() == JsonToken.VALUE_NUMBER_FLOAT;
+        return parser.getNumberValue();
+    }
+
+    public int readInt() throws IOException {
+        assert parser.currentToken() == JsonToken.VALUE_NUMBER_INT;
+        return parser.getIntValue();
+    }
+
+    public long readLong() throws IOException {
+        assert parser.currentToken() == JsonToken.VALUE_NUMBER_INT;
+        return parser.getLongValue();
+    }
+
+    public double readDouble() throws IOException {
+        assert parser.currentToken() == JsonToken.VALUE_NUMBER_FLOAT;
+        return parser.getDoubleValue();
+    }
+
+    public byte[] readBytes() throws IOException {
+        return parser.getBinaryValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T makeTaggedObject(int tag, JsonToken token) {
+        try {
+            return (T) Map.of("tag", tag, "value", Objects.requireNonNull(parseRawValue(token)));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
     private <T> T parseTaggedValue(CborTagHandler<T> handler) {
         try {
-            return handler.parse(parser);
+            return handler.doParse(this);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -164,7 +222,7 @@ public class CborParser implements Closeable {
 
     private List<?> readArray() throws IOException {
         CBORReadContext ctx = parser.getParsingContext();
-        List<?> array;
+        List<Object> array;
         int size = ctx.getExpectedLength();
         if (size >= 0) {
             array = new ArrayList<>(size);
@@ -179,7 +237,7 @@ public class CborParser implements Closeable {
                 emergencyExit = true;
                 break;
             } else {
-                array.add(readValue(arrayToken));
+                array.add(readValue());
             }
         }
         if (! emergencyExit) {
@@ -206,8 +264,9 @@ public class CborParser implements Closeable {
                 emergencyExit = true;
                 break;
             } else {
-                Object key = readValue(currentToken);
-                Object value = readValue(parser.nextToken());
+                Object key = readValue();
+                parser.nextToken();
+                Object value = readValue();
                 object.put(key, value);
             }
         }
@@ -216,6 +275,26 @@ public class CborParser implements Closeable {
             assert arrayToken == JsonToken.END_OBJECT;
         }
         return object;
+    }
+
+    public int getCurrentTag() {
+        return parser.getCurrentTag();
+    }
+
+    public JsonToken currentToken() {
+        return parser.currentToken();
+    }
+
+    public JsonToken nextToken() throws IOException {
+        return parser.nextToken();
+    }
+
+    public CBORReadContext getParsingContext() {
+        return parser.getParsingContext();
+    }
+
+    public boolean isClosed() {
+        return parser.isClosed() || currentToken() == null;
     }
 
     @Override

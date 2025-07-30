@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 public abstract class AbstractBigIntegerTagHandler extends CborTagHandler<BigInteger> {
 
@@ -19,8 +18,8 @@ public abstract class AbstractBigIntegerTagHandler extends CborTagHandler<BigInt
     }
 
     @Override
-    public BigInteger parse(CBORParser p) throws IOException {
-        byte[] data = p.getBinaryValue();
+    public BigInteger parse(CborParser p) throws IOException {
+        byte[] data = p.readBytes();
         BigInteger value = new BigInteger(data);
         return getTag() == 2 ? value : value.negate();
     }

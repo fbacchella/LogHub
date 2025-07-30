@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 import loghub.cbor.CborTagHandlerService.CustomParser;
 import loghub.cbor.CborTagHandlerService.CustomWriter;
@@ -25,7 +24,7 @@ public abstract class CborTagHandler<T> {
         this.targetTypes = List.copyOf(Arrays.stream(targetType).collect(Collectors.toList()));
     }
 
-    T doParse(CBORParser p) throws IOException {
+    T doParse(CborParser p) throws IOException {
         if (customParser != null && customParser.usable(p)) {
             return customParser.parse(p);
         } else {
@@ -33,16 +32,15 @@ public abstract class CborTagHandler<T> {
         }
     }
 
-    CBORGenerator doWrite(T data, CBORGenerator p) throws IOException {
+    void doWrite(T data, CBORGenerator p) throws IOException {
         if (customWriter != null && customWriter.usable(data, p)) {
             customWriter.write(data, p);
         } else {
             write(data, p);
         }
-        return p;
     }
 
-    public abstract T parse(CBORParser p) throws IOException;
+    public abstract T parse(CborParser p) throws IOException;
 
     public abstract void write(T data, CBORGenerator p) throws IOException;
 

@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 public class URITagHandler extends CborTagHandler<URI> {
 
@@ -13,8 +12,8 @@ public class URITagHandler extends CborTagHandler<URI> {
     }
 
     @Override
-    public URI parse(CBORParser p) throws IOException {
-        return java.net.URI.create(p.getText());
+    public URI parse(CborParser p) throws IOException {
+        return java.net.URI.create(p.readText());
     }
 
     @Override

@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 public class UUIDTagHandler extends CborTagHandler<UUID> {
 
@@ -15,11 +14,11 @@ public class UUIDTagHandler extends CborTagHandler<UUID> {
     }
 
     @Override
-    public UUID parse(CBORParser p) throws IOException {
+    public UUID parse(CborParser p) throws IOException {
         if (p.currentToken() != JsonToken.VALUE_EMBEDDED_OBJECT) {
             throw new IllegalStateException("Expected embedded binary object for UUID");
         }
-        byte[] data = p.getBinaryValue();
+        byte[] data = p.readBytes();
         if (data.length != 16) {
             throw new IOException("UUID binary representation must be exactly 16 bytes");
         }

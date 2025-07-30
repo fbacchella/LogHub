@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.time.ZonedDateTime;
 
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
-import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 import loghub.datetime.DatetimeProcessor;
 import loghub.datetime.NamedPatterns;
@@ -18,8 +17,8 @@ public class ZonedDateTimeTagHandler extends CborTagHandler<ZonedDateTime> {
     }
 
     @Override
-    public ZonedDateTime parse(CBORParser p) throws IOException {
-        return parser.parse(p.getText());
+    public ZonedDateTime parse(CborParser p) throws IOException {
+        return parser.parse(p.readText());
     }
 
     @Override
