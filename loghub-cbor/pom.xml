@@ -10,6 +10,7 @@
     </parent>
 
     <artifactId>loghub-cbor</artifactId>
+    <name>LogHub :: CBOR handling</name>
 
     <dependencies>
         <dependency>
