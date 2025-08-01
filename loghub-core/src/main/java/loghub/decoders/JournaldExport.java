@@ -22,10 +22,8 @@ import io.netty.util.ByteProcessor;
 import io.netty.util.ByteProcessor.IndexOfProcessor;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
-import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.receivers.Receiver;
 import lombok.Data;
 import lombok.Setter;
 
@@ -87,18 +85,12 @@ public class JournaldExport extends Decoder {
      */
     private final ThreadLocal<EventVars> threadEventVars = ThreadLocal.withInitial(EventVars::new);
 
-    private EventsFactory factory;
+    private final EventsFactory factory;
 
     protected JournaldExport(Builder builder) {
         super(builder);
         this.factory = builder.factory;
         logger.debug("New journald export decoder");
-    }
-
-    @Override
-    public boolean configure(Properties properties, Receiver receiver) {
-        factory = properties.eventsFactory;
-        return super.configure(properties, receiver);
     }
 
     @Override

@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -26,9 +25,11 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 
 public class TestJournaldDecoder {
 
+    private final EventsFactory factory = new EventsFactory();
     private static Logger logger;
 
     @BeforeClass
@@ -47,16 +48,20 @@ public class TestJournaldDecoder {
                 read = readBuffer.writeBytes(is, 4096);
             } while (read > 0);
         }
-        JournaldExport decoder = JournaldExport.getBuilder().build();
+        JournaldExport.Builder builder = JournaldExport.getBuilder();
+        builder.setFactory(factory);
+        JournaldExport decoder = builder.build();
         decoder.configure(new Properties(Collections.emptyMap()), null);
-        List<Map<String, Object>> events = decoder.decode(ConnectionContext.EMPTY, readBuffer).collect(Collectors.toList());
+        List<Map<String, Object>> events = decoder.decode(ConnectionContext.EMPTY, readBuffer).toList();
         check(events);
     }
 
     @Test
     public void testReadSplitted() throws DecodeException, IOException {
         CompositeByteBuf chunksBuffer = ByteBufAllocator.DEFAULT.compositeBuffer();
-        JournaldExport decoder = JournaldExport.getBuilder().build();
+        JournaldExport.Builder builder = JournaldExport.getBuilder();
+        builder.setFactory(factory);
+        JournaldExport decoder = builder.build();
         decoder.configure(new Properties(Collections.emptyMap()), null);
         List<Map<String, Object>> events = new ArrayList<>();
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("binaryjournald")) {
@@ -75,7 +80,7 @@ public class TestJournaldDecoder {
     private void check(List<Map<String, Object>> events) {
         Assert.assertEquals(4, events.size());
         events.forEach(e -> Assert.assertTrue(e instanceof Event));
-        Event ev = (Event) events.get(0);
+        Event ev = (Event) events.getFirst();
         Assert.assertEquals(1637065000943L, ev.getTimestamp().getTime());
         String message = (String) ((Map<String, Object>) ev.get("fields_user")).get("message");
         Assert.assertEquals("Upload to http://xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/upload failed: Send failure: Broken pipe", message);
