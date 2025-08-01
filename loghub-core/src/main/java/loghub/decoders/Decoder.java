@@ -19,6 +19,7 @@ import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventBuilder;
 import loghub.events.EventsFactory;
 import loghub.receivers.Receiver;
 import lombok.Getter;
@@ -33,7 +34,7 @@ public abstract class Decoder {
 
     @FunctionalInterface
     public interface ObjectDecoder {
-        Object get()  throws DecodeException;
+        Object get() throws DecodeException;
     }
 
     private static final StackLocator stacklocator = StackLocator.getInstance();
@@ -86,6 +87,9 @@ public abstract class Decoder {
             @SuppressWarnings("unchecked")
             Iterable<Object> i = (Iterable<Object>) o;
             return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(Objects::nonNull);
+        } else if (o instanceof Stream) {
+            Stream<Object> s = (Stream<Object>) o;
+            return s.map(getDecodeMap(ctx)).filter(Objects::nonNull);
         } else if (o instanceof Iterator) {
             @SuppressWarnings("unchecked")
             Iterator<Object> iter = (Iterator<Object>) o;
@@ -97,7 +101,7 @@ public abstract class Decoder {
     }
 
     private Function<Object, Map<String, Object>> getDecodeMap(ConnectionContext<?> ctx) {
-        return  m -> {
+        return m -> {
             try {
                 return decodeMap(ctx, m);
             } catch (DecodeException ex) {
@@ -110,6 +114,8 @@ public abstract class Decoder {
     private Map<String, Object> decodeMap(ConnectionContext<?> ctx, Object o) throws DecodeException {
         if (o instanceof Event) {
             return (Event) o;
+        } else if (o instanceof EventBuilder) {
+            return ((EventBuilder)o).setContext(ctx).getInstance();
         } else if (o instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<Object, Object> map = (Map<Object, Object>) o;
