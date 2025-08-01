@@ -29,18 +29,18 @@ public class Cbor extends Decoder {
     }
 
     private final CborParserFactory factory;
+
     private Cbor(Builder builder) {
         super(builder);
         factory = new CborParserFactory(builder.classLoader);
-        factory.setCustomHandling(LogHubEventTagHandler.EVENT_TAG, LogHubEventTagHandler.eventParser(
-                builder.eventsFactory), null);
+        factory.setCustomHandling(LogHubEventTagHandler.EVENT_TAG, LogHubEventTagHandler.eventParser(builder.eventsFactory), null);
     }
 
     @Override
     protected Object decodeObject(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length)
             throws DecodeException {
         try {
-            return factory.getParser(msg, offset, length).run();
+            return factory.getParser(msg, offset, length).stream();
         } catch (IOException e) {
             throw new DecodeException("Unable to read CBOR buffer", e);
         }
@@ -49,7 +49,7 @@ public class Cbor extends Decoder {
     @Override
     protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         try {
-            return factory.getParser(new ByteBufInputStream(bbuf)).run();
+            return factory.getParser(new ByteBufInputStream(bbuf)).stream();
         } catch (IOException e) {
             throw new DecodeException("Unable to read CBOR buffer", e);
         }

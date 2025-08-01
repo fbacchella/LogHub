@@ -21,8 +21,6 @@ public class TestCbor {
 
     private static Logger logger;
 
-    private final EventsFactory factory = new EventsFactory();
-
     @BeforeClass
     public static void configure() {
         Tools.configure();

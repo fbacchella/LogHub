@@ -14,6 +14,9 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
@@ -95,7 +98,16 @@ public class CborParser implements Closeable {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public <T> Stream<T> stream() {
+        return (Stream<T>) StreamSupport.stream(run().spliterator(), false);
+    }
+
     public <T> Iterable<T> run() {
+        return run(t -> t);
+    }
+
+    public <T> Iterable<T> run(UnaryOperator<T> transform) {
         return () -> new Iterator<>() {
             JsonToken token;
             @Override
@@ -115,7 +127,7 @@ public class CborParser implements Closeable {
             @Override
             public T next() {
                 try {
-                    return readValue();
+                    return transform.apply(readValue());
                 } catch (IOException e) {
                     throw new NoSuchElementException("Broken input source " + Helpers.resolveThrowableException(e));
                 }

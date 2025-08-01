@@ -10,6 +10,7 @@ import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 
 import loghub.cbor.CborTagHandlerService.CustomParser;
 import loghub.events.Event;
+import loghub.events.EventBuilder;
 import loghub.events.EventsFactory;
 
 public class LogHubEventTagHandler extends CborTagHandler<Event> {
@@ -42,9 +43,9 @@ public class LogHubEventTagHandler extends CborTagHandler<Event> {
         p.writeEndArray();
     }
 
-    public static CustomParser<Event> eventParser(EventsFactory factory) {
+    public static CustomParser<EventBuilder> eventParser(EventsFactory factory) {
         return p -> {
-            Event ev = factory.newEvent();
+            EventBuilder ev = new EventBuilder();
             JsonToken token = p.nextToken();
             assert token == JsonToken.VALUE_STRING;
             String version = p.readText();
@@ -56,13 +57,14 @@ public class LogHubEventTagHandler extends CborTagHandler<Event> {
             token = p.nextToken();
             assert token == JsonToken.START_OBJECT;
             Map<String, Object> metas = p.readValue();
-            ev.getMetas().putAll(metas);
+            ev.setMetas(metas);
             token = p.nextToken();
             assert token == JsonToken.START_OBJECT;
             Map<String, Object> data = p.readValue();
             token = p.nextToken();
             assert token == JsonToken.END_ARRAY;
-            ev.putAll(data);
+            ev.setData(data);
+            ev.setFactory(factory);
             return ev;
         };
     }
