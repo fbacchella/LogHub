@@ -3,7 +3,13 @@ package loghub.configuration;
 import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.time.Duration;
+import java.time.Period;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.junit.Assert;
@@ -31,6 +37,7 @@ public class TestBeanManager {
         private BeanContener[] bc;
         private Expression ex;
         private Class<?> clazz;
+        private ZoneId zid;
     }
 
     private final BeansManager beansManager = new BeansManager();
@@ -164,6 +171,26 @@ public class TestBeanManager {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "clazz", String.class.getName());
         Assert.assertEquals(String.class, c.clazz);
+    }
+
+    @Test
+    public void testZoneId() throws IntrospectionException, InvocationTargetException {
+        BeanContener c = new BeanContener();
+        beansManager.beanSetter(c, "zid", "Z");
+        Assert.assertEquals(ZoneOffset.UTC, c.zid);
+    }
+
+    @Test
+    public void testResolve() throws InvocationTargetException {
+        construct(Period.class, Period::parse, "P2Y");
+        construct(Duration.class, Duration::parse, "PT20.345S");
+        construct(ZoneOffset.class, ZoneOffset::of, "Z");
+        construct(ZoneId.class, ZoneId::of, "UTC");
+    }
+
+    private <T> void construct(Class<T> clazz, Function<String, T> source, String value)
+            throws InvocationTargetException {
+        Assert.assertEquals(source.apply(value), BeansManager.constructFromString(clazz, value));
     }
 
 }

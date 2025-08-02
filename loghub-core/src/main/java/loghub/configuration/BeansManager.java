@@ -4,16 +4,30 @@ import java.beans.FeatureDescriptor;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.InetAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -118,7 +132,7 @@ public class BeansManager {
                     throw new IllegalArgumentException("Class '" + beanValue + "' not found");
                 }
             } else if (beanValue instanceof String) {
-                Object argInstance = BeansManager.constructFromString(setArgType, (String) beanValue);
+                Object argInstance = constructFromString(setArgType, (String) beanValue);
                 setMethod.invoke(object, argInstance);
             } else if (beanValue instanceof Number || beanValue instanceof Character) {
                 setMethod.invoke(object, beanValue);
@@ -145,6 +159,13 @@ public class BeansManager {
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public static <T> T constructFromString(Class<T> clazz, String value) throws InvocationTargetException {
+        if (InputStream.class.isAssignableFrom(clazz)
+            || OutputStream.class.isAssignableFrom(clazz)
+            || Collection.class.isAssignableFrom(clazz)
+            || URL.class.isAssignableFrom(clazz)
+        ) {
+            throw new InvocationTargetException(new IntrospectionException("Filtered class " + clazz.getName()));
+        }
         try {
             if (clazz == Integer.TYPE || Integer.class.equals(clazz)) {
                 return (T) Integer.valueOf(value);
@@ -169,10 +190,14 @@ public class BeansManager {
             } else if (clazz == Duration.class) {
                 return (T) Duration.parse(value);
             } else {
-                return clazz.getConstructor(String.class).newInstance(value);
+                return (T) constructCache.computeIfAbsent(clazz, BeansManager::stringConstructor).get().create(value);
             }
-        } catch (NoSuchMethodException | RuntimeException | InstantiationException |
-                 IllegalAccessException | UnknownHostException ex) {
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new InvocationTargetException(ex, clazz.getName());
+        } catch (ExecutionException ex) {
+            throw new InvocationTargetException(ex.getCause(), clazz.getName());
+        } catch (RuntimeException | UnknownHostException ex) {
             throw new InvocationTargetException(ex, clazz.getName());
         }
     }
@@ -188,6 +213,50 @@ public class BeansManager {
                                .map(s -> Enum.valueOf(clazz, s))
                                .orElseThrow(() -> new IllegalArgumentException("Not matching value " + value));
         }
+    }
+
+    private static final Map<Class<?>, Future<Resolve<?>>> constructCache = new ConcurrentHashMap<>();
+    private static final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+    private interface Resolve<T> {
+        T create(String s) throws InvocationTargetException;
+    }
+
+    private static Future<Resolve<?>> stringConstructor(Class<?> clazz) {
+        MethodHandle trymh;
+        try {
+            MethodType constructorType = MethodType.methodType(void.class, String.class);
+            trymh = lookup.findConstructor(clazz, constructorType);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            List<Method> handles = new ArrayList<>();
+            for (Method method : clazz.getDeclaredMethods()) {
+                Class<?>[] paramTypes = method.getParameterTypes();
+                if (Modifier.isStatic(method.getModifiers())
+                    && method.getReturnType().equals(clazz)
+                    && Modifier.isPublic(method.getModifiers())
+                    && (paramTypes.length == 1)
+                    && (paramTypes[0].equals(String.class) || paramTypes[0].equals(CharSequence.class))
+                ) {
+                    handles.add(method);
+                }
+            }
+            if (handles.isEmpty()) {
+                throw new IllegalArgumentException("Not convertible from string");
+            } else {
+                try {
+                    trymh = lookup.unreflect(handles.getFirst());
+                } catch (IllegalAccessException ex) {
+                    throw new IllegalArgumentException("Not convertible from string");
+                }
+            }
+        }
+        MethodHandle mh = trymh;
+        return CompletableFuture.completedFuture(s -> {
+            try {
+                return mh.invoke(s);
+            } catch (Throwable ex) {
+                throw new InvocationTargetException(ex);
+            }
+        });
     }
 
 }
