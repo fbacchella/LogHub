@@ -11,11 +11,14 @@ import loghub.jackson.EventSerializer;
 import loghub.jackson.JacksonBuilder;
 import loghub.jackson.MsgpackTimeSerializer.DateSerializer;
 import loghub.jackson.MsgpackTimeSerializer.InstantSerializer;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 @BuilderClass(Msgpack.Builder.class)
 @CanBatch
 public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePackMapper> {
+
+    public static final MimeType MIME_TYPE = MimeType.of("application/vnd.msgpack");
 
     @Setter
     public static class Builder extends AbstractJacksonEncoder.Builder<Msgpack> {
@@ -53,6 +56,11 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePack
     protected JacksonBuilder<MessagePackMapper> getWriterBuilder(Builder builder) {
         return JacksonBuilder.get(MessagePackMapper.class)
                              .module(builder.forwardEvent ? dateModuleEvent : dateModuleMap);
+    }
+
+    @Override
+    public MimeType getMimeType() {
+        return MIME_TYPE;
     }
 
 }

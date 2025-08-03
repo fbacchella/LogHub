@@ -20,6 +20,7 @@ import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.events.Event;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 @BuilderClass(Syslog.Builder.class)
@@ -31,6 +32,8 @@ public class Syslog extends Encoder {
         RFC5424,
         RFC3164
     }
+
+    public static MimeType MIME_TYPE = MimeType.of("text/plain");
 
     @Setter
     public static class Builder extends Encoder.Builder<Syslog> {
@@ -238,4 +241,10 @@ public class Syslog extends Encoder {
             }
         }
     }
+
+    @Override
+    public MimeType getMimeType() {
+        return MIME_TYPE;
+    }
+
 }

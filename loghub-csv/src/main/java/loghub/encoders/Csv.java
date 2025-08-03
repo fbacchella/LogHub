@@ -11,7 +11,6 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import loghub.datetime.DatetimeProcessor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
@@ -21,14 +20,18 @@ import loghub.CanBatch;
 import loghub.Expression;
 import loghub.IgnoredEventException;
 import loghub.ProcessorException;
+import loghub.datetime.DatetimeProcessor;
 import loghub.events.Event;
 import loghub.jackson.CsvHelpers;
 import loghub.jackson.JacksonBuilder;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 @BuilderClass(Csv.Builder.class)
 @CanBatch
 public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
+
+    public static final MimeType MIME_TYPE = MimeType.of("text/csv");
 
     private final Expression[] values;
     private final DatetimeProcessor dateFormat;
@@ -117,6 +120,11 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
         public Csv build() {
             return new Csv(this);
         }
+    }
+
+    @Override
+    public MimeType getMimeType() {
+        return MIME_TYPE;
     }
 
 }

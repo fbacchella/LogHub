@@ -7,11 +7,14 @@ import com.fasterxml.jackson.dataformat.xml.ser.ToXmlGenerator;
 import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.jackson.JacksonBuilder;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 @BuilderClass(Xml.Builder.class)
 @CanBatch
 public class Xml extends AbstractJacksonEncoder<Xml.Builder, XmlMapper> {
+
+    public static final MimeType MIME_TYPE = MimeType.of("application/xml");
 
     @Setter
     public static class Builder extends AbstractJacksonEncoder.Builder<Xml> {
@@ -42,6 +45,11 @@ public class Xml extends AbstractJacksonEncoder<Xml.Builder, XmlMapper> {
             jbuilder.feature(SerializationFeature.INDENT_OUTPUT);
         }
         return jbuilder;
+    }
+
+    @Override
+    public MimeType getMimeType() {
+        return MIME_TYPE;
     }
 
 }

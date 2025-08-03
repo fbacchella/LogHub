@@ -8,10 +8,13 @@ import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.senders.Sender;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 @BuilderClass(EvalExpression.Builder.class)
 public class EvalExpression extends Encoder {
+
+    public static MimeType MIME_TYPE = MimeType.of("text/plain");
 
     @Setter
     public static class Builder extends Encoder.Builder<EvalExpression> {
@@ -47,6 +50,11 @@ public class EvalExpression extends Encoder {
         } catch (ProcessorException ex) {
             throw new EncodeException("Failed to eval expression", ex);
         }
+    }
+
+    @Override
+    public MimeType getMimeType() {
+        return MIME_TYPE;
     }
 
 }

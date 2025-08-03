@@ -11,9 +11,12 @@ import loghub.CanBatch;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.senders.Sender;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 public abstract class Encoder {
+
+    public static final MimeType MIME_TYPE = MimeType.of("application/octet-stream");
 
     @Setter
     public abstract static class Builder<B extends Encoder> extends AbstractBuilder<B> {
@@ -54,5 +57,9 @@ public abstract class Encoder {
     }
 
     public abstract byte[] encode(Event event) throws EncodeException;
+
+    public MimeType getMimeType() {
+        return MIME_TYPE;
+    }
 
 }

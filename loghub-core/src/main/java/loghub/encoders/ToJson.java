@@ -6,11 +6,14 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.jackson.JacksonBuilder;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 @BuilderClass(ToJson.Builder.class)
 @CanBatch
 public class ToJson extends AbstractJacksonEncoder<ToJson.Builder, JsonMapper> {
+
+    public static final MimeType MIME_TYPE = MimeType.of("application/json");
 
     @Setter
     public static class Builder extends AbstractJacksonEncoder.Builder<ToJson> {
@@ -37,6 +40,11 @@ public class ToJson extends AbstractJacksonEncoder<ToJson.Builder, JsonMapper> {
             jbuilder.feature(SerializationFeature.INDENT_OUTPUT);
         }
         return jbuilder;
+    }
+
+    @Override
+    public MimeType getMimeType() {
+        return MIME_TYPE;
     }
 
 }

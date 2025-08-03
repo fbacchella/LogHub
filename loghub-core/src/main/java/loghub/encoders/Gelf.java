@@ -17,10 +17,13 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import loghub.BuilderClass;
 import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 @BuilderClass(Gelf.Builder.class)
 public class Gelf extends AbstractJacksonEncoder<Gelf.Builder, JsonMapper> {
+
+    public static final MimeType MIME_TYPE = MimeType.of("application/gelf+json");
 
     public static class Builder extends AbstractJacksonEncoder.Builder<Gelf> {
         private boolean compressed = false;
@@ -112,6 +115,11 @@ public class Gelf extends AbstractJacksonEncoder<Gelf.Builder, JsonMapper> {
     @Override
     protected JacksonBuilder<JsonMapper> getWriterBuilder(Builder builder) {
         return JacksonBuilder.get(JsonMapper.class);
+    }
+
+    @Override
+    public MimeType getMimeType() {
+        return MIME_TYPE;
     }
 
 }
