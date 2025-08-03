@@ -127,7 +127,7 @@ public class RangeCollection {
         try {
             return ranges.isEmpty() || (ranges.size() == 1 && ranges.first() == LongRange.EMPTY);
         } finally {
-            lock.readLock().unlock();
+            lock.writeLock().unlock();
         }
     }
 
