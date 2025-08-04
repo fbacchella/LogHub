@@ -19,7 +19,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.ConnectionContext;
+import loghub.BuildableConnectionContext.GenericConnectionContext;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.VariablePath;
@@ -34,19 +34,6 @@ public class TestCbor {
     private static Logger logger;
     private final EventsFactory eventsFactory = new EventsFactory();
     private final CborParserFactory cborFactory = new CborParserFactory();
-
-    private static class CustomContext extends ConnectionContext<Object> {
-
-        @Override
-        public Object getLocalAddress() {
-            return null;
-        }
-
-        @Override
-        public Object getRemoteAddress() {
-            return null;
-        }
-    }
 
     @BeforeClass
     public static void configure() {
@@ -70,7 +57,7 @@ public class TestCbor {
     }
 
     @Test
-    public void testRoundRobin() throws EncodeException, IOException, DecodeException {
+    public void testRoundRobin() throws EncodeException, DecodeException {
         loghub.encoders.Cbor encoder = loghub.encoders.Cbor.getBuilder().build();
         loghub.decoders.Cbor.Builder dbuilder = loghub.decoders.Cbor.getBuilder();
         dbuilder.setEventsFactory(eventsFactory);
@@ -84,7 +71,7 @@ public class TestCbor {
         e.put("uri", uri);
         e.putAtPath(VariablePath.of("a", "b"), InetAddress.getLoopbackAddress());
         byte[] result = encoder.encode(e);
-        List<Event> received = decoders.decode(new CustomContext(), result).map(Event.class::cast).collect(Collectors.toList());
+        List<Event> received = decoders.decode(new GenericConnectionContext("laddr", "raddr"), result).map(Event.class::cast).toList();
         Assert.assertEquals(1, received.size());
         Event event = received.get(0);
         Assert.assertEquals(ruuid, event.get("uuid"));
@@ -92,7 +79,7 @@ public class TestCbor {
         Assert.assertEquals(InetAddress.getLoopbackAddress(), event.getAtPath(VariablePath.of("a", "b")));
         Assert.assertEquals(new Date(0), event.getTimestamp());
         Assert.assertEquals(1, event.getMeta("ameta"));
-        Assert.assertTrue(event.getConnectionContext() instanceof CustomContext);
+        Assert.assertFalse(event.getConnectionContext() instanceof GenericConnectionContext);
     }
 
     @Test

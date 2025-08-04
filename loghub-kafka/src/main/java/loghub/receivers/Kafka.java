@@ -32,8 +32,8 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
+import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
-import loghub.ConnectionContext;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.kafka.KafkaProperties;
@@ -48,16 +48,15 @@ import lombok.Setter;
 @BuilderClass(Kafka.Builder.class)
 public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
-    public static class KafkaContext extends ConnectionContext<Object> implements Cloneable {
+    public static class KafkaContext extends BuildableConnectionContext<Object> implements Cloneable {
         @Getter
         private final String topic;
         @Getter
         private final int partition;
-        private final Runnable onAcknowledge;
         KafkaContext(String topic, int partition, Runnable onAcknowledge) {
             this.topic = topic;
             this.partition = partition;
-            this.onAcknowledge = onAcknowledge;
+            setOnAcknowledge(onAcknowledge);
         }
         @Override
         public Object getLocalAddress() {
@@ -66,11 +65,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         @Override
         public Object getRemoteAddress() {
             return null;
-        }
-        @Override
-        public void acknowledge() {
-            super.acknowledge();
-            onAcknowledge.run();
         }
         public Object clone() {
             KafkaContext kc = new KafkaContext(topic, partition, () -> {});

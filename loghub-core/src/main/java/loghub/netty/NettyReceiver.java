@@ -11,6 +11,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
+import loghub.BuildableConnectionContext;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.configuration.ConfigurationProperties;
@@ -31,7 +32,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
 
     public static final String POLLER_PROPERTY_NAME = "poller";
 
-    protected static final AttributeKey<ConnectionContext<? extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
+    protected static final AttributeKey<BuildableConnectionContext<? extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
     @Setter
     public abstract static class Builder<R extends NettyReceiver<R, M, B>, M, B extends NettyReceiver.Builder<R, M, B>> extends Receiver.Builder<R, B> {
@@ -147,16 +148,15 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
     }
 
     public <A extends SocketAddress> ConnectionContext<A> makeConnectionContext(ChannelHandlerContext ctx, M message) {
-        @SuppressWarnings("unchecked")
-        ConnectionContext<A> cctx = (ConnectionContext<A>) transport.getNewConnectionContext(ctx, message);
+        @SuppressWarnings("unchecked") BuildableConnectionContext<A> cctx = (BuildableConnectionContext<A>) transport.getNewConnectionContext(ctx, message);
         ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
         Optional.ofNullable(ctx.channel().attr(NettyTransport.PRINCIPALATTRIBUTE)).map(Attribute::get).ifPresent(cctx::setPrincipal);
         return cctx;
     }
 
     @SuppressWarnings("unchecked")
-    public <A extends SocketAddress> ConnectionContext<A> getConnectionContext(ChannelHandlerContext ctx) {
-        return (ConnectionContext<A>) Optional.ofNullable(ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE)).map(Attribute::get).orElse(null);
+    public <A extends SocketAddress> BuildableConnectionContext<A> getConnectionContext(ChannelHandlerContext ctx) {
+        return (BuildableConnectionContext<A>) Optional.ofNullable(ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE)).map(Attribute::get).orElse(null);
     }
 
     @Override

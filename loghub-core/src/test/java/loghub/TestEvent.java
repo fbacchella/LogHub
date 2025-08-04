@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
@@ -20,6 +22,7 @@ import com.codahale.metrics.Meter;
 
 import loghub.EventsProcessor.ProcessingStatus;
 import loghub.configuration.Properties;
+import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
@@ -199,6 +202,38 @@ public class TestEvent {
         Event received = Tools.processEventWithPipeline(factory, confile, "main", evConsumer);
         Assert.assertFalse(received.containsAtPath(VariablePath.of(List.of("d"))));
         Assert.assertTrue((Boolean) received.getAtPath(VariablePath.of(List.of("f"))));
+    }
+
+    @Test
+    public void testEventClone() {
+        BuildableConnectionContext<Object> ctx = new BuildableConnectionContext.GenericConnectionContext("laddr", "raddr");
+        ctx.setPrincipal(() -> "someone");
+        ctx.setDecoder(StringCodec.getBuilder().build());
+        AtomicInteger count = new AtomicInteger();
+        ctx.setOnAcknowledge(count::decrementAndGet);
+        Event original = factory.newEvent(ctx);
+        Event clone = (Event) original.clone();
+        try {
+            original.getConnectionContext().acknowledge();
+            clone.getConnectionContext().acknowledge();
+             Assert.assertEquals("laddr", original.getConnectionContext().getLocalAddress());
+            Assert.assertEquals("laddr", clone.getConnectionContext().getLocalAddress());
+
+            Assert.assertEquals("raddr", original.getConnectionContext().getRemoteAddress());
+            Assert.assertEquals("raddr", clone.getConnectionContext().getRemoteAddress());
+
+            Assert.assertEquals("someone", original.getConnectionContext().getPrincipal().getName());
+            Assert.assertEquals("someone", clone.getConnectionContext().getPrincipal().getName());
+
+            // Also test that the decoder is set to an empty optional when building the event
+            Assert.assertEquals(Optional.empty(), original.getConnectionContext().getDecoder());
+            Assert.assertEquals(Optional.empty(), clone.getConnectionContext().getDecoder());
+
+            Assert.assertEquals(-1, count.get());
+         } finally {
+            original.end();
+            clone.end();
+        }
     }
 
 }

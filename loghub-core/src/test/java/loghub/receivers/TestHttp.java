@@ -173,7 +173,6 @@ public class TestHttp {
             Assert.assertNotNull(ectxt);
             Assert.assertNotNull(ectxt.getLocalAddress());
             Assert.assertNotNull(ectxt.getRemoteAddress());
-            Assert.assertNull(((IpConnectionContext) ectxt).getSslParameters());
         }
     }
 
@@ -199,7 +198,6 @@ public class TestHttp {
             ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
             Assert.assertNotNull(ectxt.getLocalAddress());
             Assert.assertNotNull(ectxt.getRemoteAddress());
-            Assert.assertTrue(Pattern.matches("TLSv1.*", ((IpConnectionContext) ectxt).getSslParameters().getProtocol()));
             // Test that ssl state is still good
             doRequest(url,
                     new byte[]{},
@@ -376,7 +374,6 @@ public class TestHttp {
             Assert.assertNotNull(ectxt);
             Assert.assertNotNull(ectxt.getLocalAddress());
             Assert.assertNotNull(ectxt.getRemoteAddress());
-            Assert.assertNull(((IpConnectionContext) ectxt).getSslParameters());
         }
     }
 

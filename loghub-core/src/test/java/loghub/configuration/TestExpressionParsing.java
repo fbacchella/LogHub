@@ -36,6 +36,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BuildableConnectionContext;
 import loghub.ConnectionContext;
 import loghub.Expression;
 import loghub.Helpers;
@@ -132,20 +133,8 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterContextPrincipal() throws ProcessorException {
         String format = "${#1%s}-${#2%tY}.${#2%tm}.${#2%td}";
-        Event ev =  factory.newEvent(new ConnectionContext<>() {
-            @Override
-            public Object getLocalAddress() {
-                return null;
-            }
-
-            @Override
-            public Object getRemoteAddress() {
-                return null;
-            }
-        });
+        Event ev =  factory.newEvent(getConnexionContext(() -> "user"));
         ev.setTimestamp(new Date(0));
-        Principal p = () -> "user";
-        ev.getConnectionContext().setPrincipal(p);
         Assert.assertEquals("user-1970.01.01", Tools.evalExpression("\"" + format + "\" ([@context principal name], [@timestamp])", ev));
     }
 
@@ -172,7 +161,7 @@ public class TestExpressionParsing {
     public void testContextPattern() throws ProcessorException {
         Event ev =  factory.newEvent();
         String result = (String) Tools.evalExpression("\"${#1%s} ${#2%s}\"([@context], [@context principal]) ", ev);
-        Assert.assertTrue(Pattern.matches("loghub.ConnectionContext\\$1@[a-f0-9]+ loghub.ConnectionContext\\$EmptyPrincipal@[a-f0-9]+", result));
+        Assert.assertTrue(Pattern.matches("loghub\\.events\\.LockedConnectionContext@[a-f0-9]+ loghub\\.([A-Za-z]+)ConnectionContext\\$EmptyPrincipal@[a-f0-9]+", result));
     }
 
     private void enumerateExpressions(Event ev, Object[] tryExpression) {
@@ -809,9 +798,10 @@ public class TestExpressionParsing {
 
     @Test
     public void testContext() throws ProcessorException, UnknownHostException {
-        Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 31712), new InetSocketAddress("www.google.com", 443), null));
+        IpConnectionContext ipctx = new IpConnectionContext(new InetSocketAddress("127.0.0.1", 31712), new InetSocketAddress("www.google.com", 443), null);
         Principal p = () -> "user";
-        ev.getConnectionContext().setPrincipal(p);
+        ipctx.setPrincipal(p);
+        Event ev = factory.newEvent(ipctx);
         Assert.assertEquals(InetAddress.getByName("127.0.0.1"), Tools.evalExpression("[@context localAddress address]", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[@context localAddress address] == \"127.0.0.1\"", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[@context localAddress port] == 31712", ev));
@@ -825,9 +815,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testContextNullOrMissing() throws ProcessorException {
-        Event ev = factory.newEvent();
-        Principal p = () -> null;
-        ev.getConnectionContext().setPrincipal(p);
+        Event ev = factory.newEvent(getConnexionContext(() -> null));
         Assert.assertTrue((boolean) Tools.evalExpression("isEmpty([@context principal name])", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("isEmpty([@context localAddress])", ev));
         Assert.assertFalse((boolean) Tools.evalExpression("[@context localAddress port] == 443", ev));
@@ -837,9 +825,10 @@ public class TestExpressionParsing {
 
     @Test
     public void testDottedContext() throws ProcessorException {
-        Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
+        IpConnectionContext ipctxt = new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null);
         Principal p = () -> "user";
-        ev.getConnectionContext().setPrincipal(p);
+        ipctxt.setPrincipal(p);
+        Event ev = factory.newEvent(ipctxt);
         Object value = Tools.evalExpression("[@context.principal.name] == \"user\"", ev);
         Assert.assertEquals(true, value);
         InetSocketAddress localAddr = (InetSocketAddress) Tools.evalExpression("[ @context.localAddress]", ev);
@@ -1194,6 +1183,22 @@ public class TestExpressionParsing {
         Assert.assertEquals(1, map.get("b"));
         Assert.assertEquals(NullOrMissingValue.NULL, map.get("c"));
         Assert.assertEquals(List.of(NullOrMissingValue.NULL, NullOrMissingValue.NULL), map.get("d"));
+    }
+
+    <T> ConnectionContext<T> getConnexionContext(Principal principal) {
+        BuildableConnectionContext<T> newCtxt = new BuildableConnectionContext<>() {
+            @Override
+            public T getLocalAddress() {
+                return null;
+            }
+
+            @Override
+            public T getRemoteAddress() {
+                return null;
+            }
+        };
+        newCtxt.setPrincipal(principal);
+        return newCtxt;
     }
 
 }

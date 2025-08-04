@@ -1,11 +1,11 @@
 package loghub.netty.transport;
 
 import io.netty.channel.unix.DomainSocketAddress;
-import loghub.ConnectionContext;
+import loghub.BuildableConnectionContext;
 import loghub.cloners.Immutable;
 
 @Immutable
-public class DomainConnectionContext extends ConnectionContext<DomainSocketAddress> {
+public class DomainConnectionContext extends BuildableConnectionContext<DomainSocketAddress> {
 
     private final DomainSocketAddress remoteaddr;
     private final DomainSocketAddress localaddr;

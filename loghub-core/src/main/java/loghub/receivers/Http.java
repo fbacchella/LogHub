@@ -22,8 +22,8 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
-import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
@@ -77,7 +77,7 @@ public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
                 } else {
                     message = null;
                 }
-                ConnectionContext<InetSocketAddress> cctx = Http.this.getConnectionContext(ctx);
+                BuildableConnectionContext<InetSocketAddress> cctx = Http.this.getConnectionContext(ctx);
                 Stream<Map<String, Object>> mapsStream;
                 if (message != null && decoder == null) {
                     mapsStream = Stream.of(resolveCgi(message));

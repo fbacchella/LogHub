@@ -38,10 +38,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
+import loghub.BuildableConnectionContext;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.BuilderClass;
-import loghub.ConnectionContext;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.MockHttpClient;
@@ -493,15 +493,10 @@ public class TestElasticSearch {
         Assert.assertEquals(count, Stats.getSent());
     }
 
-    private static class NotificationConnectionContext extends ConnectionContext<Object> {
-        final AtomicInteger counter;
+    private static class NotificationConnectionContext extends BuildableConnectionContext<Object> {
         NotificationConnectionContext(AtomicInteger counter) {
-            this.counter = counter;
             counter.incrementAndGet();
-        }
-        @Override
-        public void acknowledge() {
-            counter.decrementAndGet();
+            setOnAcknowledge(counter::decrementAndGet);
         }
 
         @Override

@@ -1,62 +1,24 @@
 package loghub;
 
-import java.io.Serializable;
 import java.security.Principal;
+import java.util.Optional;
 
-public abstract class ConnectionContext<A> implements Serializable {
+import loghub.decoders.Decoder;
 
-    private static final class EmptyPrincipal implements Principal, Serializable {
-        @Override
-        public String getName() {
-            return "";
-        }
-    }
+public interface ConnectionContext<A> {
 
-    private static final Principal EMPTYPRINCIPAL = new EmptyPrincipal();
+    ConnectionContext<Object> EMPTY = BuildableConnectionContext.EMPTY;
 
-    public static final ConnectionContext<Object> EMPTY = new ConnectionContext<>() {
+    void acknowledge();
 
-        @Override
-        public Object getLocalAddress() {
-            return null;
-        }
+    Optional<Decoder> getDecoder();
 
-        @Override
-        public Object getRemoteAddress() {
-            return null;
-        }
+    A getLocalAddress();
 
-        @Override
-        public Principal getPrincipal() {
-            return EMPTYPRINCIPAL;
-        }
+    A getRemoteAddress();
 
-        @Override
-        public void setPrincipal(Principal peerPrincipal) {
-            // No principal stored
-        }
+    Principal getPrincipal();
 
-    };
-
-    protected Principal peerPrincipal;
-
-    protected ConnectionContext() {
-        peerPrincipal = EMPTYPRINCIPAL;
-    }
-
-    public void acknowledge() {
-    }
-
-    public Principal getPrincipal() {
-        return peerPrincipal;
-    }
-
-    public void setPrincipal(Principal peerPrincipal) {
-        this.peerPrincipal = peerPrincipal;
-    }
-
-    public abstract A getLocalAddress();
-
-    public abstract A getRemoteAddress();
+    Runnable getOnAcknowledge();
 
 }

@@ -52,8 +52,8 @@ import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
 
 import fr.jrds.snmpcodec.OIDFormatter;
+import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
-import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.IpConnectionContext;
 import loghub.ShutdownTask;
@@ -239,11 +239,13 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             PDU pdu = trap.getPDU();
             Address localaddr = trap.getTransportMapping().getListenAddress();
             Address remoteaddr = trap.getPeerAddress();
-            ConnectionContext<?> ctx = ConnectionContext.EMPTY;
+            BuildableConnectionContext<?> ctx;
             if (localaddr instanceof TransportIpAddress && remoteaddr instanceof TransportIpAddress ) {
                 InetSocketAddress localinetaddr = getSA((TransportIpAddress) localaddr);
                 InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);
                 ctx = new IpConnectionContext(localinetaddr, remoteinetaddr, null);
+            } else {
+                ctx = new BuildableConnectionContext.GenericConnectionContext(localaddr, remoteaddr);
             }
             Map<String, Object> eventMap = new HashMap<>();
             if (pdu instanceof PDUv1) {

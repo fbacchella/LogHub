@@ -31,9 +31,6 @@ public class EventsFactory {
     public Event newTestEvent() {
         return new EventInstance(ConnectionContext.EMPTY, true, this);
     }
-    public Event newTestEvent(ConnectionContext<?> ipctx) {
-        return new EventInstance(ipctx, true, this);
-    }
 
     public Event newEvent() {
         return newEvent(ConnectionContext.EMPTY, false);
@@ -45,7 +42,12 @@ public class EventsFactory {
 
     public Event newEvent(ConnectionContext<?> ctx, boolean test) {
         leakDetector();
-        return new EventInstance(ctx, test,this);
+        if (ctx instanceof LockedConnectionContext lctx) {
+            LockedConnectionContext newCtxt = (LockedConnectionContext) lctx.clone();
+            return new EventInstance(newCtxt, test, this);
+        } else {
+            return new EventInstance(new LockedConnectionContext(ctx), test, this);
+        }
     }
 
     public static void deadEvent(ConnectionContext<?> ctx) {
@@ -71,9 +73,9 @@ public class EventsFactory {
     }
 
     public Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> eventContent, boolean test) throws DecodeException {
-        if (eventContent instanceof Event) {
-            return (Event) eventContent;
-        } else if (eventContent.get("loghub.Event") instanceof Map){
+        if (eventContent instanceof Event event) {
+            return event;
+        } else if (eventContent.get("loghub.Event") instanceof Map) {
             return mapToEvent(ctx, (Map<String, Object>)eventContent.get("loghub.Event"), test);
         } else {
             if (! eventContent.containsKey("@fields") || ! eventContent.containsKey("@METAS")) {

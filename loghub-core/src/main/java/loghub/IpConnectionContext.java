@@ -6,7 +6,7 @@ import javax.net.ssl.SSLSession;
 
 import loghub.cloners.DeepCloner;
 
-public class IpConnectionContext extends ConnectionContext<InetSocketAddress> {
+public class IpConnectionContext extends BuildableConnectionContext<InetSocketAddress> {
 
     static {
         DeepCloner.registerImmutable(IpConnectionContext.class);

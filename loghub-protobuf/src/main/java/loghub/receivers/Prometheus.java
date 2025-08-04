@@ -16,6 +16,7 @@ import io.netty.handler.codec.compression.Snappy;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
@@ -72,7 +73,7 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
                     uncompressed.retain();
                 }
                 Principal p = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
-                ConnectionContext<InetSocketAddress> cctx = Prometheus.this.getConnectionContext(ctx);
+                BuildableConnectionContext<InetSocketAddress> cctx = Prometheus.this.getConnectionContext(ctx);
                 if (p != null) {
                     cctx.setPrincipal(p);
                 }

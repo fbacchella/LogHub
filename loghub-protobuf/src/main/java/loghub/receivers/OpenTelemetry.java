@@ -16,6 +16,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
@@ -65,7 +66,7 @@ public class OpenTelemetry extends AbstractHttpReceiver<OpenTelemetry, OpenTelem
             ByteBuf content = request.content();
             try {
                 Principal p = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
-                ConnectionContext<InetSocketAddress> cctx = OpenTelemetry.this.getConnectionContext(ctx);
+                BuildableConnectionContext<InetSocketAddress> cctx = OpenTelemetry.this.getConnectionContext(ctx);
                 if (p != null) {
                     cctx.setPrincipal(p);
                 }

@@ -3,7 +3,7 @@ package loghub.zmq;
 import java.io.Serializable;
 import java.security.Principal;
 
-import loghub.ConnectionContext;
+import loghub.BuildableConnectionContext;
 import loghub.cloners.Immutable;
 import lombok.Data;
 import zmq.Msg;
@@ -11,7 +11,7 @@ import zmq.io.Metadata;
 import zmq.io.mechanism.Mechanisms;
 
 @Immutable
-public class ZmqConnectionContext extends ConnectionContext<String> {
+public class ZmqConnectionContext extends BuildableConnectionContext<String> {
 
     private final String selfAddress;
     private final String peerAddress;
@@ -30,7 +30,7 @@ public class ZmqConnectionContext extends ConnectionContext<String> {
             if (security == Mechanisms.PLAIN || security == Mechanisms.CURVE) {
                 String userId = md.get(Metadata.USER_ID);
                 if (userId != null && ! userId.isBlank()) {
-                    this.peerPrincipal = new ZmqPrincipal(userId, security);
+                    this.principal = new ZmqPrincipal(userId, security);
                 }
             }
         } else {

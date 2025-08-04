@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.local.LocalAddress;
 import io.netty.channel.local.LocalChannel;
+import loghub.BuildableConnectionContext;
 import loghub.ConnectionContext;
 import loghub.cloners.Immutable;
 
@@ -22,7 +23,7 @@ public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf, LocalT
     }
 
     @Immutable
-    private static class LocalChannelConnectionContext extends ConnectionContext<LocalAddress> {
+    private static class LocalChannelConnectionContext extends BuildableConnectionContext<LocalAddress> {
         private final LocalAddress local;
         private final LocalAddress remote;
         private LocalChannelConnectionContext(LocalChannel channel) {
