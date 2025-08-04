@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
@@ -34,6 +35,7 @@ public class CborParser implements Closeable {
         private final CborTagHandlerService service;
         private final CBORFactory factory = new CBORFactory();
         private final boolean shared;
+        private final Map<Integer, CborTagHandler<?>> customTags = new ConcurrentHashMap<>();
 
         public CborParserFactory(CborTagHandlerService service) {
             this.service = service;
@@ -50,20 +52,24 @@ public class CborParser implements Closeable {
             shared = false;
         }
 
+        public <T> void addCustomHandler(CborTagHandler<T> newHandler) {
+            customTags.put(newHandler.getTag(), newHandler);
+        }
+
         public CborParser getParser(byte[] data, int offset, int len) throws IOException {
-            return new CborParser(service, factory.createParser(data, offset, len));
+            return new CborParser(service, factory.createParser(data, offset, len), customTags);
         }
 
         public CborParser getParser(byte[] data) throws IOException {
-            return new CborParser(service, factory.createParser(data));
+            return new CborParser(service, factory.createParser(data), customTags);
         }
 
         public CborParser getParser(InputStream source) throws IOException {
-            return new CborParser(service, factory.createParser(source));
+            return new CborParser(service, factory.createParser(source), customTags);
         }
 
         public CborParser getParser(Path source) throws IOException {
-            return new CborParser(service, factory.createParser(Files.newInputStream(source)));
+            return new CborParser(service, factory.createParser(Files.newInputStream(source)), customTags);
         }
 
         @SuppressWarnings("unchecked")
@@ -71,7 +77,7 @@ public class CborParser implements Closeable {
             if (shared) {
                 throw new IllegalArgumentException("Shared tag handlers, can't be updated");
             }
-            CborTagHandler<T> th = (CborTagHandler<T>) service.getByTag(tag).orElse(null);
+            CborTagHandler<T> th = (CborTagHandler<T>) service.getByTag(tag).orElseGet(() -> customTags.get(tag));
             if (th != null) {
                 th.setCustomParser(customParser);
                 th.setCustomWriter(customWriter);
@@ -82,10 +88,12 @@ public class CborParser implements Closeable {
     @Getter
     private final CBORParser parser;
     private final CborTagHandlerService service;
+    private final Map<Integer, CborTagHandler<?>> customTags;
 
-    private CborParser(CborTagHandlerService service, CBORParser parser) {
+    private CborParser(CborTagHandlerService service, CBORParser parser, Map<Integer, CborTagHandler<?>> customTags) {
         this.parser = parser;
         this.service = service;
+        this.customTags = Map.copyOf(customTags);
     }
 
     public <T> void forEach(Consumer<T> consumer) throws IOException {
@@ -188,7 +196,11 @@ public class CborParser implements Closeable {
     @SuppressWarnings("unchecked")
     private <T> T makeTaggedObject(int tag, JsonToken token) {
         try {
-            return (T) Map.of("tag", tag, "value", Objects.requireNonNull(parseRawValue(token)));
+            if (customTags.containsKey(tag)) {
+                return (T) customTags.get(tag).doParse(this);
+            } else {
+                return (T) Map.of("tag", tag, "value", Objects.requireNonNull(parseRawValue(token)));
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

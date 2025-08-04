@@ -33,6 +33,7 @@ public class Cbor extends Decoder {
     private Cbor(Builder builder) {
         super(builder);
         factory = new CborParserFactory(builder.classLoader);
+        factory.addCustomHandler(new LogHubEventTagHandler());
         factory.setCustomHandling(LogHubEventTagHandler.EVENT_TAG, LogHubEventTagHandler.eventParser(builder.eventsFactory), null);
     }
 
