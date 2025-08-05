@@ -36,6 +36,7 @@ import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Helpers;
+import loghub.events.Event;
 import loghub.kafka.KafkaProperties;
 import loghub.kafka.KeyTypes;
 import loghub.kafka.range.RangeCollection;
@@ -105,7 +106,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     private Supplier<Consumer<byte[], byte[]>> consumerSupplier;
     private final Map<Integer, RangeCollection> ranges = new ConcurrentHashMap<>();
     private final Class<?> keyClass;
-    private boolean withAutoCommit;
+    private final boolean withAutoCommit;
 
     protected Kafka(Builder builder) {
         super(builder);
@@ -143,22 +144,21 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         return String.format("Kafka/%s/%s", topic, hashCode());
     }
 
+    public Consumer<byte[], byte[]> getConsumer() {
+        try {
+            return consumerSupplier.get();
+        } finally {
+            consumerSupplier = null;
+        }
+    }
+
     @Override
     public void run() {
-        try (Consumer<byte[], byte[]> consumer = consumerSupplier.get()) {
-            consumerSupplier = null;
+        try (Consumer<byte[], byte[]> consumer = getConsumer()) {
             Duration pollingInterval = Duration.ofMillis(100);
             while (! isInterrupted()) {
-                try {
-                    ConsumerRecords<byte[], byte[]> consumerRecords = consumer.poll(pollingInterval);
-                    if (consumerRecords.count() != 0) {
-                        processRecords(consumer, consumerRecords);
-                    }
-                    commit(consumer);
-                } catch (WakeupException | InterruptException e) {
+                if (! eventLoop(consumer, pollingInterval)) {
                     break;
-                } catch (KafkaException ex) {
-                    logger.atError().withThrowable(ex).log("Failed Kafka received: {}", Helpers.resolveThrowableException(ex));
                 }
             }
             commit(consumer);
@@ -167,6 +167,23 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             logger.atError()
                   .withThrowable(logger.isDebugEnabled() ? ex : null)
                   .log("Kafka receiver failed: {}", () -> Helpers.resolveThrowableException(ex));
+        }
+    }
+
+    private boolean eventLoop(Consumer<byte[], byte[]> consumer, Duration pollingInterval) {
+        try {
+            ConsumerRecords<byte[], byte[]> consumerRecords = consumer.poll(pollingInterval);
+            if (consumerRecords.count() != 0) {
+                logger.debug("Received {} records", consumerRecords::count);
+                processRecords(consumer, consumerRecords);
+            }
+            commit(consumer);
+            return true;
+        } catch (WakeupException | InterruptException e) {
+            return false;
+        } catch (KafkaException ex) {
+            logger.atError().withThrowable(ex).log("Failed Kafka received: {}", Helpers.resolveThrowableException(ex));
+            return true;
         }
     }
 
@@ -209,32 +226,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             byte[] content = kafkaRecord.value();
             decodeStream(ctxt, content).forEach(e -> {
                 timestamp.ifPresent(e::setTimestamp);
-                getHeaders(kafkaRecord).forEach(e::putMeta);
-                e.putMeta("kafka_topic", kafkaRecord.topic());
-                e.putMeta("kafka_partition", kafkaRecord.partition());
-                byte[] keyBytes = kafkaRecord.key();
-                if (keyClass != null) {
-                    try {
-                        e.putMeta("kafka_key", Expression.convertObject(keyClass, keyBytes, StandardCharsets.UTF_8, ByteOrder.LITTLE_ENDIAN));
-                    } catch (UnknownHostException | InvocationTargetException ex) {
-                        logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Unable to decode key: {}", () -> Helpers.resolveThrowableException(ex));
-                    }
-                } else if (kafkaRecord.headers().lastHeader(KeyTypes.HEADER_NAME) != null){
-                    byte[] keyTypeHeaderValue = kafkaRecord.headers().lastHeader(KeyTypes.HEADER_NAME).value();
-                    if (keyTypeHeaderValue.length == 1) {
-                        byte keyType = keyTypeHeaderValue[0];
-                        try {
-                            e.putMeta("kafka_key", KeyTypes.getById(keyType).read(keyBytes));
-                        } catch (IllegalArgumentException ex) {
-                            e.putMeta("kafka_key", keyBytes);
-                            e.putMeta("kafka_keyType", keyType);
-                        }
-                    } else {
-                        e.putMeta("kafka_key", keyBytes);
-                        e.putMeta("kafka_keyType", keyTypeHeaderValue);
-                    }
-                }
-                send(e);
+                eventDecoder(kafkaRecord, e);
             });
             if (isInterrupted()) {
                 consumer.wakeup();
@@ -243,10 +235,39 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         }
     }
 
+    private void eventDecoder(ConsumerRecord<byte[], byte[]> kafkaRecord, Event e) {
+        getHeaders(kafkaRecord).forEach(e::putMeta);
+        e.putMeta("kafka_topic", kafkaRecord.topic());
+        e.putMeta("kafka_partition", kafkaRecord.partition());
+        byte[] keyBytes = kafkaRecord.key();
+        if (keyClass != null) {
+            try {
+                e.putMeta("kafka_key", Expression.convertObject(keyClass, keyBytes, StandardCharsets.UTF_8, ByteOrder.LITTLE_ENDIAN));
+            } catch (UnknownHostException | InvocationTargetException ex) {
+                logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Unable to decode key: {}", () -> Helpers.resolveThrowableException(ex));
+            }
+        } else if (kafkaRecord.headers().lastHeader(KeyTypes.HEADER_NAME) != null){
+            byte[] keyTypeHeaderValue = kafkaRecord.headers().lastHeader(KeyTypes.HEADER_NAME).value();
+            if (keyTypeHeaderValue.length == 1) {
+                byte keyType = keyTypeHeaderValue[0];
+                try {
+                    e.putMeta("kafka_key", KeyTypes.getById(keyType).read(keyBytes));
+                } catch (IllegalArgumentException ex) {
+                    e.putMeta("kafka_key", keyBytes);
+                    e.putMeta("kafka_keyType", keyType);
+                }
+            } else {
+                e.putMeta("kafka_key", keyBytes);
+                e.putMeta("kafka_keyType", keyTypeHeaderValue);
+            }
+        }
+        send(e);
+    }
+
     private Map<String, byte[]> getHeaders(ConsumerRecord<byte[], byte[]> kafakRecord) {
         Header[] h = kafakRecord.headers().toArray();
         if (h.length > 0) {
-            Map<String, byte[]> headersMap = new HashMap<>(h.length);
+            Map<String, byte[]> headersMap = HashMap.newHashMap(h.length);
             Arrays.stream(h)
                   .filter(e -> ! KeyTypes.HEADER_NAME.equals(e.key()))
                   .forEach( i-> headersMap.put(i.key(), i.value()));
