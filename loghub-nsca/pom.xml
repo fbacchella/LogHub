@@ -34,6 +34,11 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+        <dependency>
             <groupId>fr.loghub</groupId>
             <artifactId>loghub-core</artifactId>
             <classifier>tests</classifier>
@@ -44,9 +49,9 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.bouncycastle</groupId>
-                <artifactId>bcprov-jdk18on</artifactId>
-                <version>${bouncycastle.version}</version>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.18.0</version>
                 <scope>provided</scope>
             </dependency>
         </dependencies>
@@ -80,7 +85,8 @@
                             </filters>
                             <artifactSet>
                                 <includes>
-                                    <include>com.github.jsendnsca:*</include>
+                                    <include>com.github.jsendnsca:jsendnsca</include>
+                                    <include>org.bouncycastle:bcprov-jdk18on</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
