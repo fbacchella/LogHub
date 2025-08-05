@@ -159,19 +159,30 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
     @Override
     public void run() {
-        try (Consumer<byte[], byte[]> consumer = getConsumer()) {
-            Duration pollingInterval = Duration.ofMillis(100);
-            while (! isInterrupted()) {
-                if (! eventLoop(consumer, pollingInterval)) {
-                    break;
+        int wait = 100;
+        while (! isInterrupted()) {
+            try (Consumer<byte[], byte[]> consumer = getConsumer()) {
+                Duration pollingInterval = Duration.ofMillis(100);
+                while (! isInterrupted()) {
+                    if (! eventLoop(consumer, pollingInterval)) {
+                        break;
+                    }
                 }
+                commit(consumer);
+                close();
+            } catch (KafkaException ex) {
+                logger.atError()
+                      .withThrowable(logger.isDebugEnabled() ? ex : null)
+                      .log("Kafka receiver failed: {}", () -> Helpers.resolveThrowableException(ex));
             }
-            commit(consumer);
-            close();
-        } catch (KafkaException ex) {
-            logger.atError()
-                  .withThrowable(logger.isDebugEnabled() ? ex : null)
-                  .log("Kafka receiver failed: {}", () -> Helpers.resolveThrowableException(ex));
+            try {
+                // An exponential back off, that double on each step
+                // and wait one hour max between each try
+                Thread.sleep(wait);
+                wait = Math.min(2 * wait, 3600 * 1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
