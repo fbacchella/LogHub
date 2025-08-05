@@ -51,14 +51,16 @@ import lombok.Setter;
 @BuilderClass(Kafka.Builder.class)
 public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
-    public static class KafkaContext extends BuildableConnectionContext<Object> implements Cloneable {
+    public static class KafkaContext extends BuildableConnectionContext<String> implements Cloneable {
         @Getter
         private final String topic;
         @Getter
         private final int partition;
+        private final String remoteAddress;
         KafkaContext(String topic, int partition, Runnable onAcknowledge) {
             this.topic = topic;
             this.partition = partition;
+            this.remoteAddress = String.format("%s/%d", topic, partition);
             setOnAcknowledge(onAcknowledge);
         }
         @Override
@@ -73,6 +75,15 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             KafkaContext kc = new KafkaContext(topic, partition, () -> {});
             kc.setPrincipal(getPrincipal());
             return kc;
+        }
+        @Override
+        public String getLocalAddress() {
+            return "";
+        }
+
+        @Override
+        public String getRemoteAddress() {
+            return remoteAddress;
         }
     }
 
