@@ -36,7 +36,7 @@ abstract class AbstractCompDecomp implements Filter {
         try (InputStream ins = source(new ByteArrayInputStream(in, offset, length));
              OutputStream outs = destination(new ByteBufOutputStream(outb))) {
             IOUtils.copy(ins, outs);
-        } catch (IOException | CompressorException e) {
+        } catch (IOException e) {
             outb.release();
             throw new FilterException("Failed to (de)compress: " + Helpers.resolveThrowableException(e), e);
         }
@@ -54,7 +54,7 @@ abstract class AbstractCompDecomp implements Filter {
         try (InputStream ins = source(new ByteBufInputStream(in));
              OutputStream outs = destination(new ByteBufOutputStream(out))) {
             IOUtils.copy(ins, outs);
-        } catch (IOException | CompressorException e) {
+        } catch (IOException e) {
             out.release();
             throw new FilterException("Failed to (de)compress: " + Helpers.resolveThrowableException(e), e);
         }

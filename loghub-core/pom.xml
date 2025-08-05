@@ -13,7 +13,7 @@
     <name>LogHub :: Core</name>
 
     <properties>
-        <netty.version>4.2.2.Final</netty.version>
+        <netty.version>4.2.3.Final</netty.version>
         <jackson-msgpack.version>0.9.10</jackson-msgpack.version>
     </properties>
 
@@ -219,7 +219,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
-            <version>1.14.0</version>
+            <version>1.14.1</version>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>
@@ -241,7 +241,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
-            <version>1.27.1</version>
+            <version>1.28.0</version>
         </dependency>
         <dependency>
             <groupId>org.tukaani</groupId>
