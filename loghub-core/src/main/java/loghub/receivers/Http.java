@@ -38,6 +38,7 @@ import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.RequestAccept;
 import loghub.netty.transport.TRANSPORT;
+import loghub.types.MimeType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -49,6 +50,10 @@ import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 @BuilderClass(Http.Builder.class)
 public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
 
+    private static final MimeType APPLICATION_OCTET_STREAM = MimeType.of("application/octet-stream");
+    private static final MimeType APPLICATION_QUERY_STRING = MimeType.of("application/query-string");
+    private static final MimeType APPLICATION_FORM_URLENCODED = MimeType.of("application/x-www-form-urlencoded");
+
     @NoCache
     @RequestAccept(methods = {"GET", "PUT", "POST"})
     @ContentType("application/json; charset=utf-8")
@@ -57,18 +62,22 @@ public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
         @Override
         protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
             try {
-                String mimeType = Optional.ofNullable(HttpUtil.getMimeType(request)).orElse("application/octet-stream").toString();
+                MimeType mimeType;
                 if (request.method() == HttpMethod.GET) {
-                    mimeType = "application/query-string";
+                    mimeType = APPLICATION_QUERY_STRING;
+                } else {
+                    mimeType = Optional.ofNullable(HttpUtil.getMimeType(request))
+                                       .map(s -> MimeType.of(s.toString()))
+                                       .orElse(APPLICATION_OCTET_STREAM);
                 }
                 CharSequence encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8");
                 Decoder decoder = Optional.of(mimeType).map(decoders::get).orElse(null);
                 String message;
-                if ("application/x-www-form-urlencoded".equals(mimeType)) {
+                if (APPLICATION_FORM_URLENCODED.equals(mimeType)) {
                     Charset cs = Charset.forName(encoding.toString());
                     message = "?" + request.content().toString(cs);
                     decoder = null;
-                } else if ("application/query-string".equals(mimeType)) {
+                } else if (APPLICATION_QUERY_STRING.equals(mimeType)) {
                     message = request.uri();
                     decoder = null;
                 } else if (decoder instanceof TextDecoder) {
@@ -140,14 +149,14 @@ public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
         return new Builder();
     }
 
-    private final Map<String, Decoder> decoders;
+    private final Map<MimeType, Decoder> decoders;
 
     protected Http(Builder builder) {
         super(builder);
         if (builder.decoder != null) {
             throw new IllegalArgumentException("No default decoder can be defined");
         } else {
-            this.decoders = Map.copyOf(builder.decoders);
+            this.decoders = resolverDecoders(builder.decoders);
         }
     }
 

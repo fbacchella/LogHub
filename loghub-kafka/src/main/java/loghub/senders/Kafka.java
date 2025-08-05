@@ -1,5 +1,6 @@
 package loghub.senders;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
@@ -225,6 +226,7 @@ public class Kafka extends Sender {
         if (keyClass >= 0) {
             kRecord.headers().add(KeyTypes.HEADER_NAME, new byte[]{keyClass});
         }
+        kRecord.headers().add("Content-Type",  getEncoder().getMimeType().toString().getBytes(StandardCharsets.UTF_8));
         return kRecord;
     }
 

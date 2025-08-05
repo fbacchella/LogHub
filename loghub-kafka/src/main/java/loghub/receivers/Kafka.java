@@ -36,11 +36,13 @@ import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Helpers;
+import loghub.decoders.Decoder;
 import loghub.events.Event;
 import loghub.kafka.KafkaProperties;
 import loghub.kafka.KeyTypes;
 import loghub.kafka.range.RangeCollection;
 import loghub.security.ssl.ClientAuthentication;
+import loghub.types.MimeType;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -89,6 +91,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         private ClientAuthentication sslClientAuthentication;
         private boolean withAutoCommit = true;
         private Map<String, Object> kafkaProperties = Map.of();
+        private Map<String, Decoder> decoders = Map.of();
         // Only used for tests
         @Setter(AccessLevel.PACKAGE)
         private Consumer<byte[], byte[]> consumer;
@@ -107,6 +110,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     private final Map<Integer, RangeCollection> ranges = new ConcurrentHashMap<>();
     private final Class<?> keyClass;
     private final boolean withAutoCommit;
+    private final Map<MimeType, Decoder> decoders;
 
     protected Kafka(Builder builder) {
         super(builder);
@@ -122,6 +126,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             keyClass = null;
         }
         withAutoCommit = builder.withAutoCommit;
+        decoders = resolverDecoders(builder.decoders);
     }
 
     private Supplier<Consumer<byte[], byte[]>> getConsumer(Builder builder) {
@@ -222,6 +227,11 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                     kafkaRecord.partition(),
                     () -> getPartitionRange(kafkaRecord.partition()).addValue(kafkaRecord.offset())
             );
+            Optional.ofNullable(kafkaRecord.headers().lastHeader("Content-Type"))
+                    .map(h -> new String(h.value(), StandardCharsets.UTF_8))
+                    .map(decoders::get)
+                    .ifPresent(ctxt::setDecoder);
+            kafkaRecord.headers().remove("Content-Type");
             Optional<Date> timestamp = Optional.ofNullable(kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null);
             byte[] content = kafkaRecord.value();
             decodeStream(ctxt, content).forEach(e -> {

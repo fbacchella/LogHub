@@ -4,9 +4,11 @@ import java.io.Closeable;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
@@ -34,6 +36,7 @@ import loghub.metrics.Stats;
 import loghub.security.AuthenticationHandler;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
+import loghub.types.MimeType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -133,6 +136,12 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
         } else {
             return true;
         }
+    }
+
+    protected Map<MimeType, Decoder> resolverDecoders(Map<String, Decoder> mapping) {
+        return mapping.entrySet().stream().collect(Collectors.toUnmodifiableMap(
+                e -> MimeType.of(e.getKey()), Entry::getValue
+        ));
     }
 
     protected AuthenticationHandler buildAuthenticationHandler(B builder) {
@@ -263,7 +272,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
                 bufferOffset = offset;
                 bufferSize = size;
             }
-            return decoder.decode(ctx, buffer, bufferOffset, bufferSize).map(m -> mapToEvent(ctx, m)).filter(Objects::nonNull);
+            return ctx.getDecoder().orElse(decoder).decode(ctx, buffer, bufferOffset, bufferSize).map(m -> mapToEvent(ctx, m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.of();

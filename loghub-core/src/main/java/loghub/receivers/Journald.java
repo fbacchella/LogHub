@@ -41,6 +41,7 @@ import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.RequestAccept;
 import loghub.netty.transport.TRANSPORT;
+import loghub.types.MimeType;
 import lombok.Setter;
 
 @Blocking
@@ -108,10 +109,12 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
         private void processStart(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
             Journald.this.logger.debug("New journald query: {}", msg);
             HttpRequest headers = (HttpRequest) msg;
-            String contentType = Optional.ofNullable(headers.headers().get("Content-Type")).orElse("");
+            MimeType contentType = Optional.ofNullable(headers.headers().get("Content-Type"))
+                                           .map(MimeType::of)
+                                           .orElse(null);
             String uri = headers.uri().replace("//", "/");
             HttpMethod method = headers.method();
-            if (("application/vnd.fdo.journal".equals(contentType))
+            if ((JournaldExport.MIME_TYPE.equals(contentType))
                             &&  HttpMethod.POST.equals(method)
                             && "/upload".equals(uri)) {
                 valid = true;

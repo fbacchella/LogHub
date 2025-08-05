@@ -24,6 +24,7 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.types.MimeType;
 import lombok.Data;
 import lombok.Setter;
 
@@ -46,6 +47,7 @@ public class JournaldExport extends Decoder {
 
     private static final String TRUSTEDFIELDS = "fields_trusted";
     private static final String USERDFIELDS = "fields_user";
+    public static final MimeType MIME_TYPE = MimeType.of("application/vnd.fdo.journal");
 
     // Four fields stores a time stamp in journald, only REALTIME one are usefull
     // trusted journal fields

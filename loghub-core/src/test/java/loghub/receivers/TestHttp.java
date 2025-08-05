@@ -53,6 +53,7 @@ import loghub.events.EventsFactory;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
+import loghub.types.MimeType;
 
 public class TestHttp {
 
@@ -334,9 +335,9 @@ public class TestHttp {
                         "}";
         Properties conf = Tools.loadConf(new StringReader(confile));
         Http http = (Http) conf.receivers.toArray(new Receiver[1])[0];
-        Map<String, Decoder> decs = http.getDecoders();
-        Assert.assertTrue(decs.containsKey("application/csv"));
-        Assert.assertTrue(decs.containsKey("application/msgpack"));
+        Map<MimeType, Decoder> decs = http.getDecoders();
+        Assert.assertTrue(decs.containsKey(MimeType.of("application/csv")));
+        Assert.assertTrue(decs.containsKey(MimeType.of("application/msgpack")));
     }
 
     @Test(timeout = 5000)
