@@ -75,6 +75,23 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <quiet />
+                    <source>${maven.compiler.release}</source>
+                    <detectJavaApiLink>true</detectJavaApiLink>
+                    <detectLinks>false</detectLinks>
+                    <additionalJOption>--add-modules=java.management</additionalJOption>
+                    <links>
+                        <link>https://www.javadoc.io/doc/javax.cache/cache-api/${cacheapi.version}/</link>
+                        <link>https://logging.apache.org/log4j/2.x/log4j-api/apidocs/</link>
+                        <link>https://maxmind.github.io/GeoIP2-java/doc/v${geoip2.version}/</link>
+                    </links>
+                    <keywords>true</keywords>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

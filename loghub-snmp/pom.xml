@@ -119,6 +119,19 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <quiet />
+                    <source>${maven.compiler.release}</source>
+                    <detectJavaApiLink>true</detectJavaApiLink>
+                    <detectLinks>true</detectLinks>
+                    <additionalJOption>--add-modules=java.management</additionalJOption>
+                    <links>
+                        <link>https://www.javadoc.io/doc/org.snmp4j/snmp4j/${snmp4j.version}/</link>
+                        <link>https://www.antlr.org/api/Java</link>
+                        <link>https://logging.apache.org/log4j/2.x/log4j-api/apidocs/</link>
+                    </links>
+                    <keywords>true</keywords>
+                </configuration>
             </plugin>
         </plugins>
     </build>

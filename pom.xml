@@ -150,13 +150,11 @@
                         <additionalJOption>--add-modules=java.management</additionalJOption>
                         <links>
                             <link>https://www.javadoc.io/doc/javax.cache/cache-api/${cacheapi.version}/</link>
-                            <link>https://www.javadoc.io/doc/org.snmp4j/snmp4j/${snmp4j.version}/</link>
                             <link>http://docs.groovy-lang.org/latest/html/api/</link>
                             <link>https://www.antlr.org/api/Java</link>
                             <link>https://netty.io/4.0/api/</link>
                             <link>https://zeromq.github.io/jzmq/javadocs/</link>
                             <link>https://logging.apache.org/log4j/2.x/log4j-api/apidocs/</link>
-                            <link>https://maxmind.github.io/GeoIP2-java/doc/v${geoip2.version}/</link>
                         </links>
                         <keywords>true</keywords>
                     </configuration>
