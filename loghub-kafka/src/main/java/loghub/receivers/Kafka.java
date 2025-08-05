@@ -228,7 +228,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                     () -> getPartitionRange(kafkaRecord.partition()).addValue(kafkaRecord.offset())
             );
             Optional.ofNullable(kafkaRecord.headers().lastHeader("Content-Type"))
-                    .map(h -> new String(h.value(), StandardCharsets.UTF_8))
+                    .map(h -> MimeType.of(new String(h.value(), StandardCharsets.UTF_8)))
                     .map(decoders::get)
                     .ifPresent(ctxt::setDecoder);
             kafkaRecord.headers().remove("Content-Type");
