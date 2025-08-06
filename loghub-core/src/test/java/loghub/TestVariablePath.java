@@ -1,5 +1,7 @@
 package loghub;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -131,6 +133,32 @@ public class TestVariablePath {
         Assert.assertEquals("[@lastException]", VariablePath.LASTEXCEPTION.toString());
         Assert.assertEquals("event.getGroovyLastException()", VariablePath.LASTEXCEPTION.groovyExpression());
         Assert.assertEquals(VariablePath.LASTEXCEPTION, VariablePath.parse("@lastException"));
+    }
+
+    @Test
+    public void testContext() {
+        InetAddress loopBack = InetAddress.getLoopbackAddress();
+        IpConnectionContext ipctx = new IpConnectionContext(new InetSocketAddress(loopBack, 1), new InetSocketAddress(loopBack, 2), null);
+        ipctx.setPrincipal(() -> "user");
+        Event ev = new EventsFactory().newEvent(ipctx);
+        Assert.assertEquals("user", getByPath("@context.principal.name", ev));
+
+        Assert.assertEquals(ipctx.getLocalAddress(), getByPath("@context.localAddress", ev));
+        Assert.assertEquals(loopBack, getByPath("@context.localAddress.address", ev));
+        Assert.assertEquals(1, getByPath("@context.localAddress.port", ev));
+
+        Assert.assertEquals(ipctx.getRemoteAddress(), getByPath("@context.remoteAddress", ev));
+        Assert.assertEquals(loopBack, getByPath("@context.remoteAddress.address", ev));
+        Assert.assertEquals(2, getByPath("@context.remoteAddress.port", ev));
+
+        Assert.assertThrows(IgnoredEventException.class, () -> getByPath("@context.bad1", ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> getByPath("@context.principal.bad2", ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> getByPath("@context.remoteAddress.bad3", ev));
+    }
+
+    private Object getByPath(String path, Event ev) {
+        VariablePath vp = VariablePath.parse(path);
+        return ev.getAtPath(vp);
     }
 
 }

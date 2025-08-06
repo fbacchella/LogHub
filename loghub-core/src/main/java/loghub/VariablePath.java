@@ -1,14 +1,12 @@
 package loghub;
 
-import java.beans.FeatureDescriptor;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -16,7 +14,6 @@ import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import loghub.events.Event;
@@ -38,7 +35,17 @@ public abstract class VariablePath {
     private static final Map<String, VariablePath>          PATH_CACHE_META;
     private static final Map<String, VariablePath>          PATH_CACHE_STRING;
     private static final AtomicReference<VariablePath[]>    PATH_CACHE_ID;
-    private static final Map<Class<?>, Map<String, Method>> CONTEXT_BEANS = new ConcurrentHashMap<>();
+
+    // Used for resolution in context
+    private static final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+    private static final Map<Class<?>, Map<String, MethodHandle>> CONTEXT_CACHE_METHODS = new ConcurrentHashMap<>();
+    private static final MethodHandle IGNORED_CONTEXT;
+    static {
+        MethodHandle mh = MethodHandles.throwException(void.class, IgnoredEventException.class).bindTo(IgnoredEventException.INSTANCE);
+        mh = MethodHandles.dropArguments(mh, 0, Object.class);
+        mh = MethodHandles.dropReturn(mh);
+        IGNORED_CONTEXT = mh;
+    }
 
     static {
         VP_COUNT = new AtomicInteger(0);
@@ -319,35 +326,54 @@ public abstract class VariablePath {
             return "event.getConnectionContext()" + pathSuffix();
         }
         private Object resolve(Event ev) {
-            Object o = ev.getConnectionContext();
-            for (int i = 0; i < path.length; i++) {
+            ConnectionContext<?> ctx = ev.getConnectionContext();
+            Object o;
+            switch (path[0]) {
+            case "remoteAddress":
+                o = ctx.getRemoteAddress();
+                break;
+            case "localAddress":
+                o = ctx.getLocalAddress();
+                break;
+            case "principal":
+                o = ctx.getPrincipal();
+                break;
+            default:
+                throw IgnoredEventException.INSTANCE;
+            }
+            for (int i = 1; i < path.length; i++) {
                 try {
                     o = beanResolver(o, path[i]);
                     // beanResolver return null before end of path, it's a missing value
                     if (o == null && i < (path.length - 1)) {
-                        return NullOrMissingValue.MISSING;
+                        throw IgnoredEventException.INSTANCE;
                     }
-                } catch (IllegalAccessException | InvocationTargetException ex) {
+                } catch (IgnoredEventException ex) {
+                    throw ex;
+                } catch (Throwable ex) {
                     throw new IllegalArgumentException(String.format("Not a valid context path %s: %s", this, Helpers.resolveThrowableException(ex)), ex);
                 }
             }
             return o;
         }
-        private Object beanResolver(Object beanObject, String beanName)
-                throws InvocationTargetException, IllegalAccessException {
-            Method m = CONTEXT_BEANS.computeIfAbsent(beanObject.getClass(), c -> {
-                try {
-                    return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
-                                   .filter(pd -> pd.getReadMethod() != null)
-                                   .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getReadMethod));
-                } catch (IntrospectionException e) {
-                    return Collections.emptyMap();
+
+        private Object beanResolver(Object o, String bean) throws Throwable {
+            MethodHandle mh =  CONTEXT_CACHE_METHODS.computeIfAbsent(o.getClass(), k -> new ConcurrentHashMap<>())
+                                           .computeIfAbsent(bean, k -> methodFind(o.getClass(), bean));
+            return mh.invoke(o);
+        }
+
+        private MethodHandle methodFind(Class<?> clazz, String beanName) {
+            try {
+                for (PropertyDescriptor pd: Introspector.getBeanInfo(clazz, Object.class).getPropertyDescriptors()) {
+                    if (pd.getReadMethod() != null && beanName.equals(pd.getName())) {
+                        return lookup.unreflect(pd.getReadMethod());
+                    }
                 }
-            }).get(beanName);
-            if (m == null) {
-                return NullOrMissingValue.MISSING;
-            } else {
-                return m.invoke(beanObject);
+                // If not found
+                return IGNORED_CONTEXT;
+            } catch (IntrospectionException | IllegalAccessException e) {
+                return IGNORED_CONTEXT;
             }
         }
     }
@@ -571,7 +597,7 @@ public abstract class VariablePath {
         } else if (path.startsWith("#")) {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofMeta(s.substring(1)));
         } else if (path.startsWith(Event.CONTEXTKEY)) {
-            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofContext(pathElements(s.substring(Event.CONTEXTKEY.length()))));
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofContext(pathElements(s.substring(Event.CONTEXTKEY.length() + 1))));
         } else if (path.startsWith(Event.INDIRECTMARK)) {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofIndirect(pathElements(s.substring(Event.INDIRECTMARK.length()))));
         } else if (".".equals(path)) {
@@ -678,7 +704,7 @@ public abstract class VariablePath {
         PATH_CACHE_CONTEXT.clear();
         PATH_CACHE_META.clear();
         PATH_CACHE_STRING.clear();
-        CONTEXT_BEANS.clear();
+        CONTEXT_CACHE_METHODS.clear();
     }
 
 }
