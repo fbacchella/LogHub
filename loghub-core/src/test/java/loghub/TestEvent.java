@@ -216,7 +216,7 @@ public class TestEvent {
         try {
             original.getConnectionContext().acknowledge();
             clone.getConnectionContext().acknowledge();
-             Assert.assertEquals("laddr", original.getConnectionContext().getLocalAddress());
+            Assert.assertEquals("laddr", original.getConnectionContext().getLocalAddress());
             Assert.assertEquals("laddr", clone.getConnectionContext().getLocalAddress());
 
             Assert.assertEquals("raddr", original.getConnectionContext().getRemoteAddress());

@@ -243,7 +243,7 @@ public class TestNetflow {
         nfd.configure(new Properties(new HashMap<>()), udpBuilder.build());
 
         Random random = new Random();
-        IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(random.nextInt(65535)), new InetSocketAddress(generateIpAddress(random), random.nextInt(65535)), null);
+        IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(random.nextInt(65535)), new InetSocketAddress(generateIpAddress(random), random.nextInt(65535)));
 
         Arrays.stream(captures)
                 .peek(i -> logger.debug("{}: ", i))

@@ -53,4 +53,5 @@ public class ZmqConnectionContext extends BuildableConnectionContext<String> {
     public String getRemoteAddress() {
         return peerAddress;
     }
+
 }

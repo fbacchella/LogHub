@@ -77,6 +77,20 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         public String getRemoteAddress() {
             return remoteAddress;
         }
+
+        @Override
+        public Map<String, Object> getProperties() {
+            return Map.of("topic", topic, "partition", partition);
+        }
+
+        @Override
+        public <T> Optional<T> getProperty(String property) {
+            return switch (property) {
+                case "topic" -> (Optional<T>) Optional.of(topic);
+                case "partition" -> (Optional<T>) Optional.of(partition);
+                default -> super.getProperty(property);
+            };
+        }
     }
 
     @Setter @Getter

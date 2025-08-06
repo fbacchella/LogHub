@@ -2,6 +2,7 @@ package loghub;
 
 import java.io.Serializable;
 import java.security.Principal;
+import java.util.Map;
 import java.util.Optional;
 
 import loghub.cloners.Immutable;
@@ -55,8 +56,12 @@ public abstract class BuildableConnectionContext<A> implements ConnectionContext
 
         @Override
         public Runnable getOnAcknowledge() {
-            return () -> {
-            };
+            return () -> { };
+        }
+
+        @Override
+        public <T> Optional<T> getProperty(String property) {
+            return Optional.empty();
         }
     }
 
@@ -89,6 +94,15 @@ public abstract class BuildableConnectionContext<A> implements ConnectionContext
 
     public Optional<Decoder> getDecoder() {
         return Optional.ofNullable(decoder);
+    }
+
+    public Map<String, Object> getProperties() {
+        return Map.of();
+    }
+
+    @Override
+    public <T> Optional<T> getProperty(String property) {
+        return Optional.empty();
     }
 
 }

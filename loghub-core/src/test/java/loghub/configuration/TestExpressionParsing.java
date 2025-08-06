@@ -798,7 +798,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testContext() throws ProcessorException, UnknownHostException {
-        IpConnectionContext ipctx = new IpConnectionContext(new InetSocketAddress("127.0.0.1", 31712), new InetSocketAddress("www.google.com", 443), null);
+        IpConnectionContext ipctx = new IpConnectionContext(new InetSocketAddress("127.0.0.1", 31712), new InetSocketAddress("www.google.com", 443));
         Principal p = () -> "user";
         ipctx.setPrincipal(p);
         Event ev = factory.newEvent(ipctx);
@@ -825,7 +825,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testDottedContext() throws ProcessorException {
-        IpConnectionContext ipctxt = new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null);
+        IpConnectionContext ipctxt = new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80));
         Principal p = () -> "user";
         ipctxt.setPrincipal(p);
         Event ev = factory.newEvent(ipctxt);
@@ -1016,7 +1016,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testExistsTrue() throws ProcessorException {
-        Event ev = factory.newEvent(new IpConnectionContext(InetSocketAddress.createUnresolved("localhost", 0), InetSocketAddress.createUnresolved("localhost", 0), null));
+        Event ev = factory.newEvent(new IpConnectionContext(InetSocketAddress.createUnresolved("localhost", 0), InetSocketAddress.createUnresolved("localhost", 0)));
         ev.putAtPath(VariablePath.of("event", "type"), "debug");
         ev.putAtPath(VariablePath.of("empty"), null);
         Assert.assertTrue((Boolean) Tools.evalExpression("[event type] == *", ev));

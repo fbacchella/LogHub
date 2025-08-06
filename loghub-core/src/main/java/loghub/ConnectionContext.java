@@ -21,4 +21,6 @@ public interface ConnectionContext<A> {
 
     Runnable getOnAcknowledge();
 
+    <T> Optional<T> getProperty(String property);
+
 }

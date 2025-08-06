@@ -30,7 +30,7 @@ public class UdpTransport extends AbstractIpTransport<DatagramPacket, UdpTranspo
     public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
         InetSocketAddress remoteaddr = message.sender();
         InetSocketAddress localaddr = message.recipient();
-        return new IpConnectionContext(localaddr, remoteaddr, null);
+        return new IpConnectionContext(localaddr, remoteaddr);
     }
 
     @Override

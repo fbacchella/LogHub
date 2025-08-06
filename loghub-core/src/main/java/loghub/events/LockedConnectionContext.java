@@ -1,8 +1,10 @@
 package loghub.events;
 
 import java.security.Principal;
+import java.util.Map;
 import java.util.Optional;
 
+import loghub.BuildableConnectionContext;
 import loghub.ConnectionContext;
 import loghub.cloners.DeepCloner;
 import loghub.decoders.Decoder;
@@ -22,6 +24,7 @@ class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
     private final Principal principal;
     @Getter
     private final Runnable onAcknowledge;
+    private final Map<String, ?> properties;
 
     LockedConnectionContext(ConnectionContext<?> context) {
         this(context, false);
@@ -32,6 +35,15 @@ class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
         remoteAddress = context.getRemoteAddress();
         principal = context.getPrincipal();
         onAcknowledge = clone ? () -> {} : context.getOnAcknowledge();
+        if (context instanceof BuildableConnectionContext<?> bcc) {
+            properties = DeepCloner.clone(bcc.getProperties());
+        } else if (context instanceof LockedConnectionContext lcc) {
+            // Already locked and copied, simple copy
+            properties = lcc.properties;
+        }
+        else {
+            properties = Map.of();
+        }
     }
 
     @Override
@@ -42,6 +54,12 @@ class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
     @Override
     public Optional<Decoder> getDecoder() {
         return Optional.empty();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> Optional<T> getProperty(String property) {
+        return (Optional<T>) Optional.ofNullable(properties.get(property));
     }
 
     /**

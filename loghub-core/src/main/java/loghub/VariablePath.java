@@ -328,6 +328,9 @@ public abstract class VariablePath {
         private Object resolve(Event ev) {
             ConnectionContext<?> ctx = ev.getConnectionContext();
             Object o;
+            if (path.length == 0) {
+                return ctx;
+            }
             switch (path[0]) {
             case "remoteAddress":
                 o = ctx.getRemoteAddress();
@@ -339,7 +342,7 @@ public abstract class VariablePath {
                 o = ctx.getPrincipal();
                 break;
             default:
-                throw IgnoredEventException.INSTANCE;
+                o = ctx.getProperty(path[0]).orElse(NullOrMissingValue.MISSING);
             }
             for (int i = 1; i < path.length; i++) {
                 try {
@@ -349,7 +352,7 @@ public abstract class VariablePath {
                         throw IgnoredEventException.INSTANCE;
                     }
                 } catch (IgnoredEventException ex) {
-                    throw ex;
+                    o = NullOrMissingValue.MISSING;
                 } catch (Throwable ex) {
                     throw new IllegalArgumentException(String.format("Not a valid context path %s: %s", this, Helpers.resolveThrowableException(ex)), ex);
                 }
@@ -358,8 +361,9 @@ public abstract class VariablePath {
         }
 
         private Object beanResolver(Object o, String bean) throws Throwable {
-            MethodHandle mh =  CONTEXT_CACHE_METHODS.computeIfAbsent(o.getClass(), k -> new ConcurrentHashMap<>())
-                                           .computeIfAbsent(bean, k -> methodFind(o.getClass(), bean));
+            MethodHandle mh = o == null ? IGNORED_CONTEXT :
+                                      CONTEXT_CACHE_METHODS.computeIfAbsent(o.getClass(), k -> new ConcurrentHashMap<>())
+                                                           .computeIfAbsent(bean, k -> methodFind(o.getClass(), bean));
             return mh.invoke(o);
         }
 

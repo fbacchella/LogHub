@@ -138,9 +138,10 @@ public class TestVariablePath {
     @Test
     public void testContext() {
         InetAddress loopBack = InetAddress.getLoopbackAddress();
-        IpConnectionContext ipctx = new IpConnectionContext(new InetSocketAddress(loopBack, 1), new InetSocketAddress(loopBack, 2), null);
+        IpConnectionContext ipctx = new IpConnectionContext(new InetSocketAddress(loopBack, 1), new InetSocketAddress(loopBack, 2));
         ipctx.setPrincipal(() -> "user");
         Event ev = new EventsFactory().newEvent(ipctx);
+
         Assert.assertEquals("user", getByPath("@context.principal.name", ev));
 
         Assert.assertEquals(ipctx.getLocalAddress(), getByPath("@context.localAddress", ev));
@@ -151,9 +152,9 @@ public class TestVariablePath {
         Assert.assertEquals(loopBack, getByPath("@context.remoteAddress.address", ev));
         Assert.assertEquals(2, getByPath("@context.remoteAddress.port", ev));
 
-        Assert.assertThrows(IgnoredEventException.class, () -> getByPath("@context.bad1", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> getByPath("@context.principal.bad2", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> getByPath("@context.remoteAddress.bad3", ev));
+        Assert.assertEquals(NullOrMissingValue.MISSING, getByPath("@context.bad1", ev));
+        Assert.assertEquals(NullOrMissingValue.MISSING, getByPath("@context.principal.bad2", ev));
+        Assert.assertEquals(NullOrMissingValue.MISSING, getByPath("@context.remoteAddress.bad3", ev));
     }
 
     private Object getByPath(String path, Event ev) {
