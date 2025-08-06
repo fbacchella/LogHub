@@ -63,14 +63,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             this.remoteAddress = String.format("%s/%d", topic, partition);
             setOnAcknowledge(onAcknowledge);
         }
-        @Override
-        public Object getLocalAddress() {
-            return null;
-        }
-        @Override
-        public Object getRemoteAddress() {
-            return null;
-        }
         public Object clone() {
             KafkaContext kc = new KafkaContext(topic, partition, () -> {});
             kc.setPrincipal(getPrincipal());
@@ -269,8 +261,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
     private void eventDecoder(ConsumerRecord<byte[], byte[]> kafkaRecord, Event e) {
         getHeaders(kafkaRecord).forEach(e::putMeta);
-        e.putMeta("kafka_topic", kafkaRecord.topic());
-        e.putMeta("kafka_partition", kafkaRecord.partition());
         byte[] keyBytes = kafkaRecord.key();
         if (keyClass != null) {
             try {
