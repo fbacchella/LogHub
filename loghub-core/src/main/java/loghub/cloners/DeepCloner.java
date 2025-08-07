@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.net.ssl.SSLSession;
+
 import loghub.ConnectionContext;
 import loghub.NullOrMissingValue;
 
@@ -146,6 +148,9 @@ public class DeepCloner {
             return (T) CloneCollection.clone((Collection<Object>) o);
         } else if (o.getClass().isArray()) {
             return (T) CloneArray.clone(o);
+        } else if (o instanceof SSLSession) {
+            // SSLSession is an interface, not detected in faster
+            return (T) SSLSessionCloned.clone((SSLSession) o);
         } else if (o instanceof Cloneable) {
             return tryClone(o);
         } else {
