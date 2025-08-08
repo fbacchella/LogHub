@@ -2,6 +2,7 @@ package loghub.senders;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
@@ -9,6 +10,7 @@ import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -73,16 +75,27 @@ public class Kafka extends Sender {
     private final Expression keySerializer;
     private Supplier<Producer<byte[], byte[]>> producerSupplier;
     private Producer<byte[], byte[]> producer;
+    private final String senderName;
 
     public Kafka(Builder builder) {
         super(builder);
         this.topic = builder.topic;
         this.keySerializer = builder.keySerializer;
+        int hash;
         if (builder.producer != null) {
             producerSupplier = () -> builder.producer;
+            hash = builder.producer.hashCode();
         } else {
-            producerSupplier = getProducer(builder);
+            Map<String, Object> props = builder.configureKafka(logger);
+            producerSupplier = () -> new KafkaProducer<>(props, PASSTHROUGH_SERIALIZER, PASSTHROUGH_SERIALIZER);
+            hash = Objects.hash(
+                    props.get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG),
+                    props.get(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG),
+                    props.get(CommonClientConfigs.CLIENT_ID_CONFIG),
+                    props.get(CommonClientConfigs.GROUP_ID_CONFIG)
+                    );
         }
+        senderName = String.format("Kafka.%s@%s", topic, hash);
     }
 
     @Override
@@ -104,11 +117,6 @@ public class Kafka extends Sender {
                 logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Kafka stop failed: {}", Helpers.resolveThrowableException(ex));
             }
         }
-    }
-
-    private Supplier<Producer<byte[], byte[]>> getProducer(Kafka.Builder builder) {
-        Map<String, Object> props = builder.configureKafka(logger);
-        return () -> new KafkaProducer<>(props, PASSTHROUGH_SERIALIZER, PASSTHROUGH_SERIALIZER);
     }
 
     @Override
@@ -232,7 +240,7 @@ public class Kafka extends Sender {
 
     @Override
     public String getSenderName() {
-        return String.format("Kafka/%s/%s", topic, hashCode());
+        return senderName;
     }
 
 }

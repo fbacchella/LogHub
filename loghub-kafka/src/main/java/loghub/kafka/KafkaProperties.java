@@ -108,6 +108,8 @@ public interface KafkaProperties {
         }
         props.put(CommonClientConfigs.GROUP_ID_CONFIG, getGroup());
         URI[] brokersUrl = Helpers.stringsToUri(brokers, port, "http", logger);
+        // We want to ensure a stable sender identity, so sort the broker list
+        Arrays.sort(brokersUrl);
         String resolvedBrokers = Arrays.stream(brokersUrl)
                                        .map( i -> i.getHost() + ":" + i.getPort())
                                        .collect(Collectors.joining(","));
