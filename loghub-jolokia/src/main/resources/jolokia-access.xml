@@ -1,68 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <restrict>
-
     <commands>
         <command>version</command>
+        <command>list</command>
+        <command>search</command>
+        <command>read</command>
+        <command>notification</command>
     </commands>
-
-    <allow>
-        <mbean>
-            <name>loghub:type=*</name>
-            <attribute mode="read">*</attribute>
-            <operation>read,list</operation>
-        </mbean>
-        <mbean>
-            <name>loghub:level=details,name=*,type=*</name>
-            <attribute mode="read">*</attribute>
-            <operation>read,list</operation>
-        </mbean>
-        <mbean>
-            <name>java.lang:type=Runtime</name>
-            <attribute mode="read">Uptime</attribute>
-            <attribute mode="read">ManagementSpecVersion</attribute>
-            <attribute mode="read">ObjectName</attribute>
-            <attribute mode="read">Pid</attribute>
-            <attribute mode="read">StartTime</attribute>
-            <operation>read,list</operation>
-        </mbean>
-        <mbean>
-            <name>java.lang:type=MemoryPool,name=*</name>
-            <attribute mode="read">*</attribute>
-            <operation>read,list</operation>
-        </mbean>
-        <mbean>
-            <name>java.lang:type=GarbageCollector,name=*</name>
-            <attribute mode="read">*</attribute>
-            <operation>read,list</operation>
-        </mbean>
-        <mbean>
-            <name>java.nio:type=BufferPool,name=*</name>
-            <attribute mode="read">*</attribute>
-            <operation>read,list</operation>
-        </mbean>
-        <mbean>
-            <name>java.lang:type=Compilation</name>
-            <attribute mode="read">*</attribute>
-            <operation>read,list</operation>
-        </mbean>
-        <mbean>
-            <name>java.lang:type=Threading</name>
-            <attribute mode="read">*</attribute>
-            <operation>read,list</operation>
-        </mbean>
-        <mbean>
-            <name>java.lang:type=OperatingSystem</name>
-            <attribute mode="read">*</attribute>
-            <operation>read,list</operation>
-        </mbean>
-    </allow>
-
-    <deny>
-        <mbean>
-            <name>*:*</name>
-            <attribute>*</attribute>
-            <operation>*</operation>
-        </mbean>
-    </deny>
-
 </restrict>

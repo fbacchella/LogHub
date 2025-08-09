@@ -1,5 +1,16 @@
 package loghub;
 
+import javax.management.AttributeNotFoundException;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanException;
+import javax.management.MBeanServerConnection;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+import javax.management.ReflectionException;
+import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
+import javax.management.remote.JMXServiceURL;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,24 +26,31 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.net.InetAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+
 import loghub.configuration.Properties;
 import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.ContentType;
 import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
 import loghub.httpclient.JavaHttpClientService;
+import loghub.metrics.ExceptionsMBean;
 import loghub.metrics.JmxService;
+import loghub.metrics.StatsMBean;
 
 public class TestDashboard {
 
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false));
+    private static final String LOOPBACK_IP = InetAddress.getLoopbackAddress().getHostAddress();
 
     static {
         Tools.configure();
@@ -116,6 +134,27 @@ public class TestDashboard {
             request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> os.write(bodypost.getBytes(StandardCharsets.UTF_8)));
         }
         return client.doRequest(request);
+    }
+
+    @Test
+    public void testJsr160()
+            throws IOException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException,
+                           AttributeNotFoundException, MBeanException {
+        String jmxUrl = String.format("service:jmx:jolokia://%s:%d/jolokia", LOOPBACK_IP, port);
+        JMXServiceURL url = new JMXServiceURL(jmxUrl);
+        try (JMXConnector jmxc = JMXConnectorFactory.connect(url, Map.of())) {
+            Assert.assertNotNull(jmxc.getMBeanServerConnection().getObjectInstance(ExceptionsMBean.Implementation.NAME));
+            Assert.assertNotNull(jmxc.getMBeanServerConnection().getObjectInstance(StatsMBean.Implementation.NAME));
+            MBeanServerConnection mbsc = jmxc.getMBeanServerConnection();
+
+            Set<ObjectName> gcMBeans = mbsc.queryNames(
+                    new ObjectName(ManagementFactory.GARBAGE_COLLECTOR_MXBEAN_DOMAIN_TYPE + ",*"), null
+            );
+
+            for (ObjectName name : gcMBeans) {
+                Assert.assertNotNull(mbsc.getAttribute(name, "Name"));
+            }
+        }
     }
 
 }
