@@ -121,6 +121,14 @@ public enum KeyTypes {
         public byte[] write(Object value) {
             return ((InetAddress) value).getAddress();
         }
+    },
+    NULL(12) {
+        public Object read(byte[] content) {
+            return null;
+        }
+        public byte[] write(Object value) {
+            return new byte[0];
+        }
     }
     ;
 
@@ -143,32 +151,23 @@ public enum KeyTypes {
     public abstract Object read(byte[] content);
     public abstract byte[] write(Object value);
 
+    @SuppressWarnings("unused")
     public static KeyTypes resolve(Object value) {
-        if (value instanceof Long) {
-            return LONG;
-        } else if (value instanceof Double) {
-            return DOUBLE;
-        } else if (value instanceof Float) {
-            return FLOAT;
-        } else if (value instanceof Integer) {
-            return INTEGER;
-        } else if (value instanceof Short) {
-            return SHORT;
-        } else if (value instanceof Byte) {
-            return BYTE;
-        } else if (value instanceof Boolean) {
-            return BOOLEAN;
-        } else if (value instanceof Character) {
-            return CHARACTER;
-        } else if (value instanceof String) {
-            return STRING;
-        } else if (value instanceof byte[]) {
-            return BYTE_ARRAY;
-        } else if (value instanceof InetAddress) {
-            return INET_ADDRESS;
-        } else {
-            return UNKNOWN;
-        }
+        return switch (value) {
+            case Long l -> LONG;
+            case Double v -> DOUBLE;
+            case Float v -> FLOAT;
+            case Integer i -> INTEGER;
+            case Short i -> SHORT;
+            case Byte b -> BYTE;
+            case Boolean b -> BOOLEAN;
+            case Character c -> CHARACTER;
+            case String s -> STRING;
+            case byte[] bytes -> BYTE_ARRAY;
+            case InetAddress inetAddress -> INET_ADDRESS;
+            case null -> NULL;
+            default -> UNKNOWN;
+        };
     }
 
     public static KeyTypes getById(int id) {

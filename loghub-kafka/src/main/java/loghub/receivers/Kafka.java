@@ -84,6 +84,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public <T> Optional<T> getProperty(String property) {
             return switch (property) {
                 case "topic" -> (Optional<T>) Optional.of(topic);
@@ -250,10 +251,12 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     void processRecords(Consumer<byte[], byte[]> consumer, ConsumerRecords<byte[], byte[]> consumerRecords) {
         for (ConsumerRecord<byte[], byte[]> kafkaRecord: consumerRecords) {
             logger.trace("Got a record {}", kafkaRecord);
+            int partition = kafkaRecord.partition();
+            long offset = kafkaRecord.offset();
             KafkaContext ctxt = new KafkaContext(
                     kafkaRecord.topic(),
                     kafkaRecord.partition(),
-                    () -> getPartitionRange(kafkaRecord.partition()).addValue(kafkaRecord.offset())
+                    () -> getPartitionRange(partition).addValue(offset)
             );
             Optional.ofNullable(kafkaRecord.headers().lastHeader("Content-Type"))
                     .map(h -> MimeType.of(new String(h.value(), StandardCharsets.UTF_8)))

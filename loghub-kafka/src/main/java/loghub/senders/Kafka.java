@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -15,7 +16,6 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -38,7 +38,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 @BuilderClass(Kafka.Builder.class)
-@AsyncSender
 @CanBatch
 public class Kafka extends Sender {
 
@@ -55,7 +54,6 @@ public class Kafka extends Sender {
         private ClientAuthentication sslClientAuthentication;
         private SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
         private Expression keySerializer = new Expression("random", ed -> ThreadLocalRandom.current().nextLong());
-        private String compressionType;
         private Map<String, Object> kafkaProperties = Map.of();
 
         // Only used for tests
@@ -122,25 +120,38 @@ public class Kafka extends Sender {
     @Override
     protected boolean send(Event event) throws EncodeException {
         ProducerRecord<byte[], byte[]> kRecord = getProducerRecord(event);
-        producer.send(kRecord, (m, ex) -> {
-            if (ex != null) {
-                if (ex instanceof InterruptException) {
-                    doInterrupt(ex);
-                } else if (ex instanceof KafkaException) {
-                    Stats.failedSentEvent(this, ex, event);
-                    logger.atError()
-                          .withThrowable(logger.isDebugEnabled() ? ex : null)
-                          .log("Sending exception: {}", Helpers.resolveThrowableException(ex));
-                } else {
-                    handleException(ex, event);
-                }
+        EventFuture ef = new EventFuture(event);
+        producer.send(kRecord, (m, ex) -> documentCallback(ex, ef));
+        try {
+            return ef.get();
+        } catch (InterruptedException | ExecutionException ex) {
+            if (ex.getCause() instanceof InterruptException ie) {
+                // Manual detection of the Kafka’s custom InterruptException
+                doInterrupt(ie);
             } else {
-                processStatus(event, true);
+                handleException(ex.getCause(), event);
             }
-        });
-        return true;
+            return false;
+        }
     }
 
+    @Override
+    protected void flush(Batch documents) {
+        documents.forEach(ef -> {
+            Event event = ef.getEvent();
+            try {
+                ProducerRecord<byte[], byte[]> kRecord = getProducerRecord(event);
+                producer.send(kRecord, (m, kex) -> documentCallback(kex, ef));
+            } catch (EncodeException ex) {
+                ef.completeExceptionally(ex);
+            }
+        });
+    }
+
+    /**
+     * Kafka interrupt is a runtime exception, needs special handling
+     * @param ex
+     */
     private void doInterrupt(Exception ex) {
         logger.atWarn()
                 .withThrowable(logger.isDebugEnabled() ? ex : null)
@@ -148,72 +159,20 @@ public class Kafka extends Sender {
         Thread.currentThread().interrupt();
     }
 
-    private int waiting(int wait) {
-        try {
-            // An exponential back off, that double on each step
-            // and wait one hour max between each try
-            Thread.sleep(wait);
-            return Math.min(2 * wait, 3600 * 1000);
-        } catch (InterruptedException e) {
-            logger.warn("Interrupted");
-            Thread.currentThread().interrupt();
-            return -1;
+    private void documentCallback(Exception ex, EventFuture ef) {
+        Event event = ef.getEvent();
+        if (ex instanceof InterruptException) {
+            doInterrupt(ex);
+        }if (ex instanceof KafkaException) {
+            Stats.failedSentEvent(this, ex, event);
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Sending exception: {}", () -> Helpers.resolveThrowableException(ex));
+        } else if (ex != null) {
+            ef.completeExceptionally(ex);
+        } else {
+            ef.complete(true);
         }
-    }
-
-    @Override
-    protected void flush(Batch documents) {
-        boolean running;
-        int wait = 1;
-        do {
-            try {
-                running = true;
-                for (PartitionInfo pi : producer.partitionsFor(topic)) {
-                    if (pi.offlineReplicas().length >= pi.inSyncReplicas().length) {
-                        logger.warn("A partition is failing: {}", () -> pi);
-                        wait = waiting(wait);
-                        running = false;
-                        break;
-                    }
-                }
-            } catch (InterruptException ex) {
-                doInterrupt(ex);
-                running = false;
-                wait = -1;
-            } catch (KafkaException ex) {
-                running = false;
-                logger.atError()
-                      .withThrowable(logger.isDebugEnabled() ? ex : null)
-                      .log("Checking status failed: {}", () -> Helpers.resolveThrowableException(ex));
-            }
-        } while (! running && wait > 0);
-        // It was interrupted
-        if (wait < 0) {
-            documents.forEach(ef -> ef.complete(false));
-        }
-        documents.forEach(ef -> {
-            Event event = ef.getEvent();
-            try {
-                ProducerRecord<byte[], byte[]> kRecord = getProducerRecord(event);
-                producer.send(kRecord, (m, kex) -> {
-                    if (kex instanceof InterruptException) {
-                        doInterrupt(kex);
-                        ef.complete(false);
-                    } else if (kex instanceof KafkaException) {
-                        Stats.failedSentEvent(this, kex, event);
-                        logger.atError()
-                              .withThrowable(logger.isDebugEnabled() ? kex : null)
-                              .log("Sending exception: {}", () -> Helpers.resolveThrowableException(kex));
-                    } else if (kex != null) {
-                        ef.completeExceptionally(kex);
-                    } else {
-                        ef.complete(true);
-                    }
-                });
-             } catch (EncodeException ex) {
-                ef.completeExceptionally(ex);
-            }
-        });
     }
 
     private ProducerRecord<byte[], byte[]> getProducerRecord(Event event) throws EncodeException {

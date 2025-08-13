@@ -1,15 +1,21 @@
 package loghub.receivers;
 
+import java.beans.IntrospectionException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,14 +23,18 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.security.ssl.ClientAuthentication;
 
 public class TestKafka {
 
@@ -45,8 +55,10 @@ public class TestKafka {
         builder.setBrokers(new String[] {"192.168.0.13"});
         builder.setTopic("test");
         builder.setEventsFactory(factory);
+        builder.setWithAutoCommit(false);
         MockConsumer<byte[], byte[]> mockConsumer = getMockConsumer();
         builder.setConsumer(mockConsumer);
+        TopicPartition tp = new TopicPartition("test", 0);
 
         try (Kafka r = builder.build()) {
             PriorityBlockingQueue queue = new PriorityBlockingQueue();
@@ -56,11 +68,16 @@ public class TestKafka {
             r.start();
 
             mockConsumer.addRecord(new ConsumerRecord<>("test", 0, 0, null, "messagebody".getBytes(StandardCharsets.UTF_8)));
+            mockConsumer.addRecord(new ConsumerRecord<>("test", 0, 1, null, "offset1".getBytes(StandardCharsets.UTF_8)));
+            mockConsumer.addRecord(new ConsumerRecord<>("test", 0, 2, null, "offset2".getBytes(StandardCharsets.UTF_8)));
             Event e = queue.poll(1, TimeUnit.SECONDS);
             e.getConnectionContext().acknowledge();
+            queue.poll(1, TimeUnit.SECONDS).getConnectionContext().acknowledge();
+            queue.poll(1, TimeUnit.SECONDS);
+            Assert.assertEquals("test", e.getAtPath(VariablePath.parse("@context.topic")));
+            Assert.assertEquals(0, e.getAtPath(VariablePath.parse("@context.partition")));
             Assert.assertEquals("messagebody", e.get("message"));
-            System.err.println(e);
-            System.err.println(mockConsumer);
+            Assert.assertEquals(2, mockConsumer.committed(Set.of(tp)).get(tp).offset());
         }
     }
 
@@ -74,6 +91,25 @@ public class TestKafka {
         beginningOffsets.put(partition2, 0L);
         consumer.updateBeginningOffsets(beginningOffsets);
         return consumer;
+    }
+
+    @Test
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.receivers.Kafka"
+                , BeanInfo.build("brokers", String[].class)
+                , BeanInfo.build("port", int.class)
+                , BeanInfo.build("topic", String.class)
+                , BeanInfo.build("group", String.class)
+                , BeanInfo.build("keyClass", Class.class)
+                , BeanInfo.build("classLoader", ClassLoader.class)
+                , BeanInfo.build("sslContext", SSLContext.class)
+                , BeanInfo.build("sslParams", SSLParameters.class)
+                , BeanInfo.build("sslClientAuthentication", ClientAuthentication.class)
+                , BeanInfo.build("securityProtocol", SecurityProtocol.class)
+                , BeanInfo.build("withAutoCommit", boolean.class)
+                , BeanInfo.build("kafkaProperties", Map.class)
+                , BeanInfo.build("decoders", Map.class)
+        );
     }
 
 }
