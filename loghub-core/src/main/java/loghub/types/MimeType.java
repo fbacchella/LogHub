@@ -2,9 +2,9 @@ package loghub.types;
 
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import javax.activation.MimeTypeParseException;
@@ -17,7 +17,7 @@ import lombok.Getter;
 @Immutable
 public class MimeType {
 
-    private static final Map<String, MimeType> CACHE = new HashMap<>();
+    private static final Map<String, MimeType> CACHE = new ConcurrentHashMap<>();
 
     @Getter
     private final String primaryType;
