@@ -434,12 +434,16 @@ public final class Helpers {
      */
     public static String resolveThrowableException(Throwable t) {
         StringBuilder builder = new StringBuilder();
+        String lastMessage = "";
         while (t.getCause() != null) {
             String message = t.getMessage();
             if (message == null) {
                 message = t.getClass().getSimpleName();
             }
-            builder.append(message).append(": ");
+            if (! lastMessage.endsWith(message)) {
+                builder.append(message).append(": ");
+            }
+            lastMessage = message;
             t = t.getCause();
         }
         String message = t.getMessage();
@@ -468,6 +472,10 @@ public final class Helpers {
             message = "Interrupted";
         } else if (message == null) {
             message = t.getClass().getSimpleName();
+        } else if (lastMessage.endsWith(message)) {
+            message = "";
+            // Remove the last ": "
+            builder.delete(builder.length() - 2, builder.length());
         }
         builder.append(message);
         return builder.toString();
