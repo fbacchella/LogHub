@@ -9,8 +9,7 @@ import java.security.KeyStore.PrivateKeyEntry;
 import java.security.cert.Certificate;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.Logger;
@@ -51,11 +50,10 @@ public class ZMQHandler<M> implements AutoCloseable {
         PrivateKeyEntry keyEntry = null;
         byte[] topic = null;
         Runnable stopFunction = () -> { };
-        Consumer<String> injectError;
         ZMQSocketFactory zfactory = null;
         CountDownLatch latch = null;
         Function<Socket, M> receive = null;
-        BiFunction<Socket, M, Boolean> send = null;
+        BiPredicate<Socket, M> send = null;
         ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
 
         public Builder<M> setServerPublicKeyToken(String serverKeyToken) {
@@ -73,7 +71,7 @@ public class ZMQHandler<M> implements AutoCloseable {
     private final String socketUrl;
     private final int mask;
     private final Function<Socket, M> receive;
-    private final BiFunction<Socket, M, Boolean> send;
+    private final BiPredicate<Socket, M> send;
     // The stopFunction can be used to do a little cleaning and verifications before the join
     private final Runnable stopFunction;
     private final Pipe notificationPipe;
@@ -185,7 +183,7 @@ public class ZMQHandler<M> implements AutoCloseable {
                         break;
                     } else if (message != null && (sEvents & ZPoller.OUT) != 0) {
                         logEvent("Message sent", socket, sEvents);
-                        if (Boolean.FALSE.equals(send.apply(socket, message))) {
+                        if (! send.test(socket, message)) {
                             throw new ZMQCheckedException(socket.errno());
                         }
                         break;

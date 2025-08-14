@@ -1,6 +1,7 @@
 package loghub;
 
 import java.security.KeyStore.PrivateKeyEntry;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
@@ -36,6 +37,7 @@ public class ZMQFlow extends Thread implements AutoCloseable {
         private Supplier<byte[]> source;
         private int msPause;
         private ZMQSocketFactory zmqFactory = null;
+        private BiPredicate<Socket, byte[]> sender = Socket::send;
 
         public ZMQFlow build() {
             return new ZMQFlow(this);
@@ -55,7 +57,7 @@ public class ZMQFlow extends Thread implements AutoCloseable {
                         .setType(builder.type)
                         .setLogger(logger)
                         .setName("ZMQFlow")
-                        .setSend(Socket::send)
+                        .setSend(builder.sender)
                         .setMask(ZPoller.OUT | ZPoller.ERR)
                         .setSecurity(builder.security)
                         .setZapHandler(builder.zapHandler)
@@ -71,6 +73,7 @@ public class ZMQFlow extends Thread implements AutoCloseable {
         start();
     }
 
+    @Override
     public void run() {
         logger.debug("flow started");
         try {
@@ -78,12 +81,19 @@ public class ZMQFlow extends Thread implements AutoCloseable {
             running = true;
             while (running) {
                 byte[] message = source.get();
+                if (message == null) {
+                    break;
+                }
                 handler.dispatch(message);
-                try {
-                    Thread.sleep(msPause);
-                } catch (InterruptedException e) {
+                if (msPause > 0) {
+                    try {
+                        Thread.sleep(msPause);
+                    } catch (InterruptedException e) {
+                        running = false;
+                        Thread.interrupted();
+                    }
+                } else {
                     running = false;
-                    Thread.interrupted();
                 }
             }
         } catch (ZMQCheckedException ex) {

@@ -128,7 +128,7 @@ public class TestZMQSender {
         builder.setDestination(rendezvous);
         configure.accept(builder);
 
-        try (ZMQSink<String> sink = sinkbuilder.build(); ZMQ sender = builder.build()) {
+        try (ZMQSink<String> ignored = sinkbuilder.build(); ZMQ sender = builder.build()) {
             p.jmxServiceConfiguration.registerSenders(List.of(sender));
             JmxService.start(p.jmxServiceConfiguration);
             Thread.sleep(100);
@@ -238,6 +238,7 @@ public class TestZMQSender {
                               , BeanInfo.build("serverKey", String.class)
                               , BeanInfo.build("security", Mechanisms.class)
                               , BeanInfo.build("zapHandler", ZapDomainHandlerProvider.class)
+                              , BeanInfo.build("withHeader", boolean.class)
                         );
     }
 

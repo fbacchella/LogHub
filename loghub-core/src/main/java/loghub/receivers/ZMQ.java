@@ -1,6 +1,8 @@
 package loghub.receivers;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -9,6 +11,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogBuilder;
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
@@ -17,6 +20,11 @@ import loghub.BuilderClass;
 import loghub.Helpers;
 import loghub.ShutdownTask;
 import loghub.configuration.Properties;
+import loghub.decoders.Decoder;
+import loghub.metrics.Stats;
+import loghub.types.MimeType;
+import loghub.zmq.MsgHeaders;
+import loghub.zmq.MsgHeaders.Header;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
@@ -46,6 +54,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         Mechanisms security = Mechanisms.NULL;
         String topic = "";
         ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
+        private Map<String, Decoder> decoders = Collections.emptyMap();
         @Override
         public ZMQ build() {
             return new ZMQ(this);
@@ -59,11 +68,13 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
     private ZMQHandler<Msg> handler;
     private final String listen;
     private final Mechanisms security;
+    private final Map<MimeType, Decoder> decoders;
 
     protected ZMQ(Builder builder) {
         super(builder);
-        this.listen = builder.listen;
+        listen = builder.listen;
         this.security = builder.security;
+        this.decoders = resolverDecoders(builder.decoders);
         hbuilder = new ZMQHandler.Builder<>();
         hbuilder.setHwm(builder.hwm)
                 .setSocketUrl(builder.listen)
@@ -82,9 +93,8 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
     @Override
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
-            this.handler = hbuilder
-                            .setZfactory(properties.getZMQSocketFactory())
-                            .build();
+            this.handler = hbuilder.setZfactory(properties.getZMQSocketFactory())
+                                   .build();
             this.hbuilder = null;
             return true;
         } else {
@@ -96,52 +106,73 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
     public void run() {
         try {
             handler.start();
+        } catch (ZMQCheckedException ex) {
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Received failed to start: {}", () -> Helpers.resolveThrowableException(ex));
+            return;
+        }
+        try {
             while (handler.isRunning()) {
-                Msg msg = handler.dispatch(null);
-                byte[] message = Optional.ofNullable(msg).map(Msg::data).orElse(new byte[0]);
-                if (message.length > 0) {
-                    ZmqConnectionContext zctxt = new ZmqConnectionContext(msg, security);
-                    // Needs a copy because metadata are reused
-                    Map<String, String> md = Optional.ofNullable(msg.getMetadata())
-                                                     .map(Metadata::entrySet)
-                                                     .orElse(Set.of())
-                                                     .stream()
-                                                     .filter(this::filterMetaData)
-                                                     .collect(METADATA_COLLECTOR);
-                    decodeStream(zctxt, message).forEach(ev -> {
-                        md.forEach(ev::putMeta);
-                        send(ev);
-                    });
-                }
+                handleMessage();
             }
-        } catch (ZMQCheckedException | IllegalArgumentException ex) {
-            logger.error("Failed ZMQ processing : {}", () -> Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
+        } catch (ZMQCheckedException | RuntimeException ex) {
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Failed ZMQ processing: {}", () -> Helpers.resolveThrowableException(ex));
         } catch (Throwable ex) {
-            logger.error("Failed ZMQ processing : {}", () -> Helpers.resolveThrowableException(ex));
+            LogBuilder lb = Helpers.isFatal(ex) ? logger.atFatal() : logger.atError();
+            lb.withThrowable(ex).log("Receiver failed: {}", () -> Helpers.resolveThrowableException(ex));
             if (Helpers.isFatal(ex)) {
                 ShutdownTask.fatalException(ex);
-                logger.catching(Level.FATAL, ex);
-            } else {
-                logger.catching(Level.ERROR, ex);
             }
         } finally {
             handler.close();
         }
     }
 
+    private void handleMessage() throws ZMQCheckedException {
+        try {
+            Decoder currentDecoder = decoder;
+            Msg msg = handler.dispatch(null);
+            if (msg != null && msg.hasMore()) {
+                MsgHeaders headers = new MsgHeaders(msg.data());
+                currentDecoder = headers.getHeader(Header.MIME_TYPE)
+                                        .map(MimeType.class::cast)
+                                        .map(decoders::get)
+                                        .orElse(decoder);
+                msg = handler.getSocket().recvMsg();
+            }
+            byte[] message = Optional.ofNullable(msg).map(Msg::data).orElse(new byte[0]);
+            if (message.length > 0) {
+                ZmqConnectionContext zctxt = new ZmqConnectionContext(msg, security);
+                zctxt.setDecoder(currentDecoder);
+                // Needs a copy because metadata are reused
+                Map<String, String> md = Optional.ofNullable(msg.getMetadata())
+                                                 .map(Metadata::entrySet)
+                                                 .orElse(Set.of())
+                                                 .stream()
+                                                 .filter(this::filterMetaData)
+                                                 .collect(METADATA_COLLECTOR);
+                decodeStream(zctxt, message).forEach(ev -> {
+                    md.forEach(ev::putMeta);
+                    send(ev);
+                });
+            }
+        } catch (IOException | RuntimeException ex) {
+            Stats.newReceivedError(this, "Failed to decode ZMQ message: " + Helpers.resolveThrowableException(ex));
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Failed to decode ZMQ message: {}", () -> Helpers.resolveThrowableException(ex));
+        }
+    }
+
     boolean filterMetaData(Map.Entry<String, String> entry) {
         // Remove some know useless meta data
-        switch (entry.getKey()) {
-        case "curve/public-key":
-        case "Socket-Type":
-        case Metadata.PEER_ADDRESS:
-        case Metadata.USER_ID:
-        case "X-Self-Address":
-            return false;
-        default:
-            return true;
-        }
+        return switch (entry.getKey()) {
+            case "curve/public-key", "Socket-Type", Metadata.PEER_ADDRESS, Metadata.USER_ID, "X-Self-Address" -> false;
+            default -> true;
+        };
      }
 
     @Override

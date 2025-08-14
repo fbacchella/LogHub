@@ -2,6 +2,7 @@ package loghub.senders;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.SynchronousQueue;
+import java.util.function.BiPredicate;
 
 import org.apache.logging.log4j.Level;
 import org.zeromq.SocketType;
@@ -15,6 +16,8 @@ import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
+import loghub.zmq.MsgHeaders;
+import loghub.zmq.MsgHeaders.Header;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
@@ -42,6 +45,7 @@ public class ZMQ extends Sender {
         private String serverKey = null;
         @Getter
         private Mechanisms security = Mechanisms.NULL;
+        private boolean withHeader = false;
         ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
 
         public ZMQ build() {
@@ -78,6 +82,15 @@ public class ZMQ extends Sender {
                     .build();
         }
         Method m = builder.getMethod();
+        BiPredicate<Socket, byte[]> sender;
+        if (builder.withHeader) {
+            MsgHeaders headers = new MsgHeaders();
+            headers.addHeader(Header.MIME_TYPE, getEncoder().getMimeType());
+            byte[] headerBytes = headers.getContent();
+            sender = (s, b) -> sendPayload(headerBytes, s, b);
+        } else {
+            sender = Socket::send;
+        }
         handler = new ZMQHandler.Builder<byte[]>()
                                 .setHwm(builder.hwm)
                                 .setSocketUrl(builder.destination)
@@ -88,7 +101,7 @@ public class ZMQ extends Sender {
                                 .setServerPublicKeyToken(builder.serverKey)
                                 .setLogger(logger)
                                 .setName(getName())
-                                .setSend(Socket::send)
+                                .setSend(sender)
                                 .setMask(ZPoller.OUT)
                                 .setLatch(latch)
                                 .build();
@@ -142,6 +155,11 @@ public class ZMQ extends Sender {
                 handler.close();
             }
         }
+    }
+
+    private boolean sendPayload(byte[] headerBytes, Socket socket, byte[] bytes) {
+        socket.sendMore(headerBytes);
+        return socket.send(bytes);
     }
 
     @Override

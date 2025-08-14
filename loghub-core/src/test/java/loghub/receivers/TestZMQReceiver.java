@@ -11,9 +11,12 @@ import java.security.KeyStore.PrivateKeyEntry;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
@@ -25,6 +28,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.zeromq.SocketType;
+import org.zeromq.ZMQ.Socket;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
@@ -33,13 +37,17 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
-import loghub.VarFormatter;
 import loghub.ZMQFactory;
 import loghub.ZMQFlow;
 import loghub.configuration.Properties;
+import loghub.decoders.Msgpack;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
+import loghub.types.MimeType;
+import loghub.zmq.MsgHeaders;
+import loghub.zmq.MsgHeaders.Header;
 import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
@@ -65,37 +73,22 @@ public class TestZMQReceiver {
     @Rule(order = 2)
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
-    private Event dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure) throws
+    private Event dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure)
+            throws InterruptedException {
+        return dotest(configure, flowconfigure, null);
+    }
+
+    private Event dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure, byte[] header) throws
             InterruptedException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-
         ZMQSocketFactory ctx = tctxt.getFactory();
-
-        ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
-                        .setDestination(rendezvous)
-                        .setType(SocketType.PUSH)
-                        .setZmqFactory(ctx);
-        flowconfigure.accept(flowbuilder);
-
-        AtomicInteger count = new AtomicInteger(0);
-        flowbuilder.setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8));
         PriorityBlockingQueue receiveQueue = new PriorityBlockingQueue();
-        ZMQ.Builder builder = ZMQ.getBuilder();
-        builder.setType(SocketType.PULL);
-        builder.setDecoder(StringCodec.getBuilder().build());
-        builder.setListen(rendezvous);
-        builder.setEventsFactory(factory);
-        configure.accept(builder);
-
         Properties p = new Properties(new HashMap<>(Map.of(
                 "zmq.keystore", tctxt.getSecurityFolder().resolve("zmqtest.jks").toString(),
                 "zmq.certsDirectory", tctxt.getSecurityFolder().resolve("certs").toString()
         )));
-        try (ZMQFlow flow = flowbuilder.build(); ZMQ receiver = builder.build()) {
-            receiver.setOutQueue(receiveQueue);
-            receiver.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
-            Assert.assertTrue(receiver.configure(p));
-            receiver.start();
+
+        try (ZMQFlow ignored1 = getFlow(ctx, header, rendezvous, flowconfigure); ZMQ ignored2 = getReceiver(rendezvous, configure, receiveQueue, p)) {
             Event e = receiveQueue.poll(2000, TimeUnit.MILLISECONDS);
             Assert.assertNotNull("No event received", e);
             ConnectionContext<String> connectionContext = e.getConnectionContext();
@@ -109,12 +102,102 @@ public class TestZMQReceiver {
         }
     }
 
+    private ZMQFlow getFlow(ZMQSocketFactory ctx, byte[] header, String rendezvous, Consumer<ZMQFlow.Builder> flowconfigure) {
+        BiPredicate<Socket, byte[]> sender;
+        if (header == null) {
+            sender = Socket::send;
+        } else {
+            sender = (s, b) -> {
+                s.sendMore(header);
+                return s.send(b);
+            };
+        }
+        ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
+                                                 .setDestination(rendezvous)
+                                                 .setType(SocketType.PUSH)
+                                                 .setZmqFactory(ctx)
+                                                 .setSender(sender);
+        AtomicInteger count = new AtomicInteger(0);
+        flowbuilder.setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8));
+        flowconfigure.accept(flowbuilder);
+        return flowbuilder.build();
+    }
+
+    private ZMQ getReceiver(String rendezvous, Consumer<ZMQ.Builder> configure, PriorityBlockingQueue receiveQueue, Properties p) {
+        ZMQ.Builder builder = ZMQ.getBuilder();
+        builder.setType(SocketType.PULL);
+        builder.setDecoder(StringCodec.getBuilder().build());
+        builder.setListen(rendezvous);
+        builder.setEventsFactory(factory);
+        configure.accept(builder);
+
+        ZMQ receiver = builder.build();
+        receiver.setOutQueue(receiveQueue);
+        receiver.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
+        Assert.assertTrue(receiver.configure(p));
+        receiver.start();
+        return receiver;
+    }
+
     @Test(timeout = 5000)
     public void testConnect() throws InterruptedException {
         dotest(r -> {
             r.setMethod(Method.CONNECT);
             r.setType(SocketType.PULL);
         }, s -> s.setMethod(Method.BIND).setType(SocketType.PUSH).setMsPause(250));
+    }
+
+    @Test(timeout = 5000)
+    public void testWithEmptyHeader() throws InterruptedException {
+        dotest(r -> {
+            r.setMethod(Method.CONNECT);
+            r.setType(SocketType.PULL);
+        }, s -> s.setMethod(Method.BIND).setType(SocketType.PUSH).setMsPause(250),
+                new MsgHeaders().getContent());
+    }
+
+    @Test(timeout = 5000)
+    public void testWithDecoderHeader() throws InterruptedException {
+        dotest(r -> {
+                    r.setMethod(Method.CONNECT);
+                    r.setType(SocketType.PULL);
+                    r.setDecoder(Msgpack.getBuilder().build());
+                    r.setDecoders(Map.of("plain/text", StringCodec.getBuilder().build()));
+                }, s -> s.setMethod(Method.BIND).setType(SocketType.PUSH).setMsPause(250),
+                new MsgHeaders().addHeader(Header.MIME_TYPE, MimeType.of("plain/text")).getContent());
+    }
+
+    @Test(timeout = 5000)
+    public void testWithInvalidHeader() throws InterruptedException {
+        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
+        ZMQSocketFactory ctx = tctxt.getFactory();
+        PriorityBlockingQueue receiveQueue = new PriorityBlockingQueue();
+        Properties p = new Properties(new HashMap<>());
+        AtomicInteger count = new AtomicInteger(0);
+        CountDownLatch latch = new CountDownLatch(1);
+        Supplier<byte[]> supplier = () -> {
+            if (count.get() < 10) {
+                return String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8);
+            } else {
+                latch.countDown();
+                return null;
+            }
+        };
+        Consumer<ZMQFlow.Builder> flowconfigure = s -> s.setMethod(Method.BIND).setType(SocketType.PUSH).setMsPause(5).setHwm(5).setSource(supplier);
+        Consumer<ZMQ.Builder> configure = r -> {
+            r.setMethod(Method.CONNECT);
+            r.setType(SocketType.PULL);
+            r.setDecoder(Msgpack.getBuilder().build());
+            r.setDecoders(Map.of("plain/text", StringCodec.getBuilder().build()));
+        };
+
+        Stats.reset();
+        try (ZMQFlow ignored1 = getFlow(ctx, new byte[]{0, 1}, rendezvous, flowconfigure); ZMQ ignored2 = getReceiver(rendezvous, configure, receiveQueue, p)) {
+            latch.await();
+        } finally {
+            p.getZMQSocketFactory().close();
+        }
+        Assert.assertEquals("Failed to decode ZMQ message: Unable to decode header: Expected Map, but got Integer (00)", Stats.getReceiverError().stream().findAny().orElse(""));
     }
 
     @Test(timeout = 5000)
@@ -182,8 +265,6 @@ public class TestZMQReceiver {
         );
         Assert.assertEquals("loghub", ev.getConnectionContext().getPrincipal().getName());
         Assert.assertEquals("tester", ev.getMeta("pipeline"));
-        System.err.println(new VarFormatter("${%j}").format(ev));
-        System.err.println(ev.getConnectionContext().getPrincipal());
     }
 
 
@@ -198,6 +279,7 @@ public class TestZMQReceiver {
                               , BeanInfo.build("security", Mechanisms.class)
                               , BeanInfo.build("zapHandler", ZapDomainHandlerProvider.class)
                               , BeanInfo.build("blocking", Boolean.TYPE)
+                              , BeanInfo.build("decoders", Map.class)
                         );
     }
 
