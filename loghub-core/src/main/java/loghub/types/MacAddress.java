@@ -66,4 +66,17 @@ public record MacAddress (byte[] address) {
         }
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof MacAddress(byte[] other)))
+            return false;
+
+        return Arrays.equals(address, other);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(address);
+    }
+
 }
