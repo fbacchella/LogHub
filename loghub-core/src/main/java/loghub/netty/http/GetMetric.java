@@ -18,7 +18,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import loghub.Helpers;
 import loghub.jackson.JacksonBuilder;
-import lombok.Data;
 
 @ContentType("application/json; charset=utf-8")
 @NoCache
@@ -30,13 +29,7 @@ public class GetMetric extends HttpRequestProcessing implements ChannelInboundHa
 
     private static final Pattern partsExtractor = Pattern.compile("/metric/(?<metricname>(?<type>[a-z]+?)(s?|(/(?<name>.*))))");
 
-    @Data
-    private static class MetricEntry {
-        private final String description;
-        private final String addendum;
-        private final String url;
-        private final String format;
-        private final String snag;
+    private record MetricEntry(String description, String addendum, String url, String format, String snag) {
     }
 
     @Override

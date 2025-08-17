@@ -7,17 +7,12 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
-class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
+record DatetimeProcessorUnixNano(ZoneId zoneId) implements NumericDateTimeProcessor {
 
-    private final ZoneId zoneId;
     private static final BigInteger ONE_MILLIARD = BigInteger.valueOf(1_000_000_000L);
 
     DatetimeProcessorUnixNano() {
-        this.zoneId = ZoneId.systemDefault();
-    }
-
-    private DatetimeProcessorUnixNano(ZoneId zoneId) {
-        this.zoneId = zoneId;
+        this(ZoneId.systemDefault());
     }
 
     @Override

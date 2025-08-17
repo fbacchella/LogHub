@@ -5,14 +5,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 interface AppendOffset {
-    class PatternAppendOffset implements AppendOffset {
-        private final DateTimeFormatter dtf;
 
-        PatternAppendOffset(String pattern) {
-            dtf = DateTimeFormatter.ofPattern(pattern);
-        }
-        private PatternAppendOffset(DateTimeFormatter dtf) {
-            this.dtf = dtf;
+    record PatternAppendOffset(DateTimeFormatter dtf) implements AppendOffset {
+        public PatternAppendOffset(String pattern) {
+            this(DateTimeFormatter.ofPattern(pattern));
         }
         @Override
         public StringBuilder append(StringBuilder sb, ZonedDateTime dateTime) {

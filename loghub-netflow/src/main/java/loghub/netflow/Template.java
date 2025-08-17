@@ -3,7 +3,6 @@ package loghub.netflow;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 import lombok.Getter;
 
@@ -82,33 +81,10 @@ public class Template {
         }
     }
 
-    @Getter
-    protected static class TemplateId {
-
-        private final InetAddress remoteAddr;
-        private final int id;
-
-        TemplateId(InetAddress remoteAddr, int id) {
-            super();
-            this.remoteAddr = remoteAddr;
-            this.id = id;
+    protected record TemplateId(InetAddress remoteAddr, int id) {
+        public int getId() {
+            return id;
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (!(o instanceof TemplateId)) {
-                return false;
-            } else {
-                TemplateId that = (TemplateId) o;
-                return id == that.id && Objects.equals(remoteAddr, that.remoteAddr);
-            }
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(remoteAddr, id);
-        }
-
     }
 
 }

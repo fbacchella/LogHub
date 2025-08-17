@@ -6,15 +6,10 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
-class DatetimeProcessorUnixMillis implements NumericDateTimeProcessor {
-    private final ZoneId zoneId;
+record DatetimeProcessorUnixMillis(ZoneId zoneId) implements NumericDateTimeProcessor {
 
     DatetimeProcessorUnixMillis() {
         this(ZoneId.systemDefault());
-    }
-
-    private DatetimeProcessorUnixMillis(ZoneId zoneId) {
-        this.zoneId = zoneId;
     }
 
     @Override

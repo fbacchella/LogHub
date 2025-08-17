@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 
 import lombok.Getter;
 
-public class PathTree<T, V> {
+public record PathTree<T, V>(Node<T, V> root) {
 
     // data structure that represents a node in the tree
     private static class Node<T, V> {
@@ -28,10 +28,8 @@ public class PathTree<T, V> {
         }
     }
 
-    private final Node<T, V> root;
-
-    public PathTree(V rootValue) {
-        this.root = new Node<>(rootValue);
+   public PathTree(V rootValue) {
+        this(new Node<>(rootValue));
     }
 
     public V findByPath(T[] path) {

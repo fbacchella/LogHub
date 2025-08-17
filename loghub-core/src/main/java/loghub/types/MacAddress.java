@@ -6,20 +6,14 @@ import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import loghub.cloners.Immutable;
 import loghub.VarFormatter;
-import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode
-@Immutable
-public class MacAddress {
+public record MacAddress (byte[] address) {
 
     private static final Pattern macPattern = Pattern.compile("([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})(?:[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2}))?");
     private static final ThreadLocal<Matcher> localMatcher = ThreadLocal.withInitial(() -> macPattern.matcher(""));
     private static final VarFormatter formatter48 = new VarFormatter("${#1%02X}-${#2%02X}-${#3%02X}-${#4%02X}-${#5%02X}-${#6%02X}");
     private static final VarFormatter formatter64 = new VarFormatter("${#1%02X}-${#2%02X}-${#3%02X}-${#4%02X}-${#5%02X}-${#6%02X}-${#7%02X}-${#8%02X}");
-
-    private final byte[] address;
 
     public MacAddress(byte[] address) {
         if (address.length != 6 && address.length != 8) {
@@ -30,6 +24,10 @@ public class MacAddress {
     }
 
     public MacAddress(String addressStr) {
+        this(parseAddress(addressStr));
+    }
+
+    private static byte[] parseAddress(String addressStr) {
         Matcher m = localMatcher.get().reset(addressStr.trim());
         if (! m.matches()) {
             throw new IllegalArgumentException(addressStr + " is not a valid mac address");
@@ -42,12 +40,13 @@ public class MacAddress {
                     length = i;
                 }
             }
-            address = new byte[length];
+            byte[] addrBuffer = new byte[length];
 
-            for (int i = 0; i < address.length; i++) {
+            for (int i = 0; i < addrBuffer.length; i++) {
                 String j = m.group(i + 1);
-                address[i] = Short.decode("0x" + j).byteValue();
+                addrBuffer[i] = Short.decode("0x" + j).byteValue();
             }
+            return addrBuffer;
         }
     }
 

@@ -12,18 +12,10 @@ import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
 import java.util.Locale;
 
-class DatetimeProcessorCustom implements DatetimeProcessor {
-    private final DateTimeFormatter dateTimeFormatter;
-    private final ZoneId zoneId;
+record DatetimeProcessorCustom(DateTimeFormatter dateTimeFormatter, ZoneId zoneId) implements DatetimeProcessor {
 
     DatetimeProcessorCustom(DateTimeFormatter dateTimeFormatter) {
-        this.dateTimeFormatter = dateTimeFormatter;
-        this.zoneId = ZoneId.systemDefault();
-    }
-
-    private DatetimeProcessorCustom(DateTimeFormatter dateTimeFormatter, ZoneId zid) {
-        this.dateTimeFormatter = dateTimeFormatter;
-        this.zoneId = zid;
+        this(dateTimeFormatter, ZoneId.systemDefault());
     }
 
     @Override

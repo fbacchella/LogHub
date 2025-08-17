@@ -11,21 +11,17 @@ import javax.naming.ldap.Rdn;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import loghub.cloners.Immutable;
 import loghub.Helpers;
-import lombok.Data;
-import lombok.Getter;
 
-@Getter
-@Data
-@Immutable
-public class Dn {
-
-    private final LdapName name;
+public record Dn(LdapName name) {
 
     public Dn(String name) {
+        this(toLdapName(name));
+    }
+
+    private static LdapName toLdapName(String name) {
         try {
-            this.name = new LdapName(name);
+            return new LdapName(name);
         } catch (InvalidNameException ex) {
             throw new IllegalArgumentException(Helpers.resolveThrowableException(ex), ex);
         }
@@ -37,6 +33,10 @@ public class Dn {
         List<Rdn> parts = new ArrayList<>(name.getRdns());
         Collections.reverse(parts);
         return parts.stream().map(Rdn::toString).collect(Collectors.joining(", "));
+    }
+
+    public LdapName getName() {
+        return name;
     }
 
 }

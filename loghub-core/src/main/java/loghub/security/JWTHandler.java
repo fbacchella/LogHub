@@ -28,11 +28,7 @@ public class JWTHandler {
 
     private static final Predicate<String> JWTREGEX = Pattern.compile("^[-A-Za-z0-9_]+\\.[-A-Za-z0-9_]+\\.[-A-Za-z0-9_]+$").asPredicate();
 
-    public static class JWTPrincipal implements Principal, Header, Payload {
-        private final DecodedJWT jwt;
-        JWTPrincipal(DecodedJWT jwt) {
-            this.jwt = jwt;
-        }
+    public record JWTPrincipal(DecodedJWT jwt) implements Principal, Header, Payload {
         @Override
         public String getName() {
             return jwt.getSubject();
@@ -91,7 +87,6 @@ public class JWTHandler {
         public Map<String, Claim> getClaims() {
             return jwt.getClaims();
         }
-
     }
 
     public static class Builder {
