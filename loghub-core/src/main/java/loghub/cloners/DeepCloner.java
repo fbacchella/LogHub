@@ -97,7 +97,8 @@ public class DeepCloner {
                        || InetAddress.class.isAssignableFrom(oClass)
                        || oClass.isEnum()
                        || immutables.contains(oClass)
-                       || oClass.isAnnotationPresent(Immutable.class);
+                       || oClass.isAnnotationPresent(Immutable.class)
+                       || oClass.isRecord();
     }
 
     static boolean isImmutable(Object o) {
@@ -105,6 +106,7 @@ public class DeepCloner {
         return o instanceof  SocketAddress
                || o instanceof InetAddress
                || oClass.isEnum()
+               || oClass.isRecord()
                || immutables.contains(oClass)
                || singlotons.contains(o)
                || oClass.isAnnotationPresent(Immutable.class);
