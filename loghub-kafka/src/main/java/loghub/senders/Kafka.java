@@ -93,7 +93,7 @@ public class Kafka extends Sender {
                     props.get(CommonClientConfigs.GROUP_ID_CONFIG)
                     );
         }
-        senderName = String.format("Kafka.%s@%s", topic, hash);
+        senderName = String.format("Kafka.%s@%08x", topic, hash);
     }
 
     @Override
