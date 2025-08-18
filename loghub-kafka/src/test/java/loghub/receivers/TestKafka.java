@@ -31,9 +31,11 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.decoders.Json;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.kafka.KeyTypes;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestKafka {
@@ -52,6 +54,10 @@ public class TestKafka {
     public void testone() throws InterruptedException {
         Kafka.Builder builder = Kafka.getBuilder();
         builder.setDecoder(StringCodec.getBuilder().build());
+        builder.setDecoders(Map.of(
+                "text/plain", StringCodec.getBuilder().build(),
+                "text/json", Json.getBuilder().build()
+        ));
         builder.setBrokers(new String[] {"192.168.0.13"});
         builder.setTopic("test");
         builder.setEventsFactory(factory);
@@ -67,18 +73,36 @@ public class TestKafka {
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
 
-            mockConsumer.addRecord(new ConsumerRecord<>("test", 0, 0, null, "messagebody".getBytes(StandardCharsets.UTF_8)));
-            mockConsumer.addRecord(new ConsumerRecord<>("test", 0, 1, null, "offset1".getBytes(StandardCharsets.UTF_8)));
-            mockConsumer.addRecord(new ConsumerRecord<>("test", 0, 2, null, "offset2".getBytes(StandardCharsets.UTF_8)));
-            Event e = queue.poll(1, TimeUnit.SECONDS);
-            e.getConnectionContext().acknowledge();
-            queue.poll(1, TimeUnit.SECONDS).getConnectionContext().acknowledge();
+            mockConsumer.addRecord(getConsumerRecord(0, "text/plain", "messagebody".getBytes(StandardCharsets.UTF_8)));
+            mockConsumer.addRecord(getConsumerRecord(1, "text/json", "{\"a\": 1}".getBytes(StandardCharsets.UTF_8)));
+            mockConsumer.addRecord(getConsumerRecord(2, null, "offset2".getBytes(StandardCharsets.UTF_8)));
+            Event e1 = queue.poll(1, TimeUnit.SECONDS);
+            e1.getConnectionContext().acknowledge();
+            Event e2 = queue.poll(1, TimeUnit.SECONDS);
+            e2.getConnectionContext().acknowledge();
             queue.poll(1, TimeUnit.SECONDS);
-            Assert.assertEquals("test", e.getAtPath(VariablePath.parse("@context.topic")));
-            Assert.assertEquals(0, e.getAtPath(VariablePath.parse("@context.partition")));
-            Assert.assertEquals("messagebody", e.get("message"));
+            Assert.assertTrue(e1.getMetas().isEmpty());
+            Assert.assertEquals("test", e1.getAtPath(VariablePath.parse("@context.topic")));
+            Assert.assertEquals(0, e1.getAtPath(VariablePath.parse("@context.partition")));
+            Assert.assertEquals("messagebody", e1.get("message"));
+            Assert.assertEquals(0L, e1.getTimestamp().getTime());
+            Assert.assertEquals("test", e1.getConnectionContext().getProperty("topic").orElseThrow());
+            Assert.assertEquals(0, e1.getConnectionContext().getProperty("partition").orElseThrow());
+            Assert.assertEquals("test/0", e1.getConnectionContext().getRemoteAddress());
+            Assert.assertTrue(e2.getMetas().isEmpty());
+            Assert.assertEquals(1, e2.getAtPath(VariablePath.of("a")));
+
             Assert.assertEquals(2, mockConsumer.committed(Set.of(tp)).get(tp).offset());
         }
+    }
+
+    private ConsumerRecord<byte[], byte[]> getConsumerRecord(long offset, String contentType, byte[] body) {
+        ConsumerRecord<byte[], byte[]> cr = new ConsumerRecord<>("test", 0, offset, null, body);
+        cr.headers().add("Date", KeyTypes.LONG.write(0L));
+        if (contentType != null) {
+            cr.headers().add("Content-Type", KeyTypes.STRING.write(contentType));
+        }
+        return cr;
     }
 
     private MockConsumer<byte[], byte[]> getMockConsumer() {

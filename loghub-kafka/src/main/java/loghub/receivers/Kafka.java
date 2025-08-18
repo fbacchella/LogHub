@@ -266,6 +266,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             Optional<Date> timestamp = Optional.ofNullable(kafkaRecord.headers().lastHeader("Date"))
                                                .map(h -> new Date((long) KeyTypes.LONG.read(h.value())))
                                                .or(() -> Optional.ofNullable(kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null));
+            kafkaRecord.headers().remove("Date");
             byte[] content = kafkaRecord.value();
             decodeStream(ctxt, content).forEach(e -> {
                 timestamp.ifPresent(e::setTimestamp);

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -21,6 +22,7 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -50,6 +52,8 @@ public class TestKafka {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "org.apache.kafka", "loghub.senders.Kafka");
+        Configurator.setLevel("org.apache.kafka.common.metrics", Level.INFO);
+        Configurator.setLevel("org.apache.kafka.common.telemetry.internals", Level.INFO);
     }
 
     @Test
@@ -80,6 +84,7 @@ public class TestKafka {
             Event ev = factory.newEvent(ctx);
             ev.putAtPath(VariablePath.of("a", "b"), 1);
             ev.putMeta("kafka_key", InetAddress.getLoopbackAddress());
+            ev.setTimestamp(Instant.ofEpochMilli(Long.MAX_VALUE));
             queue.put(ev);
             mockProducer.flushed();
             Assert.assertTrue(ctx.lock.tryAcquire(5, TimeUnit.SECONDS));
@@ -88,9 +93,10 @@ public class TestKafka {
                     .map(h -> KeyTypes.getById(h.value()[0]))
                     .ifPresent(kt -> Assert.assertEquals(InetAddress.getLoopbackAddress(), kt.read(kRecord.key())));
             Assert.assertEquals("{\"a\":{\"b\":1}}", new String(kRecord.value(), StandardCharsets.UTF_8));
+            Assert.assertEquals(Long.MAX_VALUE, KeyTypes.LONG.read(kRecord.headers().lastHeader("Date").value()));
+            Assert.assertEquals("application/json", KeyTypes.STRING.read(kRecord.headers().lastHeader("Content-Type").value()));
         }
     }
-
 
     private MockProducer<byte[], byte[]> getMockProducer() {
         Serializer<byte[]> passThrough = new ByteArraySerializer();
