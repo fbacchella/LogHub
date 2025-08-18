@@ -127,7 +127,7 @@ public enum KeyTypes {
             return null;
         }
         public byte[] write(Object value) {
-            return new byte[0];
+            return null;
         }
     }
     ;
