@@ -38,8 +38,8 @@ import loghub.Expression;
 import loghub.Helpers;
 import loghub.decoders.Decoder;
 import loghub.events.Event;
+import loghub.kafka.HeadersTypes;
 import loghub.kafka.KafkaProperties;
-import loghub.kafka.KeyTypes;
 import loghub.kafka.range.RangeCollection;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.types.MimeType;
@@ -258,15 +258,15 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                     kafkaRecord.partition(),
                     () -> getPartitionRange(partition).addValue(offset)
             );
-            Optional.ofNullable(kafkaRecord.headers().lastHeader("Content-Type"))
+            Optional.ofNullable(kafkaRecord.headers().lastHeader(HeadersTypes.CONTENTYPE_HEADER_NAME))
                     .map(h -> MimeType.of(new String(h.value(), StandardCharsets.UTF_8)))
                     .map(decoders::get)
                     .ifPresent(ctxt::setDecoder);
-            kafkaRecord.headers().remove("Content-Type");
-            Optional<Date> timestamp = Optional.ofNullable(kafkaRecord.headers().lastHeader("Date"))
-                                               .map(h -> new Date((long) KeyTypes.LONG.read(h.value())))
+            kafkaRecord.headers().remove(HeadersTypes.CONTENTYPE_HEADER_NAME);
+            Optional<Date> timestamp = Optional.ofNullable(kafkaRecord.headers().lastHeader(HeadersTypes.DATE_HEADER_NAME))
+                                               .map(h -> new Date((long) HeadersTypes.LONG.read(h.value())))
                                                .or(() -> Optional.ofNullable(kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null));
-            kafkaRecord.headers().remove("Date");
+            kafkaRecord.headers().remove(HeadersTypes.DATE_HEADER_NAME);
             byte[] content = kafkaRecord.value();
             decodeStream(ctxt, content).forEach(e -> {
                 timestamp.ifPresent(e::setTimestamp);
@@ -288,12 +288,12 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             } catch (UnknownHostException | InvocationTargetException ex) {
                 logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Unable to decode key: {}", () -> Helpers.resolveThrowableException(ex));
             }
-        } else if (kafkaRecord.headers().lastHeader(KeyTypes.HEADER_NAME) != null){
-            byte[] keyTypeHeaderValue = kafkaRecord.headers().lastHeader(KeyTypes.HEADER_NAME).value();
+        } else if (kafkaRecord.headers().lastHeader(HeadersTypes.KEYTYPE_HEADER_NAME) != null){
+            byte[] keyTypeHeaderValue = kafkaRecord.headers().lastHeader(HeadersTypes.KEYTYPE_HEADER_NAME).value();
             if (keyTypeHeaderValue.length == 1) {
                 byte keyType = keyTypeHeaderValue[0];
                 try {
-                    e.putMeta("kafka_key", KeyTypes.getById(keyType).read(keyBytes));
+                    e.putMeta("kafka_key", HeadersTypes.getById(keyType).read(keyBytes));
                 } catch (IllegalArgumentException ex) {
                     e.putMeta("kafka_key", keyBytes);
                     e.putMeta("kafka_keyType", keyType);
@@ -311,7 +311,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         if (h.length > 0) {
             Map<String, byte[]> headersMap = HashMap.newHashMap(h.length);
             Arrays.stream(h)
-                  .filter(e -> ! KeyTypes.HEADER_NAME.equals(e.key()))
+                  .filter(e -> ! HeadersTypes.KEYTYPE_HEADER_NAME.equals(e.key()))
                   .forEach( i-> headersMap.put(i.key(), i.value()));
             return headersMap;
         } else {

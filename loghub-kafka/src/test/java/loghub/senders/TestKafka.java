@@ -38,7 +38,7 @@ import loghub.configuration.Properties;
 import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.kafka.KeyTypes;
+import loghub.kafka.HeadersTypes;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestKafka {
@@ -89,12 +89,12 @@ public class TestKafka {
             mockProducer.flushed();
             Assert.assertTrue(ctx.lock.tryAcquire(5, TimeUnit.SECONDS));
             ProducerRecord<byte[], byte[]> kRecord = mockProducer.history().getFirst();
-            Optional.ofNullable(kRecord.headers().lastHeader(KeyTypes.HEADER_NAME))
-                    .map(h -> KeyTypes.getById(h.value()[0]))
+            Optional.ofNullable(kRecord.headers().lastHeader(HeadersTypes.KEYTYPE_HEADER_NAME))
+                    .map(h -> HeadersTypes.getById(h.value()[0]))
                     .ifPresent(kt -> Assert.assertEquals(InetAddress.getLoopbackAddress(), kt.read(kRecord.key())));
             Assert.assertEquals("{\"a\":{\"b\":1}}", new String(kRecord.value(), StandardCharsets.UTF_8));
-            Assert.assertEquals(Long.MAX_VALUE, KeyTypes.LONG.read(kRecord.headers().lastHeader("Date").value()));
-            Assert.assertEquals("application/json", KeyTypes.STRING.read(kRecord.headers().lastHeader("Content-Type").value()));
+            Assert.assertEquals(Long.MAX_VALUE, HeadersTypes.LONG.read(kRecord.headers().lastHeader(HeadersTypes.DATE_HEADER_NAME).value()));
+            Assert.assertEquals("application/json", HeadersTypes.STRING.read(kRecord.headers().lastHeader("Content-Type").value()));
         }
     }
 

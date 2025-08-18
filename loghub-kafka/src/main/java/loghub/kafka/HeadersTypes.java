@@ -6,13 +6,15 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import lombok.Getter;
 
-public enum KeyTypes {
+public enum HeadersTypes {
     UNKNOWN(0) {
         public Object read(byte[] content) {
-            return new String(content, StandardCharsets.UTF_8);
+            return content.clone();
         }
         public byte[] write(Object value) {
             return value.toString().getBytes(StandardCharsets.UTF_8);
@@ -20,52 +22,42 @@ public enum KeyTypes {
     },
     DOUBLE(1) {
         public Object read(byte[] content) {
-            return ByteBuffer.wrap(content).order(BYTE_ORDER).getDouble();
+            return fromBytes(content, ByteBuffer::getDouble);
         }
         public byte[] write(Object value) {
-            byte[] buffer = new byte[8];
-            ByteBuffer.wrap(buffer).order(BYTE_ORDER).putDouble((Double)value);
-            return buffer;
+            return toBytes(Double.BYTES, buf -> buf.putDouble((Double) value));
         }
     },
     FLOAT(2) {
         public Object read(byte[] content) {
-            return ByteBuffer.wrap(content).order(BYTE_ORDER).getFloat();
+            return fromBytes(content, ByteBuffer::getFloat);
         }
         public byte[] write(Object value) {
-            byte[] buffer = new byte[4];
-            ByteBuffer.wrap(buffer).order(BYTE_ORDER).putFloat((Float)value);
-            return buffer;
+            return toBytes(Float.BYTES, buf -> buf.putFloat((Float) value));
         }
     },
     LONG(3) {
         public Object read(byte[] content) {
-            return ByteBuffer.wrap(content).order(BYTE_ORDER).getLong();
+            return fromBytes(content, ByteBuffer::getLong);
         }
         public byte[] write(Object value) {
-            byte[] buffer = new byte[8];
-            ByteBuffer.wrap(buffer).order(BYTE_ORDER).putLong((Long)value);
-            return buffer;
+            return toBytes(Long.BYTES, buf -> buf.putLong((Long)value));
         }
     },
     INTEGER(4) {
         public Object read(byte[] content) {
-            return ByteBuffer.wrap(content).order(BYTE_ORDER).getInt();
+            return fromBytes(content, ByteBuffer::getInt);
         }
         public byte[] write(Object value) {
-            byte[] buffer = new byte[4];
-            ByteBuffer.wrap(buffer).order(BYTE_ORDER).putInt((Integer)value);
-            return buffer;
+            return toBytes(Integer.BYTES, buf -> buf.putInt((Integer) value));
         }
     },
     SHORT(5) {
         public Object read(byte[] content) {
-            return ByteBuffer.wrap(content).order(BYTE_ORDER).getShort();
+            return fromBytes(content, ByteBuffer::getShort);
         }
         public byte[] write(Object value) {
-            byte[] buffer = new byte[2];
-            ByteBuffer.wrap(buffer).order(BYTE_ORDER).putShort((Short)value);
-            return buffer;
+            return toBytes(Integer.BYTES, buf -> buf.putShort((Short) value));
         }
     },
     BYTE(6) {
@@ -86,12 +78,10 @@ public enum KeyTypes {
     },
     CHARACTER(8) {
         public Object read(byte[] content) {
-            return ByteBuffer.wrap(content).order(BYTE_ORDER).getChar();
+            return fromBytes(content, ByteBuffer::getChar);
         }
         public byte[] write(Object value) {
-            byte[] buffer = new byte[2];
-            ByteBuffer.wrap(buffer).order(BYTE_ORDER).putChar((Character)value);
-            return buffer;
+            return toBytes(Character.BYTES, buf -> buf.putChar((Character) value));
         }
     },
     STRING(9) {
@@ -132,19 +122,31 @@ public enum KeyTypes {
     }
     ;
 
+    private static byte[] toBytes(int size, Consumer<ByteBuffer> writer) {
+        byte[] buffer = new byte[size];
+        writer.accept(ByteBuffer.wrap(buffer).order(BYTE_ORDER));
+        return buffer;
+    }
+
+    private static <T> T fromBytes(byte[] content, Function<ByteBuffer, T> reader) {
+        return reader.apply(ByteBuffer.wrap(content).order(BYTE_ORDER));
+    }
+
     private static final ByteOrder BYTE_ORDER = ByteOrder.LITTLE_ENDIAN;
-    private static final KeyTypes[] ID_CACHE = new KeyTypes[KeyTypes.values().length];
+    private static final HeadersTypes[] ID_CACHE = new HeadersTypes[HeadersTypes.values().length];
     static {
-        for (KeyTypes type : values()) {
+        for (HeadersTypes type: values()) {
             ID_CACHE[type.id & 0xFF] = type;
         }
     }
-    public static final String HEADER_NAME = "LogHubKeyType";
+    public static final String KEYTYPE_HEADER_NAME = "LogHubKeyType";
+    public static final String DATE_HEADER_NAME = "Date";
+    public static final String CONTENTYPE_HEADER_NAME = "Content-Type";
 
     @Getter
     private final byte id;
 
-    KeyTypes(int id) {
+    HeadersTypes(int id) {
         this.id = (byte)id;
     }
 
@@ -152,7 +154,7 @@ public enum KeyTypes {
     public abstract byte[] write(Object value);
 
     @SuppressWarnings("unused")
-    public static KeyTypes resolve(Object value) {
+    public static HeadersTypes resolve(Object value) {
         return switch (value) {
             case Long l -> LONG;
             case Double v -> DOUBLE;
@@ -170,8 +172,8 @@ public enum KeyTypes {
         };
     }
 
-    public static KeyTypes getById(int id) {
-        if (id > ID_CACHE.length || id < 0) {
+    public static HeadersTypes getById(int id) {
+        if (id < 0 || id >= ID_CACHE.length) {
             throw new IllegalArgumentException("Unknown type ID: " + id);
         } else {
             return ID_CACHE[id & 0xFF];

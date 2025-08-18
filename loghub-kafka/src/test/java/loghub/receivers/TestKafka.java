@@ -35,7 +35,7 @@ import loghub.decoders.Json;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.kafka.KeyTypes;
+import loghub.kafka.HeadersTypes;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestKafka {
@@ -98,9 +98,9 @@ public class TestKafka {
 
     private ConsumerRecord<byte[], byte[]> getConsumerRecord(long offset, String contentType, byte[] body) {
         ConsumerRecord<byte[], byte[]> cr = new ConsumerRecord<>("test", 0, offset, null, body);
-        cr.headers().add("Date", KeyTypes.LONG.write(0L));
+        cr.headers().add(HeadersTypes.DATE_HEADER_NAME, HeadersTypes.LONG.write(0L));
         if (contentType != null) {
-            cr.headers().add("Content-Type", KeyTypes.STRING.write(contentType));
+            cr.headers().add(HeadersTypes.CONTENTYPE_HEADER_NAME, HeadersTypes.STRING.write(contentType));
         }
         return cr;
     }

@@ -30,7 +30,7 @@ import loghub.ProcessorException;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
 import loghub.kafka.KafkaProperties;
-import loghub.kafka.KeyTypes;
+import loghub.kafka.HeadersTypes;
 import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.AccessLevel;
@@ -150,7 +150,7 @@ public class Kafka extends Sender {
 
     /**
      * Kafka interrupt is a runtime exception, needs special handling
-     * @param ex
+     * @param ex the {@link org.apache.kafka.common.errors.InterruptException} exception
      */
     private void doInterrupt(Exception ex) {
         logger.atWarn()
@@ -163,7 +163,7 @@ public class Kafka extends Sender {
         Event event = ef.getEvent();
         if (ex instanceof InterruptException) {
             doInterrupt(ex);
-        }if (ex instanceof KafkaException) {
+        } else if (ex instanceof KafkaException) {
             Stats.failedSentEvent(this, ex, event);
             logger.atError()
                   .withThrowable(logger.isDebugEnabled() ? ex : null)
@@ -180,7 +180,7 @@ public class Kafka extends Sender {
         byte keyClass;
         try {
             Object key = keySerializer.eval(event, topic);
-            KeyTypes type = KeyTypes.resolve(key);
+            HeadersTypes type = HeadersTypes.resolve(key);
             keyData = type.write(key);
             keyClass = type.getId();
         } catch (IgnoredEventException e) {
@@ -191,10 +191,10 @@ public class Kafka extends Sender {
         }
         ProducerRecord<byte[], byte[]> kRecord = new ProducerRecord<>(topic, null, null, keyData, encode(event));
         if (keyClass >= 0) {
-            kRecord.headers().add(KeyTypes.HEADER_NAME, new byte[]{keyClass});
+            kRecord.headers().add(HeadersTypes.KEYTYPE_HEADER_NAME, new byte[]{keyClass});
         }
-        kRecord.headers().add("Date",  KeyTypes.LONG.write(event.getTimestamp().getTime()));
-        kRecord.headers().add("Content-Type",  getEncoder().getMimeType().toString().getBytes(StandardCharsets.UTF_8));
+        kRecord.headers().add(HeadersTypes.DATE_HEADER_NAME,  HeadersTypes.LONG.write(event.getTimestamp().getTime()));
+        kRecord.headers().add(HeadersTypes.CONTENTYPE_HEADER_NAME,  getEncoder().getMimeType().toString().getBytes(StandardCharsets.UTF_8));
         return kRecord;
     }
 

@@ -88,8 +88,7 @@ public interface KafkaProperties {
     }
 
     default Map<String, Object> configureKafka(Logger logger) {
-        Map<String, Object> props = new HashMap<>();
-        props.putAll(getKafkaProperties());
+        Map<String, Object> props = new HashMap<>(getKafkaProperties());
         String[] brokers = getBrokers();
         int port = getPort();
         String topic = getTopic();
