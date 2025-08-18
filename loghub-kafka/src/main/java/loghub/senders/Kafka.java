@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -26,6 +25,7 @@ import loghub.CanBatch;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
+import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
@@ -53,7 +53,7 @@ public class Kafka extends Sender {
         private SSLParameters sslParams;
         private ClientAuthentication sslClientAuthentication;
         private SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
-        private Expression keySerializer = new Expression("random", ed -> ThreadLocalRandom.current().nextLong());
+        private Expression keySerializer = new Expression(NullOrMissingValue.NULL);
         private Map<String, Object> kafkaProperties = Map.of();
 
         // Only used for tests
@@ -189,10 +189,11 @@ public class Kafka extends Sender {
         } catch (ProcessorException e) {
             throw new EncodeException("Key serialization failed", e);
         }
-        ProducerRecord<byte[], byte[]> kRecord = new ProducerRecord<>(topic, null, event.getTimestamp().getTime(), keyData, encode(event));
+        ProducerRecord<byte[], byte[]> kRecord = new ProducerRecord<>(topic, null, null, keyData, encode(event));
         if (keyClass >= 0) {
             kRecord.headers().add(KeyTypes.HEADER_NAME, new byte[]{keyClass});
         }
+        kRecord.headers().add("Date",  KeyTypes.LONG.write(event.getTimestamp().getTime()));
         kRecord.headers().add("Content-Type",  getEncoder().getMimeType().toString().getBytes(StandardCharsets.UTF_8));
         return kRecord;
     }
