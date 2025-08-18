@@ -64,7 +64,11 @@ public class Geoip2 extends FieldsProcessor {
         SUBDIVISION,
     }
 
-    private record LogHubNodeCache(Cache<CacheKey, DecodedValue> cache) implements NodeCache {
+    private static class LogHubNodeCache implements NodeCache {
+        private final Cache<CacheKey, DecodedValue> cache;
+        LogHubNodeCache(Cache<CacheKey, DecodedValue> cache) {
+            this.cache = cache;
+        }
         @Override
         public DecodedValue get(CacheKey key, Loader loader) {
             return cache.invoke(key, this::extractValue, loader);
