@@ -18,6 +18,18 @@ import static loghub.datetime.DatetimeProcessorUtil.appendNumberWithFixedPositio
  * so consider caching them for better performance in client application.
  */
 class PatternResolver {
+
+    private record PatternAppendOffset(DateTimeFormatter dtf) implements AppendOffset {
+        @Override
+        public StringBuilder append(StringBuilder sb, ZonedDateTime dateTime) {
+            return sb.append(dtf.format(dateTime));
+        }
+        @Override
+        public AppendOffset withLocale(Locale locale) {
+            return new PatternAppendOffset(dtf.withLocale(locale));
+        }
+    }
+
     static final Set<String> VALID_ZONE_FORMATTERS = Set.of(
             "O", "OOOO",                        // localized zone-offset:  GMT+8; GMT+08:00; UTC-08:00
             "VV",                               // time-zone ID: America/Los_Angeles: Z; -08:30
@@ -149,7 +161,7 @@ class PatternResolver {
             case "xxxxx":
                 return (sb, zdt) -> appendFormattedSecondOffset("+00:00", 3, true, ':', zdt, sb);
             default:
-                return new AppendOffset.PatternAppendOffset(pattern);
+                return new PatternAppendOffset(DateTimeFormatter.ofPattern(pattern));
             }
         }
     }
