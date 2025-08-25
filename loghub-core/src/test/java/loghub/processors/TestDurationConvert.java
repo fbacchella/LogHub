@@ -11,6 +11,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.DurationUnit;
 import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -20,15 +21,15 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 
-import static loghub.processors.DurationConvert.DurationUnit.CENTI;
-import static loghub.processors.DurationConvert.DurationUnit.DECI;
-import static loghub.processors.DurationConvert.DurationUnit.DURATION;
-import static loghub.processors.DurationConvert.DurationUnit.MICRO;
-import static loghub.processors.DurationConvert.DurationUnit.MILLI;
-import static loghub.processors.DurationConvert.DurationUnit.NANO;
-import static loghub.processors.DurationConvert.DurationUnit.SECOND;
-import static loghub.processors.DurationConvert.DurationUnit.SECOND_FLOAT;
-import static loghub.processors.DurationConvert.DurationUnit.STRING;
+import static loghub.DurationUnit.CENTI;
+import static loghub.DurationUnit.DECI;
+import static loghub.DurationUnit.DURATION;
+import static loghub.DurationUnit.MICRO;
+import static loghub.DurationUnit.MILLI;
+import static loghub.DurationUnit.NANO;
+import static loghub.DurationUnit.SECOND;
+import static loghub.DurationUnit.SECOND_FLOAT;
+import static loghub.DurationUnit.STRING;
 
 public class TestDurationConvert {
 
@@ -42,7 +43,7 @@ public class TestDurationConvert {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors");
     }
 
-    private Object process(Object value, DurationConvert.DurationUnit in, DurationConvert.DurationUnit out) throws ProcessorException {
+    private Object process(Object value, DurationUnit in, DurationUnit out) throws ProcessorException {
         DurationConvert.Builder builder = DurationConvert.getBuilder();
         builder.setIn(in);
         builder.setOut(out);
