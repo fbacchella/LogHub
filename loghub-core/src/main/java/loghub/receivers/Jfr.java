@@ -87,7 +87,7 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
         protected int flushInterval = 2000;
         protected String jfrConfiguration = null;
         protected String jfrConfigurationFile = null;
-        protected Map<String, String> settings = Map.of();
+        protected Map<String, String> jfrSettings = Map.of();
         public Jfr build() {
             return new Jfr(this);
         }
@@ -123,7 +123,7 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
             failurePause = new AtomicInteger(100);
             jfrStream = new AtomicReference<>();
             try {
-                 jfrSettings = resolveSettings(builder.jfrConfiguration, builder.jfrConfigurationFile, builder.settings);
+                 jfrSettings = resolveSettings(builder.jfrConfiguration, builder.jfrConfigurationFile, builder.jfrSettings);
             } catch (IOException | ParseException e) {
                 throw new IllegalArgumentException("Unable to use the JFR configuration", e);
             }

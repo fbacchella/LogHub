@@ -200,7 +200,7 @@ public class TestJfr {
                 , BeanChecks.BeanInfo.build("flushInterval", int.class)
                 , BeanChecks.BeanInfo.build("jfrConfiguration", String.class)
                 , BeanChecks.BeanInfo.build("jfrConfigurationFile", String.class)
-                , BeanChecks.BeanInfo.build("settings", Map.class)
+                , BeanChecks.BeanInfo.build("jfrSettings", Map.class)
         );
     }
 }
