@@ -52,6 +52,7 @@ public class ThreadBuilder {
     private boolean shutdownHook = false;
     private Thread.UncaughtExceptionHandler exceptionHandler = DEFAULTUNCAUGHTEXCEPTIONHANDLER;
     private ClassLoader contextClassLoader = null;
+    private boolean virtual = false;
 
     private ThreadFactory factory = null;
 
@@ -74,6 +75,8 @@ public class ThreadBuilder {
         Thread t;
         if (factory != null) {
             t = factory.newThread(task);
+        } else if (virtual) {
+            t = Thread.ofVirtual().unstarted(task);
         } else if (interrupter == null) {
             t = new Thread(task);
         } else {

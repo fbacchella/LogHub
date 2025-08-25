@@ -247,6 +247,7 @@ public class Properties extends HashMap<String, Object> {
                          .setDaemon(true)
                          .setName(name)
                          .setTask(task)
+                         .setVirtual(true)
                          .build(true)
         );
         timer.scheduleAtFixedRate(collector, period, period);
