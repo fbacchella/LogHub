@@ -95,7 +95,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     protected Receiver(B builder) {
         setDaemon(true);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
-        this.blocking = isBlocking() && builder.blocking;
+        this.blocking = isBlocking(builder) && builder.blocking;
         if (getClass().getAnnotation(SelfDecoder.class) != null) {
             if (builder.decoder != null) {
                 throw new IllegalArgumentException("Decoder " + builder.decoder.getClass().getName() + " will be ignored, this receiver handle decoding");
@@ -123,6 +123,10 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
      * @return true if the receiver block.
      */
     protected boolean isBlocking() {
+        return getClass().getAnnotation(Blocking.class).value();
+    }
+
+    protected boolean isBlocking(B builder) {
         return getClass().getAnnotation(Blocking.class).value();
     }
 
