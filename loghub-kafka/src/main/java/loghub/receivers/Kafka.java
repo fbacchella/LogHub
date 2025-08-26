@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -110,6 +111,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         private boolean withAutoCommit = true;
         private Map<String, Object> kafkaProperties = Map.of();
         private Map<String, Decoder> decoders = Map.of();
+        private int workers = 4;
         // Only used for tests
         @Setter(AccessLevel.PACKAGE)
         private Consumer<byte[], byte[]> consumer;
@@ -129,6 +131,8 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     private final Class<?> keyClass;
     private final boolean withAutoCommit;
     private final Map<MimeType, Decoder> decoders;
+    private final Semaphore workerThreads;
+    private final Thread.Builder threadBuilder;
 
     protected Kafka(Builder builder) {
         super(builder);
@@ -145,6 +149,8 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         }
         withAutoCommit = builder.withAutoCommit;
         decoders = resolverDecoders(builder.decoders);
+        workerThreads = new Semaphore(builder.workers);
+        threadBuilder = Thread.ofVirtual().name(getReceiverName() + "RecordProcessor", 1);
     }
 
     private Supplier<Consumer<byte[], byte[]>> getConsumer(Builder builder) {
@@ -209,11 +215,12 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
             ConsumerRecords<byte[], byte[]> consumerRecords = consumer.poll(pollingInterval);
             if (consumerRecords.count() != 0) {
                 logger.debug("Received {} records", consumerRecords::count);
-                processRecords(consumer, consumerRecords);
+                workerThreads.acquire();
+                threadBuilder.start(() -> processRecords(consumer, consumerRecords));
             }
             commit(consumer);
             return true;
-        } catch (WakeupException | InterruptException e) {
+        } catch (WakeupException | InterruptException | InterruptedException e) {
             return false;
         } catch (KafkaException ex) {
             logger.atError().withThrowable(ex).log("Failed Kafka received: {}", Helpers.resolveThrowableException(ex));
@@ -249,33 +256,37 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     }
 
     void processRecords(Consumer<byte[], byte[]> consumer, ConsumerRecords<byte[], byte[]> consumerRecords) {
-        for (ConsumerRecord<byte[], byte[]> kafkaRecord: consumerRecords) {
-            logger.trace("Got a record {}", kafkaRecord);
-            int partition = kafkaRecord.partition();
-            long offset = kafkaRecord.offset();
-            KafkaContext ctxt = new KafkaContext(
-                    kafkaRecord.topic(),
-                    kafkaRecord.partition(),
-                    () -> getPartitionRange(partition).addValue(offset)
-            );
-            Optional.ofNullable(kafkaRecord.headers().lastHeader(HeadersTypes.CONTENTYPE_HEADER_NAME))
-                    .map(h -> MimeType.of(new String(h.value(), StandardCharsets.UTF_8)))
-                    .map(decoders::get)
-                    .ifPresent(ctxt::setDecoder);
-            kafkaRecord.headers().remove(HeadersTypes.CONTENTYPE_HEADER_NAME);
-            Optional<Date> timestamp = Optional.ofNullable(kafkaRecord.headers().lastHeader(HeadersTypes.DATE_HEADER_NAME))
-                                               .map(h -> new Date((long) HeadersTypes.LONG.read(h.value())))
-                                               .or(() -> Optional.ofNullable(kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null));
-            kafkaRecord.headers().remove(HeadersTypes.DATE_HEADER_NAME);
-            byte[] content = kafkaRecord.value();
-            decodeStream(ctxt, content).forEach(e -> {
-                timestamp.ifPresent(e::setTimestamp);
-                eventDecoder(kafkaRecord, e);
-            });
-            if (isInterrupted()) {
-                consumer.wakeup();
-                break;
+        try {
+            for (ConsumerRecord<byte[], byte[]> kafkaRecord: consumerRecords) {
+                logger.trace("Got a record {}", kafkaRecord);
+                int partition = kafkaRecord.partition();
+                long offset = kafkaRecord.offset();
+                KafkaContext ctxt = new KafkaContext(
+                        kafkaRecord.topic(),
+                        kafkaRecord.partition(),
+                        () -> getPartitionRange(partition).addValue(offset)
+                );
+                Optional.ofNullable(kafkaRecord.headers().lastHeader(HeadersTypes.CONTENTYPE_HEADER_NAME))
+                        .map(h -> MimeType.of(new String(h.value(), StandardCharsets.UTF_8)))
+                        .map(decoders::get)
+                        .ifPresent(ctxt::setDecoder);
+                kafkaRecord.headers().remove(HeadersTypes.CONTENTYPE_HEADER_NAME);
+                Optional<Date> timestamp = Optional.ofNullable(kafkaRecord.headers().lastHeader(HeadersTypes.DATE_HEADER_NAME))
+                                                   .map(h -> new Date((long) HeadersTypes.LONG.read(h.value())))
+                                                   .or(() -> Optional.ofNullable(kafkaRecord.timestampType() == TimestampType.CREATE_TIME ? new Date(kafkaRecord.timestamp()) : null));
+                kafkaRecord.headers().remove(HeadersTypes.DATE_HEADER_NAME);
+                byte[] content = kafkaRecord.value();
+                decodeStream(ctxt, content).forEach(e -> {
+                    timestamp.ifPresent(e::setTimestamp);
+                    eventDecoder(kafkaRecord, e);
+                });
+                if (isInterrupted()) {
+                    consumer.wakeup();
+                    break;
+                }
             }
+        } finally {
+            workerThreads.release();
         }
     }
 
