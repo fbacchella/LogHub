@@ -180,8 +180,10 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
         while (isRunning) {
             try (JMXConnector jmxc = JMXConnectorFactory.connect(jmxUrl, Map.of())) {
                 MBeanServerConnection conn = jmxc.getMBeanServerConnection();
-                try (var rs = new RemoteRecordingStream(conn)) {
+                try (RemoteRecordingStream rs = new RemoteRecordingStream(conn)) {
                     logger.debug("New recording stream");
+                    rs.setReuse(true);
+                    rs.setMaxAge(Duration.ofSeconds(flushInterval * 2L));
                     jfrStream.set(rs);
                     rs.setSettings(jfrSettings);
                     rs.onEvent(this::handleJfrEvent);

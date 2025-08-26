@@ -163,7 +163,7 @@ public class TestJfr {
                     loghub.receivers.Jfr {
                         jmxUrl: "service:jmx:rmi:///jndi/rmi://127.0.0.1:%1$d/jmxrmi",
                         jfrConfiguration: "default",
-                        settings: {
+                        jfrSettings: {
                             "jdk.ActiveSetting#enabled": "false",
                         }
                     }
