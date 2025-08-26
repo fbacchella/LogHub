@@ -62,7 +62,6 @@ public class TestJfr {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Jfr");
     }
 
-    //@Before
     public void startRecording() throws IOException, ParseException {
         jfrFile = tempFolder.newFile().toPath();
         Configuration c = Configuration.getConfiguration("profile");

@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import javax.management.MBeanServerConnection;
@@ -29,8 +30,11 @@ import jdk.jfr.EventType;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.consumer.RecordedClass;
 import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordedFrame;
+import jdk.jfr.consumer.RecordedMethod;
 import jdk.jfr.consumer.RecordedObject;
 import jdk.jfr.consumer.RecordedStackTrace;
+import jdk.jfr.consumer.RecordedThread;
 import jdk.jfr.consumer.RecordingFile;
 import jdk.management.jfr.RemoteRecordingStream;
 import loghub.BuildableConnectionContext;
@@ -288,7 +292,7 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
 
     private Event convertEvent(RecordedEvent re) {
         Event ev = getEventsFactory().newEvent(jfrContext);
-        ev.putAll(fields(re));
+        fields(re, vd -> ! "startTime".equals(vd.getName())).ifPresent(ev::putAll);
         // Some attribute has a startTime declared
         // Detect them as flag without duration or end time
         boolean withStartTime = re.hasField("startTime");
@@ -335,15 +339,20 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
         }
     }
 
-    private Map<String, Object> fields(RecordedObject object) {
-        List<ValueDescriptor> lvd = object.getFields();
-        Map<String, Object> values = HashMap.newHashMap(lvd.size());
-        // startTime is a pseudo field, so skip it.
-        lvd.stream()
-           .map(vd -> new LocalValueDescriptor(vd, convert(object, vd)))
-           .filter(e -> e.value != null && ! "startTime".equals(e.name))
-           .forEach(vd -> values.put(vd.name, vd.value));
-        return values;
+    private Optional<Map<String, Object>> fields(RecordedObject object, Predicate<ValueDescriptor> filter) {
+        if (object == null) {
+            return Optional.empty();
+        } else {
+            List<ValueDescriptor> lvd = object.getFields();
+            Map<String, Object> values = HashMap.newHashMap(lvd.size());
+            // startTime is a pseudo field, so skip it.
+            lvd.stream()
+               .filter(filter)
+               .map(vd -> new LocalValueDescriptor(vd, convert(object, vd)))
+               .filter(e -> e.value != null)
+               .forEach(vd -> values.put(vd.name, vd.value));
+            return Optional.of(values);
+        }
     }
 
     private Object convert(RecordedObject object, ValueDescriptor descriptor) {
@@ -390,45 +399,45 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
             case "double" -> object.getDouble(name);
             case "java.lang.String" -> object.getString(name);
             case "jdk.types.StackTrace" -> resolveStack(object.getValue(name));
-            case "java.lang.Class" -> resolveClass(object.getValue(name));
+            case "java.lang.Class" -> resolveClass(object.getValue(name)).orElse(null);
+            case "jdk.types.Method" -> resolveMethod(object.getValue(name)).orElse(null);
+            case "java.lang.Thread" -> resolveThread(object.getValue(name)).orElse(null);
             case "jdk.types.ThreadGroup",   // RecordedThreadGroup
-                 "java.lang.Thread",        // RecordedThread
-                 "jdk.types.Method",        // RecordedMethod
                  "jdk.types.Module",        // RecordedObject
                  "jdk.types.Package",       // RecordedObject
                  "jdk.types.ClassLoader"    // RecordedClassLoader
-                    -> resolve(object.getValue(name));
+                    -> fields(object.getValue(name), vd -> true).orElse(null);
             default -> object.getValue(name);
         };
     }
 
-    private Object resolveClass(RecordedClass clazz) {
-        if (clazz == null) {
-            return null;
-        } else {
-            List<String> fields = clazz.getFields()
-                                       .stream()
-                                       .map(ValueDescriptor::getName)
-                                       .filter(s -> ! "name".equals(s) && ! "modifiers".equals(s) && ! "id".equals(s) && ! "hidden".equals(s))
-                                       .toList();
-            Map<String, Object> values = HashMap.newHashMap(fields.size());
-            values.put("name", clazz.getName());
-            for (String field: fields) {
-                Object value = resolve(clazz.getValue(field));
-                if (value != null) {
-                    values.put(field, value);
-                }
-            }
-            return values;
-        }
+    private Optional<Map<String, Object>> resolveThread(RecordedThread thread) {
+        return fields(thread, vd -> ! "id".equals(vd.getName())
+                                                   && ! "osThreadId".equals(vd.getName())
+                                                   && ! "javaThreadId".equals(vd.getName()));
+    }
+
+    private Optional<Object> resolveClass(RecordedClass clazz) {
+        Optional<Map<String, Object>> fields = fields(clazz, vd -> ! "name".equals(vd.getName())
+                                                                                 && ! "modifiers".equals(vd.getName())
+                                                                                 && ! "id".equals(vd.getName()) && ! "hidden".equals(vd.getName()));
+        return fields.map(m -> {
+            m.put("name", clazz.getName());
+            return m;
+        });
     }
 
     private Object resolveStack(RecordedStackTrace stack) {
-        return stack == null ? null : stack.getFrames().stream().map(this::resolve).toList();
+        return stack == null ? null : stack.getFrames().stream().map(this::resolveFrame).toList();
     }
 
-    private Object resolve(RecordedObject object) {
-        return object == null ? null : fields(object);
+    private Object resolveFrame(RecordedFrame recordedFrame) {
+        return fields(recordedFrame, vd -> "method".equals(vd.getName())).map(m -> m.get("method"))
+                                                                                       .orElse(null);
+    }
+
+    private Optional<Map<String, Object>> resolveMethod(RecordedMethod method) {
+        return fields(method, vd -> ! "modifiers".equals(vd.getName()) && ! "hidden".equals(vd.getName()));
     }
 
     @Override
