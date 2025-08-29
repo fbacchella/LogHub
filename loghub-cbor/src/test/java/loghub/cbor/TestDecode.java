@@ -23,6 +23,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
+import com.fasterxml.jackson.dataformat.cbor.CBORGenerator.Feature;
+import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 
 import loghub.cbor.CborParser.CborParserFactory;
@@ -36,7 +38,8 @@ public class TestDecode {
 
     @Before
     public void initSerializer() {
-        JacksonBuilder<CBORMapper> jbuilder = JacksonBuilder.get(CBORMapper.class, new CBORFactory());
+        CBORFactory factory = CBORFactory.builder().enable(Feature.ENCODE_USING_STANDARD_NEGATIVE_BIGINT_ENCODING).enable(CBORParser.Feature.DECODE_USING_STANDARD_NEGATIVE_BIGINT_ENCODING).build();
+        JacksonBuilder<CBORMapper> jbuilder = JacksonBuilder.get(CBORMapper.class, factory);
         CborTagHandlerService service = new CborTagHandlerService();
         service.makeSerializers().forEach(jbuilder::addSerializer);
         mapper = jbuilder.getMapper();
@@ -61,6 +64,7 @@ public class TestDecode {
         roundTrip(UUID::randomUUID, Assert::assertEquals);
         roundTrip(InetAddress::getLoopbackAddress, Assert::assertEquals);
         roundTrip(() -> BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN), Assert::assertEquals);
+        roundTrip(() -> new BigInteger("-18446744073709551617"), Assert::assertEquals);
     }
 
     @Test
@@ -78,7 +82,7 @@ public class TestDecode {
         testParsing(new BigInteger("18446744073709551615"), "1bffffffffffffffff");
         testParsing(new BigInteger("18446744073709551616"), "c249010000000000000000");
         testParsing(new BigInteger("-18446744073709551616"), "3bffffffffffffffff");
-        // Issue #431, should be fixed in jackson 2.20.0 testParsing(new BigInteger("-18446744073709551617"), "c349010000000000000000", Assert::assertEquals);
+        testParsing(new BigInteger("-18446744073709551617"), "c349010000000000000000", Assert::assertEquals);
         testParsing(-1, "20");
         testParsing(-10, "29");
         testParsing(-100, "3863", Assert::assertEquals);

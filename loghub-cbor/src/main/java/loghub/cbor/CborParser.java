@@ -21,6 +21,7 @@ import java.util.stream.StreamSupport;
 
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
+import com.fasterxml.jackson.dataformat.cbor.CBORGenerator.Feature;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import com.fasterxml.jackson.dataformat.cbor.CBORReadContext;
 
@@ -33,7 +34,7 @@ public class CborParser implements Closeable {
 
     public static class CborParserFactory {
         private final CborTagHandlerService service;
-        private final CBORFactory factory = new CBORFactory();
+        private final CBORFactory factory = CBORFactory.builder().enable(Feature.ENCODE_USING_STANDARD_NEGATIVE_BIGINT_ENCODING).enable(CBORParser.Feature.DECODE_USING_STANDARD_NEGATIVE_BIGINT_ENCODING).build();
         private final boolean shared;
         private final Map<Integer, CborTagHandler<?>> customTags = new ConcurrentHashMap<>();
 
