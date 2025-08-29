@@ -13,8 +13,9 @@
         <maven.compiler.release>21</maven.compiler.release>
         <log4j.version>2.25.1</log4j.version>
         <antlr>4.13.2</antlr>
-        <jackson>2.19.2</jackson>
-        <metrics>4.2.33</metrics>
+        <jackson.version>2.20.0</jackson.version>
+        <jackson.core.version>2.20</jackson.core.version>
+        <metrics>4.2.35</metrics>
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
