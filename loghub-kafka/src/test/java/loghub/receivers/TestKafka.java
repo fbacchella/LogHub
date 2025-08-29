@@ -2,7 +2,9 @@ package loghub.receivers;
 
 import java.beans.IntrospectionException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,15 +75,20 @@ public class TestKafka {
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
 
-            mockConsumer.addRecord(getConsumerRecord(0, "text/plain", "messagebody".getBytes(StandardCharsets.UTF_8)));
-            mockConsumer.addRecord(getConsumerRecord(1, "text/json", "{\"a\": 1}".getBytes(StandardCharsets.UTF_8)));
-            mockConsumer.addRecord(getConsumerRecord(2, null, "offset2".getBytes(StandardCharsets.UTF_8)));
-            Event e1 = queue.poll(1, TimeUnit.SECONDS);
-            e1.getConnectionContext().acknowledge();
-            Event e2 = queue.poll(1, TimeUnit.SECONDS);
-            e2.getConnectionContext().acknowledge();
-            queue.poll(1, TimeUnit.SECONDS);
-            Assert.assertTrue(e1.getMetas().isEmpty());
+            List<Event> events = new ArrayList<>();
+            mockConsumer.addRecord(getConsumerRecord(0, "text/plain", "messagebody".getBytes(StandardCharsets.UTF_8), 1));
+            mockConsumer.addRecord(getConsumerRecord(1, "text/json", "{\"a\": 1}".getBytes(StandardCharsets.UTF_8), 2));
+            mockConsumer.addRecord(getConsumerRecord(2, null, "offset2".getBytes(StandardCharsets.UTF_8), 3));
+            // Event delivery is not ordered, so reorder them using rank
+            events.add(queue.poll(1, TimeUnit.SECONDS));
+            events.add(queue.poll(1, TimeUnit.SECONDS));
+            events.add(queue.poll(1, TimeUnit.SECONDS));
+            events.forEach(e -> e.getConnectionContext().acknowledge());
+            Comparator<Event> compar = Comparator.comparingInt(ev -> Integer.parseInt(new String((byte[])ev.getMeta("rank"), StandardCharsets.UTF_8)));
+            events.sort(compar);
+
+            Event e1 = events.get(0);
+            Assert.assertEquals(1, e1.getMetas().size());
             Assert.assertEquals("test", e1.getAtPath(VariablePath.parse("@context.topic")));
             Assert.assertEquals(0, e1.getAtPath(VariablePath.parse("@context.partition")));
             Assert.assertEquals("messagebody", e1.get("message"));
@@ -89,19 +96,26 @@ public class TestKafka {
             Assert.assertEquals("test", e1.getConnectionContext().getProperty("topic").orElseThrow());
             Assert.assertEquals(0, e1.getConnectionContext().getProperty("partition").orElseThrow());
             Assert.assertEquals("test/0", e1.getConnectionContext().getRemoteAddress());
-            Assert.assertTrue(e2.getMetas().isEmpty());
+
+            Event e2 = events.get(1);
+            Assert.assertEquals(1, e2.getMetas().size());
             Assert.assertEquals(1, e2.getAtPath(VariablePath.of("a")));
 
-            Assert.assertEquals(2, mockConsumer.committed(Set.of(tp)).get(tp).offset());
+            Event e3 = events.get(2);
+            Assert.assertEquals(1, e3.getMetas().size());
+            Assert.assertEquals("offset2", e3.getAtPath(VariablePath.of("message")));
+
+            Assert.assertEquals(3, mockConsumer.committed(Set.of(tp)).get(tp).offset());
         }
     }
 
-    private ConsumerRecord<byte[], byte[]> getConsumerRecord(long offset, String contentType, byte[] body) {
+    private ConsumerRecord<byte[], byte[]> getConsumerRecord(long offset, String contentType, byte[] body, int rank) {
         ConsumerRecord<byte[], byte[]> cr = new ConsumerRecord<>("test", 0, offset, null, body);
         cr.headers().add(HeadersTypes.DATE_HEADER_NAME, HeadersTypes.LONG.write(0L));
         if (contentType != null) {
             cr.headers().add(HeadersTypes.CONTENTYPE_HEADER_NAME, HeadersTypes.STRING.write(contentType));
         }
+        cr.headers().add("rank", Integer.toString(rank).getBytes(StandardCharsets.UTF_8));
         return cr;
     }
 
