@@ -2,8 +2,10 @@ package loghub.processors;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import loghub.BuilderClass;
@@ -17,6 +19,21 @@ import lombok.Setter;
 
 @BuilderClass(Hierarchical.Builder.class)
 public class Hierarchical extends Processor {
+
+    // Using a holder class to avoid creating a new capturing lambda on each call of the processing method
+    public record RenamerCache(VariablePath targetPath, Map<String, Etl> cache) {
+        public RenamerCache(VariablePath targetPath) {
+            this(targetPath, new ConcurrentHashMap<>());
+        }
+
+        public Etl getRenamer(String eventField) {
+            return cache.computeIfAbsent(eventField, this::makeRenamer);
+        }
+
+        private Etl makeRenamer(String eventField) {
+            return Etl.Rename.of(targetPath, VariablePath.of(eventField));
+        }
+    }
 
     @Setter
     public static class Builder extends Processor.Builder<Hierarchical> {
@@ -33,6 +50,7 @@ public class Hierarchical extends Processor {
     @Getter
     private final VariablePath destination;
     private final Pattern[] patterns;
+    private final Map<VariablePath, RenamerCache> renameCache = new ConcurrentHashMap<>();
 
     public Hierarchical(Builder builder) {
         super(builder);
@@ -54,7 +72,8 @@ public class Hierarchical extends Processor {
                         for (String e : path) {
                             d = d.append(e);
                         }
-                        Etl renamer = Etl.Rename.of(d, VariablePath.of(eventField));
+                        Etl renamer = renameCache.computeIfAbsent(d, RenamerCache::new)
+                                                 .getRenamer(eventField);
                         renamer.process(event);
                     }
                 }
