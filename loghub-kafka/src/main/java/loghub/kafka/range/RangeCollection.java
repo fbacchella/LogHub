@@ -89,7 +89,7 @@ public class RangeCollection {
             }
             if (! mergeDone) {
                 return -1;
-            } else {
+            } else if (!ranges.isEmpty()){
                 long newCommit = ranges.first().getEnd();
                 if (newCommit > lastCommited) {
                     lastCommited = newCommit;
@@ -97,6 +97,9 @@ public class RangeCollection {
                 } else {
                     return -1;
                 }
+            } else {
+                ranges.add(LongRange.EMPTY);
+                return lastCommited;
             }
         } finally {
             lock.writeLock().unlock();
