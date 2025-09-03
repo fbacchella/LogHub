@@ -14,13 +14,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Hashtable;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
@@ -256,7 +257,7 @@ public class JmxService {
         if (m.matches()) {
             Map<String, String> table = getStringStringHashtable(m);
             try {
-                metricName = new ObjectName("loghub", new Hashtable<>(table));
+                metricName = getName("loghub", table);
             } catch (MalformedObjectNameException e) {
                 metricName = donf.createName(type, domain, name);
             }
@@ -266,11 +267,28 @@ public class JmxService {
         return metricName;
     }
 
+    private static ObjectName getName(String domain, Map<String, String> table) throws MalformedObjectNameException {
+        String canonicalName = domain  + ":" + table.entrySet()
+                                                    .stream()
+                                                    .map(e -> e.getKey() + "=" + e.getValue())
+                                                    .collect(Collectors.joining(","));
+        return new ObjectName(canonicalName);
+    }
+
     private static Map<String, String> getStringStringHashtable(Matcher m) {
-        Map<String, String> table = new HashMap<>(4);
+        Map<String, String> table = LinkedHashMap.newLinkedHashMap(5);
         String service = m.group(1);
         table.put("type", service);
-        if (m.group(3) != null) {
+        if ("Dashboard".equals(service)) {
+            table.put("level", "HTTPStatus");
+            table.put("code", m.group(4));
+        } else if (".HTTPStatus".equals(m.group(3))) {
+            String servicename = m.group(2);
+            String metric = m.group(4);
+            table.put("servicename", servicename);
+            table.put("level", "HTTPStatus");
+            table.put("code", metric);
+        } else if (m.group(4) != null) {
             String servicename = m.group(2);
             String metric = m.group(4);
             table.put("servicename", servicename);
@@ -285,7 +303,7 @@ public class JmxService {
 
     private static void startJmxReporter() {
         ObjectNameFactory donf = new DefaultObjectNameFactory();
-        Pattern pipepattern = Pattern.compile("^([^.]+)\\.(.+?)(\\.([a-zA-Z0-9]+))?$");
+        Pattern pipepattern = Pattern.compile("^([^.]+)\\.(.+?)(\\.HTTPStatus)?(?:\\.([a-zA-Z0-9]+))?$");
         ObjectNameFactory factory = (t, d, n) -> createMetricName(t, d, n, donf, pipepattern);
         reporter = JmxReporter.forRegistry(Stats.metricsRegistry).createsObjectNamesWith(factory).registerWith(mbs).build();
         reporter.start();

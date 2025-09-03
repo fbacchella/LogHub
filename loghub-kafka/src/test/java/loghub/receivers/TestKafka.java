@@ -38,6 +38,7 @@ import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.kafka.HeadersTypes;
+import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestKafka {
@@ -54,6 +55,7 @@ public class TestKafka {
 
     @Test
     public void testone() throws InterruptedException {
+        Properties props = new Properties(Collections.emptyMap());
         Kafka.Builder builder = Kafka.getBuilder();
         builder.setDecoder(StringCodec.getBuilder().build());
         builder.setDecoders(Map.of(
@@ -69,10 +71,11 @@ public class TestKafka {
         TopicPartition tp = new TopicPartition("test", 0);
 
         try (Kafka r = builder.build()) {
+            Stats.registerReceiver(r);
             PriorityBlockingQueue queue = new PriorityBlockingQueue();
             r.setOutQueue(queue);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testkafka", null));
-            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue(r.configure(props));
             r.start();
 
             List<Event> events = new ArrayList<>();

@@ -4,6 +4,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.ssl.ApplicationProtocolNames;
+import loghub.configuration.Properties;
+import loghub.metrics.Stats;
 import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.TRANSPORT;
@@ -37,6 +39,7 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
     public ChannelConsumer getConsumer() {
         HttpChannelConsumer.Builder builder = HttpChannelConsumer.getBuilder();
         builder.setLogger(logger)
+               .setHolder(this)
                .setAuthHandler(getAuthenticationHandler())
                .setModelSetup(this::configureModel);
         configureConsumer(builder);
@@ -53,6 +56,12 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
     }
 
     protected abstract void modelSetup(ChannelPipeline pipeline);
+
+    @Override
+    public boolean configure(Properties properties) {
+        Stats.registerHttpService(this);
+        return super.configure(properties);
+    }
 
     @Override
     public ByteBuf getContent(HttpMessage message) {

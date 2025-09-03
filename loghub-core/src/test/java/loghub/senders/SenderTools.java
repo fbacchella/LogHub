@@ -31,6 +31,7 @@ public class SenderTools {
 
     public static <S extends Sender> void send(Sender.Builder<S> builder)
             throws InterruptedException, EncodeException {
+        Properties props = new Properties(Collections.emptyMap());
         ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
 
         Encoder encoder = mock(Encoder.class);
@@ -40,13 +41,13 @@ public class SenderTools {
         builder.setEncoder(encoder);
         S sender = builder.build();
         sender.setInQueue(queue);
-        Assert.assertTrue(sender.configure(new Properties(Collections.emptyMap())));
+        Assert.assertTrue(sender.configure(props));
         sender.start();
         Event ev = factory.newEvent(new BlockingConnectionContext());
         queue.add(ev);
         ConnectionContext<Semaphore> ctxt = ev.getConnectionContext();
         ctxt.getLocalAddress().acquire();
-        Assert.assertEquals(1, Stats.getMetric(Meter.class, Sender.class, "failedSend").getCount());
+        Assert.assertEquals(1, Stats.getMetric(Sender.class, "failedSend", Meter.class).getCount());
         Assert.assertTrue(Stats.getSenderError().contains("Dummy exception"));
         Assert.assertEquals(1L, Stats.getFailed());
     }

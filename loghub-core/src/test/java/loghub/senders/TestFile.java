@@ -57,6 +57,7 @@ public class TestFile {
     }
 
     private File send(Consumer<File.Builder> prepare, long expectedSize, boolean close) throws IOException, InterruptedException {
+        Properties props = new Properties(Collections.emptyMap());
         outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
         EvalExpression.Builder builder1 = EvalExpression.getBuilder();
         builder1.setFormat(new Expression("${message%s}", new VarFormatter("${message%s}")));
@@ -69,7 +70,7 @@ public class TestFile {
         File fsend = fb.build();
         fsend.setInQueue(queue);
 
-        Assert.assertTrue(fsend.configure(new Properties(Collections.emptyMap())));
+        Assert.assertTrue(fsend.configure(props));
         fsend.start();
 
         Event ev = factory.newEvent(new BlockingConnectionContext());

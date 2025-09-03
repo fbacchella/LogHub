@@ -29,6 +29,7 @@ import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 import loghub.security.ssl.MultiKeyStoreProvider;
@@ -76,7 +77,8 @@ public class Tools {
     public static Properties loadConf(String configname, boolean dostart) throws ConfigException, IOException {
         String conffile = Configuration.class.getClassLoader().getResource(configname).getFile();
         Properties props = Configuration.parse(conffile);
-
+        props.receivers.forEach(r -> r.configure(props));
+        props.senders.forEach(s -> s.configure(props));
         Helpers.parallelStartProcessor(props);
         return props;
     }
@@ -132,7 +134,7 @@ public class Tools {
         ps.status = new ArrayList<>();
         ps.repository = props.repository;
         Pipeline pipe = new Pipeline(steps, pipename, null);
-
+        Stats.registerPipeline(pipename);
         Map<String, Pipeline> namedPipeLine = Collections.singletonMap(pipename, pipe);
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, namedPipeLine, 100, props.repository);
         steps.forEach(i -> Assert.assertTrue(i.configure(props)));

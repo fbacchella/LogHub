@@ -135,6 +135,7 @@ public class TestZMQReceiver {
         receiver.setOutQueue(receiveQueue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
         Assert.assertTrue(receiver.configure(p));
+        Stats.registerReceiver(receiver);
         receiver.start();
         return receiver;
     }

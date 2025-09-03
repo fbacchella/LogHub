@@ -48,8 +48,6 @@ public class TestShutdownTask {
         executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
         boolean configured;
         configured = results.stream().map(this::futureGet).reduce((b1, b2) -> b1 && b2).orElse(false);
-        configured &= conf.receivers.stream().map(r -> r.configure(conf)).reduce((b1, b2) -> b1 && b2).orElse(false);
-        configured &= conf.senders.stream().map(s -> s.configure(conf)).reduce((b1, b2) -> b1 && b2).orElse(false);
         Assert.assertTrue(configured);
         Receiver<?, ?>[] receivers = conf.receivers.toArray(Receiver[]::new);
         EventsProcessor[] eventProcessors = conf.eventsprocessors.toArray(EventsProcessor[]::new);

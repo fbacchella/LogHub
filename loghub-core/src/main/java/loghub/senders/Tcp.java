@@ -50,6 +50,9 @@ public class Tcp extends Sender {
 
     private Tcp(Builder builder) {
         super(builder);
+        // Register metrics
+        Stats.register(this, METRIC_SOCKET_CONNECT, Meter.class);
+        Stats.register(this, METRIC_SOCKET_RESET, Meter.class);
         port = builder.port;
         destination = builder.destination;
         if (!builder.separator.isEmpty()) {
@@ -76,9 +79,6 @@ public class Tcp extends Sender {
 
     @Override
     public boolean configure(Properties properties) {
-        // Register metrics
-        Stats.getMetric(Meter.class, this, METRIC_SOCKET_CONNECT);
-        Stats.getMetric(Meter.class, this, METRIC_SOCKET_RESET);
         if (port >= 0 && destination != null) {
             return super.configure(properties);
         } else {
@@ -105,7 +105,7 @@ public class Tcp extends Sender {
             cause = cause.getCause();
         }
         if (cause instanceof IOException || cause instanceof UncheckedIOException) {
-            Stats.getMetric(Meter.class, this, METRIC_SOCKET_RESET).mark();
+            Stats.getMetric(this, METRIC_SOCKET_RESET, Meter.class).mark();
             closeSocket();
         }
         super.handleException(t, event);
@@ -124,7 +124,7 @@ public class Tcp extends Sender {
             socket.setOption(ExtendedSocketOptions.TCP_KEEPINTERVAL, 5);
             socket.socket().connect(new InetSocketAddress(destination, port), 1000);
             localsocketcheck.get().set(new Date().getTime());
-            Stats.getMetric(Meter.class, this, METRIC_SOCKET_CONNECT).mark();
+            Stats.getMetric(this, METRIC_SOCKET_CONNECT, Meter.class).mark();
             return true;
         } catch (IOException | UncheckedIOException ex) {
             handleException(ex);

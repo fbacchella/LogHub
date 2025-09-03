@@ -67,6 +67,7 @@ public class TestKafka {
 
     @Test
     public void testone() throws InterruptedException {
+        Properties props = new Properties(Collections.emptyMap());
         Kafka.Builder builder = Kafka.getBuilder();
         builder.setEncoder(ToJson.getBuilder().build());
         builder.setBrokers(new String[] {"192.168.0.13"});
@@ -78,7 +79,7 @@ public class TestKafka {
         try (Kafka r = builder.build()) {
             PriorityBlockingQueue queue = new PriorityBlockingQueue();
             r.setInQueue(queue);
-            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue(r.configure(props));
             r.start();
             BlockingConnectionContext ctx = new BlockingConnectionContext();
             Event ev = factory.newEvent(ctx);

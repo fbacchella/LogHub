@@ -119,7 +119,7 @@ public class TestTrap {
     }
 
     private void sendPdu(SnmpTrap.PROTOCOL protocol, PDU pdu) throws IOException, InterruptedException {
-        Stats.reset();
+        Properties props = new Properties(new HashMap<>(Map.of("mibdirs", new Object[]{"/usr/share/snmp/mibs"})));
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
         builder.setPort(1161);
@@ -130,9 +130,8 @@ public class TestTrap {
              Snmp snmp = getSnmp()) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
-            Map<String, Object> props = new HashMap<>();
-            props.put("mibdirs", new Object[]{"/usr/share/snmp/mibs"});
-            Assert.assertTrue(r.configure(new Properties(props)));
+            Stats.registerReceiver(r);
+            Assert.assertTrue(r.configure(props));
             r.start();
 
             InetSocketAddress isa = InetSocketAddress.createUnresolved("127.0.0.1", 1161);
@@ -146,7 +145,7 @@ public class TestTrap {
             snmp.send(pdu, snmpTarget);
             Event e = receiver.poll(100, TimeUnit.MILLISECONDS);
             Assert.assertNotNull(e);
-            long statBytes = Stats.getMetric(Meter.class, Receiver.class, "bytes").getCount();
+            long statBytes = Stats.getMetric(Receiver.class, "bytes", Meter.class).getCount();
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             if (pdu.getType() == PDU.NOTIFICATION) {
                 Assert.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());

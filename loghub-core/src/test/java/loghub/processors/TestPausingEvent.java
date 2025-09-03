@@ -37,7 +37,7 @@ public class TestPausingEvent {
     public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.SleepingProcessor", "loghub.EventsProcessor");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.SleepingProcessor", "loghub.EventsProcessor", "loghub");
     }
 
     private static class PausingPromise extends DefaultPromise<Object> {
@@ -46,7 +46,7 @@ public class TestPausingEvent {
         }
     }
 
-    final PausingPromise future = new PausingPromise();
+    PausingPromise future = new PausingPromise();
     Runnable todo;
     BiFunction<Event, Object, Boolean> onsucces;
     BiFunction<Event, Exception, Boolean> onexception;

@@ -141,6 +141,7 @@ public abstract class Sender extends Thread implements Closeable {
     private final ClassLoader classLoader;
 
     protected Sender(Builder<? extends Sender> builder) {
+        Stats.registerSender(this);
         this.classLoader = builder.classLoader;
         filter = builder.filter;
         setDaemon(true);

@@ -34,6 +34,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.POLLER;
@@ -122,9 +123,11 @@ public class TestSimpleReceiver {
         builder.setEventsFactory(factory);
 
         try (TestSimpleReceiver.TesterReceiver r = builder.build()) {
+            Stats.registerReceiver(r);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             r.setOutQueue(receiver);
             r.configure(empty);
+            Stats.registerPipeline(r);
 
             NettyTransport.Builder<?, ?, ?, ?> config = transport.getBuilder();
             config.setEndpoint(host);

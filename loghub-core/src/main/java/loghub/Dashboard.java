@@ -18,6 +18,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.ssl.ApplicationProtocolNames;
+import loghub.metrics.Stats;
 import loghub.netty.DashboardService;
 import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.GetMetric;
@@ -89,11 +90,13 @@ public class Dashboard {
         if (builder.withSSL && builder.hstsDuration != null) {
             hsts = HstsData.builder().maxAge(builder.hstsDuration).build();
         }
+        Stats.registerHttpService(this);
         HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
                                                           .setAuthHandler(authHandler)
                                                           .setModelSetup(this::setupModel)
                                                           .setLogger(logger)
                                                           .setHsts(hsts)
+                                                          .setHolder(this)
                                                           .build();
 
         transport = getTransport(builder, consumer);

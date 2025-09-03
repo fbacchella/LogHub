@@ -15,43 +15,43 @@ public interface StatsMBean {
     @Units(Units.EVENTS)
     @MetricType(MetricType.COUNTER)
     default long getTotalEvents() {
-        return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getCount();
+        return Stats.getMetric(Stats.class, Stats.METRIC_ALL_TIMER, Timer.class).getCount();
     }
 
     @Units(Units.MILLISECONDS)
     @MetricType(MetricType.GAUGE)
     default double getEventLifeTimeMedian() {
-        return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getSnapshot().getMedian() / 1_000_000_000;
+        return Stats.getMetric(Stats.class, Stats.METRIC_ALL_TIMER, Timer.class).getSnapshot().getMedian() / 1_000_000_000;
     }
 
     @Units(Units.MILLISECONDS)
     @MetricType(MetricType.GAUGE)
     default double getEventLifeTime95() {
-        return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getSnapshot().get95thPercentile() / 1_000_000_000;
+        return Stats.getMetric(Stats.class, Stats.METRIC_ALL_TIMER, Timer.class).getSnapshot().get95thPercentile() / 1_000_000_000;
     }
 
     @Units(Units.EXCEPTIONS)
     @MetricType(MetricType.GAUGE)
     default long getUnhandledExceptions() {
-        return Stats.getMetric(Meter.class, Stats.class, Stats.METRIC_ALL_EXCEPTION).getCount();
+        return Stats.getMetric(Stats.class, Stats.METRIC_ALL_EXCEPTION, Meter.class).getCount();
     }
 
     @Units(Units.EVENTS)
     @MetricType(MetricType.GAUGE)
     default long getInflight() {
-        return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).getCount();
+        return Stats.getMetric(Stats.class, Stats.METRIC_ALL_INFLIGHT, Counter.class).getCount();
     }
 
     @Units(Units.EVENTS)
     @MetricType(MetricType.COUNTER)
     default long getLeaked() {
-        return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_EVENT_LEAKED).getCount();
+        return Stats.getMetric(Stats.class, Stats.METRIC_ALL_EVENT_LEAKED, Counter.class).getCount();
     }
 
     @Units(Units.EVENTS)
     @MetricType(MetricType.COUNTER)
     default long getDuplicateEnd() {
-        return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_EVENT_DUPLICATEEND).getCount();
+        return Stats.getMetric(Stats.class, Stats.METRIC_ALL_EVENT_DUPLICATEEND, Counter.class).getCount();
     }
 
     class Implementation extends DocumentedMBean implements StatsMBean {
@@ -68,14 +68,6 @@ public interface StatsMBean {
         public Implementation()
                         throws NotCompliantMBeanException {
             super(StatsMBean.class);
-            // Ensure that all metrics are created
-            getTotalEvents();
-            getEventLifeTimeMedian();
-            getEventLifeTime95();
-            getUnhandledExceptions();
-            getInflight();
-            getLeaked();
-            getDuplicateEnd();
         }
 
     }

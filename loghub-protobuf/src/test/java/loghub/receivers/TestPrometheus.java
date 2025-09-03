@@ -38,6 +38,7 @@ import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 import prometheus.Remote;
 
@@ -58,7 +59,8 @@ public class TestPrometheus {
     private String hostname;
     private int port;
 
-    public Prometheus makeReceiver(Consumer<Prometheus.Builder> prepare, Map<String, Object> propsMap) {
+    private Prometheus makeReceiver(Consumer<Prometheus.Builder> prepare, Map<String, Object> propsMap) {
+        Properties props = new Properties(propsMap);
         // Generate a locally bound random socket
         port = Tools.tryGetPort();
         hostname = InetAddress.getLoopbackAddress().getCanonicalHostName();
@@ -74,8 +76,8 @@ public class TestPrometheus {
         receiver = httpbuilder.build();
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
-
-        Assert.assertTrue(receiver.configure(new Properties(propsMap)));
+        Stats.registerReceiver(receiver);
+        Assert.assertTrue(receiver.configure(props));
         receiver.start();
         return receiver;
     }

@@ -62,6 +62,7 @@ public class TestUdp {
 
     @Test
     public void readdata() throws IOException, InterruptedException {
+        Properties props = new Properties(Collections.emptyMap());
         ToJson.Builder encoderBuilder = ToJson.getBuilder();
         encoderBuilder.setPretty(false);
         ToJson encoder = encoderBuilder.build();
@@ -74,7 +75,7 @@ public class TestUdp {
         Udp sender = builder.build();
         sender.setInQueue(queue);
 
-        Assert.assertTrue(sender.configure(new Properties(Collections.emptyMap())));
+        Assert.assertTrue(sender.configure(props));
         sender.start();
 
         Event ev = factory.newEvent();

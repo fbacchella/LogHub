@@ -33,6 +33,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 import loghub.netty.transport.POLLER;
 
 public class TestUdp {
@@ -65,6 +66,7 @@ public class TestUdp {
     }
 
     private void testsend(int size) throws IOException, InterruptedException {
+        Properties props = new Properties(Collections.emptyMap());
         int port = Tools.tryGetPort();
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
 
@@ -78,10 +80,11 @@ public class TestUdp {
              })) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
+            Stats.registerReceiver(r);
             String hostname = socket.getLocalAddress().getHostAddress();
             InetSocketAddress destaddr = new InetSocketAddress(hostname, port);
 
-            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue(r.configure(props));
             r.start();
             int originalMessageSize;
             try (DatagramSocket send = new DatagramSocket()) {
@@ -122,6 +125,7 @@ public class TestUdp {
 
     @Test(timeout = 5000)
     public void testCompressed() throws InterruptedException, IOException, FilterException {
+        Properties props = new Properties(Collections.emptyMap());
         int port = Tools.tryGetPort();
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
 
@@ -143,10 +147,11 @@ public class TestUdp {
              })) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
+            Stats.registerReceiver(r);
             String hostname = socket.getLocalAddress().getHostAddress();
             InetSocketAddress destaddr = new InetSocketAddress(hostname, port);
 
-            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue(r.configure(props));
             r.start();
             try (DatagramSocket send = new DatagramSocket()) {
                 DatagramPacket packet = new DatagramPacket(sentBuffer, sentBuffer.length, destaddr);
@@ -167,7 +172,7 @@ public class TestUdp {
         }
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testAlreadyBinded() throws IOException {
         try (DatagramSocket ss = new DatagramSocket(0, InetAddress.getLoopbackAddress());
              Udp r = getReceiver(b -> {
@@ -182,7 +187,7 @@ public class TestUdp {
         }
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testMultiThreads() {
         int port = Tools.tryGetPort();
         try (Udp r = getReceiver(b -> {
@@ -198,7 +203,7 @@ public class TestUdp {
         }
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testMultiThreadsFails() {
         int port = Tools.tryGetPort();
         try (Udp r = getReceiver(b -> {

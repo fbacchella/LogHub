@@ -30,6 +30,7 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestJournald {
@@ -73,6 +74,7 @@ public class TestJournald {
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
 
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
+        Stats.registerReceiver(receiver);
         receiver.start();
         return receiver;
     }

@@ -72,7 +72,7 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
 
         @Override
         protected void decode(ChannelHandlerContext ctx, Batch msg, List<Object> out) {
-            Stats.getMetric(Histogram.class, Beats.this, "batchesSize").update(msg.size());
+            Stats.getMetric(Beats.this, "batchesSize", Histogram.class).update(msg.size());
             out.add(msg);
         }
 
@@ -112,6 +112,7 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
 
     public Beats(Builder builder) {
         super(builder);
+        Stats.register(this, "batchesSize", Histogram.class);
         this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
         this.maxPayloadSize = builder.maxPayloadSize;
         this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/idle"));

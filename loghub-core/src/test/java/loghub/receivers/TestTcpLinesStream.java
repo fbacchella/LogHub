@@ -38,6 +38,7 @@ import loghub.decoders.Json;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
@@ -177,6 +178,7 @@ public class TestTcpLinesStream {
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
+        Stats.registerReceiver(receiver);
         receiver.start();
         return receiver;
     }

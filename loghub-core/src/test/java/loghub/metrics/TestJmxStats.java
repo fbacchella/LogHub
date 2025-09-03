@@ -133,11 +133,11 @@ public class TestJmxStats {
     }
 
     private <T extends Metric> T returnStatMetric(Class<T> clazz, String name) {
-        return Stats.getMetric(clazz, Stats.class, name);
+        return Stats.getMetric(Stats.class, name, clazz);
     }
 
     private <T extends Metric> T returnPipelineMetric(Class<T> clazz, String name) {
-        return Stats.getMetric(clazz, String.class, name);
+        return Stats.getMetric(String.class, name, clazz);
     }
 
     @Test

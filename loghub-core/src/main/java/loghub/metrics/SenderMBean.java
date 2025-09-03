@@ -1,7 +1,6 @@
 package loghub.metrics;
 
 import java.util.Hashtable;
-import java.util.function.Supplier;
 
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
@@ -78,7 +77,7 @@ public interface SenderMBean {
         private final Meter doneBatches;
         private final Histogram batchesSize;
         private final Timer flushDuration;
-        private final Supplier<Gauge<Integer>> queueSize;
+        private final Gauge<Integer> queueSize;
 
         @SuppressWarnings("unchecked")
         public Implementation(Sender s)
@@ -86,17 +85,17 @@ public interface SenderMBean {
             super(SenderMBean.class);
             this.s = s;
             Object metricidentity = s != null ? s : Sender.class;
-            sent = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_SENT);
-            bytes = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_BYTES);
-            failedSend = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_FAILEDSEND);
-            exception = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_EXCEPTION);
-            error = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_ERROR);
-            waitingBatches = Stats.getMetric(Counter.class, metricidentity, Stats.METRIC_SENDER_WAITINGBATCHESCOUNT);
-            activeBatches = Stats.getMetric(Counter.class, metricidentity, Stats.METRIC_SENDER_ACTIVEBATCHES);
-            batchesSize = Stats.getMetric(Histogram.class, metricidentity, Stats.METRIC_SENDER_BATCHESSIZE);
-            doneBatches = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_DONEBATCHES);
-            flushDuration = Stats.getMetric(Timer.class, metricidentity, Stats.METRIC_SENDER_FLUSHDURATION);
-            queueSize = () -> Stats.getMetric(Gauge.class, metricidentity, Stats.METRIC_SENDER_QUEUESIZE);
+            sent = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_SENT, Meter.class);
+            bytes = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_BYTES, Meter.class);
+            failedSend = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_FAILEDSEND, Meter.class);
+            exception = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_EXCEPTION, Meter.class);
+            error = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_ERROR, Meter.class);
+            waitingBatches = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_WAITINGBATCHESCOUNT, Counter.class);
+            activeBatches = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_ACTIVEBATCHES, Counter.class);
+            batchesSize = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_BATCHESSIZE, Histogram.class);
+            doneBatches = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_DONEBATCHES, Meter.class);
+            flushDuration = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_FLUSHDURATION, Timer.class);
+            queueSize = Stats.getMetric(metricidentity, Stats.METRIC_SENDER_QUEUESIZE, Gauge.class);
         }
 
         ObjectName getObjectName() throws MalformedObjectNameException {
@@ -160,7 +159,7 @@ public interface SenderMBean {
 
         @Override
         public int getQueueSize() {
-            return queueSize.get().getValue();
+            return queueSize.getValue();
          }
 
     }

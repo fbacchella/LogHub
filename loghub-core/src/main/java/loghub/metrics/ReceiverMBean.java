@@ -52,12 +52,12 @@ public interface ReceiverMBean {
                         throws NotCompliantMBeanException {
             super(ReceiverMBean.class);
             Object metricidentity = r != null ? r : Receiver.class;
-            count = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_RECEIVER_COUNT);
-            bytes = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_RECEIVER_BYTES);
-            failedDecode = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_RECEIVER_FAILEDDECODE);
-            failed = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_RECEIVER_ERROR);
-            blocked = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_RECEIVER_BLOCKED);
-            exception = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_RECEIVER_EXCEPTION);
+            count = Stats.getMetric(metricidentity, Stats.METRIC_RECEIVER_COUNT, Meter.class);
+            bytes = Stats.getMetric(metricidentity, Stats.METRIC_RECEIVER_BYTES, Meter.class);
+            failedDecode = Stats.getMetric(metricidentity, Stats.METRIC_RECEIVER_FAILEDDECODE, Meter.class);
+            failed = Stats.getMetric(metricidentity, Stats.METRIC_RECEIVER_ERROR, Meter.class);
+            blocked = Stats.getMetric(metricidentity, Stats.METRIC_RECEIVER_BLOCKED, Meter.class);
+            exception = Stats.getMetric(metricidentity, Stats.METRIC_RECEIVER_EXCEPTION, Meter.class);
             this.r = r;
         }
 

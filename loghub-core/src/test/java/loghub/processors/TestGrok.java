@@ -113,12 +113,12 @@ public class TestGrok {
 
     @Test
     public void testLoadPatterns6() {
+        Properties props = new Properties(Collections.emptyMap());
+
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"remotehost"});
         builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
         Grok grok = builder.build();
-
-        Properties props = new Properties(Collections.emptyMap());
 
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 

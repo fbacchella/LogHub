@@ -8,6 +8,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import loghub.metrics.Stats;
+import loghub.netty.HttpChannelConsumer;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
@@ -34,7 +35,6 @@ public abstract class HttpRequestProcessing extends HttpHandler {
     protected void subProcessing(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         processRequest(request, ctx);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
-        Stats.getMetric(Meter.class, "WebServer.status." + OK.code()).mark();
     }
 
     protected abstract void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure;

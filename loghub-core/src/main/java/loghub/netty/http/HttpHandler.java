@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -45,6 +46,7 @@ import io.netty.handler.stream.ChunkedInput;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
 import loghub.metrics.Stats;
+import loghub.netty.HttpChannelConsumer;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -162,6 +164,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         addCustomHeaders(request, response, ctx);
         ChannelFuture sendFileFuture = sender.get();
         addLogger(sendFileFuture, request.method().name(), request.uri(), response.status().code(), "completed");
+        doStatusMetric(ctx, response.status());
     }
 
     private void addNoCacheHeaders(HttpRequest request, HttpResponse response) {
@@ -253,7 +256,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
         additionHeaders.forEach((key, value) -> response.headers().add(key, value));
         ctx.writeAndFlush(response);
-        doStatusMetric(status);
+        doStatusMetric(ctx, status);
     }
 
     @Override
@@ -270,7 +273,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
             failure.additionHeaders.forEach((key, value) -> response.headers().add(key, value));
             ctx.writeAndFlush(response);
-            doStatusMetric(failure.status);
+            doStatusMetric(ctx, failure.status);
         } else {
             logger.error("Internal server error: {}", () -> Helpers.resolveThrowableException(cause));
             logger.catching(Level.ERROR, cause);
@@ -279,12 +282,14 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             HttpUtil.setKeepAlive(response, false);
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
             ctx.writeAndFlush(response);
-            doStatusMetric(SERVICE_UNAVAILABLE);
+            doStatusMetric(ctx, SERVICE_UNAVAILABLE);
         }
     }
 
-    private void doStatusMetric(HttpResponseStatus status) {
-        Stats.getMetric(Meter.class, "WebServer.status." + status.code()).mark();
+    private void doStatusMetric(ChannelHandlerContext ctx, HttpResponseStatus status) {
+        Object holder = ctx.channel().attr(HttpChannelConsumer.HOLDERATTRIBUTE).get();
+        long startTime = ctx.channel().attr(HttpChannelConsumer.STARTTIMEATTRIBUTE).get();
+        Stats.getWebMetric(holder, status.code()).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     }
 
 }

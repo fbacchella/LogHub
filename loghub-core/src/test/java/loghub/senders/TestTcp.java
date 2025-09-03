@@ -65,6 +65,7 @@ public class TestTcp {
 
     @Test
     public void readdata() throws IOException, InterruptedException {
+        Properties props = new Properties(Collections.emptyMap());
         ToJson.Builder encoderBuilder = ToJson.getBuilder();
         encoderBuilder.setPretty(false);
         ToJson encoder = encoderBuilder.build();
@@ -78,7 +79,7 @@ public class TestTcp {
         Tcp sender = builder.build();
         sender.setInQueue(queue);
 
-        Assert.assertTrue(sender.configure(new Properties(Collections.emptyMap())));
+        Assert.assertTrue(sender.configure(props));
         sender.start();
 
         Event ev = factory.newEvent(ConnectionContext.EMPTY);

@@ -303,8 +303,8 @@ public class TestElasticSearch {
 
     @AfterClass
     public static void checkLeaks() {
-        Assert.assertEquals(0, Stats.getMetric(Counter.class, Stats.class, "EventLeaked").getCount());
-        Assert.assertEquals(0, Stats.getMetric(Counter.class, Stats.class, "EventDuplicateEnd").getCount());
+        Assert.assertEquals(0, Stats.getMetric(Stats.class, "EventLeaked", Counter.class).getCount());
+        Assert.assertEquals(0, Stats.getMetric(Stats.class, "EventDuplicateEnd", Counter.class).getCount());
     }
 
     private static Function<HttpRequest<?>, HttpResponse<?>> httpOps = null;
@@ -431,9 +431,9 @@ public class TestElasticSearch {
         return uri.getPath().equals("/" + index + path);
     }
 
-    @Test//(timeout = 2000)
+    @Test(timeout = 2000)
     public void testSend() {
-        Stats.reset();
+        Properties props = new Properties(Collections.emptyMap());
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> handleSimpleBulk(mi, "default", "type");
         httpOps = r -> elasticMockDialog("default", r, handleSimpleBulk);
         int count = 20;
@@ -449,7 +449,7 @@ public class TestElasticSearch {
         esbuilder.setIndex(new Expression("default"));
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
-            Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue("Elastic configuration failed", es.configure(props));
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -464,7 +464,7 @@ public class TestElasticSearch {
 
     @Test(timeout = 2000)
     public void testWithExpression() {
-        Stats.reset();
+        Properties props = new Properties(Collections.emptyMap());
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> this.handleSimpleBulk(mi, "testwithexpression-1970.01.01", "junit");
         httpOps = r -> this.elasticMockDialog("testwithexpression-1970.01.01", r, handleSimpleBulk);
         int count = 20;
@@ -477,7 +477,7 @@ public class TestElasticSearch {
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
-            Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue("Elastic configuration failed", es.configure(props));
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -512,7 +512,7 @@ public class TestElasticSearch {
 
     @Test//(timeout = 2000)
     public void testEmptySend() {
-        Stats.reset();
+        Properties props = new Properties(Collections.emptyMap());
         AtomicInteger counter = new AtomicInteger(0);
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> handleSimpleBulk(mi, "default", "type");
         httpOps = r -> this.elasticMockDialog("default", r, handleSimpleBulk);
@@ -528,7 +528,7 @@ public class TestElasticSearch {
         BlockingQueue<Event> inQueue = new ArrayBlockingQueue<>(count);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(inQueue);
-            Assert.assertTrue(es.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue(es.configure(props));
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent(new NotificationConnectionContext(counter));
@@ -541,7 +541,7 @@ public class TestElasticSearch {
 
     @Test(timeout = 5000)
     public void testSendInQueue() throws InterruptedException {
-        Stats.reset();
+        Properties props = new Properties(Collections.emptyMap());
         String index = UUID.randomUUID().toString();
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> this.handleSimpleBulk(mi, index, "_doc");
         httpOps = r -> elasticMockDialog(index, r, handleSimpleBulk);
@@ -558,7 +558,7 @@ public class TestElasticSearch {
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(queue);
-            Assert.assertTrue(es.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue(es.configure(props));
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -568,7 +568,7 @@ public class TestElasticSearch {
                 queue.put(ev);
                 logger.debug("sent {}", ev);
             }
-            while (Stats.getMetric(Counter.class, Stats.class, "inflight").getCount() != 0) {
+            while (Stats.getMetric(Stats.class, "inflight", Counter.class).getCount() != 0) {
                 Thread.sleep(100);
             }
             es.stopSending();
@@ -600,7 +600,7 @@ public class TestElasticSearch {
                 new HttpPostBulk(errors)
         ));
         httpOps = r -> elasticMockDialog(r, steps);
-        Stats.reset();
+        Properties props = new Properties(Collections.emptyMap());
         int count = 1;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
@@ -611,7 +611,7 @@ public class TestElasticSearch {
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
-            Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue("Elastic configuration failed", es.configure(props));
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -659,7 +659,7 @@ public class TestElasticSearch {
 
         ));
         httpOps = r -> elasticMockDialog(r, steps);
-        Stats.reset();
+        Properties props = new Properties(Collections.emptyMap());
         int count = 20;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
@@ -672,7 +672,7 @@ public class TestElasticSearch {
         esbuilder.setIlm(true);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
-            Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+            Assert.assertTrue("Elastic configuration failed", es.configure(props));
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();

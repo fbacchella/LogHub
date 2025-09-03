@@ -145,12 +145,15 @@ public class Properties extends HashMap<String, Object> {
         }
 
         namedPipeLine = properties.containsKey(PROPSNAMES.NAMEDPIPELINES.toString()) ? (Map<String, Pipeline>) properties.remove(PROPSNAMES.NAMEDPIPELINES.toString()) : Collections.emptyMap();
+        namedPipeLine.keySet().forEach(Stats::registerPipeline);
 
         pipelines = properties.containsKey(PROPSNAMES.PIPELINES.toString()) ? (Collection<Pipeline>) properties.remove(PROPSNAMES.PIPELINES.toString()) : Collections.emptyList();
 
         receivers = properties.containsKey(PROPSNAMES.RECEIVERS.toString()) ? (Collection<Receiver<?, ?>>) properties.remove(PROPSNAMES.RECEIVERS.toString()) : Collections.emptyList();
+        receivers.forEach(Stats::registerReceiver);
 
         senders = properties.containsKey(PROPSNAMES.SENDERS.toString()) ? (Collection<Sender>) properties.remove(PROPSNAMES.SENDERS.toString()) : Collections.emptyList();
+        senders.forEach(Stats::registerSender);
 
         Map<String, Processor> _identifiedProcessors = new HashMap<>();
         pipelines.forEach(i-> i.processors.forEach(j -> {

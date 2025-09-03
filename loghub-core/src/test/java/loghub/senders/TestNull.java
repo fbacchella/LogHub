@@ -40,13 +40,14 @@ public class TestNull {
     private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
 
     private Null send(Consumer<Null.Builder> prepare, Encoder encoder) throws InterruptedException {
+        Properties props = new Properties(Collections.emptyMap());
         Null.Builder nb = Null.getBuilder();
         nb.setEncoder(encoder);
         prepare.accept(nb);
         Null nullsender = nb.build();
         nullsender.setInQueue(queue);
 
-        Assert.assertTrue(nullsender.configure(new Properties(Collections.emptyMap())));
+        Assert.assertTrue(nullsender.configure(props));
         nullsender.start();
 
         Event ev = factory.newEvent(new BlockingConnectionContext());
@@ -70,7 +71,7 @@ public class TestNull {
         Assert.assertTrue(duration > TimeUnit.SECONDS.toNanos(1) && duration < TimeUnit.SECONDS.toNanos(2));
     }
 
-    @Test
+    @Test(timeout = 2000)
     public void testEncode() throws InterruptedException {
         EvalExpression.Builder builder1 = EvalExpression.getBuilder();
         builder1.setFormat(new loghub.Expression("${message%s}"));

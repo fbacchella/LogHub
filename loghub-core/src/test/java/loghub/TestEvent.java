@@ -73,10 +73,11 @@ public class TestEvent {
 
     @Test
     public void testLoop() {
-        Pipeline ppl = new Pipeline(List.of(new Looper(), new Looper(), new Looper(), new Looper(), new Looper(), new Looper()), "main", null);
         Map<String, Object> conf = new HashMap<>();
         conf.put("maxSteps", 5);
         Properties props = new Properties(conf);
+        Pipeline ppl = new Pipeline(List.of(new Looper(), new Looper(), new Looper(), new Looper(), new Looper(), new Looper()), "main", null);
+        Stats.registerPipeline(ppl.getName());
         Event e = factory.newTestEvent();
         e.refill(ppl);
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
@@ -105,10 +106,10 @@ public class TestEvent {
         Assert.assertTrue((Boolean) ev.get("a"));
         Assert.assertEquals(1, Stats.getDropped());
         Assert.assertEquals(0, Stats.getInflight());
-        Assert.assertEquals(0, Stats.getMetric(Meter.class, "main", "dropped").getCount());
-        Assert.assertEquals(0, Stats.getMetric(Counter.class, "main", "inflight").getCount());
-        Assert.assertEquals(1, Stats.getMetric(Meter.class, "dropper", "dropped").getCount());
-        Assert.assertEquals(0, Stats.getMetric(Counter.class, "dropper", "inflight").getCount());
+        Assert.assertEquals(0, Stats.getMetric("main", "dropped", Meter.class).getCount());
+        Assert.assertEquals(0, Stats.getMetric("main", "inflight", Counter.class).getCount());
+        Assert.assertEquals(1, Stats.getMetric("dropper", "dropped", Meter.class).getCount());
+        Assert.assertEquals(0, Stats.getMetric("dropper", "inflight", Counter.class).getCount());
     }
 
     @Test

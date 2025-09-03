@@ -20,6 +20,7 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
+import io.netty.util.AttributeKey;
 import loghub.Helpers;
 import loghub.netty.http.AccessControl;
 import loghub.netty.http.FatalErrorHandler;
@@ -34,6 +35,8 @@ public class HttpChannelConsumer implements ChannelConsumer {
     private static final SimpleChannelInboundHandler<FullHttpRequest> NOT_FOUND = new NotFound();
     private static final SimpleChannelInboundHandler<FullHttpRequest> FATAL_ERROR = new FatalErrorHandler();
     private static final String HTTP_OBJECT_AGGREGATOR = "HttpObjectAggregator";
+    public static final AttributeKey<Object> HOLDERATTRIBUTE = AttributeKey.newInstance("holder");
+    public static final AttributeKey<Long> STARTTIMEATTRIBUTE = AttributeKey.newInstance("startTime");
 
     @Setter
     @Accessors(chain = true)
@@ -47,6 +50,7 @@ public class HttpChannelConsumer implements ChannelConsumer {
         private int maxContentLength = 1048576;
         private Logger logger;
         private HstsData hsts;
+        private Object holder;
         private Builder() {
 
         }
@@ -64,6 +68,7 @@ public class HttpChannelConsumer implements ChannelConsumer {
     private final AuthenticationHandler authHandler;
     private final Logger logger;
     private final HstsData hsts;
+    private final Object holder;
 
     protected HttpChannelConsumer(Builder builder) {
         this.aggregatorSupplier = Optional.ofNullable(builder.aggregatorSupplier).orElse(() -> new HttpObjectAggregator(builder.maxContentLength));
@@ -72,6 +77,7 @@ public class HttpChannelConsumer implements ChannelConsumer {
         this.authHandler = builder.authHandler;
         this.logger = Optional.ofNullable(builder.logger).orElseGet(this::getDefaultLogger);
         this.hsts = builder.hsts;
+        this.holder = builder.holder;
     }
 
     private Logger getDefaultLogger() {
@@ -80,6 +86,8 @@ public class HttpChannelConsumer implements ChannelConsumer {
 
     @Override
     public void addHandlers(ChannelPipeline p) {
+        p.channel().attr(HOLDERATTRIBUTE).set(holder);
+        p.channel().attr(STARTTIMEATTRIBUTE).set(System.nanoTime());
         p.addLast("HttpServerCodec", serverCodecSupplier.get());
         p.addLast("HttpContentDeCompressor", new HttpContentDecompressor());
         p.addLast("httpKeepAlive", new HttpServerKeepAliveHandler());

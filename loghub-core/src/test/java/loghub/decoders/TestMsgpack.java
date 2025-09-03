@@ -38,6 +38,7 @@ import loghub.encoders.EncodeException;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
+import loghub.metrics.Stats;
 import loghub.receivers.Receiver;
 
 public class TestMsgpack {
@@ -175,6 +176,7 @@ public class TestMsgpack {
 
     @Test
     public void testDecoder() throws JsonProcessingException, InvocationTargetException {
+        Properties props = new Properties(Collections.emptyMap());
         byte[] bs = objectMapper.writeValueAsBytes(obj);
 
         TestReceiver.Builder builder = TestReceiver.getBuilder();
@@ -184,7 +186,8 @@ public class TestMsgpack {
         builder.setDecoder(d);
 
         try (TestReceiver r = builder.build(bs)) {
-            r.configure(new Properties(Collections.emptyMap()));
+            Stats.registerReceiver(r);
+            r.configure(props);
             Event e = r.getStream().findAny().get();
             testContent(e);
         }

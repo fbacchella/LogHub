@@ -32,6 +32,7 @@ public class HttpTestServer extends ExternalResource {
         HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
                                                .setModelSetup(this::addModelHandlers)
                                                .setLogger(logger)
+                                               .setHolder(this)
                                                .build();
         config.setConsumer(consumer);
         config.setEndpoint("localhost");

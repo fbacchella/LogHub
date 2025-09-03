@@ -39,6 +39,7 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
+import loghub.metrics.Stats;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
@@ -179,6 +180,7 @@ public class TestBeats {
     }
 
     private void makeReceiver(Consumer<Beats.Builder> prepare, Map<String, Object> propsMap) {
+        Properties props = new Properties(propsMap);
         port = Tools.tryGetPort();
         queue = new PriorityBlockingQueue();
         Beats.Builder builder = Beats.getBuilder();
@@ -189,7 +191,8 @@ public class TestBeats {
         receiver = builder.build();
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
-        Assert.assertTrue(receiver.configure(new Properties(propsMap)));
+        Stats.registerReceiver(receiver);
+        Assert.assertTrue(receiver.configure(props));
         receiver.start();
     }
 

@@ -68,13 +68,13 @@ public interface PipelineMBean {
             super(PipelineMBean.class);
             this.name = name;
             Object metricidentity = name != null ? name : String.class;
-            loopOverflow = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_LOOPOVERFLOW);
-            dropped = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_DROPPED);
-            discarded = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_DISCARDED);
-            exception = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_EXCEPTION);
-            failed = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_FAILED);
-            inflight = Stats.getMetric(Counter.class, metricidentity, Stats.METRIC_PIPELINE_INFLIGHT);
-            timer = Stats.getMetric(Timer.class, metricidentity, Stats.METRIC_PIPELINE_TIMER);
+            loopOverflow = Stats.getMetric(metricidentity, Stats.METRIC_PIPELINE_LOOPOVERFLOW, Meter.class);
+            dropped = Stats.getMetric(metricidentity, Stats.METRIC_PIPELINE_DROPPED, Meter.class);
+            discarded = Stats.getMetric(metricidentity, Stats.METRIC_PIPELINE_DISCARDED, Meter.class);
+            exception = Stats.getMetric(metricidentity, Stats.METRIC_PIPELINE_EXCEPTION, Meter.class);
+            failed = Stats.getMetric(metricidentity, Stats.METRIC_PIPELINE_FAILED, Meter.class);
+            inflight = Stats.getMetric(metricidentity, Stats.METRIC_PIPELINE_INFLIGHT, Counter.class);
+            timer = Stats.getMetric(metricidentity, Stats.METRIC_PIPELINE_TIMER, Timer.class);
         }
 
         ObjectName getObjectName() throws MalformedObjectNameException {

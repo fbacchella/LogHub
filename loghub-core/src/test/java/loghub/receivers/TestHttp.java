@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 
 import javax.management.remote.JMXPrincipal;
 import javax.net.ssl.HttpsURLConnection;
@@ -39,7 +38,6 @@ import org.junit.Test;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.ConnectionContext;
-import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
@@ -50,6 +48,8 @@ import loghub.decoders.Decoder;
 import loghub.decoders.Json;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.JmxService;
+import loghub.metrics.Stats;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
@@ -62,13 +62,14 @@ public class TestHttp {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    public static void configure() {
+    public static void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
         p12File = Optional.ofNullable(TestHttp.class.getResource("/loghub.p12"))
                           .map(URL::getFile)
                           .orElseThrow();
+        JmxService.start(JmxService.configuration());
     }
 
     private Http receiver = null;
@@ -85,6 +86,7 @@ public class TestHttp {
         testURL = new URI("http", null, hostname, port, "/", "a=1", null).toURL();
         queue = new PriorityBlockingQueue();
 
+        Properties props = new Properties(propsMap);
         Json.Builder builder = Json.getBuilder();
         builder.setCharset("UTF-8");
         Json jdec = builder.build();
@@ -100,8 +102,8 @@ public class TestHttp {
         receiver = httpbuilder.build();
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
-
-        Assert.assertTrue(receiver.configure(new Properties(propsMap)));
+        Assert.assertTrue(receiver.configure(props));
+        Stats.registerReceiver(receiver);
         receiver.start();
         return receiver;
     }

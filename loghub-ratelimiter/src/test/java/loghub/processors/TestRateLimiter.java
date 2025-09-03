@@ -92,14 +92,13 @@ public class TestRateLimiter {
         logger.debug("Send: {}", sent::get);
         logger.debug("Received: {}", received::get);
         logger.debug("Dropped: {}", Stats::getDropped);
-        logger.debug("Processed in pipeline main: {}", () -> Stats.getMetric(Timer.class, "main", "timer").getCount());
+        logger.debug("Processed in pipeline main: {}", () -> Stats.getMetric("main", "timer", Timer.class).getCount());
         withinPercentage(expected, received.get() / (int) testDuration.toSeconds(), 5);
         Assert.assertTrue(Integer.toString(sent.get() - (received.get() + (int) Stats.getDropped())), (sent.get() - (received.get() + Stats.getDropped())) < 5);
     }
 
     @Test
     public void testBaseRate() throws InterruptedException, ConfigException, IOException {
-        Stats.reset();
         runFlow(b -> b.setRate(100), 120);
         logger.debug("Nominal requested rate is {}", () -> (float) received.get() / testDuration.toSeconds());
         Assert.assertEquals(0, Stats.getDropped());
@@ -107,7 +106,6 @@ public class TestRateLimiter {
 
     @Test
     public void testBurstRate() throws InterruptedException, ConfigException, IOException {
-        Stats.reset();
         runFlow(b -> {
             b.setRate(100);
             b.setBurstRate(200);
@@ -118,7 +116,6 @@ public class TestRateLimiter {
 
     @Test
     public void testRateDropping() throws InterruptedException, ConfigException, IOException {
-        Stats.reset();
         runFlow(b -> {
             b.setRate(100);
             b.setDropping(true);

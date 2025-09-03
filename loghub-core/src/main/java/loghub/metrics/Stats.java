@@ -2,6 +2,8 @@ package loghub.metrics;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +21,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.Timer.Context;
 
+import loghub.Dashboard;
 import loghub.Helpers;
 import loghub.ProcessingException;
 import loghub.events.Event;
@@ -65,7 +68,8 @@ public final class Stats {
     static final String METRIC_ALL_EVENT_DUPLICATEEND = "EventDuplicateEnd";
 
     // A metrics cache, as calculating a metric name can be expensive.
-    private static final Map<Object, Map<String, Metric>> metricsCache = new ConcurrentHashMap<>(3);
+    public static final Map<Object, Map<String, Metric>> metricsCache = new HashMap<>();
+    public static Map<Object, Map<Integer, Timer>> webCache = new HashMap<>();
 
     private static final Queue<ProcessingException> processorExceptions = new LinkedBlockingQueue<>(100);
     private static final Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
@@ -85,6 +89,10 @@ public final class Stats {
         INFLIGHTDOWN,
     }
 
+    static {
+        reset();
+    }
+
     private Stats() {
     }
 
@@ -93,6 +101,7 @@ public final class Stats {
         JmxService.stopMetrics();
 
         metricsCache.clear();
+        webCache.clear();
 
         Stream<Queue<?>> qs = Stream.of(processorExceptions, exceptions, decodeMessage, senderMessages, receiverMessages);
         qs.forEach(q -> {
@@ -100,34 +109,103 @@ public final class Stats {
                 q.clear();
             }
         });
+        // Ensure that all metrics are created
+        register(Stats.class, METRIC_ALL_INFLIGHT, Counter.class);
+        register(Stats.class, METRIC_ALL_TIMER, Timer.class);
+        register(Stats.class, METRIC_ALL_EXCEPTION, Meter.class);
+        register(Stats.class, METRIC_ALL_EVENT_LEAKED, Counter.class);
+        register(Stats.class, METRIC_ALL_EVENT_DUPLICATEEND, Counter.class);
+        register(Stats.class, METRIC_ALL_STEPS, Histogram.class);
 
-        // Register once this dummy metric
+        registerSender(Sender.class);
+        // Global queue size for sender is always 0, replace the default one
         Gauge<Integer> nullGauge = () -> 0;
-        Stats.register(Sender.class, Stats.METRIC_SENDER_QUEUESIZE, nullGauge);
+        metricsCache.get(Sender.class).put(METRIC_SENDER_QUEUESIZE, nullGauge);
+        // Ensure that it's present, will be overridden, a dummy one
+        metricsCache.get(Stats.class).put(METRIC_ALL_WAITINGPROCESSING, nullGauge);
+
+        registerReceiver(Receiver.class);
+        registerPipeline(String.class);
     }
 
-    public static <T extends Metric> T register(String name, T newMetric) {
-        return register(Object.class, name, newMetric);
+    public static void registerPipeline(Object identity) {
+        register(identity, METRIC_PIPELINE_EXCEPTION, Meter.class);
+        register(identity, METRIC_PIPELINE_TIMER, Timer.class);
+        register(identity, METRIC_PIPELINE_DISCARDED, Meter.class);
+        register(identity, METRIC_PIPELINE_DROPPED, Meter.class);
+        register(identity, METRIC_PIPELINE_LOOPOVERFLOW, Meter.class);
+        register(identity, METRIC_PIPELINE_FAILED, Meter.class);
+        register(identity, METRIC_PIPELINE_INFLIGHT, Counter.class);
+        register(identity, METRIC_PIPELINE_PAUSED_COUNT, Counter.class);
+        register(identity, METRIC_PIPELINE_PAUSED, Timer.class);
+    }
+
+    public static void registerReceiver(Object identity) {
+        register(identity, METRIC_RECEIVER_COUNT, Meter.class);
+        register(identity, METRIC_RECEIVER_BYTES, Meter.class);
+        register(identity, METRIC_RECEIVER_FAILEDDECODE, Meter.class);
+        register(identity, METRIC_RECEIVER_ERROR, Meter.class);
+        register(identity, METRIC_RECEIVER_BLOCKED, Meter.class);
+        register(identity, METRIC_RECEIVER_EXCEPTION, Meter.class);
+    }
+
+    public static void registerSender(Object identity) {
+        register(identity, METRIC_SENDER_SENT, Meter.class);
+        register(identity, METRIC_SENDER_BYTES, Meter.class);
+        register(identity, METRIC_SENDER_FAILEDSEND, Meter.class);
+        register(identity, METRIC_SENDER_EXCEPTION, Meter.class);
+        register(identity, METRIC_SENDER_ERROR, Meter.class);
+        register(identity, METRIC_SENDER_WAITINGBATCHESCOUNT, Counter.class);
+        register(identity, METRIC_SENDER_ACTIVEBATCHES, Counter.class);
+        register(identity, METRIC_SENDER_BATCHESSIZE, Histogram.class);
+        register(identity, METRIC_SENDER_DONEBATCHES, Meter.class);
+        register(identity, METRIC_SENDER_FLUSHDURATION, Timer.class);
+        register(identity, METRIC_SENDER_QUEUESIZE, Gauge.class);
+        register(identity, METRIC_SENDER_EXCEPTION, Meter.class);
+    }
+
+    public static synchronized void registerHttpService(Object identity) {
+        webCache.put(identity, new ConcurrentHashMap<>());
+        for (int status: List.of(200, 301, 302, 400, 401, 403, 404, 500, 503)) {
+            getWebMetric(identity, status);
+        }
+    }
+
+    public static <T extends Metric> T register(Object key, String name, Class<T> metricClass) {
+        T metric = createMetric(key, name, metricClass);
+        return register(key, name, metric);
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Metric> T register(Object key, String name, T newMetric) {
-        metricsRegistry.register(getMetricName(key, name), newMetric);
-        return (T) metricsCache.computeIfAbsent(key, k -> new ConcurrentHashMap<>()).put(name, newMetric);
+    public static synchronized <T extends Metric> T register(Object key, String name, T newMetric) {
+        return (T) metricsCache.computeIfAbsent(key, k -> new HashMap<>()).computeIfAbsent(name, k -> newMetric);
     }
 
     public static <T extends Metric> T getMetric(Class<T> metricClass, String name) {
-        return getMetric(metricClass, Object.class, name);
+        return getMetric(Object.class, name, metricClass);
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Metric> T getMetric(Class<T> metricClass, Object key, String name) {
-        return (T) metricsCache.computeIfAbsent(key, k -> new ConcurrentHashMap<>()).computeIfAbsent(name, k -> Stats.createMetric(metricClass, key, name));
+    public static <T extends Metric> T getMetric(Object key, String name, Class<T> metricClass) {
+        Map<String, Metric> metrics = metricsCache.get(key);
+        assert metrics != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
+        T metric = (T) metrics.get(name);
+        assert metric != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());;
+        return metric;
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends Metric> T createMetric(Class<T> metricClass, Object key, String name) {
-        String metricName = getMetricName(key, name);
+    public static Timer getWebMetric(Object key, int status) {
+        return webCache.get(key)
+                       .computeIfAbsent(status, k -> Stats.createMetric(getMetricName(key, "HTTPStatus." + status), Timer.class));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends Metric> T createMetric(Object key, String name, Class<T> metricClass) {
+        return createMetric(getMetricName(key, name), metricClass);
+    }
+
+    public static <T extends Metric> T createMetric(String metricName, Class<T> metricClass) {
         if (metricClass == Counter.class) {
             return (T) metricsRegistry.counter(metricName);
         } else if (metricClass == Histogram.class) {
@@ -136,6 +214,8 @@ public final class Stats {
             return (T) metricsRegistry.meter(metricName);
         } else if (metricClass == Timer.class) {
             return (T) metricsRegistry.timer(metricName);
+        } else if (metricClass == Gauge.class) {
+            return metricsRegistry.gauge(metricName);
         } else {
             throw new IllegalArgumentException("Unhandled metric type " + metricClass.getCanonicalName() + " for " + metricName);
         }
@@ -165,6 +245,8 @@ public final class Stats {
             buffer.append("Pipelines.");
         } else if (key == Stats.class) {
             buffer.append("Global.");
+        } else if (key instanceof Dashboard) {
+            buffer.append("Dashboard.");
         } else if (key == Object.class) {
             buffer.setLength(0);
         } else {
@@ -184,7 +266,7 @@ public final class Stats {
     }
 
     public static void newUnhandledException(Throwable e) {
-        createMetric(Meter.class, Stats.class, METRIC_ALL_EXCEPTION).mark();
+        createMetric(Stats.class, METRIC_ALL_EXCEPTION, Meter.class).mark();
         storeException(exceptions, e);
     }
 
@@ -193,35 +275,35 @@ public final class Stats {
     \*****************************/
 
     public static void newReceivedEvent(Receiver<?, ?> r) {
-        getMetric(Meter.class, r, METRIC_RECEIVER_COUNT).mark();
-        getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_COUNT).mark();
+        getMetric(r, METRIC_RECEIVER_COUNT, Meter.class).mark();
+        getMetric(Receiver.class, METRIC_RECEIVER_COUNT, Meter.class).mark();
     }
 
     public static void newReceivedMessage(Receiver<?, ?> r, int bytes) {
-        getMetric(Meter.class, r, METRIC_RECEIVER_BYTES).mark(bytes);
-        getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_BYTES).mark(bytes);
+        getMetric(r, METRIC_RECEIVER_BYTES, Meter.class).mark(bytes);
+        getMetric(Receiver.class, METRIC_RECEIVER_BYTES, Meter.class).mark(bytes);
     }
 
     public static void newDecodError(Receiver<?, ?> r, String msg) {
-        getMetric(Meter.class, r, METRIC_RECEIVER_FAILEDDECODE).mark();
-        getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_FAILEDDECODE).mark();
+        getMetric(r, METRIC_RECEIVER_FAILEDDECODE, Meter.class).mark();
+        getMetric(Receiver.class, METRIC_RECEIVER_FAILEDDECODE, Meter.class).mark();
         storeException(decodeMessage, msg);
     }
 
     public static void newBlockedError(Receiver<?, ?> r) {
-        getMetric(Meter.class, r, METRIC_RECEIVER_BLOCKED).mark();
-        getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_BLOCKED).mark();
+        getMetric(r, METRIC_RECEIVER_BLOCKED, Meter.class).mark();
+        getMetric(Receiver.class, METRIC_RECEIVER_BLOCKED, Meter.class).mark();
     }
 
     public static void newUnhandledException(Receiver<?, ?> receiver, Exception ex) {
-        getMetric(Meter.class, receiver, METRIC_RECEIVER_EXCEPTION).mark();
-        getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_EXCEPTION).mark();
+        getMetric(receiver, METRIC_RECEIVER_EXCEPTION, Meter.class).mark();
+        getMetric(Receiver.class, METRIC_RECEIVER_EXCEPTION, Meter.class).mark();
         storeException(exceptions, ex);
     }
 
     public static void newReceivedError(Receiver<?, ?> r, String msg) {
-        getMetric(Meter.class, r, METRIC_RECEIVER_ERROR).mark();
-        getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_ERROR).mark();
+        getMetric(r, METRIC_RECEIVER_ERROR, Meter.class).mark();
+        getMetric(Receiver.class, METRIC_RECEIVER_ERROR, Meter.class).mark();
         storeException(receiverMessages, msg);
     }
 
@@ -230,12 +312,12 @@ public final class Stats {
     \******************************/
 
     public static Context startProcessingEvent() {
-        getMetric(Counter.class, String.class, METRIC_PIPELINE_INFLIGHT).inc();
-        return getMetric(Timer.class, String.class, METRIC_PIPELINE_TIMER).time();
+        getMetric(String.class, METRIC_PIPELINE_INFLIGHT, Counter.class).inc();
+        return getMetric(String.class, METRIC_PIPELINE_TIMER, Timer.class).time();
     }
 
     public static void endProcessingEvent(Context tctxt) {
-        getMetric(Counter.class, String.class, METRIC_PIPELINE_INFLIGHT).dec();
+        getMetric(String.class, METRIC_PIPELINE_INFLIGHT, Counter.class).dec();
         tctxt.stop();
     }
 
@@ -250,52 +332,52 @@ public final class Stats {
                 ProcessingException pe = (ProcessingException) ex;
                 storeException(processorExceptions, pe);
             }
-            getMetric(Meter.class, String.class, METRIC_PIPELINE_FAILED).mark();
-            getMetric(Meter.class, name, METRIC_PIPELINE_FAILED).mark();
+            getMetric(String.class, METRIC_PIPELINE_FAILED, Meter.class).mark();
+            getMetric(name, METRIC_PIPELINE_FAILED, Meter.class).mark();
             break;
         case DROP:
-            getMetric(Meter.class, String.class, METRIC_PIPELINE_DROPPED).mark();
-            getMetric(Meter.class, name, METRIC_PIPELINE_DROPPED).mark();
+            getMetric(String.class, METRIC_PIPELINE_DROPPED, Meter.class).mark();
+            getMetric(name, METRIC_PIPELINE_DROPPED, Meter.class).mark();
             break;
         case DISCARD:
-            getMetric(Meter.class, String.class, METRIC_PIPELINE_DISCARDED).mark();
-            getMetric(Meter.class, name, METRIC_PIPELINE_DISCARDED).mark();
+            getMetric(String.class, METRIC_PIPELINE_DISCARDED, Meter.class).mark();
+            getMetric(name, METRIC_PIPELINE_DISCARDED, Meter.class).mark();
             break;
         case EXCEPTION:
             if (ex != null) {
                 storeException(exceptions, ex);
             }
-            getMetric(Meter.class, String.class, METRIC_PIPELINE_EXCEPTION).mark();
-            getMetric(Meter.class, name, METRIC_PIPELINE_EXCEPTION).mark();
+            getMetric(String.class, METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
+            getMetric(name, METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
             break;
         case LOOPOVERFLOW:
-            getMetric(Meter.class, String.class, METRIC_PIPELINE_LOOPOVERFLOW).mark();
-            getMetric(Meter.class, name, METRIC_PIPELINE_LOOPOVERFLOW).mark();
+            getMetric(String.class, METRIC_PIPELINE_LOOPOVERFLOW, Meter.class).mark();
+            getMetric(name, METRIC_PIPELINE_LOOPOVERFLOW, Meter.class).mark();
             break;
         case INFLIGHTUP:
-            getMetric(Counter.class, name, METRIC_PIPELINE_INFLIGHT).inc();
+            getMetric(name, METRIC_PIPELINE_INFLIGHT, Counter.class).inc();
             break;
         case INFLIGHTDOWN:
-            getMetric(Counter.class, name, METRIC_PIPELINE_INFLIGHT).dec();
+            getMetric(name, METRIC_PIPELINE_INFLIGHT, Counter.class).dec();
             break;
         }
     }
 
     public static void timerUpdate(String name, long duration, TimeUnit tu) {
-        getMetric(Timer.class, name, METRIC_PIPELINE_TIMER).update(duration, tu);
+        getMetric(name, METRIC_PIPELINE_TIMER, Timer.class).update(duration, tu);
     }
 
     public static void pauseEvent(String name) {
-        getMetric(Counter.class, String.class, METRIC_PIPELINE_PAUSED_COUNT).inc();
-        getMetric(Counter.class, name, METRIC_PIPELINE_PAUSED_COUNT).inc();
+        getMetric(String.class, METRIC_PIPELINE_PAUSED_COUNT, Counter.class).inc();
+        getMetric(name, METRIC_PIPELINE_PAUSED_COUNT, Counter.class).inc();
     }
 
     public static void restartEvent(String name, long startTime) {
         if (startTime < Long.MAX_VALUE) {
-            getMetric(Timer.class, String.class, METRIC_PIPELINE_PAUSED).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-            getMetric(Timer.class, name, METRIC_PIPELINE_PAUSED).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-            getMetric(Counter.class, String.class, METRIC_PIPELINE_PAUSED_COUNT).dec();
-            getMetric(Counter.class, name, METRIC_PIPELINE_PAUSED_COUNT).dec();
+            getMetric(String.class, METRIC_PIPELINE_PAUSED, Timer.class).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            getMetric(name, METRIC_PIPELINE_PAUSED, Timer.class).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            getMetric(String.class, METRIC_PIPELINE_PAUSED_COUNT, Counter.class).dec();
+            getMetric(name, METRIC_PIPELINE_PAUSED_COUNT, Counter.class).dec();
         }
     }
 
@@ -304,13 +386,13 @@ public final class Stats {
     \***************************/
 
     public static void sentEvent(Sender sender) {
-        getMetric(Meter.class, sender, Stats.METRIC_SENDER_SENT).mark();
-        getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_SENT).mark();
+        getMetric(sender, METRIC_SENDER_SENT, Meter.class).mark();
+        getMetric(Sender.class, METRIC_SENDER_SENT, Meter.class).mark();
     }
 
     public static void sentBytes(Sender sender, int bytes) {
-        getMetric(Meter.class, sender, Stats.METRIC_SENDER_BYTES).mark(bytes);
-        getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_BYTES).mark(bytes);
+        getMetric(sender, METRIC_SENDER_BYTES, Meter.class).mark(bytes);
+        getMetric(Sender.class, METRIC_SENDER_BYTES, Meter.class).mark(bytes);
     }
 
     public static void failedSentEvent(Sender sender, Event ev) {
@@ -327,8 +409,8 @@ public final class Stats {
 
     public static synchronized void failedSentEvent(Sender sender, String msg, Event ev) {
         if (ev != null) {
-            getMetric(Meter.class, sender, Stats.METRIC_SENDER_FAILEDSEND).mark();
-            getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_FAILEDSEND).mark();
+            getMetric(sender, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
+            getMetric(Sender.class, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
         }
         if (msg != null) {
             storeException(senderMessages, msg);
@@ -341,34 +423,34 @@ public final class Stats {
 
     public static void newUnhandledException(Sender sender, Throwable ex, Event ev) {
         if (ev != null) {
-            getMetric(Meter.class, sender, METRIC_SENDER_EXCEPTION).mark();
-            getMetric(Meter.class, Sender.class, METRIC_SENDER_EXCEPTION).mark();
+            getMetric(sender, METRIC_SENDER_EXCEPTION, Meter.class).mark();
+            getMetric(Sender.class, METRIC_SENDER_EXCEPTION, Meter.class).mark();
         }
         storeException(exceptions, ex);
     }
 
     public static void flushingBatch(Sender sender, int batchSize) {
-        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_WAITINGBATCHESCOUNT).dec();
-        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).inc();
-        getMetric(Histogram.class, sender, Stats.METRIC_SENDER_BATCHESSIZE).update(batchSize);
+        getMetric(sender, METRIC_SENDER_WAITINGBATCHESCOUNT, Counter.class).dec();
+        getMetric(sender, METRIC_SENDER_ACTIVEBATCHES, Counter.class).inc();
+        getMetric(sender, METRIC_SENDER_BATCHESSIZE, Histogram.class).update(batchSize);
     }
 
     public static Timer.Context batchFlushTimer(Sender sender) {
-        return getMetric(Timer.class, sender, Stats.METRIC_SENDER_FLUSHDURATION).time();
+        return getMetric(sender, METRIC_SENDER_FLUSHDURATION, Timer.class).time();
     }
 
     public static void newBatch(Sender sender) {
-        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_WAITINGBATCHESCOUNT).inc();
+        getMetric(sender, METRIC_SENDER_WAITINGBATCHESCOUNT, Counter.class).inc();
     }
 
     public static void doneBatch(Sender sender) {
-        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).dec();
-        Stats.getMetric(Meter.class, sender, Stats.METRIC_SENDER_DONEBATCHES).mark();
+        getMetric(sender, METRIC_SENDER_ACTIVEBATCHES, Counter.class).dec();
+        getMetric(sender, METRIC_SENDER_DONEBATCHES, Meter.class).mark();
     }
 
     public static void sendInQueueSize(Sender s, IntSupplier source) {
         Gauge<Integer> queueGauge = source::getAsInt;
-        Stats.register(s, Stats.METRIC_SENDER_QUEUESIZE, queueGauge);
+        register(s, METRIC_SENDER_QUEUESIZE, queueGauge);
     }
 
     /******************\
@@ -410,63 +492,64 @@ public final class Stats {
     \*************************/
 
     public static Context eventTimer() {
-        getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).inc();
-        return getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).time();
+        getMetric(Stats.class, METRIC_ALL_INFLIGHT, Counter.class).inc();
+        return getMetric(Stats.class, METRIC_ALL_TIMER, Timer.class).time();
     }
 
     public static void eventEnd(String pipeline, int stepsCount) {
         if (pipeline != null) {
-            Stats.pipelineHanding(pipeline, PipelineStat.INFLIGHTDOWN);
+            pipelineHanding(pipeline, PipelineStat.INFLIGHTDOWN);
         }
-        getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).dec();
-        getMetric(Histogram.class, Stats.class, Stats.METRIC_ALL_STEPS).update(stepsCount);
+        getMetric(Stats.class, METRIC_ALL_INFLIGHT, Counter.class).dec();
+        getMetric(Stats.class, METRIC_ALL_STEPS, Histogram.class).update(stepsCount);
     }
 
     public static void eventLeaked() {
         // Leaking event are rare, don't try to resolve the leaking pipeline
         // It's needs overcomplicated code for that
-        getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).dec();
+        getMetric(Stats.class, METRIC_ALL_INFLIGHT, Counter.class).dec();
         getMetric(Counter.class, METRIC_ALL_EVENT_LEAKED).inc();
     }
 
     public static void duplicateEnd() {
-        getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_EVENT_DUPLICATEEND).inc();
+        getMetric(Stats.class, METRIC_ALL_EVENT_DUPLICATEEND, Counter.class).inc();
         getMetric(Counter.class, METRIC_ALL_EVENT_DUPLICATEEND).inc();
     }
 
     public static void waitingQueue(IntSupplier source) {
         Gauge<Integer> tobeprocessed = source::getAsInt;
-        Stats.register(Stats.class, Stats.METRIC_ALL_WAITINGPROCESSING, tobeprocessed);
+        metricsRegistry.register(getMetricName(Stats.class, METRIC_ALL_WAITINGPROCESSING), tobeprocessed);
+        metricsCache.get(Stats.class).put(METRIC_ALL_WAITINGPROCESSING, tobeprocessed);
     }
 
     public static long getReceived() {
-        return getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getCount();
+        return getMetric(Stats.class, METRIC_ALL_TIMER, Timer.class).getCount();
     }
 
     public static long getBlocked() {
-        return getMetric(Meter.class, Receiver.class, Stats.METRIC_RECEIVER_BLOCKED).getCount();
+        return getMetric(Receiver.class, METRIC_RECEIVER_BLOCKED, Meter.class).getCount();
     }
 
     public static long getDropped() {
-        return getMetric(Meter.class, String.class, Stats.METRIC_PIPELINE_DROPPED).getCount();
+        return getMetric(String.class, METRIC_PIPELINE_DROPPED, Meter.class).getCount();
     }
 
     public static long getSent() {
-        return getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_SENT).getCount();
+        return getMetric(Sender.class, METRIC_SENDER_SENT, Meter.class).getCount();
     }
 
     public static long getFailed() {
-        return getMetric(Meter.class, String.class, Stats.METRIC_PIPELINE_FAILED).getCount()
-                + getMetric(Meter.class, Receiver.class, Stats.METRIC_RECEIVER_FAILEDDECODE).getCount()
-                + getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_FAILEDSEND).getCount();
+        return getMetric(String.class, METRIC_PIPELINE_FAILED, Meter.class).getCount()
+                + getMetric(Receiver.class, METRIC_RECEIVER_FAILEDDECODE, Meter.class).getCount()
+                + getMetric(Sender.class, METRIC_SENDER_FAILEDSEND, Meter.class).getCount();
     }
 
     public static long getExceptionsCount() {
-        return Stats.getMetric(Meter.class, Stats.class, Stats.METRIC_ALL_EXCEPTION).getCount();
+        return getMetric(Stats.class, METRIC_ALL_EXCEPTION, Meter.class).getCount();
     }
 
     public static long getInflight() {
-        return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).getCount();
+        return getMetric(Stats.class, METRIC_ALL_INFLIGHT, Counter.class).getCount();
     }
 
 }
