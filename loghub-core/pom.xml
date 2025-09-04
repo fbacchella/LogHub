@@ -13,7 +13,7 @@
     <name>LogHub :: Core</name>
 
     <properties>
-        <netty.version>4.2.4.Final</netty.version>
+        <netty.version>4.2.5.Final</netty.version>
         <jackson-msgpack.version>0.9.10</jackson-msgpack.version>
     </properties>
 
