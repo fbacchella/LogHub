@@ -1,16 +1,17 @@
 package loghub;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.sun.management.HotSpotDiagnosticMXBean;
-
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.Timer;
 import java.util.concurrent.Semaphore;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.sun.management.HotSpotDiagnosticMXBean;
+
 import loghub.commands.ExitCode;
 import loghub.metrics.JmxService;
 import loghub.metrics.Stats;
@@ -84,7 +85,7 @@ public class ShutdownTask implements Runnable {
     public synchronized void run() {
         logger.warn("Starting shutdown");
         shutdownAction = null;
-        if (shutdownActionThread != null) {
+        if (shutdownActionThread != null && Thread.currentThread() != shutdownActionThread) {
             Runtime.getRuntime().removeShutdownHook(shutdownActionThread);
         }
         systemd.setStatus("Stopping");
