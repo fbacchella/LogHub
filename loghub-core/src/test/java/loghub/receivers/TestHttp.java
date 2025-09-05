@@ -177,7 +177,7 @@ public class TestHttp {
         }
     }
 
-    @Test//(timeout = 5000)
+    @Test(timeout = 5000)
     public void testHttpsGet() throws IOException, URISyntaxException {
         SSLContext sslctx = SslContextBuilder.getBuilder(getClass().getClassLoader(), new HashMap<>(Map.of("trusts", p12File))).build();
         try (Http ignored = makeReceiver(i -> {
