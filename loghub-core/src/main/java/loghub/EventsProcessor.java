@@ -266,13 +266,26 @@ public class EventsProcessor extends Thread {
                         e.insertProcessor(pauser);
                         // Store the callback information
                         future.addListener(i -> {
-                            ap.getLimiter().ifPresent(Semaphore::release);
-                            evrepo.cancel(future);
-                            // the listener must not call blocking call.
-                            // So if the bounded queue block, use a non-blocking queue dedicated
-                            // to postpone processing of the offer.
-                            if (! inQueue.offer(e)) {
-                                blockedAsync.put(e);
+                            try {
+                                ap.getLimiter().ifPresent(Semaphore::release);
+                                evrepo.cancel(future);
+                                // the listener must not call blocking call.
+                                // So if the bounded queue block, use a non-blocking queue dedicated
+                                // to postpone processing of the offer.
+                                if (! inQueue.offer(e)) {
+                                    blockedAsync.put(e);
+                                }
+                            } catch (RuntimeException | Error exc) {
+                                // Will be swallowed by netty event loop
+                                if (Helpers.isFatal(exc)) {
+                                    logger.fatal("Caught a critical exception", exc);
+                                    ShutdownTask.fatalException(exc);
+                                } else {
+                                    // Will be swallowed by netty event loop
+                                    logger.atError()
+                                          .withThrowable(exc)
+                                          .log("Failed to process asynchronous event: {}", () -> Helpers.resolveThrowableException(exc));
+                                }
                             }
                         });
                         status = ProcessingStatus.PAUSED;
