@@ -113,4 +113,27 @@ public class TestRangeCollection {
         Assert.assertEquals(1, rc.merge());
     }
 
+    @Test
+    public void testEmpty() {
+        RangeCollection rc = new RangeCollection();
+        Assert.assertEquals(List.of(), rc.getRanges());
+        Assert.assertTrue(rc.isEmpty());
+        Assert.assertEquals(-1, rc.merge());
+    }
+
+    @Test
+    public void testIncluded() {
+        RangeCollection rc = new RangeCollection();
+        rc.addRange(1, 10);
+        rc.merge();
+        rc.addValue(11);
+        rc.addRange(12, 100);
+        rc.addRange(12, 100);
+        rc.addValue(20);
+        rc.addValue(21);
+        rc.addValue(22);
+        Assert.assertEquals(100, rc.merge());
+        Assert.assertEquals(List.of(LongRange.of(1, 100)), rc.getRanges());
+    }
+
 }

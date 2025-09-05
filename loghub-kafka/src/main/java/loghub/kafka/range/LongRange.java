@@ -1,19 +1,8 @@
 package loghub.kafka.range;
 
-import java.util.Objects;
+record LongRange(long start, long end) implements Comparable<LongRange> {
 
-import lombok.Getter;
-
-@Getter
-class LongRange implements Comparable<LongRange> {
-    private final long start;
-    private final long end;
     static final LongRange EMPTY = new LongRange(Long.MAX_VALUE, Long.MIN_VALUE);
-
-    private LongRange(long start, long end) {
-        this.start = start;
-        this.end = end;
-    }
 
     long size() { return this == EMPTY ? 0 : end - start + 1; }
 
@@ -43,26 +32,11 @@ class LongRange implements Comparable<LongRange> {
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        } else if (!(obj instanceof LongRange)) {
-            return false;
-        } else {
-            LongRange range = (LongRange) obj;
-            return start == range.start && end == range.end;
-        }
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(start, end);
-    }
-
-    @Override
     public String toString() {
         if (start > end) {
             return "EMPTY";
+        } else if (start == end){
+            return "[" + start + "]";
         } else {
             return "[" + start + "—" + end + "]";
         }

@@ -1,10 +1,8 @@
 package loghub.kafka.range;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -52,54 +50,56 @@ public class RangeCollection {
     public long merge() {
         lock.writeLock().lock();
         try {
-            boolean mergeDone = ranges.remove(LongRange.EMPTY);
-            boolean lastModified = false;
-            Iterator<LongRange> ri = ranges.iterator();
+            if (ranges.size() == 1 && ranges.getFirst() == LongRange.EMPTY) {
+                // Still empty, nothing to merge
+                return -1;
+            }
+            // When doing the first merge, a lingering LongRange.EMPTY might be found, remove it
+            // But still mark as a merge was done, so even if nothing is done, the returned value will not be a no op
+            boolean mergeDone = ranges.getFirst() == LongRange.EMPTY && (ranges.pollFirst() != null);
+            boolean currentModified = false;
             LongRange current = LongRange.EMPTY;
-            Set<LongRange> toAdd = new HashSet<>();
-            Set<LongRange> toRemove = new HashSet<>();
-            while (ri.hasNext()){
-                lastModified = false;
-                LongRange next = ri.next();
-                if (current.isContiguousWith(next)) {
+            Collection<LongRange> toAdd = new ArrayList<>();
+            Collection<LongRange> toRemove = new ArrayList<>(ranges.size());
+            for (LongRange i: ranges){
+                if (current.isContiguousWith(i)) {
                     mergeDone = true;
-                    LongRange nextCurrent = current.mergeWith(next);
-                    lastModified = nextCurrent != current;
-                    if (lastModified && ranges.contains(current)) {
+                    LongRange nextCurrent = current.mergeWith(i);
+                    currentModified = currentModified || nextCurrent != current;
+                    if (currentModified && ranges.contains(current)) {
                         toRemove.add(current);
                     }
+                    toRemove.add(i);
                     current = nextCurrent;
-                    ri.remove();
-                } else if (current != LongRange.EMPTY && ! ranges.contains(current)){
-                    mergeDone = true;
+                } else if (current != LongRange.EMPTY && currentModified && ! ranges.contains(current)){
+                    currentModified = false;
                     toAdd.add(current);
-                    current = next;
+                    current = i;
                 } else {
-                    current = next;
+                    current = i;
                 }
             }
-            if (lastModified) {
-                ranges.add(current);
+            if (toRemove.size() == ranges.size()) {
+                ranges.clear();
+            } else if (! toRemove.isEmpty()) {
+                toRemove.forEach(ranges::remove);
             }
             if (! toAdd.isEmpty()) {
                 ranges.addAll(toAdd);
             }
-            if (! toRemove.isEmpty()) {
-                ranges.removeAll(toRemove);
+            if (currentModified) {
+                ranges.add(current);
             }
             if (! mergeDone) {
                 return -1;
-            } else if (!ranges.isEmpty()){
-                long newCommit = ranges.first().getEnd();
+            } else {
+                long newCommit = ranges.first().end();
                 if (newCommit > lastCommited) {
                     lastCommited = newCommit;
                     return lastCommited;
                 } else {
                     return -1;
                 }
-            } else {
-                ranges.add(LongRange.EMPTY);
-                return lastCommited;
             }
         } finally {
             lock.writeLock().unlock();
