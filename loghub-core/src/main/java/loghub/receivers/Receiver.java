@@ -292,8 +292,9 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
 
     public void manageDecodeException(DecodeException ex) {
         Stats.newDecodError(this, Helpers.resolveThrowableException(ex));
-        logger.debug("invalid message received: {}", ex.getMessage());
-        logger.catching(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);
+        logger.atDebug()
+              .withThrowable(ex)
+              .log("Unable to decode a received message: {}", () -> Helpers.resolveThrowableException(ex));
     }
 
     /**

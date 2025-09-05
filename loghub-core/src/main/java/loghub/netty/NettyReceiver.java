@@ -14,6 +14,7 @@ import io.netty.util.AttributeKey;
 import loghub.BuildableConnectionContext;
 import loghub.ConnectionContext;
 import loghub.Helpers;
+import loghub.ShutdownTask;
 import loghub.configuration.ConfigurationProperties;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
@@ -174,6 +175,19 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.empty();
+        } catch (RuntimeException | Error ex) {
+            // Will be swallowed by netty event loop
+            if (Helpers.isFatal(ex)) {
+                logger.fatal("Caught a critical exception", ex);
+                ShutdownTask.fatalException(ex);
+                return Stream.empty();
+            } else {
+                // Will be swallowed by netty event loop
+                logger.atError()
+                      .withThrowable(ex)
+                      .log("Invalid message received: {}", () -> Helpers.resolveThrowableException(ex));
+                return Stream.empty();
+            }
         }
     }
 
