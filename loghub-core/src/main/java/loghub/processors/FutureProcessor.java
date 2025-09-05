@@ -49,17 +49,23 @@ public class FutureProcessor<FI, F extends Future<FI>> extends Processor {
             } else {
                 return false;
             }
-        } catch (ExecutionException e) {
-            if (Helpers.isFatal(e.getCause())) {
-                logger.fatal("Caught a fatal exception", e);
-                ShutdownTask.fatalException(e);
-                return false;
-            } else {
-                return callback.manageException(event, (Exception) e.getCause());
-            }
+        } catch (ExecutionException ex) {
+            return handleException(event, ex.getCause());
+        } catch (RuntimeException ex) {
+            return handleException(event, ex);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return false;
+        }
+    }
+
+    private boolean handleException(Event event, Throwable ex) throws ProcessorException {
+        if (Helpers.isFatal(ex)) {
+            logger.fatal("Caught a fatal exception", ex);
+            ShutdownTask.fatalException(ex);
+            return false;
+        } else {
+            return callback.manageException(event, (Exception) ex);
         }
     }
 
