@@ -140,7 +140,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         if (builder.consumer != null) {
             consumerSupplier = () -> builder.consumer;
         } else {
-            consumerSupplier = getConsumer(builder);
+            consumerSupplier = getConsumerSupplier(builder);
         }
         if (builder.keyClass != null) {
             keyClass = builder.keyClass;
@@ -153,12 +153,13 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         threadBuilder = Thread.ofVirtual().name(getReceiverName() + "RecordProcessor", 1);
     }
 
-    private Supplier<Consumer<byte[], byte[]>> getConsumer(Builder builder) {
+    private Supplier<Consumer<byte[], byte[]>> getConsumerSupplier(Builder builder) {
         Map<String, Object> props = builder.configureKafka(logger);
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, withAutoCommit);
+        ByteArrayDeserializer deserializer = new ByteArrayDeserializer();
         return () -> {
             try {
-                Consumer<byte[], byte[]> consumer = new KafkaConsumer<>(props, new ByteArrayDeserializer(), new ByteArrayDeserializer());
+                Consumer<byte[], byte[]> consumer = new KafkaConsumer<>(props, deserializer, deserializer);
                 consumer.subscribe(List.of(topic));
                 return consumer;
             } catch (KafkaException ex) {
@@ -173,19 +174,11 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         return String.format("Kafka/%s/%s", topic, hashCode());
     }
 
-    public Consumer<byte[], byte[]> getConsumer() {
-        try {
-            return consumerSupplier.get();
-        } finally {
-            consumerSupplier = null;
-        }
-    }
-
     @Override
     public void run() {
         int wait = 100;
         while (! isInterrupted()) {
-            try (Consumer<byte[], byte[]> consumer = getConsumer()) {
+            try (Consumer<byte[], byte[]> consumer = consumerSupplier.get()) {
                 Duration pollingInterval = Duration.ofMillis(100);
                 while (! isInterrupted()) {
                     if (! eventLoop(consumer, pollingInterval)) {
