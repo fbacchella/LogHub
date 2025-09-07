@@ -4,7 +4,6 @@ import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,7 +12,6 @@ import com.codahale.metrics.Timer;
 
 import loghub.ConnectionContext;
 import loghub.cloners.Immutable;
-import loghub.Pipeline;
 import loghub.decoders.DecodeException;
 
 @Immutable
@@ -22,11 +20,6 @@ public class EventsFactory {
     private static final Logger logger = LogManager.getLogger();
 
     final ReferenceQueue<Event> referenceQueue = new ReferenceQueue<>();
-    private final Map<Pipeline, PreSubPipline> preSubpiplines = new ConcurrentHashMap<>();
-
-    PreSubPipline getPreSubPipeline(Pipeline pipe) {
-        return preSubpiplines.computeIfAbsent(pipe, PreSubPipline::new);
-    }
 
     public Event newTestEvent() {
         return new EventInstance(ConnectionContext.EMPTY, true, this);

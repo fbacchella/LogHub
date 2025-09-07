@@ -12,7 +12,7 @@ public class PreSubPipline extends Processor {
 
     private final Pipeline pipe;
 
-    PreSubPipline(Pipeline pipe) {
+    public PreSubPipline(Pipeline pipe) {
         this.pipe = pipe;
     }
 

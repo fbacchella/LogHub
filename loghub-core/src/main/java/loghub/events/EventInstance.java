@@ -175,7 +175,7 @@ class EventInstance extends Event {
             Pipeline pipe = sp.getPipeline();
             List<Processor> newProcessors = new ArrayList<>(sp.getPipeline().processors.size() + 2);
             Optional<Pipeline> namedPipeline = Optional.ofNullable(pipe).filter(ppl -> ppl.getName() != null);
-            namedPipeline.map(factory::getPreSubPipeline).ifPresent(newProcessors::add);
+            namedPipeline.map(Pipeline::getPreSubPipline).ifPresent(newProcessors::add);
             newProcessors.addAll(sp.getPipeline().processors);
             namedPipeline.map(s -> PostSubPipline.INSTANCE).ifPresent(newProcessors::add);
             addProcessors(newProcessors, append);
@@ -192,7 +192,7 @@ class EventInstance extends Event {
     public void refill(Pipeline pipeline) {
         nextPipeline = pipeline.nextPipeline;
         Optional<Pipeline> pipeName = Optional.of(pipeline).filter(ppl -> ppl.getName() != null);
-        pipeName.map(factory::getPreSubPipeline).ifPresent(this::appendProcessor);
+        pipeName.map(Pipeline::getPreSubPipline).ifPresent(this::appendProcessor);
         appendProcessors(pipeline.processors);
         pipeName.map(s -> PostSubPipline.INSTANCE).ifPresent(this::appendProcessor);
     }
@@ -203,7 +203,7 @@ class EventInstance extends Event {
     public boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue, boolean blocking) {
         nextPipeline = pipeline.nextPipeline;
         Optional<Pipeline> pipeName = Optional.of(pipeline).filter(ppl -> ppl.getName() != null);
-        pipeName.map(factory::getPreSubPipeline).ifPresent(this::appendProcessor);
+        pipeName.map(Pipeline::getPreSubPipline).ifPresent(this::appendProcessor);
         appendProcessors(pipeline.processors);
         pipeName.map(s -> PostSubPipline.INSTANCE).ifPresent(this::appendProcessor);
         return mainqueue.inject(this, blocking);
@@ -212,7 +212,7 @@ class EventInstance extends Event {
     public void reinject(Pipeline pipeline, PriorityBlockingQueue mainqueue) {
         nextPipeline = pipeline.nextPipeline;
         Optional<Pipeline> pipeName = Optional.of(pipeline).filter(ppl -> ppl.getName() != null);
-        pipeName.map(factory::getPreSubPipeline).ifPresent(this::appendProcessor);
+        pipeName.map(Pipeline::getPreSubPipline).ifPresent(this::appendProcessor);
         appendProcessors(pipeline.processors);
         pipeName.map(s -> PostSubPipline.INSTANCE).ifPresent(this::appendProcessor);
         mainqueue.asyncInject(this);

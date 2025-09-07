@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.configuration.Properties;
+import loghub.events.PreSubPipline;
 import lombok.Getter;
 
 public class Pipeline {
@@ -18,6 +19,7 @@ public class Pipeline {
     private final Logger logger;
     public final List<Processor> processors;
     public final String nextPipeline;
+    private final PreSubPipline preSubPipline;
 
     public Pipeline(List<Processor> steps, String name, String nextPipeline) {
         processors = List.copyOf(steps);
@@ -25,8 +27,10 @@ public class Pipeline {
         this.nextPipeline = nextPipeline;
         // Pipelines can be anonymous
         if (name != null) {
+            preSubPipline = new PreSubPipline(this);
             this.logger = LogManager.getLogger("loghub.pipeline." + name);
         } else {
+            preSubPipline = null;
             this.logger = null;
         }
     }
@@ -36,6 +40,11 @@ public class Pipeline {
             Future<Boolean> f = executor.submit(() -> p.configure(properties));
             results.add(f);
         }
+    }
+
+    public PreSubPipline getPreSubPipline() {
+        assert preSubPipline != null;
+        return preSubPipline;
     }
 
     @Override
