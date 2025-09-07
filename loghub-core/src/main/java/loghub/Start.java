@@ -24,6 +24,7 @@ public class Start {
         System.setProperty("Log4jContextSelector", "org.apache.logging.log4j.core.selector.BasicContextSelector");
         System.setProperty("log4j.shutdownHookEnabled", "false");
         System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+        System.setProperty("log4j2.julLoggerAdapter", "loghub.configuration.JulLoggerAdapter");
     }
 
     public static void main(String[] args) {

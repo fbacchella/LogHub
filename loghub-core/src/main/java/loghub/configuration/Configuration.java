@@ -43,7 +43,6 @@ import org.antlr.v4.runtime.RuleContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.jul.Log4jBridgeHandler;
 
 import loghub.Helpers;
 import loghub.NullOrMissingValue;
@@ -309,7 +308,6 @@ public class Configuration {
         // Possible exception are already catched (I hope)
         ctx.setConfigLocation(log4JUri);
         logger.debug("log4j reconfigured");
-        Log4jBridgeHandler.install(true, "", true);
     }
 
     private void processTimezoneProperty(String tz) {
