@@ -7,6 +7,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -142,10 +143,16 @@ public abstract class VariablePath {
         @Override
         public VariablePath append(String element) {
             Map<String, VariablePath> childs = childsRef.updateAndGet(this::getCacheInstance);
-            return childs.computeIfAbsent(element, this::findInCache);
+            VariablePath vp = childs.get(element);
+            if (vp == null) {
+                synchronized (childs) {
+                    vp = childs.computeIfAbsent(element, this::findInCache);
+                }
+            }
+            return vp;
         }
         private Map<String, VariablePath> getCacheInstance(Map<String, VariablePath> v) {
-            return v == null ? new ConcurrentHashMap<>() : v;
+            return v == null ? new HashMap<>() : v;
         }
         VariablePath findInCache(String s) {
             return getCache().computeChildIfAbsent(path, s, () -> {
@@ -571,7 +578,13 @@ public abstract class VariablePath {
     }
 
     public static VariablePath ofMeta(String meta) {
-        return PATH_CACHE_META.computeIfAbsent(meta, Meta::new);
+        VariablePath vp = PATH_CACHE_META.get(meta);
+        if (vp == null) {
+            synchronized (PATH_CACHE_META) {
+                vp = PATH_CACHE_META.computeIfAbsent(meta, Meta::new);
+            }
+        }
+        return vp;
     }
 
     public static VariablePath ofIndirect(String[] path) {
