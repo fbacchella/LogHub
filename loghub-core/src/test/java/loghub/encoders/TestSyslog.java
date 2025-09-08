@@ -22,6 +22,7 @@ import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 import loghub.senders.InMemorySender;
 
 public class TestSyslog {
@@ -38,7 +39,9 @@ public class TestSyslog {
 
     @Test
     public void testParsing() {
+        Stats.reset();
         ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Syslog { }}}", RouteParser::output);
+        Stats.reset();
         ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Syslog {format: \"RFC5424\" }}}", RouteParser::output);
     }
 

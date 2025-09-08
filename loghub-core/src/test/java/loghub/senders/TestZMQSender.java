@@ -49,6 +49,7 @@ import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.JmxService;
+import loghub.metrics.Stats;
 import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
@@ -129,6 +130,7 @@ public class TestZMQSender {
         configure.accept(builder);
 
         try (ZMQSink<String> ignored = sinkbuilder.build(); ZMQ sender = builder.build()) {
+            Stats.registerSender(sender);
             p.jmxServiceConfiguration.registerSenders(List.of(sender));
             JmxService.start(p.jmxServiceConfiguration);
             Thread.sleep(100);

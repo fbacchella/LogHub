@@ -42,6 +42,7 @@ public class SenderTools {
         S sender = builder.build();
         sender.setInQueue(queue);
         Assert.assertTrue(sender.configure(props));
+        Stats.registerSender(sender);
         sender.start();
         Event ev = factory.newEvent(new BlockingConnectionContext());
         queue.add(ev);

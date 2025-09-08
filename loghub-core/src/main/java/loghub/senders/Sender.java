@@ -141,7 +141,6 @@ public abstract class Sender extends Thread implements Closeable {
     private final ClassLoader classLoader;
 
     protected Sender(Builder<? extends Sender> builder) {
-        Stats.registerSender(this);
         this.classLoader = builder.classLoader;
         filter = builder.filter;
         setDaemon(true);
@@ -172,13 +171,10 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     public boolean configure(Properties properties) {
-        // Stats are reset before configure
-        Stats.sendInQueueSize(this, inQueue::size);
         if (threads != null) {
             buildSyncer(properties);
         }
         setName("sender-" + getSenderName());
-        Optional.ofNullable(batch).ifPresent(b -> b.set(new Batch(this)));
         if (encoder != null) {
             return encoder.configure(properties, this);
         } else if (getClass().getAnnotation(SelfEncoder.class) == null) {
@@ -187,6 +183,10 @@ public abstract class Sender extends Thread implements Closeable {
         } else {
             return true;
         }
+    }
+
+    public int getQueueSize() {
+        return inQueue.size();
     }
 
     /**
@@ -404,6 +404,7 @@ public abstract class Sender extends Thread implements Closeable {
 
     @Override
     public void run() {
+        Optional.ofNullable(batch).ifPresent(b -> b.set(new Batch(this)));
         while (isRunning()) {
             Event event;
             try {

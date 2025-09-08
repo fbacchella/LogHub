@@ -24,6 +24,7 @@ import loghub.encoders.Encoder;
 import loghub.encoders.EvalExpression;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 
 public class TestNull {
 
@@ -48,6 +49,7 @@ public class TestNull {
         nullsender.setInQueue(queue);
 
         Assert.assertTrue(nullsender.configure(props));
+        Stats.registerSender(nullsender);
         nullsender.start();
 
         Event ev = factory.newEvent(new BlockingConnectionContext());

@@ -68,8 +68,8 @@ public final class Stats {
     static final String METRIC_ALL_EVENT_DUPLICATEEND = "EventDuplicateEnd";
 
     // A metrics cache, as calculating a metric name can be expensive.
-    public static final Map<Object, Map<String, Metric>> metricsCache = new HashMap<>();
-    public static Map<Object, Map<Integer, Timer>> webCache = new HashMap<>();
+    private static final Map<Object, Map<String, Metric>> metricsCache = new HashMap<>();
+    private static final Map<Object, Map<Integer, Timer>> webCache = new HashMap<>();
 
     private static final Queue<ProcessingException> processorExceptions = new LinkedBlockingQueue<>(100);
     private static final Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
@@ -160,8 +160,11 @@ public final class Stats {
         register(identity, METRIC_SENDER_BATCHESSIZE, Histogram.class);
         register(identity, METRIC_SENDER_DONEBATCHES, Meter.class);
         register(identity, METRIC_SENDER_FLUSHDURATION, Timer.class);
-        register(identity, METRIC_SENDER_QUEUESIZE, Gauge.class);
         register(identity, METRIC_SENDER_EXCEPTION, Meter.class);
+        if (identity instanceof Sender s) {
+            Gauge<Integer> queueSizeMetric = s::getQueueSize;
+            register(s, METRIC_SENDER_QUEUESIZE, queueSizeMetric);
+        }
     }
 
     public static synchronized void registerHttpService(Object identity) {
@@ -173,16 +176,17 @@ public final class Stats {
 
     public static <T extends Metric> T register(Object key, String name, Class<T> metricClass) {
         T metric = createMetric(key, name, metricClass);
-        return register(key, name, metric);
+        return addToCache(key, name, metric);
     }
 
     @SuppressWarnings("unchecked")
-    public static synchronized <T extends Metric> T register(Object key, String name, T newMetric) {
-        return (T) metricsCache.computeIfAbsent(key, k -> new HashMap<>()).computeIfAbsent(name, k -> newMetric);
+    public static <T extends Metric> T register(Object key, String name, T newMetric) {
+        metricsRegistry.register(getMetricName(key, name), newMetric);
+        return addToCache(key, name, newMetric);
     }
 
-    public static <T extends Metric> T getMetric(Class<T> metricClass, String name) {
-        return getMetric(Object.class, name, metricClass);
+    private static synchronized <T extends Metric> T addToCache(Object key, String name, T newMetric) {
+        return (T) metricsCache.computeIfAbsent(key, k -> new HashMap<>()).computeIfAbsent(name, k -> newMetric);
     }
 
     @SuppressWarnings("unchecked")
@@ -201,11 +205,11 @@ public final class Stats {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Metric> T createMetric(Object key, String name, Class<T> metricClass) {
+    private static <T extends Metric> T createMetric(Object key, String name, Class<T> metricClass) {
         return createMetric(getMetricName(key, name), metricClass);
     }
 
-    public static <T extends Metric> T createMetric(String metricName, Class<T> metricClass) {
+    private static <T extends Metric> T createMetric(String metricName, Class<T> metricClass) {
         if (metricClass == Counter.class) {
             return (T) metricsRegistry.counter(metricName);
         } else if (metricClass == Histogram.class) {
@@ -266,7 +270,7 @@ public final class Stats {
     }
 
     public static void newUnhandledException(Throwable e) {
-        createMetric(Stats.class, METRIC_ALL_EXCEPTION, Meter.class).mark();
+        getMetric(Stats.class, METRIC_ALL_EXCEPTION, Meter.class).mark();
         storeException(exceptions, e);
     }
 
@@ -508,12 +512,11 @@ public final class Stats {
         // Leaking event are rare, don't try to resolve the leaking pipeline
         // It's needs overcomplicated code for that
         getMetric(Stats.class, METRIC_ALL_INFLIGHT, Counter.class).dec();
-        getMetric(Counter.class, METRIC_ALL_EVENT_LEAKED).inc();
+        getMetric(Stats.class, METRIC_ALL_EVENT_LEAKED, Counter.class).inc();
     }
 
     public static void duplicateEnd() {
         getMetric(Stats.class, METRIC_ALL_EVENT_DUPLICATEEND, Counter.class).inc();
-        getMetric(Counter.class, METRIC_ALL_EVENT_DUPLICATEEND).inc();
     }
 
     public static void waitingQueue(IntSupplier source) {

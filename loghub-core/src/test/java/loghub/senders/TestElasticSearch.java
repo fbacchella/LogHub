@@ -450,6 +450,7 @@ public class TestElasticSearch {
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(props));
+            Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -478,6 +479,7 @@ public class TestElasticSearch {
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(props));
+            Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -529,6 +531,7 @@ public class TestElasticSearch {
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(inQueue);
             Assert.assertTrue(es.configure(props));
+            Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent(new NotificationConnectionContext(counter));
@@ -559,6 +562,7 @@ public class TestElasticSearch {
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(queue);
             Assert.assertTrue(es.configure(props));
+            Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -612,6 +616,7 @@ public class TestElasticSearch {
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(props));
+            Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -673,6 +678,7 @@ public class TestElasticSearch {
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(props));
+            Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();

@@ -71,6 +71,7 @@ public class TestFile {
         fsend.setInQueue(queue);
 
         Assert.assertTrue(fsend.configure(props));
+        Stats.registerSender(fsend);
         fsend.start();
 
         Event ev = factory.newEvent(new BlockingConnectionContext());

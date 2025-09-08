@@ -27,6 +27,7 @@ import loghub.configuration.Properties;
 import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 
 public class TestUdp {
 
@@ -76,6 +77,7 @@ public class TestUdp {
         sender.setInQueue(queue);
 
         Assert.assertTrue(sender.configure(props));
+        Stats.registerSender(sender);
         sender.start();
 
         Event ev = factory.newEvent();

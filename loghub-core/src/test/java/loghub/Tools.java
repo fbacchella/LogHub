@@ -44,6 +44,7 @@ public class Tools {
     public static void configure() {
         Locale.setDefault(new Locale("POSIX"));
         LogUtils.configure();
+        Stats.reset();
     }
 
     public static KeyStore getDefaultKeyStore() {

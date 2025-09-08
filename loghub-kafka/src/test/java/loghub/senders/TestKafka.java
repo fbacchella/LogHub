@@ -39,6 +39,7 @@ import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.kafka.HeadersTypes;
+import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestKafka {
@@ -80,6 +81,7 @@ public class TestKafka {
             PriorityBlockingQueue queue = new PriorityBlockingQueue();
             r.setInQueue(queue);
             Assert.assertTrue(r.configure(props));
+            Stats.registerReceiver(r);
             r.start();
             BlockingConnectionContext ctx = new BlockingConnectionContext();
             Event ev = factory.newEvent(ctx);
