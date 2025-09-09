@@ -155,9 +155,14 @@ public class Expression {
     private static final Runnable MATCHER_CLEAN;
 
     static {
-        Map<Pattern, ThreadLocal<Matcher>> cache = new ConcurrentHashMap<>();
-        MATCHER_CACHE = p -> cache.computeIfAbsent(p, k -> ThreadLocal.withInitial(() -> k.matcher(""))).get();
-        MATCHER_CLEAN = cache::clear;
+        Set<Map<Pattern, Matcher>> maps = ConcurrentHashMap.newKeySet();
+        ThreadLocal<Map<Pattern, Matcher>> cache = ThreadLocal.withInitial(() -> {
+            Map<Pattern, Matcher> m = new HashMap<>();
+            maps.add(m);
+            return m;
+        });
+        MATCHER_CACHE = p -> cache.get().computeIfAbsent(p, k -> k.matcher(""));
+        MATCHER_CLEAN = () -> maps.forEach(Map::clear);
     }
 
     private final ExpressionLambda evaluator;
