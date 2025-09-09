@@ -196,25 +196,10 @@ public final class Stats {
 
     @SuppressWarnings("unchecked")
     public static <T extends Metric> T getMetric(Object key, String name, Class<T> metricClass) {
-        if (name.startsWith("WebServer.status.")) {
-            System.err.println(Thread.currentThread());
-            System.err.format("%s/%s -> %s%n", key, name, metricClass.getName());
-            Thread.dumpStack();
-        }
         assert ! name.startsWith("WebServer.status.") : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
         Map<String, Metric> metrics = metricsCache.get(key);
-        if (metrics == null) {
-            System.err.println(Thread.currentThread());
-            System.err.format("%s/%s -> %s%n", key, name, metricClass.getName());
-            Thread.dumpStack();
-        }
         assert metrics != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
         T metric = (T) metrics.get(name);
-        if (metric == null) {
-            System.err.println(Thread.currentThread());
-            System.err.format("%s/%s -> %s%n", key, name, metricClass.getName());
-            Thread.dumpStack();
-        }
         assert metric != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
         return metric;
     }
