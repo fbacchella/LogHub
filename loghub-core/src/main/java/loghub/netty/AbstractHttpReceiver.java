@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.ssl.ApplicationProtocolNames;
-import loghub.configuration.Properties;
 import loghub.metrics.CustomStats;
 import loghub.metrics.Stats;
 import loghub.netty.transport.AbstractIpTransport;

@@ -31,7 +31,6 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
-import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
