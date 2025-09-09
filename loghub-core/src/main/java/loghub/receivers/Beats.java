@@ -31,6 +31,7 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
+import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
@@ -112,7 +113,6 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
 
     public Beats(Builder builder) {
         super(builder);
-        Stats.register(this, "batchesSize", Histogram.class);
         this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
         this.maxPayloadSize = builder.maxPayloadSize;
         this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/idle"));
@@ -156,9 +156,16 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
                     }
                     newEvent.put(key, j);
                 });
+                Stats.newReceivedEvent(Beats.this);
                 ctx.fireChannelRead(newEvent);
             }
         };
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        Stats.register(this, "batchesSize", Histogram.class);
+        return super.configure(properties);
     }
 
     @Override
