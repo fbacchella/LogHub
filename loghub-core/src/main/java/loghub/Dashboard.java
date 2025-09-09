@@ -18,6 +18,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.ssl.ApplicationProtocolNames;
+import loghub.metrics.CustomStats;
 import loghub.metrics.Stats;
 import loghub.netty.DashboardService;
 import loghub.netty.HttpChannelConsumer;
@@ -39,7 +40,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
-public class Dashboard {
+public class Dashboard implements CustomStats {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -90,7 +91,6 @@ public class Dashboard {
         if (builder.withSSL && builder.hstsDuration != null) {
             hsts = HstsData.builder().maxAge(builder.hstsDuration).build();
         }
-        Stats.registerHttpService(this);
         HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
                                                           .setAuthHandler(authHandler)
                                                           .setModelSetup(this::setupModel)
@@ -162,6 +162,11 @@ public class Dashboard {
             p.addLast(tokenFilter);
             p.addLast(tokenGenerator);
         }
+    }
+
+    @Override
+    public void registerCustomStats() {
+        Stats.registerHttpService(this);
     }
 
     public void start() throws InterruptedException {

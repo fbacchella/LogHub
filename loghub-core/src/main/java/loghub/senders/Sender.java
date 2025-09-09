@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Timer;
 
 import loghub.AbstractBuilder;
@@ -41,11 +42,12 @@ import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.Encoder;
 import loghub.events.Event;
+import loghub.metrics.CustomStats;
 import loghub.metrics.Stats;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class Sender extends Thread implements Closeable {
+public abstract class Sender extends Thread implements Closeable, CustomStats {
 
     protected static class Batch extends ArrayList<EventFuture> {
         private final Sender sender;
@@ -183,6 +185,12 @@ public abstract class Sender extends Thread implements Closeable {
         } else {
             return true;
         }
+    }
+
+    @Override
+    public void registerCustomStats() {
+        Gauge<Integer> queueSizeMetric = this::getQueueSize;
+        Stats.register(this, "queueSize", queueSizeMetric);
     }
 
     public int getQueueSize() {

@@ -50,9 +50,6 @@ public class Tcp extends Sender {
 
     private Tcp(Builder builder) {
         super(builder);
-        // Register metrics
-        Stats.register(this, METRIC_SOCKET_CONNECT, Meter.class);
-        Stats.register(this, METRIC_SOCKET_RESET, Meter.class);
         port = builder.port;
         destination = builder.destination;
         if (!builder.separator.isEmpty()) {
@@ -75,6 +72,14 @@ public class Tcp extends Sender {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    @Override
+    public void registerCustomStats() {
+        super.registerCustomStats();
+        // Register metrics
+        Stats.register(this, METRIC_SOCKET_CONNECT, Meter.class);
+        Stats.register(this, METRIC_SOCKET_RESET, Meter.class);
     }
 
     @Override

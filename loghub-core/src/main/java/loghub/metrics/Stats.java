@@ -138,6 +138,7 @@ public final class Stats {
         register(identity, METRIC_PIPELINE_INFLIGHT, Counter.class);
         register(identity, METRIC_PIPELINE_PAUSED_COUNT, Counter.class);
         register(identity, METRIC_PIPELINE_PAUSED, Timer.class);
+        checkCustomMetrics(identity);
     }
 
     public static void registerReceiver(Object identity) {
@@ -147,6 +148,7 @@ public final class Stats {
         register(identity, METRIC_RECEIVER_ERROR, Meter.class);
         register(identity, METRIC_RECEIVER_BLOCKED, Meter.class);
         register(identity, METRIC_RECEIVER_EXCEPTION, Meter.class);
+        checkCustomMetrics(identity);
     }
 
     public static void registerSender(Object identity) {
@@ -161,10 +163,7 @@ public final class Stats {
         register(identity, METRIC_SENDER_DONEBATCHES, Meter.class);
         register(identity, METRIC_SENDER_FLUSHDURATION, Timer.class);
         register(identity, METRIC_SENDER_EXCEPTION, Meter.class);
-        if (identity instanceof Sender s) {
-            Gauge<Integer> queueSizeMetric = s::getQueueSize;
-            register(s, METRIC_SENDER_QUEUESIZE, queueSizeMetric);
-        }
+        checkCustomMetrics(identity);
     }
 
     public static synchronized void registerHttpService(Object identity) {
@@ -185,16 +184,38 @@ public final class Stats {
         return addToCache(key, name, newMetric);
     }
 
+    private static void checkCustomMetrics(Object o) {
+        if (o instanceof CustomStats cs) {
+            cs.registerCustomStats();
+        }
+    }
+
     private static synchronized <T extends Metric> T addToCache(Object key, String name, T newMetric) {
         return (T) metricsCache.computeIfAbsent(key, k -> new HashMap<>()).computeIfAbsent(name, k -> newMetric);
     }
 
     @SuppressWarnings("unchecked")
     public static <T extends Metric> T getMetric(Object key, String name, Class<T> metricClass) {
+        if (name.startsWith("WebServer.status.")) {
+            System.err.println(Thread.currentThread());
+            System.err.format("%s/%s -> %s%n", key, name, metricClass.getName());
+            Thread.dumpStack();
+        }
+        assert ! name.startsWith("WebServer.status.") : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
         Map<String, Metric> metrics = metricsCache.get(key);
+        if (metrics == null) {
+            System.err.println(Thread.currentThread());
+            System.err.format("%s/%s -> %s%n", key, name, metricClass.getName());
+            Thread.dumpStack();
+        }
         assert metrics != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
         T metric = (T) metrics.get(name);
-        assert metric != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());;
+        if (metric == null) {
+            System.err.println(Thread.currentThread());
+            System.err.format("%s/%s -> %s%n", key, name, metricClass.getName());
+            Thread.dumpStack();
+        }
+        assert metric != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
         return metric;
     }
 

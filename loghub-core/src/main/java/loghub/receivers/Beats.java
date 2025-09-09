@@ -35,6 +35,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
+import loghub.metrics.CustomStats;
 import loghub.metrics.Stats;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
@@ -49,7 +50,7 @@ import lombok.Setter;
 @CloseOnError
 @BuilderClass(Beats.Builder.class)
 @Blocking
-public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implements ConsumerProvider {
+public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implements ConsumerProvider, CustomStats {
 
     @Setter
     public static class Builder extends NettyReceiver.Builder<Beats, ByteBuf, Beats.Builder> {
@@ -163,9 +164,8 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
     }
 
     @Override
-    public boolean configure(Properties properties) {
+    public void registerCustomStats() {
         Stats.register(this, "batchesSize", Histogram.class);
-        return super.configure(properties);
     }
 
     @Override

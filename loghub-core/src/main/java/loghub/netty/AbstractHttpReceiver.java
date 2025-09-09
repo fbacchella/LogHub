@@ -5,6 +5,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import loghub.configuration.Properties;
+import loghub.metrics.CustomStats;
 import loghub.metrics.Stats;
 import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
@@ -12,7 +13,9 @@ import loghub.netty.transport.TRANSPORT;
 import loghub.receivers.Blocking;
 
 @Blocking
-public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>, B extends AbstractHttpReceiver.Builder<R, B>> extends NettyReceiver<R, HttpMessage, B> implements ConsumerProvider {
+public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>, B
+                extends AbstractHttpReceiver.Builder<R, B>> extends NettyReceiver<R, HttpMessage, B>
+                implements ConsumerProvider, CustomStats {
 
     public abstract static class Builder<R extends AbstractHttpReceiver<R, B>, B extends AbstractHttpReceiver.Builder<R, B>> extends NettyReceiver.Builder<R, HttpMessage, B> {
         protected Builder() {
@@ -58,9 +61,8 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
     protected abstract void modelSetup(ChannelPipeline pipeline);
 
     @Override
-    public boolean configure(Properties properties) {
+    public void registerCustomStats() {
         Stats.registerHttpService(this);
-        return super.configure(properties);
     }
 
     @Override
