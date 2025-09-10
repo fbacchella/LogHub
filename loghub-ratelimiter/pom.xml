@@ -12,6 +12,10 @@
     <artifactId>loghub-ratelimiter</artifactId>
     <name>LogHub :: Rate limit</name>
 
+    <properties>
+        <bucket4j.version>8.15.0</bucket4j.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>fr.loghub</groupId>
@@ -27,13 +31,13 @@
         </dependency>
         <dependency>
             <groupId>com.bucket4j</groupId>
-            <artifactId>bucket4j-core</artifactId>
-            <version>8.10.1</version>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+            <version>${bucket4j.version}</version>
         </dependency>
         <dependency>
             <groupId>com.bucket4j</groupId>
-            <artifactId>bucket4j-jcache</artifactId>
-            <version>8.10.1</version>
+            <artifactId>bucket4j_jdk17-jcache</artifactId>
+            <version>${bucket4j.version}</version>
         </dependency>
     </dependencies>
 

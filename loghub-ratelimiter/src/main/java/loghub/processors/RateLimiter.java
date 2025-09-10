@@ -10,7 +10,7 @@ import io.github.bucket4j.Bucket;
 import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
 import io.github.bucket4j.distributed.proxy.RemoteBucketBuilder;
-import io.github.bucket4j.grid.jcache.JCacheProxyManager;
+import io.github.bucket4j.grid.jcache.Bucket4jJCache;
 import io.github.bucket4j.local.SynchronizationStrategy;
 import loghub.BuilderClass;
 import loghub.Expression;
@@ -72,7 +72,7 @@ public class RateLimiter extends Processor {
                                                  .getBuilder(Object.class, byte[].class)
                                                  .setName("RateLimiter", this)
                                                  .build();
-            buckets = new JCacheProxyManager<>(cache);
+            buckets = Bucket4jJCache.entryProcessorBasedBuilder(cache).build();
             bucketsBuilder = buckets.builder();
             singleBucket = null;
         } else {
