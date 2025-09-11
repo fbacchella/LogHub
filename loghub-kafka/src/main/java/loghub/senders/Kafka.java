@@ -87,8 +87,8 @@ public class Kafka extends Sender {
             Map<String, Object> props = builder.configureKafka(logger);
             producerSupplier = () -> new KafkaProducer<>(props, PASSTHROUGH_SERIALIZER, PASSTHROUGH_SERIALIZER);
             hash = Objects.hash(
+                    topic,
                     props.get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG),
-                    props.get(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG),
                     props.get(CommonClientConfigs.CLIENT_ID_CONFIG),
                     props.get(CommonClientConfigs.GROUP_ID_CONFIG)
                     );
