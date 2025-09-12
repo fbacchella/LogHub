@@ -14,10 +14,10 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import loghub.configuration.Configuration;
+import loghub.configuration.Properties;
 import loghub.jackson.JacksonBuilder;
 
 public class TestEsPipelineConvert {
-
 
     private Properties convert(String esPipeline, String expected) throws IOException {
         JacksonBuilder<YAMLMapper> builder = JacksonBuilder.get(YAMLMapper.class);
@@ -92,11 +92,127 @@ public class TestEsPipelineConvert {
               field: ecs.version
               tag: set_ecs_version
               value: 8.11.0
+          - set:
+              field: event.kind
+              value: pipeline_error
+              tag: set_pipeline_error_into_event_kind
+              if: ctx.error?.message != null
         """;
 
         String expected = """
         pipeline[apipeline] {
-            [ecs version] = "8.11.0"
+            [ecs version] = "8.11.0" |
+            [error message] == * ? [event kind] = "pipeline_error"
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
+    public void testDissect() throws IOException {
+        String esPipeline = """
+        - dissect:
+              field: user.email
+              pattern: '%{user.name}@%{user.domain}'
+              if: ctx.user?.email != null
+              on_failure:
+                - append:
+                    field: error.message
+                    value: 'error message'
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            loghub.processors.Dissect {
+                field: [user email],
+                pattern: "%{user.name}@%{user.domain}",
+                if: [user email] == *,
+                failure: (
+                    [error message] =+ "error message"
+                ),
+            }
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
+    public void testDate() throws IOException {
+        String esPipeline = """
+          - date:
+              field: date
+              target_field: '@timestamp'
+              formats:
+                - E MMM dd HH:mm:ss yyyy
+                - E MMM  d HH:mm:ss yyyy
+                - E MMM d HH:mm:ss yyyy
+                - yyyy-mm-dd HH:mm:ss
+              timezone: '{{{event.timezone}}}'
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            loghub.processors.DateParser {
+                patterns: ["E MMM dd HH:mm:ss yyyy", "E MMM  d HH:mm:ss yyyy", "E MMM d HH:mm:ss yyyy", "yyyy-mm-dd HH:mm:ss"],
+                field: [date],
+                destination: [@timestamp],
+                timezone: [event timezone],
+            }
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
+    public void testConvert() throws IOException {
+        String esPipeline = """
+          - convert:
+              field: source_ip
+              target_field: source.ip
+              type: ip
+              ignore_missing: true
+              if: ctx.source_ip != ''
+          - convert:
+              field: source_port
+              target_field: source.port
+              type: long
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            loghub.processors.Convert {
+                field: [source_ip],
+                destination: [source ip],
+                className: "java.net.InetAddress",
+                if: [source_ip] != "",
+            } |
+            (java.lang.Long)[source_port] |
+            [source port] < [source_port]
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
+    public void testJson() throws IOException {
+        String esPipeline = """
+          - json:
+              field: event.original
+              target_field: json
+          - json:
+              field: event.original
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            path[json] (
+                loghub.processors.ParseJson {
+                    field: [. event original],
+                }
+            ) |
+            loghub.processors.ParseJson {
+                field: [event original],
+            }
         }
         """;
         convert(esPipeline, expected);

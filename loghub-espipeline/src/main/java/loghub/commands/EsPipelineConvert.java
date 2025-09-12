@@ -4,14 +4,16 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -38,19 +40,13 @@ import lombok.ToString;
 public class EsPipelineConvert implements BaseParametersRunner {
 
     private static class PipelineOutput implements Closeable {
-        private final PrintWriter stream;
-        private final StringBuilder buffer;
+        private final StringBuilder buffer = new StringBuilder();
         private String prefix;
         Deque<Integer> stack = new ArrayDeque<>();
-        PipelineOutput(PrintWriter stream, String pipelineName) {
-            this.stream = stream;
-            this.buffer = new StringBuilder();
-            stream.format("pipeline[%s] {%n", pipelineName);
+        PipelineOutput(String pipelineName) {
+            buffer.append("pipeline[%s] {%n".formatted(pipelineName));
             stack.push(-1);
             prefix = "    ";
-        }
-        PipelineOutput(Writer stream, String pipelineName) {
-            this(new PrintWriter(stream, false), pipelineName);
         }
         private void removePipeSymbol() {
             int pos = stack.getLast();
@@ -58,12 +54,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
             if (! buffer.isEmpty() && pos != -1) {
                 buffer.deleteCharAt(pos);
                 buffer.deleteCharAt(pos - 1);
-            }
-        }
-        private void flush() {
-            if (! buffer.isEmpty()) {
-                stream.print(buffer);
-                buffer.delete(0, buffer.length());
             }
         }
         private void increasePrefix() {
@@ -141,10 +131,13 @@ public class EsPipelineConvert implements BaseParametersRunner {
             buffer.append(line);
             buffer.append("\n");
         }
-        public void close() {
+        public void flush(Writer stream) throws IOException {
             removePipeSymbol();
-            flush();
-            stream.println("}");
+            stream.write(buffer.toString());
+            stream.write("}\n");
+        }
+        public void close() {
+            buffer.delete(0, buffer.length());
         }
         public String appendPrefix(String customPrefix) {
             try {
@@ -158,8 +151,9 @@ public class EsPipelineConvert implements BaseParametersRunner {
         }
     }
 
-    @Parameter(names = {"-p", "--pipeline"}, description = "YAML files")
-    public String pipelineName;
+    @Parameter(names = {"-o", "--output"}, description = "The output file")
+    public String configFile = null;
+
     private PipelineOutput output;
     private final ObjectReader reader;
     private final Map<String, Consumer<Map<String, Object>>> keywords;
@@ -169,7 +163,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
         reader = builder.getReader();
         keywords = Map.ofEntries(
                 Map.entry("script", this::script),
-                Map.entry("set", this::set),
+                Map.entry("set", p -> ifWrapper(p, this::set)),
                 Map.entry("remove", p -> ifWrapper(p, this::remove)),
                 Map.entry("foreach", this::foreach),
                 Map.entry("append", p -> ifWrapper(p, this::append)),
@@ -194,25 +188,45 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     public int run(List<String> mainParameters) {
-        for (String pipeline : mainParameters) {
-            try {
-                Reader r = new InputStreamReader(Helpers.fileUri(pipeline).toURL().openStream());
-                Writer w = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
-                runParse(r, w, pipelineName);
-            } catch (IOException e) {
-                System.err.format("Failed to read %s, error: %s%n", pipeline, Helpers.resolveThrowableException(e));
+        Pattern spliter = Pattern.compile("@");
+        try (Writer w = getWriter()){
+            for (String pipeline : mainParameters) {
+                try {
+                    String pipelineName = "default";
+                    String[] informations = spliter.split(pipeline);
+                    if (informations.length == 2) {
+                        pipelineName = informations[0];
+                        pipeline = informations[1];
+                    }
+                    Reader r = new InputStreamReader(Helpers.fileUri(pipeline).toURL().openStream());
+                    runParse(r, w, pipelineName);
+                } catch (IOException e) {
+                    System.err.format("Failed to read %s, error: %s%n", pipeline, Helpers.resolveThrowableException(e));
+                }
             }
+            return ExitCode.OK;
+        } catch (IOException e) {
+            System.err.format("Failed to save output %s, error: %s%n", configFile != null ? configFile : "stdout", Helpers.resolveThrowableException(e));
+            return ExitCode.INVALIDARGUMENTS;
         }
-        return ExitCode.OK;
+    }
+
+    private Writer getWriter() throws IOException {
+        if (configFile != null) {
+            return Files.newBufferedWriter(Path.of(configFile));
+        } else {
+            return new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
+        }
     }
 
     void runParse(Reader r, Writer w, String pipelineName) throws IOException {
         Map<String, Object> yamlContent = reader.readValue(r);
-        try (PipelineOutput o = new PipelineOutput(w, pipelineName)) {
+        try (PipelineOutput o = new PipelineOutput(pipelineName)) {
             output = o;
             @SuppressWarnings("unchecked")
             List<Map<String, Map<String, Object>>> processors = (List<Map<String, Map<String, Object>>>) yamlContent.get("processors");
             processPipeline(processors);
+            output.flush(w);
         }
     }
 
@@ -230,7 +244,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 if (keywords.containsKey(processorName)) {
                     keywords.get(processorName).accept(params);
                 } else {
-                    output.println("// " + processor);
+                    output.comment(processor.toString());
                 }
             }
         }
@@ -276,7 +290,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
             }
         }
         params.remove("if");
-        output.format("%s// foreach%s%n", params.isEmpty() ? "": params);
+        output.comment("foreach%s".formatted(params.isEmpty() ? "": params));
         processPipeline(List.of(process));
     }
 
@@ -402,41 +416,39 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void date(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
-        attributes.put("patterns", params.remove("formats"));
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        Optional.ofNullable(params.remove("formats")).ifPresent(o -> attributes.put("patterns", o));
+        Optional.ofNullable(params.remove("field")).map(this::resolveField).ifPresent(o -> attributes.put("field", o));
+        Optional.ofNullable(params.remove("target_field")).map(this::resolveField).ifPresent(o -> attributes.put("destination", o));
         Optional.ofNullable(params.remove("timezone")).map(this::resolveValue).ifPresent(p -> attributes.put("timezone", p));
         doProcessor("loghub.processors.DateParser", filterComments(params, attributes), attributes);
     }
 
     private void grok(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
-        attributes.put("patterns", params.remove("patterns"));
-        if (params.containsKey("pattern_definitions")) {
-            attributes.put("customPatterns", params.remove("pattern_definitions"));
-        }
+        Map<String, Object> attributes = defaultAttributes(params);
+        Optional.ofNullable(params.remove("patterns")).ifPresent(o -> attributes.put("patterns", o));
+        Optional.ofNullable(params.remove("pattern_definitions")).ifPresent(o -> attributes.put("customPatterns", o));
         doProcessor("loghub.processors.Grok", filterComments(params, attributes), attributes);
     }
 
     private void geoip(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
+        Map<String, Object> attributes = defaultAttributes(params);
         Object types = params.remove("properties");
         attributes.put("types", types != null ? types : List.of("country","city", "location"));
         String geoipdb = (String) params.remove("database_file");
         attributes.put("geoipdb", resolveValue(geoipdb != null ? geoipdb : "/usr/share/GeoIP/GeoIP2-City.mmdb"));
         attributes.put("refresh", resolveValue("P2D"));
-        attributes.put("field", resolveField(params.remove("field")));
-        attributes.put("destination", resolveField(params.remove("target_field")));
         doProcessor("loghub.processors.Geoip2", filterComments(params, attributes), attributes);
     }
 
     private void split(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
+        Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put("pattern", resolveValue(params.remove("separator")));
         doProcessor("loghub.processors.Split", filterComments(params, attributes), attributes);
     }
 
     private void kv(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
+        Map<String, Object> attributes = defaultAttributes(params);
         char fieldSplit = Optional.ofNullable(params.remove("field_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse(' ');
         char valueSplit = Optional.ofNullable(params.remove("value_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse('=');
         Character trimSey = Optional.ofNullable(params.remove("trim_key")).map(String.class::cast).map(s -> s.charAt(0)).orElse(null);
@@ -445,7 +457,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void convert(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
+        Map<String, Object> attributes = defaultAttributes(params);
         String className;
         String type = (String) params.remove("type");
         className = switch (type) {
@@ -458,10 +470,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
         default ->
             throw new UnsupportedOperationException(type);
         };
-        Optional.ofNullable(params.remove("description")).map(this::resolveField).ifPresent(f -> attributes.put("description", f));
-        Optional.ofNullable(params.remove("field")).map(this::resolveField).ifPresent(f -> attributes.put("field", f));
-        Optional.ofNullable(params.remove("target_field")).map(this::resolveField).ifPresent(f -> attributes.put("destination", f));
-        Optional.ofNullable(params.remove("if")).ifPresent(f -> attributes.put("if", f));
         if (params.isEmpty()) {
             attributes.put("className", className);
             ifWrapper(attributes, this::simpleConvert);
@@ -484,7 +492,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void dissect(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
+        Map<String, Object> attributes = defaultAttributes(params);
         attributes.put("pattern", resolveValue(params.remove("pattern")));
         doProcessor("loghub.processors.Dissect", filterComments(params, attributes), attributes);
     }
@@ -502,36 +510,33 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void json(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
-        String field = resolveField(params.remove("field"));
         String target_field = resolveField(params.remove("target_field"));
         if (target_field != null) {
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            String field = resolveField(params.remove("field"));
             attributes.put("field", field.replace("[", "[. "));
             output.startPath(target_field);
             doProcessor("loghub.processors.ParseJson", filterComments(params, attributes), attributes);
             output.endPath();
         } else {
-            attributes.put("field", field);
+            Map<String, Object> attributes = defaultAttributes(params);
             doProcessor("loghub.processors.ParseJson", filterComments(params, attributes), attributes);
         }
     }
 
     private void userAgent(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
-        attributes.put("field", resolveField(params.remove("field")));
-        attributes.put("destination", resolveField(Optional.ofNullable(params.remove("target_field")).orElse("user_agent")));
+        Map<String, Object> attributes = defaultAttributes(params);
         doProcessor("loghub.processors.UserAgent", filterComments(params, attributes), attributes);
     }
 
     private void urlDecode(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
-        attributes.put("field", resolveField(params.remove("field")));
+        Map<String, Object> attributes = defaultAttributes(params);
         attributes.put("destination", resolveField(Optional.ofNullable(params.remove("target_field")).orElse("user_agent")));
         doProcessor("loghub.processors.DecodeUrl", filterComments(params, attributes), attributes);
     }
 
     private void csv(Map<String, Object> params) {
-        Map<String, Object> attributes = new HashMap<>();
+        Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put("field", resolveField(params.remove("field")));
         @SuppressWarnings("unchecked")
         List<String> target_fields = (List<String>) params.remove("target_fields");
@@ -612,6 +617,8 @@ public class EsPipelineConvert implements BaseParametersRunner {
             return "[@lastException]";
         } else if ("_ingest.timestamp".equals(name)) {
             return "now";
+        } else if ("@timestamp".equals(name)) {
+            return "[@timestamp]";
         } else if (name != null) {
             List<String> path = new ArrayList<>();
             for (String parts: name.toString().split("\\.")) {
@@ -636,6 +643,13 @@ public class EsPipelineConvert implements BaseParametersRunner {
         Optional.ofNullable(params.remove("iterate")).ifPresent(v -> attributes.put("iterate", v));
         Optional.ofNullable(params.remove("description")).ifPresent(v -> attributes.put("description", v));
         return params.isEmpty() ? null : params.toString();
+    }
+
+    private Map<String, Object> defaultAttributes(Map<String, Object> params) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        Optional.ofNullable(params.remove("field")).map(this::resolveField).ifPresent(o -> attributes.put("field", o));
+        Optional.ofNullable(params.remove("target_field")).map(this::resolveField).ifPresent(o -> attributes.put("destination", o));
+        return attributes;
     }
 
 }
