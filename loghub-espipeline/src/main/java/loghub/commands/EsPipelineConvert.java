@@ -206,68 +206,27 @@ public class EsPipelineConvert implements BaseParametersRunner {
             params.remove("tag");
 
             switch (processor.getKey()) {
-            case "script":
-                script(params);
-                break;
-            case "foreach":
-                foreach(params);
-                break;
-            case "set":
-                ifWrapper(params, this::set);
-                break;
-            case "remove":
-                ifWrapper(params, this::remove);
-                break;
-            case "append":
-                ifWrapper(params, this::append);
-                break;
-            case "rename":
-                ifWrapper(params, this::rename);
-                break;
-            case "trim", "lowercase", "uppercase":
-                stringOperator(processor.getKey(), params);
-                break;
-            case "pipeline":
-                ifWrapper(params, this::pipeline);
-                break;
-            case "date":
-                date(params);
-                break;
-            case "convert":
-                convert(params);
-                break;
-            case "grok":
-                grok(params);
-                break;
-            case "geoip":
-                geoip(params);
-                break;
-            case "split":
-                split(params);
-                break;
-            case "kv":
-                kv(params);
-                break;
-            case "dissect":
-                dissect(params);
-                break;
-            case "gsub":
-                ifWrapper(params, this::gsub);
-                break;
-            case "json":
-                json(params);
-                break;
-            case "user_agent":
-                userAgent(params);
-                break;
-            case "urldecode":
-                urlDecode(params);
-                break;
-            case "csv":
-                csv(params);
-                break;
-            default:
-                output.println("// " + processor);
+            case "script" ->  script(params);
+            case "foreach" -> foreach(params);
+            case "set" ->     ifWrapper(params, this::set);
+            case "remove" ->  ifWrapper(params, this::remove);
+            case "append" ->  ifWrapper(params, this::append);
+            case "rename" ->   ifWrapper(params, this::rename);
+            case "trim", "lowercase", "uppercase" ->stringOperator(processor.getKey(), params);
+            case "pipeline" -> ifWrapper(params, this::pipeline);
+            case "date" ->     date(params);
+            case "convert" ->  convert(params);
+            case "grok" ->     grok(params);
+            case "geoip" ->    geoip(params);
+            case "split" ->    split(params);
+            case "kv" ->       kv(params);
+            case "dissect" ->  dissect(params);
+            case "gsub" ->     ifWrapper(params, this::gsub);
+            case "json" ->     json(params);
+            case "user_agent" -> userAgent(params);
+            case "urldecode" -> urlDecode(params);
+            case "csv" ->      csv(params);
+            default -> output.println("// " + processor);
             }
         }
     }
