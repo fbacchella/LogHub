@@ -1,12 +1,23 @@
 package loghub.commands;
 
+import java.io.Closeable;
 import java.io.IOException;
-import java.io.UncheckedIOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
@@ -27,123 +38,273 @@ import lombok.ToString;
 @ToString
 public class EsPipelineConvert implements BaseParametersRunner {
 
+    private static class PipelineOutput implements Closeable {
+        private final PrintWriter stream;
+        private final StringBuilder buffer;
+        private String prefix;
+        Deque<Integer> stack = new ArrayDeque<>();
+        PipelineOutput(PrintWriter stream, String pipelineName) {
+            this.stream = stream;
+            this.buffer = new StringBuilder();
+            stream.format("pipeline[%s] {%n", pipelineName);
+            stack.push(-1);
+            prefix = "    ";
+        }
+        PipelineOutput(Writer stream, String pipelineName) {
+            this(new PrintWriter(stream, false), pipelineName);
+        }
+        PipelineOutput(OutputStream stream, String pipelineName) {
+            this(new PrintWriter(stream, false, StandardCharsets.UTF_8), pipelineName);
+        }
+        private void removePipeSymbol() {
+            int pos = stack.getLast();
+            // Remove the last " |"
+            if (! buffer.isEmpty() && pos != -1) {
+                buffer.deleteCharAt(pos);
+                buffer.deleteCharAt(pos - 1);
+            }
+        }
+        private void flush() {
+            if (! buffer.isEmpty()) {
+                stream.print(buffer);
+                buffer.delete(0, buffer.length());
+            }
+        }
+        private void increasePrefix() {
+            prefix = prefix + "    ";
+        }
+        private void reducePrefix() {
+            if (prefix.length() >= 4) {
+                prefix = prefix.substring( 4, prefix.length());
+            }
+        }
+        private void formatBuffer(String pattern, Object... args) {
+            buffer.append(pattern.formatted(args));
+        }
+        private void appendPipeSymbol() {
+            stack.removeLast();
+            stack.addLast(buffer.length() + 1);
+            buffer.append(" |\n");
+        }
+        void startPipeline(String wrapper) {
+            formatBuffer("%s%s (%n", prefix, wrapper);
+            stack.addLast(-1);
+            increasePrefix();
+        }
+        void endPipeline() {
+            removePipeSymbol();
+            reducePrefix();
+            formatBuffer("%s)%n", prefix);
+        }
+        void startFieldPipeline(String field) {
+            formatBuffer("%s%s: (%n", prefix, field);
+            stack.addLast(-1);
+            increasePrefix();
+        }
+        void endFieldPipeline() {
+            removePipeSymbol();
+            reducePrefix();
+            formatBuffer("%s),%n", prefix);
+        }
+        void startProcessor(String pclazz) {
+            buffer.append("%s%s {%n".formatted(prefix, pclazz));
+            increasePrefix();
+        }
+        void endProcessor() {
+            reducePrefix();
+            buffer.append("%s}%n".formatted(prefix));
+        }
+        void endStep() {
+            if (!buffer.isEmpty()) {
+                buffer.deleteCharAt(buffer.length() - 1);
+            }
+            appendPipeSymbol();
+        }
+        void startPath(String varPath) {
+            stack.addLast(-1);
+            formatBuffer("%spath%s (%n", prefix, varPath);
+            increasePrefix();
+        }
+        void endPath() {
+            removePipeSymbol();
+            stack.removeLast();
+            reducePrefix();
+            buffer.append(prefix).append(")");
+            appendPipeSymbol();
+         }
+        void format(String pattern, Object... args) {
+            buffer.append(prefix);
+            buffer.append(pattern.formatted(args));
+            buffer.append("\n");
+        }
+        void comment(String comment) {
+            format("// %s", comment);
+        }
+        void println(String line) {
+            buffer.append(prefix);
+            buffer.append(line);
+            buffer.append("\n");
+        }
+        public void close() {
+            removePipeSymbol();
+            flush();
+            stream.println("}");
+        }
+        public String appendPrefix(String customPrefix) {
+            try {
+                return prefix;
+            } finally {
+                prefix = prefix + customPrefix;
+            }
+        }
+        public void setPrefix(String customPrefix) {
+            prefix = customPrefix;
+        }
+    }
+
     @Parameter(names = {"-p", "--pipeline"}, description = "YAML files")
     public String pipelineName;
+    private PipelineOutput output;
+    private final ObjectReader reader;
 
-    public int run(List<String> mainParameters) {
+    public EsPipelineConvert() {
         JacksonBuilder<YAMLMapper> builder = JacksonBuilder.get(YAMLMapper.class);
-        ObjectReader reader = builder.getReader();
-        for (String pipeline: mainParameters) {
+        reader = builder.getReader();
+    }
+    
+    public int run(List<String> mainParameters) {
+        for (String pipeline : mainParameters) {
             try {
-                Map<String, Object> o = reader.readValue(Helpers.fileUri(pipeline).toURL());
-                @SuppressWarnings("unchecked")
-                List<Map<String, Map<String, Object>>> processors = (List<Map<String, Map<String, Object>>>) o.get("processors");
-                System.out.format("pipeline[%s] {%n", pipelineName);
-                processPipeline(processors, "    ");
-                System.out.println("}");
+                Reader r = new InputStreamReader(Helpers.fileUri(pipeline).toURL().openStream());
+                Writer w = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
+                runParse(r, w, pipelineName);
             } catch (IOException e) {
-                throw new UncheckedIOException(e);
+                System.err.format("Failed to read %s, error: %s%n", pipeline, Helpers.resolveThrowableException(e));
             }
         }
         return ExitCode.OK;
     }
 
-    private void processPipeline(List<Map<String, Map<String, Object>>> processors, String prefix) {
+    void runParse(Reader r, Writer w, String pipelineName) throws IOException {
+        Map<String, Object> yamlContent = reader.readValue(r);
+        try (PipelineOutput o = new PipelineOutput(w, pipelineName)) {
+            output = o;
+            @SuppressWarnings("unchecked")
+            List<Map<String, Map<String, Object>>> processors = (List<Map<String, Map<String, Object>>>) yamlContent.get("processors");
+            processPipeline(processors);
+        }
+    }
+
+    private void processPipeline(List<Map<String, Map<String, Object>>> processors) {
         for (Map<String, Map<String, Object>> pi: processors) {
-            Map.Entry<String, Map<String, Object>> processor = pi.entrySet().stream().findFirst().get();
+            Entry<String, Map<String, Object>> processor = pi.entrySet().stream().findFirst().get();
             Map<String, Object> params = processor.getValue();
             // Useless with loghub
             params.remove("ignore_failure");
             params.remove("ignore_missing");
             params.remove("ignore_empty_value");
+            params.remove("tag");
 
             switch (processor.getKey()) {
             case "script":
-                script(params, prefix);
+                script(params);
                 break;
             case "foreach":
-                foreach(params, prefix);
+                foreach(params);
                 break;
             case "set":
-                set(params, prefix);
+                ifWrapper(params, this::set);
                 break;
             case "remove":
-                remove(params, prefix);
+                ifWrapper(params, this::remove);
                 break;
             case "append":
-                append(params, prefix);
+                ifWrapper(params, this::append);
                 break;
             case "rename":
-                rename(params, prefix);
+                ifWrapper(params, this::rename);
                 break;
-            case "trim":
-            case "lowercase":
-            case "uppercase":
-                stringOperator(processor.getKey(), params, prefix);
+            case "trim", "lowercase", "uppercase":
+                stringOperator(processor.getKey(), params);
                 break;
             case "pipeline":
-                pipeline(params, prefix);
+                ifWrapper(params, this::pipeline);
                 break;
             case "date":
-                date(params, prefix);
+                date(params);
                 break;
             case "convert":
-                convert(params, prefix);
+                convert(params);
                 break;
             case "grok":
-                grok(params, prefix);
+                grok(params);
                 break;
             case "geoip":
-                geoip(params, prefix);
+                geoip(params);
                 break;
             case "split":
-                split(params, prefix);
+                split(params);
                 break;
             case "kv":
-                kv(params, prefix);
+                kv(params);
                 break;
             case "dissect":
-                dissect(params, prefix);
+                dissect(params);
                 break;
             case "gsub":
-                gsub(params, prefix);
+                ifWrapper(params, this::gsub);
                 break;
             case "json":
-                json(params, prefix);
+                json(params);
                 break;
             case "user_agent":
-                userAgent(params, prefix);
+                userAgent(params);
+                break;
+            case "urldecode":
+                urlDecode(params);
                 break;
             case "csv":
-                csv(params, prefix);
+                csv(params);
                 break;
             default:
-                System.out.println(prefix + "// " + processor);
+                output.println("// " + processor);
             }
         }
     }
 
-    private void rename(Map<String, Object> params, String prefix) {
+    private void rename(Map<String, Object> params) {
         String targetField = (String) params.remove("target_field");
         String field = (String) params.remove("field");
-        System.out.format("%s%s < %s |%n", etlFilter(prefix, params), resolveField(targetField), resolveField(field));
+        output.format("%s < %s", resolveField(targetField), resolveField(field));
+        output.endStep();
     }
 
-    private void script(Map<String, Object> params, String prefix) {
+    private void script(Map<String, Object> params) {
         String lang = (String) params.remove("lang");
         String source = (String) params.remove("source");
-        System.out.format("%s//Script, lang=%s%n", prefix, lang);
-        if (! params.isEmpty()) {
-            System.out.format("%s//    %s%n", prefix, params);
+        if (lang != null) {
+            output.comment("Script, lang=%s".formatted(lang));
+        } else {
+            output.comment("Script");
         }
-        System.out.format("%s/*%n", prefix);
+        Map<String, Object> scriptParams = (Map<String, Object>) params.remove("params");
+        if (scriptParams != null && ! scriptParams.isEmpty()) {
+            output.comment("  Params");
+            scriptParams.forEach((s, o) -> {
+                output.comment("    %s: %s".formatted(s, o));
+            });
+        }
+        params.forEach((s, o) -> {
+            output.comment("  %s: %s".formatted(s, o));
+        });
+        output.format("/*");
         for (String line: source.split("[\n\r\u0085\u2028\u2029]+")) {
-            System.out.format("%s  %s%n", prefix, line);
+            output.format("  %s", line);
         }
-        System.out.format("%s*/%n", prefix);
+        output.format("*/");
     }
 
-    private void foreach(Map<String, Object> params, String prefix) {
+    private void foreach(Map<String, Object> params) {
         @SuppressWarnings("unchecked")
         Map<String, Map<String, Object>> process = (Map<String, Map<String, Object>>) params.remove("processor");
         if (process.containsKey("kv")) {
@@ -154,109 +315,149 @@ public class EsPipelineConvert implements BaseParametersRunner {
             }
         }
         params.remove("if");
-        System.out.format("%s// foreach%s%n", prefix, params.isEmpty() ? "": params);
-        processPipeline(List.of(process), prefix);
+        output.format("%s// foreach%s%n", params.isEmpty() ? "": params);
+        processPipeline(List.of(process));
     }
-    private void set(Map<String, Object> params, String prefix) {
+
+    private void set(Map<String, Object> params) {
         params.remove("description");
         Object source = params.containsKey("value") ? resolveValue(params.remove("value")) : resolveField(params.remove("copy_from"));
         String field = resolveField((params.remove("field")));
-        System.out.format("%s%s = %s |%n", etlFilter(prefix, params), field, source);
+        output.format("%s = %s", field, source);
+        output.endStep();
     }
 
-    private void stringOperator(String operator, Map<String, Object> params, String prefix) {
+    private void stringOperator(String operator, Map<String, Object> params) {
         params.remove("description");
         Object destination = params.containsKey("target_field") ? params.remove("target_field") : params.get("field");
         String field = resolveField((params.remove("field")));
-        System.out.format("%s%s = %s(%s) |%n", etlFilter(prefix, params), resolveField(destination), operator, field);
+        output.format("%s = %s(%s)", resolveField(destination), operator, field);
+        output.endStep();
     }
 
-    private void remove(Map<String, Object> params, String prefix) {
+    private void remove(Map<String, Object> params) {
         params.remove("description");
         if (params.get("field") instanceof String) {
             String field = resolveField((params.remove("field")));
-            System.out.format("%s%s- |%n", etlFilter(prefix, params), field);
+            output.format("%s-", field);
+            output.endStep();
         } else {
             @SuppressWarnings("unchecked")
             List<String> fields = (List<String>) params.remove("field");
             for (String subfield: fields) {
-                System.out.format("%s%s- |%n", etlFilter(prefix, params), resolveField(subfield));
+                output.format("%s-", resolveField(subfield));
+                output.endStep();
             }
         }
     }
 
-    private void append(Map<String, Object> params, String prefix) {
+    private void append(Map<String, Object> params) {
         params.remove("description");
         Object value = resolveValue(params.remove("value"));
         String field = resolveField((params.remove("field")));
         if (value instanceof List) {
             List<?> values = (List<?>) value;
             for (Object subvalue: values) {
-                System.out.format("%s%s =+ %s |%n", etlFilter(prefix, params), field, resolveValue(subvalue));
+                output.format("%s =+ %s", field, resolveValue(subvalue));
+                output.endStep();
             }
         } else {
-            System.out.format("%s%s =+ %s |%n", etlFilter(prefix, params), field, value);
+            output.format("%s =+ %s", field, value);
+            output.endStep();
         }
     }
 
-    private String etlFilter(String prefix, Map<String, Object> params) {
+    private String etlFilter(Map<String, Object> params) {
         String ifExpress = (String) params.remove("if");
         if ( !params.isEmpty()) {
-            System.out.format("%s// %s", prefix, params);
+            output.comment(params.toString());
         }
         if (ifExpress != null && !ifExpress.isBlank()) {
             String transformed = resolveExpression(ifExpress);
-            return transformed != null ? String.format("%s%s ? ", prefix, transformed) : String.format("%s// %s ? ", prefix, ifExpress);
+            return transformed != null ? String.format("%s ?", transformed) : String.format("// %s ? ", ifExpress);
         } else {
-            return prefix;
+            return "";
         }
     }
 
-    private static final List<Map.Entry<Pattern, Function<MatchResult, String>>> transformers = List.of(
+    private void ifWrapper(Map<String, Object> params, Consumer<Map<String, Object>> method) {
+        if (params.containsKey("if")) {
+            Object fields = params.get("field");
+            boolean multiple = false;
+            if (fields instanceof List && ((List)fields).size() > 1) {
+                multiple = true;
+            }
+            String test = etlFilter(new HashMap<>(Map.of("if", params.remove("if"))));
+            if (multiple) {
+                output.startPipeline(test);
+                // the if has been removed
+                method.accept(params);
+                output.endPipeline();
+                output.endStep();
+            } else {
+                String previousPrefix = output.appendPrefix(test + " ");
+                method.accept(params);
+                output.setPrefix(previousPrefix);
+
+            }
+        } else {
+            method.accept(params);
+         }
+    }
+
+    private static final List<Entry<Pattern, Function<MatchResult, String>>> transformers = List.of(
+            Map.entry(Pattern.compile("(\\[.*]).contains\\((.*)\\)"), mr -> mr.group(2) + " in list" + mr.group(1).replace("[", "(").replace("]", ")")),
+            Map.entry(Pattern.compile("([_.a-zA-Z0-9?]+).contains\\((.*)\\)"), mr -> mr.group(2) + " in " + mr.group(1)),
+            Map.entry(Pattern.compile("== null"), mr -> "!= *"),
+            Map.entry(Pattern.compile("!= null"), mr -> "== *"),
+            Map.entry(Pattern.compile("instanceof ([_.a-zA-Z0-9?]+)"), mr -> mapInstanceof(mr.group(1))),
             Map.entry(Pattern.compile("((?<!\\\\))\n"), mr -> mr.group(1)),
             Map.entry(Pattern.compile("ctx\\??\\.([_.a-zA-Z0-9?]+)"), mr -> "[" + mr.group(1).replace(".", " ").replace("?", "") + "]"),
-            Map.entry(Pattern.compile("'([^']*)'"), mr -> "\"" + mr.group(1) + "\""),
-            Map.entry(Pattern.compile("(\\[.*]).contains\\((.*)\\)"), mr -> mr.group(2) + " in list" + mr.group(1).replace("[", "(").replace("]", ")"))
+            Map.entry(Pattern.compile("'([^']*)'"), mr -> "\"" + mr.group(1) + "\"")
     );
+
+    private static String mapInstanceof(String type) {
+        return switch (type) {
+            case "String" -> "instanceof java.lang.String";
+            default -> "instanceof " + type;
+        };
+    }
 
     private String resolveExpression(String expr) {
         String newExpression = expr;
-        for (Map.Entry<Pattern, Function<MatchResult, String>> e: transformers) {
+        for (Entry<Pattern, Function<MatchResult, String>> e: transformers) {
             newExpression = e.getKey().matcher(newExpression).replaceAll(e.getValue());
         }
         return newExpression;
     }
 
-    final Pattern ingestPipelinePattern = Pattern.compile("\\{\\{ IngestPipeline \"(.*)\" }}");
-    private void pipeline(Map<String, Object> params, String prefix) {
-        String ifexpr = (String) params.get("if");
-        if (ifexpr != null && ! ifexpr.isBlank()) {
-            System.out.format("%s// %s ?%n", prefix, ifexpr);
-        }
+    private static final Pattern ingestPipelinePattern = Pattern.compile("\\{\\{ IngestPipeline \"(.*)\" }}");
+    private void pipeline(Map<String, Object> params) {
         String pipelineExpress = (String) params.get("name");
         Matcher m = ingestPipelinePattern.matcher(pipelineExpress);
         if (m.matches()) {
-            System.out.format("%s$%s |%n", prefix, m.group(1));
+            output.format("$%s", m.group(1));
+            output.endStep();
         }
     }
 
-    private void date(Map<String, Object> params, String prefix) {
+    private void date(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("patterns", params.remove("formats"));
-        attributes.put("timezone", resolveValue(params.remove("timezone")));
-        doProcessor(prefix, "loghub.processors.DateParser", filterComments(params, attributes), attributes);
+        Optional.ofNullable(params.remove("timezone")).map(this::resolveValue).ifPresent(p -> attributes.put("timezone", p));
+        doProcessor("loghub.processors.DateParser", filterComments(params, attributes), attributes);
     }
 
-    private void grok(Map<String, Object> params, String prefix) {
+    private void grok(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("patterns", params.remove("patterns"));
         if (params.containsKey("pattern_definitions")) {
             attributes.put("customPatterns", params.remove("pattern_definitions"));
         }
-        doProcessor(prefix, "loghub.processors.Grok", filterComments(params, attributes), attributes);
+        doProcessor("loghub.processors.Grok", filterComments(params, attributes), attributes);
     }
 
-    private void geoip(Map<String, Object> params, String prefix) {
+    private void geoip(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         Object types = params.remove("properties");
         attributes.put("types", types != null ? types : List.of("country","city", "location"));
@@ -265,25 +466,25 @@ public class EsPipelineConvert implements BaseParametersRunner {
         attributes.put("refresh", resolveValue("P2D"));
         attributes.put("field", resolveField(params.remove("field")));
         attributes.put("destination", resolveField(params.remove("target_field")));
-        doProcessor(prefix, "loghub.processors.Geoip2", filterComments(params, attributes), attributes);
+        doProcessor("loghub.processors.Geoip2", filterComments(params, attributes), attributes);
     }
 
-    private void split(Map<String, Object> params, String prefix) {
+    private void split(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("pattern", resolveValue(params.remove("separator")));
-        doProcessor(prefix, "loghub.processors.Split", filterComments(params, attributes), attributes);
+        doProcessor("loghub.processors.Split", filterComments(params, attributes), attributes);
     }
 
-    private void kv(Map<String, Object> params, String prefix) {
+    private void kv(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         char fieldSplit = Optional.ofNullable(params.remove("field_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse(' ');
         char valueSplit = Optional.ofNullable(params.remove("value_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse('=');
         Character trimSey = Optional.ofNullable(params.remove("trim_key")).map(String.class::cast).map(s -> s.charAt(0)).orElse(null);
         attributes.put("parser", String.format("\"(?<name>[^%s]+)%s(?<value>[^%s]*)%s\"", valueSplit, valueSplit, fieldSplit, (trimSey!= null ? String.format("%s*", trimSey) : "")));
-        doProcessor(prefix, "loghub.processors.VarExtractor", filterComments(params, attributes), attributes);
+        doProcessor("loghub.processors.VarExtractor", filterComments(params, attributes), attributes);
     }
 
-    private void convert(Map<String, Object> params, String prefix) {
+    private void convert(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         String className;
         String type = (String) params.remove("type");
@@ -293,6 +494,9 @@ public class EsPipelineConvert implements BaseParametersRunner {
             break;
         case "long":
             className = "java.lang.Long";
+            break;
+        case "double":
+            className = "java.lang.Double";
             break;
         case "integer":
             className = "java.lang.Integer";
@@ -306,17 +510,38 @@ public class EsPipelineConvert implements BaseParametersRunner {
         default:
             throw new UnsupportedOperationException(type);
         }
-        attributes.put("className", resolveValue(className));
-        doProcessor(prefix, "loghub.processors.Convert", filterComments(params, attributes), attributes);
+        Optional.ofNullable(params.remove("description")).map(this::resolveField).ifPresent(f -> attributes.put("description", f));
+        Optional.ofNullable(params.remove("field")).map(this::resolveField).ifPresent(f -> attributes.put("field", f));
+        Optional.ofNullable(params.remove("target_field")).map(this::resolveField).ifPresent(f -> attributes.put("destination", f));
+        Optional.ofNullable(params.remove("if")).ifPresent(f -> attributes.put("if", f));
+        if (params.isEmpty()) {
+            attributes.put("className", className);
+            ifWrapper(attributes, this::simpleConvert);
+        } else {
+            attributes.put("className", resolveValue(className));
+            doProcessor("loghub.processors.Convert", filterComments(params, attributes), attributes);
+        }
     }
 
-    private void dissect(Map<String, Object> params, String prefix) {
+    private void simpleConvert(Map<String, Object> params) {
+        String field = (String) params.remove("field");
+        String className = (String) params.remove("className");
+        String destination = (String) params.remove("destination");
+        output.format("(%s)%s", className, field);
+        output.endStep();
+        if (destination != null && ! destination.equals(field)) {
+            output.format("%s < %s", destination, field);
+            output.endStep();
+        }
+    }
+
+    private void dissect(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("pattern", resolveValue(params.remove("pattern")));
-        doProcessor(prefix, "loghub.processors.Dissect", filterComments(params, attributes), attributes);
+        doProcessor("loghub.processors.Dissect", filterComments(params, attributes), attributes);
     }
 
-    private void gsub(Map<String, Object> params, String prefix) {
+    private void gsub(Map<String, Object> params) {
         Object field = resolveField(params.remove("field"));
         Object targetField = resolveField(params.remove("target_field"));
         if (targetField == null) {
@@ -324,90 +549,99 @@ public class EsPipelineConvert implements BaseParametersRunner {
         }
         Object pattern = params.remove("pattern");
         Object replacement = params.remove("replacement");
-        System.out.format("%s%s = gsub(%s, /%s/, %s) |%n", etlFilter(prefix, params), targetField, field, pattern, resolveValue(replacement));
+        output.format("%s = gsub(%s, /%s/, %s)", targetField, field, pattern, resolveValue(replacement));
+        output.endStep();
     }
 
-    private void json(Map<String, Object> params, String prefix) {
+    private void json(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         String field = resolveField(params.remove("field"));
         String target_field = resolveField(params.remove("target_field"));
         if (target_field != null) {
             attributes.put("field", field.replace("[", "[. "));
-            System.out.format("%spath%s(%n", prefix, target_field);
-            doProcessor(prefix + "    ", "loghub.processors.ParseJson", filterComments(params, attributes), attributes);
-            System.out.format("%s) |%n", prefix);
+            output.startPath(target_field);
+            doProcessor("loghub.processors.ParseJson", filterComments(params, attributes), attributes);
+            output.endPath();
         } else {
             attributes.put("field", field);
-            doProcessor(prefix, "loghub.processors.ParseJson", filterComments(params, attributes), attributes);
+            doProcessor("loghub.processors.ParseJson", filterComments(params, attributes), attributes);
         }
     }
 
-    private void userAgent(Map<String, Object> params, String prefix) {
+    private void userAgent(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("field", resolveField(params.remove("field")));
         attributes.put("destination", resolveField(Optional.ofNullable(params.remove("target_field")).orElse("user_agent")));
-        doProcessor(prefix, "loghub.processors.UserAgent", filterComments(params, attributes), attributes);
+        doProcessor("loghub.processors.UserAgent", filterComments(params, attributes), attributes);
     }
 
-    private void csv(Map<String, Object> params, String prefix) {
+    private void urlDecode(Map<String, Object> params) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("field", resolveField(params.remove("field")));
+        attributes.put("destination", resolveField(Optional.ofNullable(params.remove("target_field")).orElse("user_agent")));
+        doProcessor("loghub.processors.DecodeUrl", filterComments(params, attributes), attributes);
+    }
+
+    private void csv(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("field", resolveField(params.remove("field")));
         List<String> target_fields = (List<String>) params.remove("target_fields");
-        List<VariablePath> fields = target_fields.stream().map(VariablePath::parse).collect(Collectors.toList());
+        List<VariablePath> fields = target_fields.stream().map(VariablePath::parse).toList();
         attributes.put("headers", fields);
-        doProcessor(prefix, "loghub.processors.ParseCsv", filterComments(params, attributes), attributes);
+        doProcessor("loghub.processors.ParseCsv", filterComments(params, attributes), attributes);
     }
 
-    private void doProcessor(String prefix, String processor, String comment, Map<String, Object> fields) {
+    private void doProcessor(String processor, String comment, Map<String, Object> fields) {
         if (fields.containsKey("description") && fields.get("description") != null && ! fields.get("description").toString().isBlank() ) {
-            System.out.format("%s// %s%n", prefix, fields.remove("description"));
+            output.comment(fields.remove("description").toString());
         }
-        System.out.format("%s%s {%n", prefix, processor);
+        output.startProcessor(processor);
         if (comment != null && ! comment.isBlank()) {
-            System.out.format("%s    // %s%n", prefix, comment);
+            output.comment(comment);
         }
-        for (Map.Entry<String, Object> e: fields.entrySet()) {
+        for (Entry<String, Object> e: fields.entrySet()) {
             if ("if".equals(e.getKey()) && e.getValue() != null) {
                 String transformed = resolveExpression(e.getValue().toString());
                 if (transformed != null) {
-                    System.out.format("%s    if: %s%n", prefix, transformed);
+                    output.format("if: %s,", transformed);
                 } else {
-                    System.out.format("%s    //if: %s%n", prefix, e.getValue());
+                    output.comment("if: %s".formatted(e.getValue()));
                 }
             } else if ("failure".equals(e.getKey()) && e.getValue() != null) {
-                System.out.format("%s    failure: (%n", prefix);
-                processPipeline((List<Map<String, Map<String, Object>>>) e.getValue(), prefix + "        ");
-                System.out.format("%s    ),%n", prefix);
+                output.startFieldPipeline("failure");
+                processPipeline((List<Map<String, Map<String, Object>>>) e.getValue());
+                output.endFieldPipeline();
             } else if ("iterate".equals(e.getKey()) && Boolean.TRUE.equals(e.getValue())) {
-                System.out.format("%s    iterate: true%n", prefix);
+                output.format("iterate: true");
             } else if ("iterate".equals(e.getKey()) && Boolean.FALSE.equals(e.getValue())) {
-                System.out.format("%s    iterate: false%n", prefix);
+                output.format(" iterate: false");
             } else if (e.getValue() instanceof Map) {
+                output.format("%s: {", e.getKey());
                 Map<String, Object> map = (Map<String, Object>) e.getValue();
-                StringBuilder definitions = new StringBuilder();
-                for (Map.Entry<String, Object> me: map.entrySet()) {
-                    definitions.append(prefix).append("        \"").append(me.getKey()).append("\": ").append(resolveValue(me.getValue())).append(",\n");
+                for (Entry<String, Object> me: map.entrySet()) {
+                    output.format("    \"%s\": %s,", me.getKey(), resolveValue(me.getValue()));
                 }
-                System.out.format("%s    %s: {%n%s    %s},%n", prefix, e.getKey(), definitions, prefix);
+                output.format("},");
             } else if (e.getValue() instanceof List) {
                 List<?> val = (List<?>) e.getValue();
                 String valStr = val.stream()
                                         .map(this::resolveValue)
                                         .map(String.class::cast)
                                         .collect(Collectors.joining(", "));
-                System.out.format("%s    %s: [%s],%n", prefix, e.getKey(), valStr);
+                output.format("%s: [%s],", e.getKey(), valStr);
             } else if (e.getValue() != null) {
-                System.out.format("%s    %s: %s,%n", prefix, e.getKey(), e.getValue());
+                output.format("%s: %s,", e.getKey(), e.getValue());
             }
         }
-        System.out.format("%s} |%n", prefix);
+        output.endProcessor();
+        output.endStep();
     }
 
     private static final Pattern valuePattern = Pattern.compile("\\{\\{(.*)}}");
 
     private Object resolveValue(Object value) {
-        if (value instanceof String) {
-            Matcher m = valuePattern.matcher((String)value);
+        if (value instanceof String valueString) {
+            Matcher m = valuePattern.matcher(valueString);
             if (m.matches()) {
                 String variable  = m.group(1);
                 if (variable.startsWith("{") && variable.endsWith("}")) {
@@ -415,8 +649,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 }
                 return resolveField(variable.trim());
             } else {
-                String valStr = (String) value;
-                return String.format("\"%s\"", valStr.replace("\\", "\\\\").replace("\"", "\\\""));
+                return String.format("\"%s\"", valueString.replace("\\", "\\\\").replace("\"", "\\\""));
             }
         } else if (value == null) {
             return "null";
