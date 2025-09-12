@@ -3,7 +3,6 @@ package loghub.commands;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
@@ -53,9 +52,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
         PipelineOutput(Writer stream, String pipelineName) {
             this(new PrintWriter(stream, false), pipelineName);
         }
-        PipelineOutput(OutputStream stream, String pipelineName) {
-            this(new PrintWriter(stream, false, StandardCharsets.UTF_8), pipelineName);
-        }
         private void removePipeSymbol() {
             int pos = stack.getLast();
             // Remove the last " |"
@@ -75,7 +71,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
         }
         private void reducePrefix() {
             if (prefix.length() >= 4) {
-                prefix = prefix.substring( 4, prefix.length());
+                prefix = prefix.substring(4);
             }
         }
         private void formatBuffer(String pattern, Object... args) {
@@ -222,18 +218,20 @@ public class EsPipelineConvert implements BaseParametersRunner {
 
     private void processPipeline(List<Map<String, Map<String, Object>>> processors) {
         for (Map<String, Map<String, Object>> pi: processors) {
-            Entry<String, Map<String, Object>> processor = pi.entrySet().stream().findFirst().get();
-            Map<String, Object> params = processor.getValue();
-            // Useless with loghub
-            params.remove("ignore_failure");
-            params.remove("ignore_missing");
-            params.remove("ignore_empty_value");
-            params.remove("tag");
-            String processorName = processor.getKey();
-            if (keywords.containsKey(processorName)) {
-                keywords.get(processorName).accept(params);
-            } else {
-                output.println("// " + processor);
+            // Will only iterate once, each processor is a single entry map
+            for (Map.Entry<String, Map<String, Object>> processor: pi.entrySet()) {
+                Map<String, Object> params = processor.getValue();
+                // Useless with loghub
+                params.remove("ignore_failure");
+                params.remove("ignore_missing");
+                params.remove("ignore_empty_value");
+                params.remove("tag");
+                String processorName = processor.getKey();
+                if (keywords.containsKey(processorName)) {
+                    keywords.get(processorName).accept(params);
+                } else {
+                    output.println("// " + processor);
+                }
             }
         }
     }
@@ -253,16 +251,13 @@ public class EsPipelineConvert implements BaseParametersRunner {
         } else {
             output.comment("Script");
         }
+        @SuppressWarnings("unchecked")
         Map<String, Object> scriptParams = (Map<String, Object>) params.remove("params");
         if (scriptParams != null && ! scriptParams.isEmpty()) {
             output.comment("  Params");
-            scriptParams.forEach((s, o) -> {
-                output.comment("    %s: %s".formatted(s, o));
-            });
+            scriptParams.forEach((s, o) -> output.comment("    %s: %s".formatted(s, o)));
         }
-        params.forEach((s, o) -> {
-            output.comment("  %s: %s".formatted(s, o));
-        });
+        params.forEach((s, o) -> output.comment("  %s: %s".formatted(s, o)));
         output.format("/*");
         for (String line: source.split("[\n\r\u0085\u2028\u2029]+")) {
             output.format("  %s", line);
@@ -321,8 +316,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
         params.remove("description");
         Object value = resolveValue(params.remove("value"));
         String field = resolveField((params.remove("field")));
-        if (value instanceof List) {
-            List<?> values = (List<?>) value;
+        if (value instanceof List<?> values) {
             for (Object subvalue: values) {
                 output.format("%s =+ %s", field, resolveValue(subvalue));
                 output.endStep();
@@ -350,7 +344,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
         if (params.containsKey("if")) {
             Object fields = params.get("field");
             boolean multiple = false;
-            if (fields instanceof List && ((List)fields).size() > 1) {
+            if (fields instanceof List && ((List<?>)fields).size() > 1) {
                 multiple = true;
             }
             String test = etlFilter(new HashMap<>(Map.of("if", params.remove("if"))));
@@ -454,28 +448,16 @@ public class EsPipelineConvert implements BaseParametersRunner {
         Map<String, Object> attributes = new HashMap<>();
         String className;
         String type = (String) params.remove("type");
-        switch (type) {
-        case "ip":
-            className = "java.net.InetAddress";
-            break;
-        case "long":
-            className = "java.lang.Long";
-            break;
-        case "double":
-            className = "java.lang.Double";
-            break;
-        case "integer":
-            className = "java.lang.Integer";
-            break;
-        case "boolean":
-            className = "java.lang.Boolean";
-            break;
-        case "string":
-            className = "java.lang.String";
-            break;
-        default:
+        className = switch (type) {
+        case "ip" -> "java.net.InetAddress";
+        case "long" -> "java.lang.Long";
+        case "double" -> "java.lang.Double";
+        case "integer" -> "java.lang.Integer";
+        case "boolean" -> "java.lang.Boolean";
+        case "string" -> "java.lang.String";
+        default ->
             throw new UnsupportedOperationException(type);
-        }
+        };
         Optional.ofNullable(params.remove("description")).map(this::resolveField).ifPresent(f -> attributes.put("description", f));
         Optional.ofNullable(params.remove("field")).map(this::resolveField).ifPresent(f -> attributes.put("field", f));
         Optional.ofNullable(params.remove("target_field")).map(this::resolveField).ifPresent(f -> attributes.put("destination", f));
@@ -551,6 +533,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
     private void csv(Map<String, Object> params) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("field", resolveField(params.remove("field")));
+        @SuppressWarnings("unchecked")
         List<String> target_fields = (List<String>) params.remove("target_fields");
         List<VariablePath> fields = target_fields.stream().map(VariablePath::parse).toList();
         attributes.put("headers", fields);
@@ -583,13 +566,13 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 output.format(" iterate: false");
             } else if (e.getValue() instanceof Map) {
                 output.format("%s: {", e.getKey());
+                @SuppressWarnings("unchecked")
                 Map<String, Object> map = (Map<String, Object>) e.getValue();
                 for (Entry<String, Object> me: map.entrySet()) {
                     output.format("    \"%s\": %s,", me.getKey(), resolveValue(me.getValue()));
                 }
                 output.format("},");
-            } else if (e.getValue() instanceof List) {
-                List<?> val = (List<?>) e.getValue();
+            } else if (e.getValue() instanceof List<?> val) {
                 String valStr = val.stream()
                                         .map(this::resolveValue)
                                         .map(String.class::cast)
