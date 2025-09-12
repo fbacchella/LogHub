@@ -166,12 +166,37 @@ public class EsPipelineConvert implements BaseParametersRunner {
     public String pipelineName;
     private PipelineOutput output;
     private final ObjectReader reader;
+    private final Map<String, Consumer<Map<String, Object>>> keywords;
 
     public EsPipelineConvert() {
         JacksonBuilder<YAMLMapper> builder = JacksonBuilder.get(YAMLMapper.class);
         reader = builder.getReader();
+        keywords = Map.ofEntries(
+                Map.entry("script", this::script),
+                Map.entry("set", this::set),
+                Map.entry("remove", p -> ifWrapper(p, this::remove)),
+                Map.entry("foreach", this::foreach),
+                Map.entry("append", p -> ifWrapper(p, this::append)),
+                Map.entry("rename", p -> ifWrapper(p, this::rename)),
+                Map.entry("trim", p -> stringOperator("trim", p)),
+                Map.entry("lowercase", p -> stringOperator("lowercase", p)),
+                Map.entry("uppercase", p -> stringOperator("uppercase", p)),
+                Map.entry("pipeline", p -> ifWrapper(p, this::pipeline)),
+                Map.entry("date", this::date),
+                Map.entry("convert", this::convert),
+                Map.entry("grok", this::grok),
+                Map.entry("geoip", this::geoip),
+                Map.entry("split", this::split),
+                Map.entry("kv", this::kv),
+                Map.entry("dissect", this::dissect),
+                Map.entry("gsub", p -> ifWrapper(p, this::gsub)),
+                Map.entry("json", this::json),
+                Map.entry("user_agent", this::userAgent),
+                Map.entry("urldecode", this::urlDecode),
+                Map.entry("csv", this::csv)
+        );
     }
-    
+
     public int run(List<String> mainParameters) {
         for (String pipeline : mainParameters) {
             try {
@@ -204,29 +229,11 @@ public class EsPipelineConvert implements BaseParametersRunner {
             params.remove("ignore_missing");
             params.remove("ignore_empty_value");
             params.remove("tag");
-
-            switch (processor.getKey()) {
-            case "script" ->  script(params);
-            case "foreach" -> foreach(params);
-            case "set" ->     ifWrapper(params, this::set);
-            case "remove" ->  ifWrapper(params, this::remove);
-            case "append" ->  ifWrapper(params, this::append);
-            case "rename" ->   ifWrapper(params, this::rename);
-            case "trim", "lowercase", "uppercase" ->stringOperator(processor.getKey(), params);
-            case "pipeline" -> ifWrapper(params, this::pipeline);
-            case "date" ->     date(params);
-            case "convert" ->  convert(params);
-            case "grok" ->     grok(params);
-            case "geoip" ->    geoip(params);
-            case "split" ->    split(params);
-            case "kv" ->       kv(params);
-            case "dissect" ->  dissect(params);
-            case "gsub" ->     ifWrapper(params, this::gsub);
-            case "json" ->     json(params);
-            case "user_agent" -> userAgent(params);
-            case "urldecode" -> urlDecode(params);
-            case "csv" ->      csv(params);
-            default -> output.println("// " + processor);
+            String processorName = processor.getKey();
+            if (keywords.containsKey(processorName)) {
+                keywords.get(processorName).accept(params);
+            } else {
+                output.println("// " + processor);
             }
         }
     }
