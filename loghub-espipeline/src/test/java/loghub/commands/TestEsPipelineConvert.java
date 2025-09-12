@@ -19,7 +19,7 @@ import loghub.jackson.JacksonBuilder;
 public class TestEsPipelineConvert {
 
 
-    private String convert(String esPipeline, String expected) throws IOException {
+    private Properties convert(String esPipeline, String expected) throws IOException {
         JacksonBuilder<YAMLMapper> builder = JacksonBuilder.get(YAMLMapper.class);
         ObjectReader reader = builder.getReader();
         Object content = reader.readValue(esPipeline);
@@ -32,10 +32,9 @@ public class TestEsPipelineConvert {
         EsPipelineConvert epc = new EsPipelineConvert();
         epc.runParse(r, w, "apipeline");
         String converted = new String(w.toCharArray());
-        System.err.println(converted);
-        Configuration.parse(new StringReader(converted));
+        Properties props = Configuration.parse(new StringReader(converted));
         Assert.assertEquals(expected, converted);
-        return converted;
+        return props;
     }
 
     @Test
@@ -47,40 +46,59 @@ public class TestEsPipelineConvert {
               name: '{{ IngestPipeline "pipe2" }}'
               if: ctx.json?.cltintip != ''
         """;
+
         String expected = """
-pipeline[apipeline] {
-    $pipe1 |
-    [json cltintip] != "" ? $pipe2
-}
-                """;
+        pipeline[apipeline] {
+            $pipe1 |
+            [json cltintip] != "" ? $pipe2
+        }
+        """;
         convert(esPipeline, expected);
     }
 
     @Test
     public void testRemove() throws IOException {
         String esPipeline = """
-  - remove:
-      field:
-        - a
-        - b
-        - c
-      ignore_missing: true
-      if: ctx.a instanceof String
-      tag: tag1
-      description: descr
-  - remove:
-      field: d
+        - remove:
+            field:
+              - a
+              - b
+              - c
+            ignore_missing: true
+            if: ctx.a instanceof String
+            tag: tag1
+            description: descr
+        - remove:
+            field: d
         """;
+
         String expected = """
-pipeline[apipeline] {
-    [a] instanceof java.lang.String ? (
-        [a]- |
-        [b]- |
-        [c]-
-    ) |
-    [d]-
-}
-""";
+        pipeline[apipeline] {
+            [a] instanceof java.lang.String ? (
+                [a]- |
+                [b]- |
+                [c]-
+            ) |
+            [d]-
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
+    public void testSet() throws IOException {
+        String esPipeline = """
+          - set:
+              field: ecs.version
+              tag: set_ecs_version
+              value: 8.11.0
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            [ecs version] = "8.11.0"
+        }
+        """;
         convert(esPipeline, expected);
     }
 
