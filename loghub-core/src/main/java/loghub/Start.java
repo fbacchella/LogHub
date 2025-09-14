@@ -1,20 +1,12 @@
 package loghub;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
-import java.util.function.Consumer;
+import java.io.PrintWriter;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 
-import loghub.commands.BaseParametersRunner;
-import loghub.commands.CommandLineHandler;
-import loghub.commands.BaseParameters;
 import loghub.commands.ExitCode;
-import loghub.commands.CommandRunner;
+import loghub.commands.Parser;
 
 public class Start {
 
@@ -30,61 +22,23 @@ public class Start {
     public static void main(String[] args) {
         // Reset shutdown, Start can be used many time in tests.
         ShutdownTask.reset();
-        BaseParameters baseParameters = new BaseParameters();
-        JCommander.Builder jcomBuilder = JCommander.newBuilder().acceptUnknownOptions(false).addObject(baseParameters);
-        Map<String, CommandRunner> verbs = new HashMap<>();
-        List<BaseParametersRunner> commands = new ArrayList<>();
-        Consumer<ServiceLoader.Provider<CommandLineHandler>> resolve = p -> {
-            try {
-                CommandLineHandler cmd = p.get();
-                if (cmd instanceof BaseParametersRunner) {
-                    jcomBuilder.addObject(cmd);
-                    commands.add((BaseParametersRunner) cmd);
-                } else if (cmd instanceof CommandRunner) {
-                    CommandRunner vcmd = (CommandRunner) cmd;
-                    for (String v : vcmd.getVerbs()) {
-                        verbs.put(v, vcmd);
-                    }
-                    jcomBuilder.addCommand(cmd);
-                }
-            } catch (Exception e) {
-                System.out.format("Failed command: %s%n", Helpers.resolveThrowableException(e));
-            }
-        };
-        ServiceLoader<CommandLineHandler> serviceLoader = ServiceLoader.load(CommandLineHandler.class);
-        serviceLoader.stream().forEach(resolve);
-        JCommander jcom = jcomBuilder.build();
+        Parser parser = new Parser();
+        int status;
         try {
-            jcom.parse(args);
+            JCommander jcom = parser.parse(args);
+            if (parser.helpRequired()) {
+                jcom.usage();
+                status = ExitCode.OK;
+            } else {
+                try (PrintWriter w = new PrintWriter(System.out)) {
+                    status = parser.process(jcom, w);
+                }
+            }
         } catch (ParameterException e) {
             System.err.println("Invalid parameter: " + Helpers.resolveThrowableException(e));
-            System.exit(ExitCode.INVALIDARGUMENTS);
+            status = ExitCode.INVALIDARGUMENTS;
         }
-        if (baseParameters.isHelp()) {
-            jcom.usage();
-            System.exit(ExitCode.OK);
-        }
-        String parsedCommand = jcom.getParsedCommand();
-
-        if (parsedCommand != null) {
-            CommandRunner cmd = verbs.get(parsedCommand);
-            for (BaseParametersRunner dc : commands) {
-                cmd.extractFields(dc);
-            }
-            System.exit(cmd.run());
-        } else {
-            for (BaseParametersRunner dc : commands) {
-                int status = dc.run(baseParameters.getMainParams());
-                if (status >= 0) {
-                    System.exit(status);
-                } else if (status == ExitCode.DONTEXIT) {
-                    break;
-                }
-            }
-        }
-    }
-
-    private Start() {
+        System.exit(status);
     }
 
 }
