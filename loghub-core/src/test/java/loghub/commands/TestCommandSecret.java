@@ -6,11 +6,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStoreException;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import org.junit.Assert;
@@ -28,6 +30,25 @@ public class TestCommandSecret {
 
     @Rule
     public final TemporaryFolder folder = new TemporaryFolder();
+
+    @Test
+    public void testParseArgumensts() throws IOException {
+        Path storeFile = Paths.get(folder.getRoot().getAbsolutePath(), "secretstore");
+        UnaryOperator<String[]> addsecret = a -> {
+            String[] na = new String[a.length + 3];
+            na[0] = "secrets";
+            na[1] = "-s";
+            na[2] = storeFile.toString();
+            System.arraycopy(a, 0, na, 3, a.length);
+            return na;
+        };
+        Parser parser = new Parser();
+        Tools.executeCmd(parser, addsecret, "",0,  "--create", "hop");
+        Tools.executeCmd(parser, addsecret, "", 0, "--add" , "--secret", "thesecret", "--alias", "thesecretname");
+        Tools.executeCmd(parser, addsecret, "thesecretname\n",  0,"--list");
+        Tools.executeCmd(parser, addsecret, "", 0,"--del", "--alias", "thesecretname");
+        Tools.executeCmd(parser, addsecret, "", 0,"--list");
+    }
 
     @Test
     public void runcommand() throws IOException {

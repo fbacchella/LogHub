@@ -1,8 +1,8 @@
 package loghub;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -25,10 +25,10 @@ import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
-import com.beust.jcommander.JCommander;
 import com.codahale.metrics.jmx.JmxReporter.JmxMeterMBean;
 
-import loghub.commands.Launch;
+import loghub.commands.ExitCode;
+import loghub.commands.Parser;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.metrics.ExceptionsMBean;
@@ -57,15 +57,22 @@ public class TestIntegrated {
         JmxService.stop();
     }
 
-    @Test(timeout = 10000)
-    public void runStart() throws ConfigException, InterruptedException, MalformedObjectNameException,
-                                          ZMQCheckedException {
-        loghub.metrics.Stats.reset();
+    @Test
+    public void testParseArgumensts() throws IOException {
+        Parser parser = new Parser();
+        Tools.executeCmd(parser, "Can't read configuration file configfile: configfile\n", 10,  "-c", "configfile", "0");
+        Tools.executeCmd(parser, "Can't read configuration file configfile: configfile\n",10,  "-c", "configfile");
         String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
-        Launch launch = new Launch();
-        JCommander jcom = JCommander.newBuilder().addObject(launch).build();
-        jcom.parse("-c", conffile);
-        launch.run(List.of());
+        Tools.executeCmd(parser, "",0,  "-c", conffile, "-t");
+    }
+
+    @Test(timeout = 10000)
+    public void runStart()
+            throws ConfigException, InterruptedException, MalformedObjectNameException, ZMQCheckedException,
+                           IOException {
+        Parser parser = new Parser();
+        String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
+        Tools.executeCmd(parser, "", ExitCode.DONTEXIT,  "-c", conffile);
         Thread.sleep(500);
 
         MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer();
@@ -74,11 +81,12 @@ public class TestIntegrated {
         ExceptionsMBean exceptions = JMX.newMBeanProxy(mbs, ExceptionsMBean.Implementation.NAME, ExceptionsMBean.class);
 
         try (Socket sender = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PUSH, "inproc://listener").build();
-             Socket receiver = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PULL, "inproc://sender").build()) {
+             Socket receiver = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PULL, "inproc://sender").build()
+        ) {
             sender.setHWM(200);
             receiver.setHWM(200);
             AtomicLong send = new AtomicLong();
-            ThreadBuilder.get().setTask(() -> {
+            Runnable task = () -> {
                 try {
                     for (int i = 0; i < 5; i++) {
                         sender.send("message " + i);
@@ -89,7 +97,8 @@ public class TestIntegrated {
                     // Ignore
                 }
                 logger.debug("All events sent");
-            })
+            };
+            ThreadBuilder.get().setTask(task)
                          .setDaemon(true)
                          .setExceptionHandler(null)
                          .build(true);
@@ -112,10 +121,10 @@ public class TestIntegrated {
 
             dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename="),
                     JmxMeterMBean::getCount, JmxMeterMBean.class);
-            logger.debug("dropped: " + Stats.getDropped());
-            logger.debug("failed: " + Stats.getFailed());
-            logger.debug("received: " + Stats.getReceived());
-            logger.debug("sent: " + Stats.getSent());
+            logger.debug("dropped: {}", Stats.getDropped());
+            logger.debug("failed: {}", Stats.getFailed());
+            logger.debug("received: {}", Stats.getReceived());
+            logger.debug("sent: {}", Stats.getSent());
 
             logger.debug(Arrays.toString(exceptions.getProcessorsFailures()));
             logger.debug(Arrays.toString(exceptions.getUnhandledExceptions()));
@@ -131,7 +140,7 @@ public class TestIntegrated {
         AtomicLong count = new AtomicLong();
         metrics.stream()
         .filter(filter::apply)
-        .peek(i -> logger.debug(i.toString() + ": "))
+        .peek(i -> logger.debug("{}: ", i))
         .map(i -> JMX.newMBeanProxy(mbs, i, proxyClass))
         .map(counter)
         .forEach(i -> {

@@ -8,7 +8,7 @@ public interface CommandRunner extends CommandLineHandler {
 
     @Deprecated
     default int run() {
-        return ExitCode.CRITICALFAILURE;
+        return run(new PrintWriter(System.out), new PrintWriter(System.err));
     }
 
     default int run(PrintWriter out, PrintWriter err) {

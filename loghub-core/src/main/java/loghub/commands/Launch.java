@@ -1,16 +1,17 @@
 package loghub.commands;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.beust.jcommander.Parameter;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import loghub.EventsProcessor;
 import loghub.Helpers;
 import loghub.ShutdownTask;

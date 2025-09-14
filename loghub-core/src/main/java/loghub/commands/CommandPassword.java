@@ -110,14 +110,14 @@ public class CommandPassword implements CommandRunner {
                 }
             } else if (list) {
                 try (SecretsHandler sh = SecretsHandler.load(storeFile)) {
-                    sh.list().map(Map.Entry::getKey).forEach(System.out::println);
+                    sh.list().map(Map.Entry::getKey).forEach(out::println);
                 }
             } else if (create) {
                 try (SecretsHandler ignored = SecretsHandler.create(storeFile)) {
                     // Nothing to do
                 }
             }
-            return 0;
+            return ExitCode.OK;
         } catch (IOException | IllegalArgumentException ex) {
             err.println("Secret store operation failed: " + Helpers.resolveThrowableException(ex));
             return ExitCode.OPERATIONFAILED;

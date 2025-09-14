@@ -80,7 +80,7 @@ public class Parser {
         } else {
             for (BaseParametersRunner dc : objects) {
                 int status = dc.run(jcom.getUnknownOptions(), out, err);
-                if (status >= 0) {
+                if (status != ExitCode.IGNORE) {
                     return status;
                 }
             }

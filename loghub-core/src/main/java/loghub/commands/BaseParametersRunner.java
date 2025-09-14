@@ -6,8 +6,9 @@ import java.util.Optional;
 
 public interface BaseParametersRunner extends CommandLineHandler {
 
+    @Deprecated
     default int run(List<String> mainParameters) {
-        return ExitCode.CRITICALFAILURE;
+        return run(mainParameters, new PrintWriter(System.out), new PrintWriter(System.err));
     }
 
     default int run(List<String> mainParameters, PrintWriter out, PrintWriter err) {

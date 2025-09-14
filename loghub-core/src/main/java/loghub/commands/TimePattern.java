@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.beust.jcommander.Parameter;
 
+import loghub.Helpers;
 import loghub.datetime.DatetimeProcessor;
 
 public class TimePattern implements BaseParametersRunner {
@@ -22,12 +23,18 @@ public class TimePattern implements BaseParametersRunner {
     @Override
     public int run(List<String> mainParameters, PrintWriter o, PrintWriter e) {
         if (timepattern != null) {
-            DatetimeProcessor tested = DatetimeProcessor.of(timepattern);
+            DatetimeProcessor tested = null;
+            try {
+                tested = DatetimeProcessor.of(timepattern);
+            } catch (IllegalArgumentException ex) {
+                e.format("Invalid date time pattern \"%s\": %s%n", timepattern, Helpers.resolveThrowableException(ex));
+                return ExitCode.INVALIDARGUMENTS;
+            }
             for (String date : mainParameters) {
                 try {
                     o.format("%s -> %s%n", date, tested.parse(date));
                 } catch (IllegalArgumentException | DateTimeParseException ex) {
-                    o.format("%s failed%n", date);
+                    o.format("failed parsing \"%s\" with \"%s\": %s%n", date, timepattern, Helpers.resolveThrowableException(ex));
                 }
             }
             return ExitCode.OK;

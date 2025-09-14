@@ -1,9 +1,12 @@
 package loghub;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringReader;
 import java.net.ServerSocket;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -19,10 +22,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import org.junit.Assert;
 
+import com.beust.jcommander.JCommander;
+
 import io.netty.util.concurrent.Future;
+import loghub.commands.Parser;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.ConfigurationTools;
@@ -222,6 +229,22 @@ public class Tools {
         ep.interrupt();
         ep.join();
         return ev;
+    }
+
+    public static void executeCmd(Parser parser, UnaryOperator<String[]> transform, String expected, int expectedStatus,
+            String... args) throws IOException {
+        String[] newargs = transform.apply(args);
+        JCommander jcom = parser.parse(newargs);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); PrintWriter w = new PrintWriter(bos, true)) {
+            int status = parser.process(jcom, w, w);
+            Assert.assertEquals(expectedStatus, status);
+            Assert.assertEquals(expected, bos.toString(StandardCharsets.UTF_8));
+        }
+    }
+
+    public static void executeCmd(Parser parser, String expected, int expectedStatus, String... args)
+            throws IOException {
+        executeCmd(parser, a -> a, expected, expectedStatus, args);
     }
 
 }
