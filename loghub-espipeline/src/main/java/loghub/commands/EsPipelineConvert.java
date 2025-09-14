@@ -126,33 +126,28 @@ public class EsPipelineConvert implements BaseParametersRunner {
         void comment(String comment) {
             format("// %s", comment);
         }
-        void println(String line) {
-            buffer.append(prefix);
-            buffer.append(line);
-            buffer.append("\n");
-        }
-        public void flush(Writer stream) throws IOException {
+        void flush(Writer stream) throws IOException {
             removePipeSymbol();
             stream.write(buffer.toString());
             stream.write("}\n");
         }
-        public void close() {
-            buffer.delete(0, buffer.length());
-        }
-        public String appendPrefix(String customPrefix) {
+        String appendPrefix(String customPrefix) {
             try {
                 return prefix;
             } finally {
                 prefix = prefix + customPrefix;
             }
         }
-        public void setPrefix(String customPrefix) {
+        void setPrefix(String customPrefix) {
             prefix = customPrefix;
+        }
+        public void close() {
+            buffer.delete(0, buffer.length());
         }
     }
 
     @Parameter(names = {"-o", "--output"}, description = "The output file")
-    public String configFile = null;
+    public String outputConfiguration = null;
 
     private PipelineOutput output;
     private final ObjectReader reader;
@@ -168,21 +163,21 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 Map.entry("foreach", this::foreach),
                 Map.entry("append", p -> ifWrapper(p, this::append)),
                 Map.entry("rename", p -> ifWrapper(p, this::rename)),
-                Map.entry("trim", p -> stringOperator("trim", p)),
-                Map.entry("lowercase", p -> stringOperator("lowercase", p)),
-                Map.entry("uppercase", p -> stringOperator("uppercase", p)),
+                Map.entry("trim", p -> ifWrapper(p, pr -> stringOperator("trim", pr))),
+                Map.entry("lowercase", p -> ifWrapper(p, pr -> stringOperator("lowercase", pr))),
+                Map.entry("uppercase", p -> ifWrapper(p, pr -> stringOperator("uppercase", pr))),
+                Map.entry("gsub", p -> ifWrapper(p, this::gsub)),
                 Map.entry("pipeline", p -> ifWrapper(p, this::pipeline)),
-                Map.entry("date", this::date),
+                Map.entry("date", p -> doSimpleProcessor("loghub.processors.DateParser", p, "formats", "patterns", "timezone", "timezone")),
                 Map.entry("convert", this::convert),
                 Map.entry("grok", this::grok),
                 Map.entry("geoip", this::geoip),
-                Map.entry("split", this::split),
+                Map.entry("split", p -> doSimpleProcessor("loghub.processors.Dissect", p, "pattern", "separator")),
                 Map.entry("kv", this::kv),
-                Map.entry("dissect", this::dissect),
-                Map.entry("gsub", p -> ifWrapper(p, this::gsub)),
+                Map.entry("dissect", p -> doSimpleProcessor("loghub.processors.Dissect", p, "pattern", "pattern")),
                 Map.entry("json", this::json),
-                Map.entry("user_agent", this::userAgent),
-                Map.entry("urldecode", this::urlDecode),
+                Map.entry("user_agent", p -> doSimpleProcessor("loghub.processors.UserAgent", p)),
+                Map.entry("urldecode", p -> doSimpleProcessor("loghub.processors.DecodeUrl", p)),
                 Map.entry("csv", this::csv)
         );
     }
@@ -206,14 +201,18 @@ public class EsPipelineConvert implements BaseParametersRunner {
             }
             return ExitCode.OK;
         } catch (IOException e) {
-            System.err.format("Failed to save output %s, error: %s%n", configFile != null ? configFile : "stdout", Helpers.resolveThrowableException(e));
+            System.err.format(
+                    "Failed to save output %s, error: %s%n",
+                    outputConfiguration != null ? outputConfiguration : "stdout",
+                    Helpers.resolveThrowableException(e)
+            );
             return ExitCode.INVALIDARGUMENTS;
         }
     }
 
     private Writer getWriter() throws IOException {
-        if (configFile != null) {
-            return Files.newBufferedWriter(Path.of(configFile));
+        if (outputConfiguration != null) {
+            return Files.newBufferedWriter(Path.of(outputConfiguration));
         } else {
             return new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
         }
@@ -280,22 +279,21 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void foreach(Map<String, Object> params) {
+        String test;
+        if (params.containsKey("if")) {
+            test = etlFilter(new HashMap<>(Map.of("if", params.remove("if")))) + " ";
+        } else {
+            test = "";
+        }
         @SuppressWarnings("unchecked")
         Map<String, Map<String, Object>> process = (Map<String, Map<String, Object>>) params.remove("processor");
-        if (process.containsKey("kv")) {
-            Map<String, Object> kv = process.get("kv");
-            kv.put("iterate", true);
-            if ("_ingest._value".equals(kv.get("field")) ) {
-                kv.put("field", params.remove("field"));
-            }
-        }
-        params.remove("if");
-        output.comment("foreach%s".formatted(params.isEmpty() ? "": params));
+        output.startPipeline("%sforeach%s".formatted(test, resolveField(params.remove("field"))));
         processPipeline(List.of(process));
+        output.endPipeline();
+        output.endStep();
     }
 
     private void set(Map<String, Object> params) {
-        params.remove("description");
         Object source = params.containsKey("value") ? resolveValue(params.remove("value")) : resolveField(params.remove("copy_from"));
         String field = resolveField((params.remove("field")));
         output.format("%s = %s", field, source);
@@ -303,7 +301,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void stringOperator(String operator, Map<String, Object> params) {
-        params.remove("description");
         Object destination = params.containsKey("target_field") ? params.remove("target_field") : params.get("field");
         String field = resolveField((params.remove("field")));
         output.format("%s = %s(%s)", resolveField(destination), operator, field);
@@ -311,7 +308,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void remove(Map<String, Object> params) {
-        params.remove("description");
         if (params.get("field") instanceof String) {
             String field = resolveField((params.remove("field")));
             output.format("%s-", field);
@@ -327,7 +323,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void append(Map<String, Object> params) {
-        params.remove("description");
         Object value = resolveValue(params.remove("value"));
         String field = resolveField((params.remove("field")));
         if (value instanceof List<?> values) {
@@ -357,10 +352,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
     private void ifWrapper(Map<String, Object> params, Consumer<Map<String, Object>> method) {
         if (params.containsKey("if")) {
             Object fields = params.get("field");
-            boolean multiple = false;
-            if (fields instanceof List && ((List<?>)fields).size() > 1) {
-                multiple = true;
-            }
+            boolean multiple = fields instanceof List && ((List<?>) fields).size() > 1;
             String test = etlFilter(new HashMap<>(Map.of("if", params.remove("if"))));
             if (multiple) {
                 output.startPipeline(test);
@@ -393,6 +385,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
     private static String mapInstanceof(String type) {
         return switch (type) {
             case "String" -> "instanceof java.lang.String";
+            case "List" -> "instanceof java.util.List";
             default -> "instanceof " + type;
         };
     }
@@ -412,16 +405,9 @@ public class EsPipelineConvert implements BaseParametersRunner {
         if (m.matches()) {
             output.format("$%s", m.group(1));
             output.endStep();
+        } else {
+            output.comment("pipeline %s".formatted(params));
         }
-    }
-
-    private void date(Map<String, Object> params) {
-        Map<String, Object> attributes = new LinkedHashMap<>();
-        Optional.ofNullable(params.remove("formats")).ifPresent(o -> attributes.put("patterns", o));
-        Optional.ofNullable(params.remove("field")).map(this::resolveField).ifPresent(o -> attributes.put("field", o));
-        Optional.ofNullable(params.remove("target_field")).map(this::resolveField).ifPresent(o -> attributes.put("destination", o));
-        Optional.ofNullable(params.remove("timezone")).map(this::resolveValue).ifPresent(p -> attributes.put("timezone", p));
-        doProcessor("loghub.processors.DateParser", filterComments(params, attributes), attributes);
     }
 
     private void grok(Map<String, Object> params) {
@@ -434,17 +420,11 @@ public class EsPipelineConvert implements BaseParametersRunner {
     private void geoip(Map<String, Object> params) {
         Map<String, Object> attributes = defaultAttributes(params);
         Object types = params.remove("properties");
-        attributes.put("types", types != null ? types : List.of("country","city", "location"));
+        attributes.put("types", resolveValue(types != null ? types : List.of("country","city", "location")));
         String geoipdb = (String) params.remove("database_file");
         attributes.put("geoipdb", resolveValue(geoipdb != null ? geoipdb : "/usr/share/GeoIP/GeoIP2-City.mmdb"));
         attributes.put("refresh", resolveValue("P2D"));
         doProcessor("loghub.processors.Geoip2", filterComments(params, attributes), attributes);
-    }
-
-    private void split(Map<String, Object> params) {
-        Map<String, Object> attributes = new LinkedHashMap<>();
-        attributes.put("pattern", resolveValue(params.remove("separator")));
-        doProcessor("loghub.processors.Split", filterComments(params, attributes), attributes);
     }
 
     private void kv(Map<String, Object> params) {
@@ -491,12 +471,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
         }
     }
 
-    private void dissect(Map<String, Object> params) {
-        Map<String, Object> attributes = defaultAttributes(params);
-        attributes.put("pattern", resolveValue(params.remove("pattern")));
-        doProcessor("loghub.processors.Dissect", filterComments(params, attributes), attributes);
-    }
-
     private void gsub(Map<String, Object> params) {
         Object field = resolveField(params.remove("field"));
         Object targetField = resolveField(params.remove("target_field"));
@@ -510,11 +484,11 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private void json(Map<String, Object> params) {
-        String target_field = resolveField(params.remove("target_field"));
-        if (target_field != null) {
+        if (params.containsKey("target_field")) {
             Map<String, Object> attributes = new LinkedHashMap<>();
             String field = resolveField(params.remove("field"));
             attributes.put("field", field.replace("[", "[. "));
+            String target_field = resolveField(params.remove("target_field"));
             output.startPath(target_field);
             doProcessor("loghub.processors.ParseJson", filterComments(params, attributes), attributes);
             output.endPath();
@@ -522,17 +496,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
             Map<String, Object> attributes = defaultAttributes(params);
             doProcessor("loghub.processors.ParseJson", filterComments(params, attributes), attributes);
         }
-    }
-
-    private void userAgent(Map<String, Object> params) {
-        Map<String, Object> attributes = defaultAttributes(params);
-        doProcessor("loghub.processors.UserAgent", filterComments(params, attributes), attributes);
-    }
-
-    private void urlDecode(Map<String, Object> params) {
-        Map<String, Object> attributes = defaultAttributes(params);
-        attributes.put("destination", resolveField(Optional.ofNullable(params.remove("target_field")).orElse("user_agent")));
-        doProcessor("loghub.processors.DecodeUrl", filterComments(params, attributes), attributes);
     }
 
     private void csv(Map<String, Object> params) {
@@ -543,6 +506,24 @@ public class EsPipelineConvert implements BaseParametersRunner {
         List<VariablePath> fields = target_fields.stream().map(VariablePath::parse).toList();
         attributes.put("headers", fields);
         doProcessor("loghub.processors.ParseCsv", filterComments(params, attributes), attributes);
+    }
+
+    private void doSimpleProcessor(String processor, Map<String, Object> params) {
+        doSimpleProcessor(processor, params, Map.of());
+    }
+
+    private void doSimpleProcessor(String processor, Map<String, Object> params, Map<String, String> additionnalValues) {
+        Map<String, Object> attributes = defaultAttributes(params, additionnalValues);
+        doProcessor(processor, filterComments(params, attributes), attributes);
+    }
+
+    private void doSimpleProcessor(String processor, Map<String, Object> params, String... additionnalValues) {
+        Map<String, String> additionnalValuesMap = LinkedHashMap.newLinkedHashMap(additionnalValues.length / 2);
+        for (int i = 0; i < additionnalValues.length; i +=2) {
+            additionnalValuesMap.put(additionnalValues[i], additionnalValues[i + 1]);
+        }
+        Map<String, Object> attributes = defaultAttributes(params, additionnalValuesMap);
+        doProcessor(processor, filterComments(params, attributes), attributes);
     }
 
     private void doProcessor(String processor, String comment, Map<String, Object> fields) {
@@ -579,7 +560,6 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 output.format("},");
             } else if (e.getValue() instanceof List<?> val) {
                 String valStr = val.stream()
-                                        .map(this::resolveValue)
                                         .map(String.class::cast)
                                         .collect(Collectors.joining(", "));
                 output.format("%s: [%s],", e.getKey(), valStr);
@@ -594,7 +574,9 @@ public class EsPipelineConvert implements BaseParametersRunner {
     private static final Pattern valuePattern = Pattern.compile("\\{\\{(.*)}}");
 
     private Object resolveValue(Object value) {
-        if (value instanceof String valueString) {
+        if (value instanceof List<?> list) {
+            return list.stream().map(this::resolveValue).toList();
+        } else if (value instanceof String valueString) {
             Matcher m = valuePattern.matcher(valueString);
             if (m.matches()) {
                 String variable  = m.group(1);
@@ -646,9 +628,16 @@ public class EsPipelineConvert implements BaseParametersRunner {
     }
 
     private Map<String, Object> defaultAttributes(Map<String, Object> params) {
+        return defaultAttributes(params, Map.of());
+    }
+
+    private Map<String, Object> defaultAttributes(Map<String, Object> params, Map<String, String> additionnalValues) {
         Map<String, Object> attributes = new LinkedHashMap<>();
         Optional.ofNullable(params.remove("field")).map(this::resolveField).ifPresent(o -> attributes.put("field", o));
         Optional.ofNullable(params.remove("target_field")).map(this::resolveField).ifPresent(o -> attributes.put("destination", o));
+        for (Map.Entry<String, String> s: additionnalValues.entrySet()) {
+            Optional.ofNullable(params.remove(s.getKey())).map(this::resolveValue).ifPresent(o -> attributes.put(s.getValue(), o));
+        }
         return attributes;
     }
 

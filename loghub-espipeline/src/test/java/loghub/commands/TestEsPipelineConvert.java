@@ -153,10 +153,27 @@ public class TestEsPipelineConvert {
         String expected = """
         pipeline[apipeline] {
             loghub.processors.DateParser {
-                patterns: ["E MMM dd HH:mm:ss yyyy", "E MMM  d HH:mm:ss yyyy", "E MMM d HH:mm:ss yyyy", "yyyy-mm-dd HH:mm:ss"],
                 field: [date],
                 destination: [@timestamp],
+                patterns: ["E MMM dd HH:mm:ss yyyy", "E MMM  d HH:mm:ss yyyy", "E MMM d HH:mm:ss yyyy", "yyyy-mm-dd HH:mm:ss"],
                 timezone: [event timezone],
+            }
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
+    public void testUrldecode() throws IOException {
+        String esPipeline = """
+          - urldecode:
+              field: url
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            loghub.processors.DecodeUrl {
+                field: [url],
             }
         }
         """;
@@ -188,6 +205,41 @@ public class TestEsPipelineConvert {
             } |
             (java.lang.Long)[source_port] |
             [source port] < [source_port]
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
+    public void testForeach() throws IOException {
+        String esPipeline = """
+          - foreach:
+              field: attribute
+              ignore_missing: true
+              if: ctx.attribute instanceof List
+              processor:
+                pipeline:
+                  name: '{{ IngestPipeline "process" }}'
+                append:
+                  field: dest
+                  value: 1
+          - foreach:
+              field: attribute
+              processor:
+                set:
+                    field: attribute
+                    value: 1
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            [attribute] instanceof java.util.List ? foreach[attribute] (
+                $process |
+                [dest] =+ 1
+            ) |
+            foreach[attribute] (
+                [attribute] = 1
+            )
         }
         """;
         convert(esPipeline, expected);
