@@ -25,7 +25,10 @@ public class Parser {
     }
 
     public JCommander parse(String... args) throws ParameterException {
-        JCommander.Builder jcomBuilder = JCommander.newBuilder().acceptUnknownOptions(true).addObject(baseParameters);
+        baseParameters.reset();
+        JCommander.Builder jcomBuilder = JCommander.newBuilder()
+                                                   .acceptUnknownOptions(true)
+                                                   .addObject(baseParameters);
         commands.forEach(c -> {
             c.reset();
             jcomBuilder.addCommand(c);
@@ -61,7 +64,7 @@ public class Parser {
 
     @Deprecated
     public int process(JCommander jcom) {
-        try (PrintWriter o = new PrintWriter(System.out);PrintWriter e = new PrintWriter(System.err)){
+        try (PrintWriter o = new PrintWriter(System.out); PrintWriter e = new PrintWriter(System.err)){
             return process(jcom, o, e);
         }
     }
@@ -76,7 +79,7 @@ public class Parser {
             return cmd.run(out, err);
         } else {
             for (BaseParametersRunner dc : objects) {
-                int status = dc.run(baseParameters.getMainParams(), out, err);
+                int status = dc.run(jcom.getUnknownOptions(), out, err);
                 if (status >= 0) {
                     return status;
                 }
