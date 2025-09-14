@@ -1,6 +1,7 @@
 package loghub.commands;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -46,6 +47,20 @@ public class CommandPassword implements CommandRunner {
     @Parameter(names = { "--create" }, description = "Create te store file")
     boolean create = false;
 
+    @Override
+    public void reset() {
+        secretValue = null;
+        fromFile = null;
+        fromConsole = false;
+        fromStdin = false;
+        alias = null;
+        storeFile = null;
+        add = false;
+        delete = false;
+        list = false;
+        create = false;
+    }
+
     private byte[] readSecret() throws IOException {
         byte[] secret;
         if (fromConsole) {
@@ -69,7 +84,7 @@ public class CommandPassword implements CommandRunner {
     }
 
     @Override
-    public int run() {
+    public int run(PrintWriter out, PrintWriter err) {
         try {
             if ((add ? 1 : 0) + (delete ? 1 : 0) + (list ? 1 : 0) + (create ? 1 : 0) != 1) {
                 throw new IllegalStateException("A single action is required");
@@ -104,11 +119,11 @@ public class CommandPassword implements CommandRunner {
             }
             return 0;
         } catch (IOException | IllegalArgumentException ex) {
-            System.err.println("Secret store operation failed: " + Helpers.resolveThrowableException(ex));
+            err.println("Secret store operation failed: " + Helpers.resolveThrowableException(ex));
             return ExitCode.OPERATIONFAILED;
         } catch (IllegalStateException ex) {
-            System.err.println("Secret store state broken: " + Helpers.resolveThrowableException(ex));
-            ex.printStackTrace();
+            err.println("Secret store state broken: " + Helpers.resolveThrowableException(ex));
+            ex.printStackTrace(err);
             return ExitCode.OPERATIONFAILED;
         }
     }

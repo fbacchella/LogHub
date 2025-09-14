@@ -3,10 +3,9 @@ package loghub.commands;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.Writer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -182,9 +181,14 @@ public class EsPipelineConvert implements BaseParametersRunner {
         );
     }
 
-    public int run(List<String> mainParameters) {
+    @Override
+    public void reset() {
+        outputConfiguration = null;
+    }
+
+    public int run(List<String> mainParameters, PrintWriter out, PrintWriter err) {
         Pattern spliter = Pattern.compile("@");
-        try (Writer w = getWriter()){
+        try (Writer w = getWriter(out)){
             for (String pipeline : mainParameters) {
                 try {
                     String pipelineName = "default";
@@ -196,12 +200,12 @@ public class EsPipelineConvert implements BaseParametersRunner {
                     Reader r = new InputStreamReader(Helpers.fileUri(pipeline).toURL().openStream());
                     runParse(r, w, pipelineName);
                 } catch (IOException e) {
-                    System.err.format("Failed to read %s, error: %s%n", pipeline, Helpers.resolveThrowableException(e));
+                    err.format("Failed to read %s, error: %s%n", pipeline, Helpers.resolveThrowableException(e));
                 }
             }
             return ExitCode.OK;
         } catch (IOException e) {
-            System.err.format(
+            err.format(
                     "Failed to save output %s, error: %s%n",
                     outputConfiguration != null ? outputConfiguration : "stdout",
                     Helpers.resolveThrowableException(e)
@@ -210,11 +214,11 @@ public class EsPipelineConvert implements BaseParametersRunner {
         }
     }
 
-    private Writer getWriter() throws IOException {
+    private Writer getWriter(Writer out) throws IOException {
         if (outputConfiguration != null) {
             return Files.newBufferedWriter(Path.of(outputConfiguration));
         } else {
-            return new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
+            return out;
         }
     }
 

@@ -1,6 +1,7 @@
 package loghub.commands;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -102,6 +103,12 @@ public class TestPipeline implements CommandRunner {
     final ObjectWriter jsonWritter;
     private int exitCode = ExitCode.OK;
 
+    @Override
+    public void reset() {
+        pipeline = null;
+        mainParams.clear();
+    }
+
     public TestPipeline() {
         mapper = JacksonBuilder.get(JsonMapper.class)
                                .setConfigurator(this::mapperConfigurator)
@@ -119,9 +126,9 @@ public class TestPipeline implements CommandRunner {
     }
 
     @Override
-    public int run() {
+    public int run(PrintWriter out, PrintWriter err) {
         if (configFile == null) {
-            System.err.println("No configuration file given");
+            err.println("No configuration file given");
             return ExitCode.INVALIDCONFIGURATION;
         }
         Properties props;
@@ -130,10 +137,10 @@ public class TestPipeline implements CommandRunner {
                     "log4j.configURL", NullOrMissingValue.NULL,
                     "numWorkers", 1));
         } catch (IOException e) {
-            System.err.format("Can't read configuration file %s: %s%n", configFile, Helpers.resolveThrowableException(e));
+            err.format("Can't read configuration file %s: %s%n", configFile, Helpers.resolveThrowableException(e));
             return ExitCode.INVALIDCONFIGURATION;
         } catch (ConfigException e) {
-            System.err.format("Error in %s: %s%n", e.getLocation(), e.getMessage());
+            err.format("Error in %s: %s%n", e.getLocation(), e.getMessage());
             return ExitCode.INVALIDCONFIGURATION;
         }
         BlockingQueue<Event> testQueue = new ArrayBlockingQueue<>(10);
@@ -144,7 +151,7 @@ public class TestPipeline implements CommandRunner {
                 Spliterators.spliteratorUnknownSize(iterator, 0),
                 false
         );
-        process(props, eventSource).forEach(e -> {
+        process(props, eventSource, err).forEach(e -> {
             try {
                 jsonWritter.writeValue(System.out, e);
             } catch (IOException ex) {
@@ -167,10 +174,10 @@ public class TestPipeline implements CommandRunner {
         cmd.getField("configFile").map(String.class::cast).ifPresent(s -> configFile = s);
     }
 
-    Stream<Event> process(Properties props, Stream<Event> events) {
+    Stream<Event> process(Properties props, Stream<Event> events, PrintWriter err) {
         Pipeline pipe = props.namedPipeLine.get(pipeline);
         if (pipe == null) {
-            System.err.println("Unknown pipeline " + pipeline);
+            err.println("Unknown pipeline " + pipeline);
             exitCode = ExitCode.INVALIDARGUMENTS;
             return Stream.empty();
         }
@@ -184,7 +191,7 @@ public class TestPipeline implements CommandRunner {
             Helpers.waitAllThreads(props.eventsprocessors.stream());
         } catch (IllegalStateException e) {
             // Thrown by launch when a component failed to start, details are in the logs
-            System.err.format("Failed to start loghub: %s%n", Helpers.resolveThrowableException(e));
+            err.format("Failed to start loghub: %s%n", Helpers.resolveThrowableException(e));
             return Stream.empty();
         }
         BlockingQueue<Event> testQueue = new ArrayBlockingQueue<>(10);

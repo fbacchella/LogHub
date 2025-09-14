@@ -1,6 +1,7 @@
 package loghub.commands;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -73,30 +74,40 @@ public class CommandJwt implements CommandRunner {
     private String configFile = null;
 
     @Override
-    public int run() {
+    public void reset() {
+        generate = false;
+        subject = null;
+        validity = -1;
+        claims.clear();
+        sign = false;
+        signfile = null;
+    }
+
+    @Override
+    public int run(PrintWriter out, PrintWriter err) {
         if (configFile == null) {
-            System.err.println("No configuration file given");
+            err.println("No configuration file given");
             return ExitCode.INVALIDCONFIGURATION;
         }
         try {
             Properties props = Configuration.parse(configFile);
             if (sign) {
-                return sign(signfile, props.jwtHandler);
+                return sign(signfile, props.jwtHandler, out, err);
             } else if (generate) {
-                return generate(subject, props.jwtHandler);
+                return generate(subject, props.jwtHandler, out);
             } else {
                 return ExitCode.INVALIDARGUMENTS;
             }
         } catch (IOException | IllegalArgumentException ex) {
-            System.err.println("JWT operation failed: " + Helpers.resolveThrowableException(ex));
+            err.println("JWT operation failed: " + Helpers.resolveThrowableException(ex));
             return ExitCode.OPERATIONFAILED;
         } catch (IllegalStateException ex) {
-            System.err.println("JWT state broken: " + Helpers.resolveThrowableException(ex));
+            err.println("JWT state broken: " + Helpers.resolveThrowableException(ex));
             return ExitCode.OPERATIONFAILED;
         }
     }
 
-    private int generate(String subject, JWTHandler handler) {
+    private int generate(String subject, JWTHandler handler, PrintWriter out) {
         JWTCreator.Builder builder = JWT.create().withSubject(subject).withIssuedAt(new Date());
         for (Map.Entry<String, String> claim : claims) {
             builder.withClaim(claim.getKey(), claim.getValue());
@@ -105,7 +116,7 @@ public class CommandJwt implements CommandRunner {
             Instant end = ZonedDateTime.now(ZoneOffset.UTC).plusDays(validity).toInstant();
             builder.withExpiresAt(Date.from(end));
         }
-        System.out.println(handler.getToken(builder));
+        out.println(handler.getToken(builder));
         return ExitCode.OK;
     }
 
@@ -114,18 +125,18 @@ public class CommandJwt implements CommandRunner {
         cmd.getField("configFile").map(String.class::cast).ifPresent(s -> configFile = s);
     }
 
-    private int sign(String signFile, JWTHandler handler) {
+    private int sign(String signFile, JWTHandler handler, PrintWriter out, PrintWriter err) {
         if (signFile == null) {
-            System.err.println("No JWT payload");
+            err.println("No JWT payload");
             return ExitCode.INVALIDARGUMENTS;
         } else {
             try {
                 byte[] buffer = Files.readAllBytes(Paths.get(signFile));
                 String token = handler.sign(new String(buffer, StandardCharsets.UTF_8));
-                System.out.println(token);
+                out.println(token);
                 return ExitCode.OK;
             } catch (IOException e) {
-                System.err.println("Can't read JWT payload: " + Helpers.resolveThrowableException(e));
+                err.println("Can't read JWT payload: " + Helpers.resolveThrowableException(e));
                 logger.catching(e);
                 return ExitCode.OPERATIONFAILED;
             }

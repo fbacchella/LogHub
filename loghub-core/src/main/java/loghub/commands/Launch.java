@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import com.beust.jcommander.Parameter;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,11 +41,18 @@ public class Launch implements BaseParametersRunner {
     private boolean dumpstats = false;
 
     @Override
-    public int run(List<String> mainParameters) {
+    public void reset() {
+        configFile = null;
+        test = false;
+        dumpstats = false;
+    }
+
+    @Override
+    public int run(List<String> mainParameters, PrintWriter out, PrintWriter err) {
         int exitcode;
         try {
             if (configFile == null) {
-                System.err.println("No configuration file given");
+                err.println("No configuration file given");
                 exitcode = ExitCode.INVALIDCONFIGURATION;
             } else if (test){
                 Configuration.parse(configFile);
@@ -61,17 +69,17 @@ public class Launch implements BaseParametersRunner {
                 exitcode = ExitCode.DONTEXIT;
             }
         } catch (ConfigException e) {
-            System.err.format("Error in %s: %s%n", e.getLocation(), e.getMessage());
+            err.format("Error in %s: %s%n", e.getLocation(), e.getMessage());
             exitcode = ExitCode.INVALIDCONFIGURATION;
         } catch (IOException e) {
-            System.err.format("Can't read configuration file %s: %s%n", configFile, Helpers.resolveThrowableException(e));
+            err.format("Can't read configuration file %s: %s%n", configFile, Helpers.resolveThrowableException(e));
             exitcode = ExitCode.INVALIDCONFIGURATION;
         } catch (IllegalStateException e) {
             // Thrown by launch when a component failed to start, details are in the logs
-            System.err.format("Failed to start loghub: %s%n", Helpers.resolveThrowableException(e));
+            err.format("Failed to start loghub: %s%n", Helpers.resolveThrowableException(e));
             exitcode = ExitCode.FAILEDSTART;
         } catch (Throwable e) {
-            System.err.format("Failed to start loghub for an unhandled cause: %s%n", Helpers.resolveThrowableException(e));
+            err.format("Failed to start loghub for an unhandled cause: %s%n", Helpers.resolveThrowableException(e));
             e.printStackTrace();
             exitcode = ExitCode.FAILEDSTARTCRITICAL;
         }

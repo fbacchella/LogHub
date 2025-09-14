@@ -1,6 +1,7 @@
 package loghub.commands;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
@@ -67,7 +68,7 @@ public class TestTester {
         tester.extractFields(launch);
         Properties props = Tools.loadConf(
                 new StringReader("pipeline[test1] {[a] = 1} | $test2 pipeline[test2] {[b] = 1} numWorkers: 1"));
-        List<Event> events = tester.process(props, Stream.of(ev1, ev2)).collect(Collectors.toList());
+        List<Event> events = tester.process(props, Stream.of(ev1, ev2), new PrintWriter(System.err)).collect(Collectors.toList());
 
         try {
             events.forEach(e -> {
