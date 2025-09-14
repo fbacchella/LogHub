@@ -30,8 +30,8 @@ public class Start {
                 jcom.usage();
                 status = ExitCode.OK;
             } else {
-                try (PrintWriter w = new PrintWriter(System.out)) {
-                    status = parser.process(jcom, w);
+                try (PrintWriter o = new PrintWriter(System.out); PrintWriter e = new PrintWriter(System.err)) {
+                    status = parser.process(jcom, o, e);
                 }
             }
         } catch (ParameterException e) {

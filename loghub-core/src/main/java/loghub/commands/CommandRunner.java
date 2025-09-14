@@ -11,7 +11,7 @@ public interface CommandRunner extends CommandLineHandler {
         return ExitCode.CRITICALFAILURE;
     }
 
-    default int run(PrintWriter w) {
+    default int run(PrintWriter out, PrintWriter err) {
         return run();
     }
 

@@ -10,7 +10,7 @@ public interface BaseParametersRunner extends CommandLineHandler {
         return ExitCode.CRITICALFAILURE;
     }
 
-    default int run(List<String> mainParameters, PrintWriter w) {
+    default int run(List<String> mainParameters, PrintWriter out, PrintWriter err) {
         return run(mainParameters);
     }
 

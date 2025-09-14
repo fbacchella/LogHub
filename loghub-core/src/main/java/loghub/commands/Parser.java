@@ -24,7 +24,7 @@ public class Parser {
         serviceLoader.stream().forEach(this::resolve);
     }
 
-    public JCommander parse(String[] args) throws ParameterException {
+    public JCommander parse(String... args) throws ParameterException {
         JCommander.Builder jcomBuilder = JCommander.newBuilder().acceptUnknownOptions(true).addObject(baseParameters);
         commands.forEach(c -> {
             c.reset();
@@ -61,22 +61,22 @@ public class Parser {
 
     @Deprecated
     public int process(JCommander jcom) {
-        try (PrintWriter w = new PrintWriter(System.out)){
-            return process(jcom, w);
+        try (PrintWriter o = new PrintWriter(System.out);PrintWriter e = new PrintWriter(System.err)){
+            return process(jcom, o, e);
         }
     }
 
-    public int process(JCommander jcom, PrintWriter output) {
+    public int process(JCommander jcom, PrintWriter out, PrintWriter err) {
         String parsedCommand = jcom.getParsedCommand();
         if (parsedCommand != null) {
             CommandRunner cmd = verbs.get(parsedCommand);
             for (BaseParametersRunner dc : objects) {
                 cmd.extractFields(dc);
             }
-            return cmd.run(output);
+            return cmd.run(out, err);
         } else {
             for (BaseParametersRunner dc : objects) {
-                int status = dc.run(baseParameters.getMainParams(), output);
+                int status = dc.run(baseParameters.getMainParams(), out, err);
                 if (status >= 0) {
                     return status;
                 }
