@@ -30,9 +30,9 @@ public class Start {
                 jcom.usage();
                 status = ExitCode.OK;
             } else {
-                try (PrintWriter o = new PrintWriter(System.out); PrintWriter e = new PrintWriter(System.err)) {
-                    status = parser.process(jcom, o, e);
-                }
+                PrintWriter o = new PrintWriter(System.out);
+                PrintWriter e = new PrintWriter(System.err);
+                status = parser.process(jcom, o, e);
             }
         } catch (ParameterException e) {
             System.err.println("Invalid parameter: " + Helpers.resolveThrowableException(e));
