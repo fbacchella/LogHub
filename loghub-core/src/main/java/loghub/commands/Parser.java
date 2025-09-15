@@ -76,7 +76,7 @@ public class Parser {
             for (BaseParametersRunner dc : objects) {
                 cmd.extractFields(dc);
             }
-            return cmd.run(out, err);
+            return cmd.run(jcom.findCommandByAlias(parsedCommand).getUnknownOptions(), out, err);
         } else {
             for (BaseParametersRunner dc : objects) {
                 int status = dc.run(jcom.getUnknownOptions(), out, err);
