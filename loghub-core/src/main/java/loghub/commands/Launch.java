@@ -81,7 +81,7 @@ public class Launch implements BaseParametersRunner {
             exitcode = ExitCode.FAILEDSTART;
         } catch (Throwable e) {
             err.format("Failed to start loghub for an unhandled cause: %s%n", Helpers.resolveThrowableException(e));
-            e.printStackTrace();
+            e.printStackTrace(err);
             exitcode = ExitCode.FAILEDSTARTCRITICAL;
         }
         return exitcode;

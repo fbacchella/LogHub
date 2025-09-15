@@ -49,7 +49,7 @@ import lombok.ToString;
 @ToString
 public class TestPipeline implements CommandRunner {
 
-    static class EventProducer implements Iterator<Event> {
+    private static class EventProducer implements Iterator<Event> {
         private final Queue<String> files;
         private final JsonFactory jf;
         private final JsonMapper mapper;
@@ -96,9 +96,6 @@ public class TestPipeline implements CommandRunner {
     @Parameter(names = {"--pipeline", "-p"}, description = "Pipeline to test")
     private String pipeline = null;
 
-    @Parameter(description = "Main parameters")
-    @Getter
-    private List<String> mainParams = new ArrayList<>();
     final JsonMapper mapper;
     final ObjectWriter jsonWritter;
     private int exitCode = ExitCode.OK;
@@ -106,7 +103,6 @@ public class TestPipeline implements CommandRunner {
     @Override
     public void reset() {
         pipeline = null;
-        mainParams.clear();
     }
 
     public TestPipeline() {
@@ -126,7 +122,7 @@ public class TestPipeline implements CommandRunner {
     }
 
     @Override
-    public int run(PrintWriter out, PrintWriter err) {
+    public int run(List<String> mainParams, PrintWriter out, PrintWriter err) {
         if (configFile == null) {
             err.println("No configuration file given");
             return ExitCode.INVALIDCONFIGURATION;
@@ -153,7 +149,8 @@ public class TestPipeline implements CommandRunner {
         );
         process(props, eventSource, err).forEach(e -> {
             try {
-                jsonWritter.writeValue(System.out, e);
+                jsonWritter.writeValue(out, e);
+                out.println();
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
             }
