@@ -38,7 +38,9 @@ public class Start {
             System.err.println("Invalid parameter: " + Helpers.resolveThrowableException(e));
             status = ExitCode.INVALIDARGUMENTS;
         }
-        System.exit(status);
+        if (status != ExitCode.DONTEXIT) {
+            System.exit(status);
+        }
     }
 
 }
