@@ -24,21 +24,23 @@ public class Start {
         ShutdownTask.reset();
         Parser parser = new Parser();
         int status;
+        PrintWriter out = new PrintWriter(System.out);
+        PrintWriter err = new PrintWriter(System.err, true);
         try {
             JCommander jcom = parser.parse(args);
             if (parser.helpRequired()) {
                 jcom.usage();
                 status = ExitCode.OK;
             } else {
-                PrintWriter o = new PrintWriter(System.out);
-                PrintWriter e = new PrintWriter(System.err);
-                status = parser.process(jcom, o, e);
+                status = parser.process(jcom, out, err);
             }
-        } catch (ParameterException e) {
-            System.err.println("Invalid parameter: " + Helpers.resolveThrowableException(e));
+        } catch (ParameterException ex) {
+            System.err.println("Invalid parameter: " + Helpers.resolveThrowableException(ex));
             status = ExitCode.INVALIDARGUMENTS;
         }
         if (status != ExitCode.DONTEXIT) {
+            out.flush();
+            err.flush();
             System.exit(status);
         }
     }
