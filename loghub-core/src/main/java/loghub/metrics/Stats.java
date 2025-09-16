@@ -2,13 +2,12 @@ package loghub.metrics;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.stream.Stream;
 
@@ -29,6 +28,51 @@ import loghub.receivers.Receiver;
 import loghub.senders.Sender;
 
 public final class Stats {
+
+    static class CopyOnWriteMap<K, V> {
+        private Map<K, V> reference = Map.of();
+        V get(K k) {
+            return reference.get(k);
+        }
+        synchronized void clear() {
+            reference = Map.of();
+        }
+        synchronized void put(K k, V v) {
+            if (reference.containsKey(k)) {
+                @SuppressWarnings("unchecked")
+                Map.Entry<K, V>[] entries =  reference.entrySet()
+                                                      .stream()
+                                                      .map(e -> mapEntry(e, k, v))
+                                                      .toArray(s -> new Map.Entry[reference.size()]);
+                reference = Map.ofEntries(entries);
+            } else if (reference.isEmpty()) {
+                reference = Map.of(k, v);
+            } else {
+                @SuppressWarnings("unchecked")
+                Map.Entry<K, V>[] entries = reference.entrySet().toArray(s -> new Map.Entry[reference.size() + 1]);
+                entries[entries.length - 1] = Map.entry(k, v);
+                reference = Map.ofEntries(entries);
+            }
+        }
+        private Map.Entry<K, V> mapEntry(Map.Entry<K, V> e, K key, V value) {
+            if (e.getKey().equals(key)) {
+                return Map.entry(key, value);
+            } else {
+                return e;
+            }
+        }
+        public V computeIfAbsent(K key, Function<K, V> mappingFunction) {
+            if (reference.containsKey(key)) {
+                return reference.get(key);
+            } else {
+                synchronized(this) {
+                    V newValue = mappingFunction.apply(key);
+                    put(key, newValue);
+                    return newValue;
+                }
+            }
+        }
+    }
 
     static final String METRIC_RECEIVER_COUNT = "count";
     static final String METRIC_RECEIVER_BYTES = "bytes";
@@ -68,8 +112,8 @@ public final class Stats {
     static final String METRIC_ALL_EVENT_DUPLICATEEND = "EventDuplicateEnd";
 
     // A metrics cache, as calculating a metric name can be expensive.
-    private static final Map<Object, Map<String, Metric>> metricsCache = new HashMap<>();
-    private static final Map<Object, Map<Integer, Timer>> webCache = new HashMap<>();
+    private static final CopyOnWriteMap<Object, CopyOnWriteMap<String, Metric>> metricsCache = new CopyOnWriteMap<>();
+    private static final CopyOnWriteMap<Object, CopyOnWriteMap<Integer, Timer>> webCache = new CopyOnWriteMap<>();
 
     private static final Queue<ProcessingException> processorExceptions = new LinkedBlockingQueue<>(100);
     private static final Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
@@ -166,8 +210,8 @@ public final class Stats {
         checkCustomMetrics(identity);
     }
 
-    public static synchronized void registerHttpService(Object identity) {
-        webCache.put(identity, new ConcurrentHashMap<>());
+    public static void registerHttpService(Object identity) {
+        webCache.put(identity, new CopyOnWriteMap<>());
         for (int status: List.of(200, 301, 302, 400, 401, 403, 404, 500, 503)) {
             getWebMetric(identity, status);
         }
@@ -190,17 +234,21 @@ public final class Stats {
         }
     }
 
-    private static synchronized <T extends Metric> T addToCache(Object key, String name, T newMetric) {
-        return (T) metricsCache.computeIfAbsent(key, k -> new HashMap<>()).computeIfAbsent(name, k -> newMetric);
+    @SuppressWarnings("unchecked")
+    private static <T extends Metric> T addToCache(Object key, String name, T newMetric) {
+        return (T) metricsCache.computeIfAbsent(key, k -> new CopyOnWriteMap<>()).computeIfAbsent(name, k -> newMetric);
     }
 
     @SuppressWarnings("unchecked")
     public static <T extends Metric> T getMetric(Object key, String name, Class<T> metricClass) {
-        assert ! name.startsWith("WebServer.status.") : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
-        Map<String, Metric> metrics = metricsCache.get(key);
-        assert metrics != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
-        T metric = (T) metrics.get(name);
-        assert metric != null : String.format("%s/%s -> %s%n", key, name, metricClass.getName());
+        T metric = null;
+        CopyOnWriteMap<String, Metric> metrics = metricsCache.get(key);
+        if (metrics != null) {
+            metric = (T) metrics.get(name);
+        }
+        if (metric == null) {
+            metric = register(key, name, metricClass);
+        }
         return metric;
     }
 
