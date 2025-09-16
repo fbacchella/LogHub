@@ -222,7 +222,6 @@ public final class Stats {
         return addToCache(key, name, metric);
     }
 
-    @SuppressWarnings("unchecked")
     public static <T extends Metric> T register(Object key, String name, T newMetric) {
         metricsRegistry.register(getMetricName(key, name), newMetric);
         return addToCache(key, name, newMetric);
@@ -252,17 +251,16 @@ public final class Stats {
         return metric;
     }
 
-    @SuppressWarnings("unchecked")
     public static Timer getWebMetric(Object key, int status) {
         return webCache.get(key)
                        .computeIfAbsent(status, k -> Stats.createMetric(getMetricName(key, "HTTPStatus." + status), Timer.class));
     }
 
-    @SuppressWarnings("unchecked")
     private static <T extends Metric> T createMetric(Object key, String name, Class<T> metricClass) {
         return createMetric(getMetricName(key, name), metricClass);
     }
 
+    @SuppressWarnings("unchecked")
     private static <T extends Metric> T createMetric(String metricName, Class<T> metricClass) {
         if (metricClass == Counter.class) {
             return (T) metricsRegistry.counter(metricName);
@@ -281,13 +279,11 @@ public final class Stats {
 
     private static String getMetricName(Object key, String name) {
         StringBuilder buffer = new StringBuilder();
-        if (key instanceof Receiver) {
-            Receiver<?, ?> r = (Receiver<?, ?>) key;
+        if (key instanceof Receiver<?, ?> r) {
             buffer.append("Receivers.");
             buffer.append(r.getReceiverName());
             buffer.append(".");
-        } else if (key instanceof Sender) {
-            Sender s = (Sender) key;
+        } else if (key instanceof Sender s) {
             buffer.append("Senders.");
             buffer.append(s.getSenderName());
             buffer.append(".");
@@ -386,8 +382,7 @@ public final class Stats {
     public static void pipelineHanding(String name, PipelineStat status, Throwable ex) {
         switch (status) {
         case FAILURE:
-            if (ex instanceof ProcessingException) {
-                ProcessingException pe = (ProcessingException) ex;
+            if (ex instanceof ProcessingException pe) {
                 storeException(processorExceptions, pe);
             }
             getMetric(String.class, METRIC_PIPELINE_FAILED, Meter.class).mark();
