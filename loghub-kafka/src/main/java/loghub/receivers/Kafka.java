@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -18,6 +19,7 @@ import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -126,6 +128,8 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
     @Getter
     private final String topic;
+    @Getter
+    private final String receiverName;
     private Supplier<Consumer<byte[], byte[]>> consumerSupplier;
     private final Map<Integer, RangeCollection> ranges = new ConcurrentHashMap<>();
     private final Class<?> keyClass;
@@ -137,10 +141,21 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     protected Kafka(Builder builder) {
         super(builder);
         this.topic = builder.topic;
+        int hash;
         if (builder.consumer != null) {
             consumerSupplier = () -> builder.consumer;
+            hash = builder.consumer.hashCode();
+
         } else {
-            consumerSupplier = getConsumerSupplier(builder);
+            Map<String, Object> props = builder.configureKafka(logger);
+            props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.toString(builder.withAutoCommit));
+            consumerSupplier = getConsumerSupplier(props);
+            hash = Objects.hash(
+                    topic,
+                    props.get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG),
+                    props.get(CommonClientConfigs.CLIENT_ID_CONFIG),
+                    props.get(CommonClientConfigs.GROUP_ID_CONFIG)
+            );
         }
         if (builder.keyClass != null) {
             keyClass = builder.keyClass;
@@ -150,12 +165,11 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         withAutoCommit = builder.withAutoCommit;
         decoders = resolverDecoders(builder.decoders);
         workerThreads = new Semaphore(builder.workers);
-        threadBuilder = Thread.ofVirtual().name(getReceiverName() + "RecordProcessor", 1);
+        threadBuilder = Thread.ofVirtual().name(getReceiverName() + "/RecordProcessor-", 1);
+        receiverName = "Kafka/%s/%08x".formatted(topic, hash);
     }
 
-    private Supplier<Consumer<byte[], byte[]>> getConsumerSupplier(Builder builder) {
-        Map<String, Object> props = builder.configureKafka(logger);
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, withAutoCommit);
+    private Supplier<Consumer<byte[], byte[]>> getConsumerSupplier(Map<String, Object> props) {
         ByteArrayDeserializer deserializer = new ByteArrayDeserializer();
         return () -> {
             try {
@@ -167,11 +181,6 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                 throw ex;
             }
         };
-    }
-
-    @Override
-    public String getReceiverName() {
-        return String.format("Kafka/%s/%s", topic, hashCode());
     }
 
     @Override
