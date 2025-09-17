@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -27,6 +28,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.Metric;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.errors.WakeupException;
@@ -34,6 +37,8 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+
+import com.codahale.metrics.Gauge;
 
 import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
@@ -44,6 +49,8 @@ import loghub.events.Event;
 import loghub.kafka.HeadersTypes;
 import loghub.kafka.KafkaProperties;
 import loghub.kafka.range.RangeCollection;
+import loghub.metrics.CustomStats;
+import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.types.MimeType;
 import lombok.AccessLevel;
@@ -52,7 +59,7 @@ import lombok.Setter;
 
 @Blocking
 @BuilderClass(Kafka.Builder.class)
-public class Kafka extends Receiver<Kafka, Kafka.Builder> {
+public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats {
 
     public static class KafkaContext extends BuildableConnectionContext<String> implements Cloneable {
         @Getter
@@ -137,6 +144,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     private final Map<MimeType, Decoder> decoders;
     private final Semaphore workerThreads;
     private final Thread.Builder threadBuilder;
+    private final AtomicLong totalLagHolder = new AtomicLong(0);
 
     protected Kafka(Builder builder) {
         super(builder);
@@ -169,6 +177,12 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         receiverName = "Kafka/%s/%08x".formatted(topic, hash);
     }
 
+    @Override
+    public void registerCustomStats() {
+        Gauge<Long> totalLagGauge = totalLagHolder::longValue;
+        Stats.register(this, "totalLag", totalLagGauge);
+    }
+
     private Supplier<Consumer<byte[], byte[]>> getConsumerSupplier(Map<String, Object> props) {
         ByteArrayDeserializer deserializer = new ByteArrayDeserializer();
         return () -> {
@@ -193,6 +207,16 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
                     if (! eventLoop(consumer, pollingInterval)) {
                         break;
                     }
+                    long totalLag = 0L;
+                    for (Map.Entry<MetricName, ? extends Metric> ce: consumer.metrics().entrySet()) {
+                        MetricName mn = ce.getKey();
+                        if ("consumer-fetch-manager-metrics".equals(mn.group()) &&  "records-lag".equals(mn.name())) {
+                            Number n = (Number) ce.getValue().metricValue();
+                            long lag = n.longValue();
+                            totalLag += lag;
+                        }
+                    }
+                    totalLagHolder.set(totalLag);
                 }
                 commit(consumer);
                 close();
