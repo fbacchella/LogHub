@@ -1,5 +1,6 @@
 package loghub;
 
+import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,6 +44,8 @@ public class ShutdownTask implements Runnable {
     private final Runnable hprofdump;
     private Throwable fatalException;
     private Thread shutdownActionThread;
+    private final PrintWriter err;
+    private final PrintWriter out;
 
     public static void reset() {
         shutdownAction = null;
@@ -91,8 +94,8 @@ public class ShutdownTask implements Runnable {
         systemd.setStatus("Stopping");
         systemd.stopping();
         if (fatalException != null) {
-            System.err.println("Caught a fatal exception");
-            fatalException.printStackTrace();
+            err.println("Caught a fatal exception");
+            fatalException.printStackTrace(err);
             hprofdump.run();
         }
         // No more new events
@@ -122,12 +125,12 @@ public class ShutdownTask implements Runnable {
         terminator.run();
         JmxService.stop();
         if (dumpStats) {
-            System.out.format("Received: %d%n", Stats.getReceived());
-            System.out.format("Blocked: %d%n", Stats.getBlocked());
-            System.out.format("Dropped: %d%n", Stats.getDropped());
-            System.out.format("Sent: %d%n", Stats.getSent());
-            System.out.format("Failures: %d%n", Stats.getFailed());
-            System.out.format("Exceptions: %d%n", Stats.getExceptionsCount());
+            out.format("Received: %d%n", Stats.getReceived());
+            out.format("Blocked: %d%n", Stats.getBlocked());
+            out.format("Dropped: %d%n", Stats.getDropped());
+            out.format("Sent: %d%n", Stats.getSent());
+            out.format("Failures: %d%n", Stats.getFailed());
+            out.format("Exceptions: %d%n", Stats.getExceptionsCount());
         }
         LogManager.shutdown();
     }
@@ -185,6 +188,16 @@ public class ShutdownTask implements Runnable {
             return this;
         }
 
+        public ShutdownConfiguration out(PrintWriter out) {
+            builder.out = out;
+            return this;
+        }
+
+        public ShutdownConfiguration err(PrintWriter err) {
+            builder.err = err;
+            return this;
+        }
+
         public ShutdownConfiguration hprofDumpPath(Path hprofFile) {
             if (hprofFile != null) {
                 Path hprofFileReel = hprofFile.normalize().toAbsolutePath();
@@ -230,7 +243,7 @@ public class ShutdownTask implements Runnable {
             return "ShutdownTask.ShutdownTaskRegister(receivers=" + java.util.Arrays.deepToString(
                     builder.receivers) + ", eventProcessors=" + java.util.Arrays.deepToString(
                     builder.eventProcessors) + ", senders=" + java.util.Arrays.deepToString(
-                    builder.senders) + ", loghubtimer=" + builder.loghubtimer + ", systemd=" + builder + ", repositories=" + builder.repositories + ", terminator=" + builder.terminator + ", dumpStats=" + builder.dumpStats + ", startTime=" + builder.startTime + ")";
+                    builder.senders) + ", loghubtimer=" + builder.loghubtimer + ", systemd=" + builder + ", repositories=" + builder.repositories + ", terminator=" + builder.terminator + ", dumpStats=" + builder.dumpStats + ", startTime=" + builder.startTime + ", out=" + builder.out + ", err=" + builder.err + ")";
         }
     }
 

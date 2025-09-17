@@ -63,7 +63,7 @@ public class Launch implements BaseParametersRunner {
                 systemd.setStatus("Parsing configuration");
                 Properties props = Configuration.parse(configFile);
                 systemd.setStatus("Launching");
-                launch(props, systemd);
+                launch(props, systemd, out, err);
                 systemd.setStatus("Started");
                 systemd.started();
                 logger.warn("LogHub started");
@@ -97,7 +97,7 @@ public class Launch implements BaseParametersRunner {
         }
     }
 
-    public void launch(Properties props, SystemdHandler systemd) throws ConfigException {
+    public void launch(Properties props, SystemdHandler systemd, PrintWriter out, PrintWriter err) throws ConfigException {
         Thread.currentThread().setContextClassLoader(props.classloader);
         try {
             JmxService.start(props.jmxServiceConfiguration);
@@ -208,6 +208,8 @@ public class Launch implements BaseParametersRunner {
                     .terminator(props.terminator())
                     .hprofDumpPath(props.hprofdump)
                     .asShutdownHook(true)
+                    .out(out)
+                    .err(err)
                     .register();
     }
 

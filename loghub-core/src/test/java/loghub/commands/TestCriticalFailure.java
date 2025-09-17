@@ -1,5 +1,14 @@
 package loghub.commands;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,11 +23,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.nio.file.Files;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -73,7 +77,9 @@ public class TestCriticalFailure {
 
         Properties props = Tools.loadConf(new StringReader(confile));
         Launch runner = new Launch();
-        runner.launch(props, SystemdHandler.nope());
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        PrintWriter output = new PrintWriter(bos, true, StandardCharsets.UTF_8);
+        runner.launch(props, SystemdHandler.nope(), output, output);
         Event ev = Mocker.getMock();
         when(ev.next()).thenThrow(new OutOfMemoryError());
         props.mainQueue.add(ev);
@@ -93,7 +99,10 @@ public class TestCriticalFailure {
                 Assert.fail();
             }
         });
+        output.close();
         Assert.assertTrue(Files.exists(folder.getRoot().toPath().resolve("loghub.hprof")));
+        String outputMessage = bos.toString(StandardCharsets.UTF_8);
+        Assert.assertTrue(outputMessage.contains("Caught a fatal exception\njava.lang.OutOfMemoryError") );
     }
 
     @Test(timeout = 10000)
@@ -102,7 +111,7 @@ public class TestCriticalFailure {
 
         Properties props = Tools.loadConf(new StringReader(confile));
         Launch runner = new Launch();
-        runner.launch(props, SystemdHandler.nope());
+        runner.launch(props, SystemdHandler.nope(), new PrintWriter(System.out), new PrintWriter(System.err));
         Event ev = Mocker.getMock();
         doThrow(new StackOverflowError()).when(ev).process(any());
         when(ev.getCurrentPipeline()).thenReturn("newpipe");
