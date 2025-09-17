@@ -249,12 +249,11 @@ public class TestZMQReceiver {
 
     }
 
-    @Test//(timeout = 5000)
+    @Test(timeout = 5000)
     public void testCertificateClient() throws InterruptedException, IOException, GeneralSecurityException {
         Path keyPath = Paths.get("remote.jks");
         PrivateKeyEntry pve = tctxt.createKeyStore(keyPath, Map.of("pipeline", "tester", "User-Id", "loghub"));
         Files.copy(tctxt.getRootFolder().resolve("remote.zpl"), tctxt.getSecurityFolder().resolve("certs").resolve("remote.zpl"));
-        Files.copy(tctxt.getSecurityFolder().resolve("certs").resolve("remote.zpl"), System.err);
         tctxt.getFactory();
         Event ev = dotest (r -> {
                     r.setMethod(Method.BIND);

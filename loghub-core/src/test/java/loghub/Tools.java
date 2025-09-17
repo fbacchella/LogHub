@@ -49,7 +49,7 @@ import static loghub.EventsProcessor.ProcessingStatus.ERROR;
 public class Tools {
 
     public static void configure() {
-        Locale.setDefault(new Locale("POSIX"));
+        Locale.setDefault(Locale.of("POSIX"));
         LogUtils.configure();
         Stats.reset();
     }
@@ -67,12 +67,13 @@ public class Tools {
             KeyStore ks = KeyStore.getInstance(MultiKeyStoreProvider.NAME, MultiKeyStoreProvider.PROVIDERNAME);
             ks.load(param);
             return ks;
-        } catch (KeyStoreException | NoSuchProviderException | IOException | NoSuchAlgorithmException | CertificateException ex) {
-            throw  new RuntimeException(ex);
+        } catch (KeyStoreException | NoSuchProviderException | IOException | NoSuchAlgorithmException |
+                 CertificateException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
-     public static Properties loadConf(Reader config) throws ConfigException, IOException {
+    public static Properties loadConf(Reader config) throws ConfigException, IOException {
         Properties props = Configuration.parse(config);
 
         Helpers.parallelStartProcessor(props);
@@ -123,20 +124,21 @@ public class Tools {
         public EventsRepository<Future<?>> repository;
         @Override
         public String toString() {
-            return mainQueue + " / " +  status + " / " + repository;
+            return mainQueue + " / " + status + " / " + repository;
         }
-
     }
 
     public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps) {
-        return runProcessing(sent, pipename, steps, (i, j) -> {});
+        return runProcessing(sent, pipename, steps, (i, j) -> { });
     }
 
-    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare) {
+    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps,
+            BiConsumer<Properties, List<Processor>> prepare) {
         return runProcessing(sent, pipename, steps, prepare, new Properties(Collections.emptyMap()));
     }
 
-    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare, Properties props) {
+    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps,
+            BiConsumer<Properties, List<Processor>> prepare, Properties props) {
         ProcessingStatus ps = new ProcessingStatus();
         ps.mainQueue = props.mainQueue;
         ps.status = new ArrayList<>();
@@ -144,7 +146,8 @@ public class Tools {
         Pipeline pipe = new Pipeline(steps, pipename, null);
         Stats.registerPipeline(pipename);
         Map<String, Pipeline> namedPipeLine = Collections.singletonMap(pipename, pipe);
-        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, namedPipeLine, 100, props.repository);
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, namedPipeLine, 100,
+                props.repository);
         steps.forEach(i -> Assert.assertTrue(i.configure(props)));
         prepare.accept(props, steps);
         sent.inject(pipe, props.mainQueue, false);
@@ -182,10 +185,14 @@ public class Tools {
     }
 
     public static boolean isInMaven() {
-        return System.getProperty("surefire.real.class.path") != null || System.getProperty("surefire.test.class.path") != null;
+        return System.getProperty("surefire.real.class.path") != null || System.getProperty(
+                "surefire.test.class.path") != null;
     }
 
-    public static final Function<Date, Boolean> isRecent = i -> { long now = new Date().getTime() ; return (i.getTime() > (now - 60000)) && (i.getTime() < (now + 60000));};
+    public static final Function<Date, Boolean> isRecent = i -> {
+        long now = new Date().getTime();
+        return (i.getTime() > (now - 60000)) && (i.getTime() < (now + 60000));
+    };
 
     public static Expression parseExpression(String exp) {
         return ConfigurationTools.unWrap(exp, RouteParser::expression);
@@ -204,21 +211,20 @@ public class Tools {
         }
     }
 
-    public static  Object evalExpression(String exp) throws ProcessorException {
+    public static Object evalExpression(String exp) throws ProcessorException {
         return evalExpression(exp, null);
     }
 
     public static Event processEventWithPipeline(EventsFactory factory, String configuration, String pipelineName,
-                                                 Consumer<Event> populateEvent)
-            throws IOException, InterruptedException {
+            Consumer<Event> populateEvent) throws IOException, InterruptedException {
         Properties props = Tools.loadConf(new StringReader(configuration));
         return processEventWithPipeline(factory, props, pipelineName, populateEvent);
     }
 
     public static Event processEventWithPipeline(EventsFactory factory, Properties props, String pipelineName,
-            Consumer<Event> populateEvent)
-            throws InterruptedException {
-        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100, props.repository);
+            Consumer<Event> populateEvent) throws InterruptedException {
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100,
+                props.repository);
         ep.start();
         BlockingConnectionContext ctx = new BlockingConnectionContext();
         Event ev = factory.newEvent(ctx);

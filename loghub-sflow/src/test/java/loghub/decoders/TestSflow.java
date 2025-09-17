@@ -25,6 +25,7 @@ import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.receivers.Udp;
 
 public class TestSflow {
@@ -40,6 +41,7 @@ public class TestSflow {
 
     @Test
     public void testDecode() throws IOException {
+        EventsFactory factory = new EventsFactory();
         Udp.Builder udpBuilder = Udp.getBuilder();
         udpBuilder.setPort(6343);
 
@@ -47,6 +49,7 @@ public class TestSflow {
         xdrs.add("bad");
         Sflow.Builder sbuilder = Sflow.getBuilder();
         sbuilder.setXdrPaths(xdrs.toArray(String[]::new));
+        sbuilder.setFactory(factory);
         Decoder d = sbuilder.build();
         d.configure(new Properties(new HashMap<>()), udpBuilder.build());
         AtomicInteger failedPackets = new AtomicInteger();
@@ -62,6 +65,7 @@ public class TestSflow {
                     });
                 } catch (DecodeException | RuntimeException ex) {
                     System.err.println(failedPackets.get()  + " -> " + Helpers.resolveThrowableException(ex));
+                    Assert.fail(Helpers.resolveThrowableException(ex));
                 }
             });
         }

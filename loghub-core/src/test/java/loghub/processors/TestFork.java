@@ -49,7 +49,7 @@ public class TestFork {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors");
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testFork() throws ConfigException, IOException, InterruptedException {
         String confile = "pipeline[newpipe] {} pipeline[main] { +$newpipe}";
         Properties conf = Tools.loadConf(new StringReader(confile));
@@ -118,7 +118,7 @@ public class TestFork {
             Assert.assertEquals(daysMapping, e.get("daysMapping"));
         };
         checkEvent.accept(processed);
-        Event forked = conf.mainQueue.poll(2, TimeUnit.SECONDS);
+        Event forked = conf.mainQueue.poll(4, TimeUnit.SECONDS);
         Assert.assertNotNull(forked);
         checkEvent.accept(forked);
         Assert.assertArrayEquals(new Object[]{NullOrMissingValue.NULL, NullOrMissingValue.NULL}, (Object[]) forked.get("null"));
