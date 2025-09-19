@@ -99,13 +99,6 @@ public class Launch implements BaseParametersRunner {
 
     public void launch(Properties props, SystemdHandler systemd, PrintWriter out, PrintWriter err) throws ConfigException {
         Thread.currentThread().setContextClassLoader(props.classloader);
-        try {
-            JmxService.start(props.jmxServiceConfiguration);
-        } catch (IOException e) {
-            logger.error("JMX start failed: {}", Helpers.resolveThrowableException(e));
-            logger.catching(Level.DEBUG, e);
-            throw new IllegalStateException("JMX start failed: " + Helpers.resolveThrowableException(e));
-        }
 
         // Used to remember if configuration process succeded
         // So ensure that the whole configuration is tested instead needed
@@ -175,6 +168,13 @@ public class Launch implements BaseParametersRunner {
             throw new IllegalStateException("Failed to start a component, see logs for more details");
         }
 
+        try {
+            JmxService.start(props.jmxServiceConfiguration);
+        } catch (IOException e) {
+            logger.error("JMX start failed: {}", Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+            throw new IllegalStateException("JMX start failed: " + Helpers.resolveThrowableException(e));
+        }
         // The dashboard is used as an isAlive, last things to start.
         if (props.dashboard != null) {
             try {
