@@ -133,8 +133,8 @@ public class Properties extends HashMap<String, Object> {
                               .orElseGet(Properties.class::getClassLoader);
         cacheManager = Optional.ofNullable((CacheManager) properties.remove(PROPSNAMES.CACHEMANGER.toString()))
                                     .orElseGet(() -> new CacheManager(classloader));
-        eventsFactory = Optional.ofNullable((EventsFactory) properties.remove(PROPSNAMES.CACHEMANGER.toString()))
-                                .orElseGet(() -> new EventsFactory());
+        eventsFactory = Optional.ofNullable((EventsFactory) properties.remove(PROPSNAMES.EVENTSFACTORY.toString()))
+                                .orElseGet(EventsFactory::new);
 
         if (properties.containsKey("log4j.defaultlevel")) {
             String levelname = (String) properties.remove("log4j.defaultlevel");
