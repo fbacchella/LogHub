@@ -33,6 +33,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.Timer;
@@ -114,6 +115,7 @@ public class TestJmxStats {
         Assert.assertEquals(returnStatMetric(Counter.class, Stats.METRIC_ALL_INFLIGHT).getCount(), attributes.get("Global").remove("Inflight"));
         Assert.assertEquals(returnStatMetric(Counter.class, Stats.METRIC_ALL_EVENT_LEAKED).getCount(), attributes.get("Global").remove("Leaked"));
         Assert.assertEquals(returnStatMetric(Meter.class, Stats.METRIC_ALL_EXCEPTION).getCount(), attributes.get("Global").remove("UnhandledExceptions"));
+        Assert.assertEquals(returnStatMetric(Gauge.class, Stats.METRIC_ALL_WAITINGPROCESSING).getValue(), attributes.get("Global").remove("WaitingProcessing"));
         Assert.assertNotNull(attributes.get("Global").remove("EventLifeTime95"));
         Assert.assertNotNull(attributes.get("Global").remove("EventLifeTimeMedian"));
         Assert.assertTrue(attributes.get("Global").isEmpty());
@@ -170,7 +172,7 @@ public class TestJmxStats {
                 }
             }
         }
-        Assert.assertEquals(List.of("DuplicateEnd", "EventLifeTime95", "EventLifeTimeMedian", "Inflight", "Leaked", "TotalEvents", "UnhandledExceptions"), attributes.get("Global"));
+        Assert.assertEquals(List.of("DuplicateEnd", "EventLifeTime95", "EventLifeTimeMedian", "Inflight", "Leaked", "TotalEvents", "UnhandledExceptions", "WaitingProcessing"), attributes.get("Global"));
         Assert.assertEquals(List.of("DecodersFailures", "ProcessorsFailures", "ReceiversFailures", "SendersFailures", "UnhandledExceptions"), attributes.get("Exceptions"));
         Assert.assertEquals(List.of("95per", "Count", "Discarded", "Dropped", "Exceptions", "Failed", "Inflight", "LoopOverflow", "Median"), attributes.get("Pipelines"));
         Assert.assertEquals(List.of("Blocked", "Bytes", "Count", "Exceptions", "Failed", "FailedDecode"), attributes.get("Receivers"));

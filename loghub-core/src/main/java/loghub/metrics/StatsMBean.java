@@ -6,6 +6,7 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
@@ -52,6 +53,12 @@ public interface StatsMBean {
     @MetricType(MetricType.COUNTER)
     default long getDuplicateEnd() {
         return Stats.getMetric(Stats.class, Stats.METRIC_ALL_EVENT_DUPLICATEEND, Counter.class).getCount();
+    }
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.GAUGE)
+    default int getWaitingProcessing() {
+        return (int) Stats.getMetric(Stats.class, Stats.METRIC_ALL_WAITINGPROCESSING, Gauge.class).getValue();
     }
 
     class Implementation extends DocumentedMBean implements StatsMBean {
