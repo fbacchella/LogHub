@@ -35,14 +35,12 @@ class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
         remoteAddress = context.getRemoteAddress();
         principal = context.getPrincipal();
         onAcknowledge = clone ? () -> {} : context.getOnAcknowledge();
-        if (context instanceof BuildableConnectionContext<?> bcc) {
-            properties = DeepCloner.clone(bcc.getProperties());
-        } else if (context instanceof LockedConnectionContext lcc) {
+        switch (context) {
+        case BuildableConnectionContext<?> bcc -> properties = Map.copyOf(DeepCloner.clone(bcc.getProperties()));
+        case LockedConnectionContext lcc ->
             // Already locked and copied, simple copy
             properties = lcc.properties;
-        }
-        else {
-            properties = Map.of();
+        default -> properties = Map.of();
         }
     }
 
