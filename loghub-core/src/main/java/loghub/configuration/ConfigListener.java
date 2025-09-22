@@ -633,9 +633,8 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitForeach(ForeachContext ctx) {
         ProcessorInstance pi = (ProcessorInstance) stack.pop();
-        @SuppressWarnings("unchecked")
-        ObjectWrapped<VariablePath> wrapped = (ObjectWrapped<VariablePath>) stack.pop();
-        ForEach fe = new ForEach(wrapped.wrapped, pi.wrapped);
+        VariablePath vp = unWrapObject(stack.popTyped());
+        ForEach fe = new ForEach(vp, pi.wrapped);
         stack.push(new ProcessorInstance(fe));
     }
 
@@ -763,9 +762,8 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitSourcedef(SourcedefContext ctx) {
-        @SuppressWarnings("unchecked")
-        ObjectWrapped<Source> source = (ObjectWrapped<Source>) stack.pop();
-        sources.get(ctx.identifier().getText()).set(source.wrapped);
+        Source source = unWrapObject(stack.popTyped());
+        sources.get(ctx.identifier().getText()).set(source);
     }
 
     @Override
@@ -928,8 +926,7 @@ class ConfigListener extends RouteBaseListener {
                 stack.pop();
                 etl = Etl.FromLiteral.of(lvalue, NullOrMissingValue.NULL);
             } else if (ctx.sl != null) {
-                ObjectWrapped<String> stringWrapped = stack.popTyped();
-                String format = stringWrapped.wrapped;
+                String format = unWrapObject(stack.popTyped());
                 VarFormatter vf = new VarFormatter(format);
                 if (vf.isEmpty()) {
                     etl = Etl.FromLiteral.of(lvalue, format);
@@ -937,8 +934,8 @@ class ConfigListener extends RouteBaseListener {
                     etl = Etl.VarFormat.of(lvalue, vf);
                 }
             } else if (ctx.c != null || ctx.l != null) {
-                ObjectWrapped<Character> payload = stack.popTyped();
-                etl = Etl.FromLiteral.of(lvalue, payload.wrapped);
+                Object obj = unWrapObject(stack.popTyped());
+                etl = Etl.FromLiteral.of(lvalue, obj);
             } else {
                 Expression expression = resolveWrappedExpression();
                 etl = Etl.Assign.of(lvalue, expression);
@@ -955,8 +952,7 @@ class ConfigListener extends RouteBaseListener {
             break;
         }
         case("@"): {
-            ObjectWrapped<Map<Object, Object>> wrapmap = stack.popTyped();
-            Map<Object, Object> map = wrapmap.wrapped;
+            Map<Object, Object> map = unWrapObject(stack.popTyped());
             Expression expression = resolveWrappedExpression();
             etl = Mapper.of(lvalue, map, expression);
             break;
@@ -988,8 +984,8 @@ class ConfigListener extends RouteBaseListener {
                 } else {
                     value = o.getClass();
                 }
-                ObjectWrapped<Object> key = (ObjectWrapped<Object>) stack.pop();
-                map.put(key.wrapped, value);
+                Object key = unWrapObject(stack.popTyped());
+                map.put(key, value);
             }
             stack.push(new ObjectWrapped<Map<?, ?>>(map));
         } else {
@@ -1080,8 +1076,7 @@ class ConfigListener extends RouteBaseListener {
         ExpressionBuilder expression;
         if (ctx.sl != null) {
             List<ExpressionBuilder> exlist = ctx.expressionsList() != null ? stack.popTyped() : null;
-            ObjectWrapped<String> stringWrapped = stack.popTyped();
-            String format = stringWrapped.wrapped;
+            String format = unWrapObject(stack.popTyped());
             VarFormatter vf = new VarFormatter(format);
             if (vf.isEmpty()) {
                 expression = ExpressionBuilder.of(format);
@@ -1100,21 +1095,17 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.nl != null) {
             stack.pop();
             expression = ExpressionBuilder.of(NullOrMissingValue.NULL);
-        } else if (ctx.c != null) {
-            ObjectWrapped<Character> payload = stack.popTyped();
-            expression = ExpressionBuilder.of(payload.wrapped);
-        } else if (ctx.l != null) {
-            ObjectWrapped<Object> literal = stack.popTyped();
-            expression = ExpressionBuilder.of(literal.wrapped);
+        } else if (ctx.c != null || ctx.l != null) {
+            Object literal = unWrapObject(stack.popTyped());
+            expression = ExpressionBuilder.of(literal);
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
             expression = ExpressionBuilder.of(path).setDeepCopy(true);
         } else if (ctx.opm != null) {
-            ObjectWrapped<Pattern> patternWrap = stack.popTyped();
-            Pattern pattern = patternWrap.wrapped;
+            Pattern pattern = unWrapObject(stack.popTyped());
             ExpressionBuilder pre = stack.popTyped();
-            String patterOperator = ctx.opm.getText();
-            expression = ExpressionBuilder.of(pre, o -> Expression.regex(o, patterOperator, pattern)).setDeepCopy(false);
+            String patternOperator = ctx.opm.getText();
+            expression = ExpressionBuilder.of(pre, o -> Expression.regex(o, patternOperator, pattern)).setDeepCopy(false);
         } else if (ctx.opnotlogical != null) {
             // '!'
             ExpressionBuilder post = stack.popTyped();
@@ -1160,7 +1151,7 @@ class ConfigListener extends RouteBaseListener {
                 Class<?> clazz = classLoader.loadClass(className);
                 // 'instanceof'|'!instanceof'
                 boolean negated = ctx.neg != null || ctx.opinstance.getText().startsWith("!");
-                ExpressionBuilder pre = (ExpressionBuilder) stack.pop();
+                ExpressionBuilder pre = stack.popTyped();
                 expression = ExpressionBuilder.of(pre, o -> Expression.instanceOf(negated, o, clazz)).setDeepCopy(false);
             } catch (ClassNotFoundException e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
@@ -1233,7 +1224,7 @@ class ConfigListener extends RouteBaseListener {
             }
         } else if (ctx.arrayIndex != null) {
             int arrayIndexSign = ctx.arrayIndexSign != null ? -1 : 1;
-            int arrayIndex = ((ObjectWrapped<Number>) stack.popTyped()).wrapped.intValue() * arrayIndexSign;
+            int arrayIndex = ((Number) unWrapObject(stack.popTyped())).intValue() * arrayIndexSign;
             ExpressionBuilder subexpression = stack.popTyped();
             expression = ExpressionBuilder.of(subexpression, o -> Expression.getIterableIndex(o, arrayIndex)).setDeepCopy(subexpression.isDeepCopy());
         } else if (ctx.stringFunction != null) {
@@ -1242,8 +1233,8 @@ class ConfigListener extends RouteBaseListener {
             expression = ExpressionBuilder.of(subexpression, o -> Expression.stringFunction(stringFunction, o)).setDeepCopy(false);
         } else if (ctx.join != null) {
             ExpressionBuilder source = stack.popTyped();
-            ObjectWrapped<String> joinWrapper = stack.popTyped();
-            expression = ExpressionBuilder.of(source, o -> Expression.join(joinWrapper.wrapped, o)).setDeepCopy(false);
+            String join = unWrapObject(stack.popTyped());
+            expression = ExpressionBuilder.of(source, o -> Expression.join(join, o)).setDeepCopy(false);
         } else if (ctx.split != null) {
             ExpressionBuilder source = stack.popTyped();
             Pattern pattern;
@@ -1260,11 +1251,11 @@ class ConfigListener extends RouteBaseListener {
             }
             expression = ExpressionBuilder.of(source, o -> Expression.split(o, pattern)).setDeepCopy(false);
         } else if (ctx.gsub != null) {
-            ObjectWrapped<String> substitution = stack.popTyped();
-            ObjectWrapped<Pattern> patternWrapped  = stack.popTyped();
+            String substitution = unWrapObject(stack.popTyped());
+            Pattern pattern = unWrapObject(stack.popTyped());
             ExpressionBuilder source = stack.popTyped();
             expression = ExpressionBuilder.of(source,
-                    o -> Expression.gsub(o, patternWrapped.wrapped, substitution.wrapped)).setDeepCopy(false);
+                    o -> Expression.gsub(o, pattern, substitution)).setDeepCopy(false);
         } else if (ctx.now != null) {
             expression = ExpressionBuilder.of(ed -> Instant.now()).setDeepCopy(false);
         } else if (ctx.isEmpty != null) {
@@ -1323,9 +1314,9 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitLambda(RouteParser.LambdaContext ctx) {
-        ObjectWrapped<Expression> exw = stack.popTyped();
+        Expression ex = unWrapObject(stack.popTyped());
         stack.pop();
-        stack.push(new ObjectWrapped<>(new Lambda(exw.wrapped)));
+        stack.push(new ObjectWrapped<>(new Lambda(ex)));
     }
 
     @SuppressWarnings("unchecked")
@@ -1333,12 +1324,16 @@ class ConfigListener extends RouteBaseListener {
         return resolveWrappedExpression((ObjectWrapped<Expression>) stack.pop());
     }
 
-    private  Expression resolveWrappedExpression(ObjectWrapped<?> wrapper) {
+    private Expression resolveWrappedExpression(ObjectWrapped<?> wrapper) {
         if (wrapper.wrapped instanceof Expression) {
             return (Expression) wrapper.wrapped;
         } else {
             return new Expression(wrapper.wrapped);
         }
+    }
+
+    private <T> T unWrapObject(ObjectWrapped<T> ow) {
+        return ow.wrapped;
     }
 
     static Number resolveNumberLiteral(IntegerLiteralContext ctx) {
