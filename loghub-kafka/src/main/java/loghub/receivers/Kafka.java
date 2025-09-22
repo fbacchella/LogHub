@@ -178,8 +178,8 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
         }
         decoders = resolverDecoders(builder.decoders);
         workerThreads = new Semaphore(builder.workers);
-        threadBuilder = Thread.ofVirtual().name(getReceiverName() + "/RecordProcessor-", 1);
         receiverName = "Kafka/%s/%08x".formatted(topic, hash);
+        threadBuilder = Thread.ofVirtual().name(receiverName + "/RecordProcessor-", 1);
     }
 
     @Override
