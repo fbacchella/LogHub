@@ -138,7 +138,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
     @Getter
     private final String receiverName;
     private Supplier<Consumer<byte[], byte[]>> consumerSupplier;
-    private final Map<Integer, RangeCollection> ranges = new ConcurrentHashMap<>();
+    private final Map<Integer, RangeCollection> ranges;
     private final Class<?> keyClass;
     private final boolean withAutoCommit;
     private final Map<MimeType, Decoder> decoders;
@@ -171,6 +171,11 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
             keyClass = null;
         }
         withAutoCommit = builder.withAutoCommit;
+        if (withAutoCommit) {
+            ranges = Map.of();
+        } else {
+            ranges = new ConcurrentHashMap<>();
+        }
         decoders = resolverDecoders(builder.decoders);
         workerThreads = new Semaphore(builder.workers);
         threadBuilder = Thread.ofVirtual().name(getReceiverName() + "/RecordProcessor-", 1);
@@ -199,10 +204,10 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
 
     @Override
     public void run() {
+        Duration pollingInterval = Duration.ofMillis(100);
         int wait = 100;
         while (! isInterrupted()) {
             try (Consumer<byte[], byte[]> consumer = consumerSupplier.get()) {
-                Duration pollingInterval = Duration.ofMillis(100);
                 while (! isInterrupted()) {
                     if (! eventLoop(consumer, pollingInterval)) {
                         break;
@@ -258,12 +263,12 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
         if (withAutoCommit) {
             return;
         }
-        Map<TopicPartition, OffsetAndMetadata> toCommit = new HashMap<>();
+        Map<TopicPartition, OffsetAndMetadata> toCommit = HashMap.newHashMap(ranges.size());
         for (Map.Entry<Integer, RangeCollection> i: ranges.entrySet()) {
             RangeCollection range = i.getValue();
             long lastAck = range.merge();
             if (lastAck >= 0) {
-                TopicPartition tp = new TopicPartition(this.topic, i.getKey());
+                TopicPartition tp = new TopicPartition(topic, i.getKey());
                 // commit is not the last accepted offset, but the next expected offset
                 toCommit.put(tp, new OffsetAndMetadata(lastAck + 1));
             }
@@ -287,10 +292,16 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
                 logger.trace("Got a record {}", kafkaRecord);
                 int partition = kafkaRecord.partition();
                 long offset = kafkaRecord.offset();
+                Runnable ackRunnable;
+                if (withAutoCommit) {
+                    ackRunnable = () -> {};
+                } else {
+                    ackRunnable = () -> getPartitionRange(partition).addValue(offset);
+                }
                 KafkaContext ctxt = new KafkaContext(
                         kafkaRecord.topic(),
                         kafkaRecord.partition(),
-                        () -> getPartitionRange(partition).addValue(offset)
+                        ackRunnable
                 );
                 Optional.ofNullable(kafkaRecord.headers().lastHeader(HeadersTypes.CONTENTYPE_HEADER_NAME))
                         .map(h -> MimeType.of(new String(h.value(), StandardCharsets.UTF_8)))
@@ -343,8 +354,8 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
         send(e);
     }
 
-    private Map<String, byte[]> getHeaders(ConsumerRecord<byte[], byte[]> kafakRecord) {
-        Header[] h = kafakRecord.headers().toArray();
+    private Map<String, byte[]> getHeaders(ConsumerRecord<byte[], byte[]> kafkaRecord) {
+        Header[] h = kafkaRecord.headers().toArray();
         if (h.length > 0) {
             Map<String, byte[]> headersMap = HashMap.newHashMap(h.length);
             Arrays.stream(h)
