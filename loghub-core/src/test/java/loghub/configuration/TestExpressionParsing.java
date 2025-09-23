@@ -281,18 +281,25 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testErrors() {
+    public void testErrorsConvert() {
         Event ev = factory.newEvent();
-        RecognitionException ex1 = Assert.assertThrows(
+        ev.put("badIP", "255");
+        ev.put("badNumber", "NONE");
+        ProcessorException ex1 = Assert.assertThrows(
+                ProcessorException.class,
+                () -> Tools.evalExpression("(java.net.InetAddress) [badIP]", ev)
+        );
+        Assert.assertEquals("Failed expression (java.net.InetAddress) [badIP]: Unable to parse 255 as a java.net.InetAddress: Unknown host \"255\"", ex1.getMessage());
+        ProcessorException ex2 = Assert.assertThrows(
+                ProcessorException.class,
+                () -> Tools.evalExpression("(java.lang.Integer) [badNumber]", ev)
+        );
+        Assert.assertEquals("Failed expression (java.lang.Integer) [badNumber]: Unable to parse NONE as a java.lang.Integer: For input string: \"NONE\"", ex2.getMessage());
+        RecognitionException ex3 = Assert.assertThrows(
                 RecognitionException.class,
                 () -> Tools.evalExpression("(java.net.InetAddress) \"255\"", ev)
         );
-        Assert.assertEquals("Failed to parse IP address \"255\"", ex1.getMessage());
-        RecognitionException ex2 = Assert.assertThrows(
-                RecognitionException.class,
-                () -> Tools.evalExpression("(java.net.InetAddress) \"255\"", ev)
-        );
-        Assert.assertEquals("Failed to parse IP address \"255\"", ex2.getMessage());
+        Assert.assertEquals("Unable to parse 255 as a java.net.InetAddress: Unknown host \"255\"", ex3.getMessage());
     }
 
     @Test

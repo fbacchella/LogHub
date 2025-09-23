@@ -781,87 +781,91 @@ public class Expression {
 
     @SuppressWarnings("unchecked")
     public static <T> T convertObject(Class<T> clazz, Object value, Charset charset, ByteOrder byteOrder)
-            throws UnknownHostException, InvocationTargetException {
-        if (value == NullOrMissingValue.MISSING) {
-            return (T) NullOrMissingValue.MISSING;
-        } else if (value == null || value == NullOrMissingValue.NULL) {
-            return null;
-        } else if (clazz.isAssignableFrom(value.getClass())) {
-            // Nothing to do, just return the value
-            return (T) value;
-        } else if (value instanceof byte[] && clazz == String.class) {
-            return (T) new String((byte[]) value, charset);
-        } else if (value instanceof byte[] && clazz == MacAddress.class) {
-            return (T) new MacAddress((byte[]) value);
-        } else if (value instanceof byte[] && InetAddress.class == clazz) {
-                return (T) InetAddress.getByAddress((byte[]) value);
-        } else if (value instanceof byte[]) {
-            ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
-            buffer.order(byteOrder);
-            Object o;
-            switch (clazz.getName()) {
-            case "java.lang.Character":
-                o = buffer.getChar();
-                break;
-            case "java.lang.Byte" :
-                o = buffer.get();
-                break;
-            case "java.lang.Short":
-                o = buffer.getShort();
-                break;
-            case "java.lang.Integer":
-                o = buffer.getInt();
-                break;
-            case "java.lang.Long":
-                o = buffer.getLong();
-                break;
-            case "java.lang.Float":
-                o = buffer.getFloat();
-                break;
-            case "java.lang.Double":
-                o = buffer.getDouble();
-                break;
-            default:
-                throw IgnoredEventException.INSTANCE;
-            }
-            return (T) o;
-        } else {
-            String valueStr = value.toString();
-            if (valueStr.isBlank()) {
-                throw IgnoredEventException.INSTANCE;
-            } else {
+            throws InvocationTargetException {
+        try {
+            if (value == NullOrMissingValue.MISSING) {
+                return (T) NullOrMissingValue.MISSING;
+            } else if (value == null || value == NullOrMissingValue.NULL) {
+                return null;
+            } else if (clazz.isAssignableFrom(value.getClass())) {
+                // Nothing to do, just return the value
+                return (T) value;
+            } else if (value instanceof byte[] && clazz == String.class) {
+                return (T) new String((byte[]) value, charset);
+            } else if (value instanceof byte[] && clazz == MacAddress.class) {
+                return (T) new MacAddress((byte[]) value);
+            } else if (value instanceof byte[] && InetAddress.class == clazz) {
+                    return (T) InetAddress.getByAddress((byte[]) value);
+            } else if (value instanceof byte[]) {
+                ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
+                buffer.order(byteOrder);
                 Object o;
                 switch (clazz.getName()) {
-                case "java.lang.Integer":
-                    o = Integer.valueOf(valueStr);
+                case "java.lang.Character":
+                    o = buffer.getChar();
                     break;
                 case "java.lang.Byte" :
-                    o = Byte.valueOf(valueStr);
+                    o = buffer.get();
                     break;
                 case "java.lang.Short":
-                    o = Short.valueOf(valueStr);
+                    o = buffer.getShort();
+                    break;
+                case "java.lang.Integer":
+                    o = buffer.getInt();
                     break;
                 case "java.lang.Long":
-                    o = Long.valueOf(valueStr);
+                    o = buffer.getLong();
                     break;
                 case "java.lang.Float":
-                    o = Float.valueOf(valueStr);
+                    o = buffer.getFloat();
                     break;
                 case "java.lang.Double":
-                    o = Double.valueOf(valueStr);
+                    o = buffer.getDouble();
                     break;
-                case "java.lang.Boolean":
-                    o = Boolean.valueOf(valueStr);
-                    break;
-                case "java.net.InetAddress":
-                    o = Helpers.parseIpAddress(valueStr);
-                    break;
-                 default:
-                    o = BeansManager.constructFromString(clazz, valueStr);
-                    break;
+                default:
+                    throw IgnoredEventException.INSTANCE;
                 }
                 return (T) o;
+            } else {
+                String valueStr = value.toString();
+                if (valueStr.isBlank()) {
+                    throw IgnoredEventException.INSTANCE;
+                } else {
+                    Object o;
+                    switch (clazz.getName()) {
+                    case "java.lang.Integer":
+                        o = Integer.valueOf(valueStr);
+                        break;
+                    case "java.lang.Byte" :
+                        o = Byte.valueOf(valueStr);
+                        break;
+                    case "java.lang.Short":
+                        o = Short.valueOf(valueStr);
+                        break;
+                    case "java.lang.Long":
+                        o = Long.valueOf(valueStr);
+                        break;
+                    case "java.lang.Float":
+                        o = Float.valueOf(valueStr);
+                        break;
+                    case "java.lang.Double":
+                        o = Double.valueOf(valueStr);
+                        break;
+                    case "java.lang.Boolean":
+                        o = Boolean.valueOf(valueStr);
+                        break;
+                    case "java.net.InetAddress":
+                        o = Helpers.parseIpAddress(valueStr);
+                        break;
+                     default:
+                        o = BeansManager.constructFromString(clazz, valueStr);
+                        break;
+                    }
+                    return (T) o;
+                }
             }
+        } catch (UnknownHostException | RuntimeException ex) {
+            throw new InvocationTargetException(ex);
         }
     }
 

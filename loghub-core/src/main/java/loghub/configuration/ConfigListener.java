@@ -4,7 +4,6 @@ import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
-import java.net.UnknownHostException;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -90,6 +89,7 @@ import loghub.RouteParser.VarPathContext;
 import loghub.RouteParser.VparrayContext;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.configuration.ExpressionBuilder.ExpressionType;
 import loghub.events.EventsFactory;
 import loghub.groovy.GroovyMethods;
 import loghub.processors.AnonymousSubPipeline;
@@ -200,7 +200,7 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    static final class ProcessorInstance extends ObjectWrapped<Processor> implements Pipenode {
+    static class ProcessorInstance extends ObjectWrapped<Processor> implements Pipenode {
         ProcessorInstance(ObjectWrapped<Processor> wrapper) {
             super(wrapper.wrapped);
         }
@@ -211,7 +211,6 @@ class ConfigListener extends RouteBaseListener {
         public String toString() {
             return "ProcessorInstance$" + wrapped.getClass().getSimpleName() + "@" + System.identityHashCode(wrapped);
         }
-
     }
 
     static final class TypedStack extends ArrayDeque<Object> {
@@ -224,6 +223,13 @@ class ConfigListener extends RouteBaseListener {
             @SuppressWarnings("unchecked")
             T temp = (T) peek();
             return temp;
+        }
+        public <T> T popWrapped() {
+            ObjectWrapped<T> ow = popTyped();
+            return ow.wrapped;
+        }
+        public <T> void pushWrapped(T object) {
+            push(new ObjectWrapped<>(object));
         }
     }
 
@@ -283,42 +289,38 @@ class ConfigListener extends RouteBaseListener {
         stack.push(new PipeRefName(ctx.getText()));
     }
 
-    private void pushLiteral(Object content) {
-        stack.push(new ObjectWrapped<>(content));
-    }
-
     @Override
     public void enterFloatingPointLiteral(FloatingPointLiteralContext ctx) {
         String content = ctx.FloatingPointLiteral().getText();
-        pushLiteral(Double.valueOf(content));
+        stack.pushWrapped(Double.valueOf(content));
     }
 
     @Override
     public void enterCharacterLiteral(CharacterLiteralContext ctx) {
         String content = ctx.CharacterLiteral().getText();
-        pushLiteral(content.charAt(0));
+        stack.pushWrapped(content.charAt(0));
     }
 
     @Override
     public void enterStringLiteral(StringLiteralContext ctx) {
         String content = ctx.StringLiteral().getText();
-        pushLiteral(content);
+        stack.pushWrapped(content);
     }
 
     @Override
     public void enterIntegerLiteral(IntegerLiteralContext ctx) {
-        pushLiteral(resolveNumberLiteral(ctx));
+        stack.pushWrapped(resolveNumberLiteral(ctx));
     }
 
     @Override
     public void enterBooleanLiteral(BooleanLiteralContext ctx) {
         String content = ctx.getText();
-        pushLiteral(Boolean.valueOf(content));
+        stack.pushWrapped(Boolean.valueOf(content));
     }
 
     @Override
     public void enterNullLiteral(NullLiteralContext ctx) {
-        pushLiteral(null);
+        stack.pushWrapped(null);
     }
 
     @Override
@@ -330,9 +332,9 @@ class ConfigListener extends RouteBaseListener {
             if (secret == null) {
                 throw new RecognitionException("Unknown secret: " + ctx.id.getText(), parser, stream, ctx);
             } else if (ctx.SecretAttribute() == null || ! "blob".equals(ctx.SecretAttribute().getText())) {
-                pushLiteral(new String(secret, StandardCharsets.UTF_8));
+                stack.pushWrapped(new String(secret, StandardCharsets.UTF_8));
             } else {
-                pushLiteral(secret);
+                stack.pushWrapped(secret);
             }
         }
     }
@@ -340,7 +342,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitBean(BeanContext ctx) {
         String beanName;
-        ObjectWrapped<Object> beanValue = stack.popTyped();
+        Object beanValue = stack.popWrapped();
         if (ctx.bn != null) {
             beanName = ctx.bn.getText();
         } else {
@@ -352,20 +354,19 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitMergeArgument(MergeArgumentContext ctx) {
         String beanName = ctx.type.getText();
-        ObjectWrapped<Object> beanValue = stack.popTyped();
+        Object beanValue = stack.popWrapped();
         doBean(beanName, beanValue, ctx);
     }
 
-    private void doBean(String beanName, ObjectWrapped<?> beanValue, ParserRuleContext ctx) {
+    private void doBean(String beanName, Object beanValue, ParserRuleContext ctx) {
         ObjectWrapped<Object> beanObject = stack.peekTyped();
         Object value;
-        if (beanValue.wrapped instanceof SslContextBuilder) {
-           value = ((SslContextBuilder) beanValue.wrapped).build();
+        if (beanValue instanceof SslContextBuilder scb) {
+           value = scb.build();
         } else {
-            value = beanValue.wrapped;
+            value = beanValue;
         }
         assert (beanName != null);
-        assert (beanValue != null);
         try {
             beansManager.beanSetter(beanObject.wrapped, beanName, value, classLoader);
         } catch (IntrospectionException | InvocationTargetException | UndeclaredThrowableException e) {
@@ -407,7 +408,7 @@ class ConfigListener extends RouteBaseListener {
                 } else {
                     io = ioClass.getConstructor().newInstance();
                 }
-                stack.push(new ObjectWrapped<>(io));
+                stack.pushWrapped(io);
             } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | IllegalArgumentException | SecurityException ex) {
                 throw new RecognitionException("Unusable class " + ioClass.getName() + ": " + Helpers.resolveThrowableException(ex), parser, stream, ctx);
             } catch (InvocationTargetException ex) {
@@ -477,14 +478,12 @@ class ConfigListener extends RouteBaseListener {
             ObjectWrapped<Processor> processor = (ObjectWrapped<Processor>) o;
             ProcessorInstance pi = new ProcessorInstance(processor);
             stack.push(pi);
-        } else if ((o instanceof PipenodesList)) {
-            PipenodesList pipes = (PipenodesList) o;
+        } else if (o instanceof PipenodesList pipes) {
             Pipeline p = parsePipeline(pipes, currentPipeLineName);
             AnonymousSubPipeline anonymous = new AnonymousSubPipeline();
             anonymous.setPipeline(p);
             stack.push(new ProcessorInstance(anonymous));
-        } else if ((o instanceof PipeRef)) {
-            PipeRef pr = (PipeRef) o;
+        } else if (o instanceof PipeRef pr) {
             NamedSubPipeline nsp = new NamedSubPipeline();
             nsp.setPipeRef(pr.pipename);
             stack.push(new ProcessorInstance(nsp));
@@ -511,21 +510,20 @@ class ConfigListener extends RouteBaseListener {
 
     private Processor getProcessor(Pipenode i, String currentPipeLineName) throws ConfigException {
         Processor t;
-        if (i instanceof ConfigListener.PipeRef) {
-            ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
+        switch (i) {
+        case ConfigListener.PipeRef cpr -> {
             NamedSubPipeline pr = new NamedSubPipeline();
             pr.setPipeRef(cpr.pipename);
             t = pr;
-        } else if (i instanceof ConfigListener.PipenodesList) {
+        }
+        case ConfigListener.PipenodesList pnl -> {
             AnonymousSubPipeline subpipe = new AnonymousSubPipeline();
-            Pipeline p = parsePipeline((ConfigListener.PipenodesList) i, currentPipeLineName);
+            Pipeline p = parsePipeline(pnl, currentPipeLineName);
             subpipe.setPipeline(p);
             t = subpipe;
-        } else if (i instanceof ConfigListener.ProcessorInstance) {
-            ConfigListener.ProcessorInstance pi = (ConfigListener.ProcessorInstance) i;
-            t = pi.wrapped;
-        } else {
-            throw new IllegalStateException("Unreachable code for " + i);
+        }
+        case ConfigListener.ProcessorInstance pi -> t = pi.wrapped;
+        default -> throw new IllegalStateException("Unreachable code for " + i);
         }
         return t;
     }
@@ -591,8 +589,8 @@ class ConfigListener extends RouteBaseListener {
         Object o;
         do {
             o = stack.pop();
-            if (o instanceof ProcessorInstance) {
-                pipe.processors.add(0, (ProcessorInstance) o);
+            if (o instanceof ProcessorInstance pi) {
+                pipe.processors.add(0, pi);
             }
             assert StackMarker.PIPE_NODE_LIST == o || (o instanceof ProcessorInstance) : o.getClass();
         } while (StackMarker.PIPE_NODE_LIST != o);
@@ -616,8 +614,8 @@ class ConfigListener extends RouteBaseListener {
         Object o;
         do {
             o = stack.pop();
-            if (o instanceof ProcessorInstance) {
-                pipe.processors.add(0, (ProcessorInstance) o);
+            if (o instanceof ProcessorInstance pi2) {
+                pipe.processors.add(0, pi2);
             }
             assert StackMarker.PATH == o || (o instanceof ProcessorInstance) : o.getClass();
         } while (StackMarker.PATH != o);
@@ -626,15 +624,14 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterForeach(ForeachContext ctx) {
-        ObjectWrapped<VariablePath> wrapped = new ObjectWrapped<>(convertEventVariable(ctx.eventVariable()));
-        stack.push(wrapped);
+        stack.pushWrapped(convertEventVariable(ctx.eventVariable()));
     }
 
     @Override
     public void exitForeach(ForeachContext ctx) {
-        ProcessorInstance pi = (ProcessorInstance) stack.pop();
-        VariablePath vp = unWrapObject(stack.popTyped());
-        ForEach fe = new ForEach(vp, pi.wrapped);
+        Processor pi = stack.popWrapped();
+        VariablePath vp = stack.popWrapped();
+        ForEach fe = new ForEach(vp, pi);
         stack.push(new ProcessorInstance(fe));
     }
 
@@ -644,7 +641,7 @@ class ConfigListener extends RouteBaseListener {
         // Other case the name is kept as is
         if (ctx.getParent() instanceof loghub.RouteParser.PipenodeContext) {
             PipeRef piperef = new PipeRef();
-            piperef.pipename = ((PipeRefName) stack.pop()).piperef;
+            piperef.pipename = ((PipeRefName) stack.popTyped()).piperef;
             stack.push(piperef);
         }
     }
@@ -661,11 +658,10 @@ class ConfigListener extends RouteBaseListener {
         Object o;
         do {
             o = stack.pop();
-            if (o instanceof Pipenode) {
-                Pipenode t = (Pipenode) o;
+            if (o instanceof Pipenode t) {
                 clauses.add(0, t);
-            } else if (o instanceof ObjectWrapped) {
-                test.setTest(resolveWrappedExpression((ObjectWrapped<?>) o));
+            } else if (o instanceof ObjectWrapped<?> ow) {
+                test.setTest(resolveWrappedExpression(ow));
             }
         } while (StackMarker.TEST != o);
         assert clauses.size() == 1 || clauses.size() == 2;
@@ -687,7 +683,7 @@ class ConfigListener extends RouteBaseListener {
     public void exitInputObjectlist(InputObjectlistContext ctx) {
         List<ObjectWrapped<?>> l = new ArrayList<>();
         while (StackMarker.OBJECT_LIST != stack.peek()) {
-            l.add((ObjectWrapped<?>) stack.pop());
+            l.add(stack.popTyped());
         }
         stack.pop();
         stack.push(l);
@@ -702,7 +698,7 @@ class ConfigListener extends RouteBaseListener {
     public void exitOutputObjectlist(OutputObjectlistContext ctx) {
         List<ObjectWrapped<?>> l = new ArrayList<>();
         while (StackMarker.OBJECT_LIST != stack.peek()) {
-            l.add((ObjectWrapped<?>) stack.pop());
+            l.add(stack.popTyped());
         }
         stack.pop();
         stack.push(l);
@@ -711,8 +707,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitOutput(OutputContext ctx) {
         PipeRefName piperef;
-        @SuppressWarnings("unchecked")
-        List<ObjectWrapped<Sender>> senders = (List<ObjectWrapped<Sender>>) stack.pop();
+        List<ObjectWrapped<Sender>> senders = stack.popTyped();
         if (stack.peek() instanceof PipeRefName) {
             piperef = (PipeRefName) stack.pop();
         } else {
@@ -732,7 +727,7 @@ class ConfigListener extends RouteBaseListener {
     public void exitInput(InputContext ctx) {
         PipeRefName piperef;
         if (stack.peek() instanceof PipeRefName) {
-            piperef = (PipeRefName) stack.pop();
+            piperef = stack.popTyped();
         } else {
             // if no pipe name given, events are sent to the main pipe
             piperef = new PipeRefName("main");
@@ -753,16 +748,16 @@ class ConfigListener extends RouteBaseListener {
         } else {
             propertyName = ctx.propertyName().getText();
         }
-        ObjectWrapped<Object> propertyValue = (ObjectWrapped<Object>) stack.pop();
+        Object propertyValue = stack.popWrapped();
         Object o = properties.get(propertyName);
         if (o instanceof AtomicReference) {
-            ((AtomicReference<Object>) o).set(propertyValue.wrapped);
+            ((AtomicReference<Object>) o).set(propertyValue);
         }
     }
 
     @Override
     public void exitSourcedef(SourcedefContext ctx) {
-        Source source = unWrapObject(stack.popTyped());
+        Source source = stack.popWrapped();
         sources.get(ctx.identifier().getText()).set(source);
     }
 
@@ -774,7 +769,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitVparray(VparrayContext ctx) {
         if (ctx.eventVariable().isEmpty() && ctx.stringLiteral().isEmpty()) {
-            stack.push(new ObjectWrapped<>(new VariablePath[0]));
+            stack.pushWrapped(new VariablePath[0]);
         } else {
             List<VariablePath> array = new ArrayList<>(ctx.eventVariable().size() + ctx.stringLiteral().size());
             // Don't try to be rigorous here, it's already filtered by antlr parsing
@@ -788,7 +783,7 @@ class ConfigListener extends RouteBaseListener {
                 // Cleaning the stack
             }
 
-            stack.push(new ObjectWrapped<>(array.toArray(VariablePath[]::new)));
+            stack.pushWrapped(array.toArray(VariablePath[]::new));
         }
     }
 
@@ -810,13 +805,12 @@ class ConfigListener extends RouteBaseListener {
         }
         Collections.reverse(array);
         stack.pop();
-        stack.push(new ObjectWrapped<>(array.toArray()));
+        stack.pushWrapped(array.toArray());
     }
 
     @Override
     public void exitDrop(DropContext ctx) {
-        ObjectWrapped<Drop> drop = new ObjectWrapped<>(new Drop());
-        stack.push(drop);
+        stack.pushWrapped(new Drop());
     }
 
     @Override
@@ -831,20 +825,19 @@ class ConfigListener extends RouteBaseListener {
         int count = ctx.eventVariable().size() - 1;
         while (StackMarker.FIRE != stack.peek()) {
             Object o = stack.pop();
-            if (o instanceof ObjectWrapped) {
+            switch (o) {
+            case ObjectWrapped<?> ow -> {
                 VariablePath lvalue = convertEventVariable(ctx.eventVariable().get(count--));
-                Expression expression = resolveWrappedExpression((ObjectWrapped<?>) o);
+                Expression expression = resolveWrappedExpression(ow);
                 fields.put(lvalue, expression);
-            } else if (o instanceof PipeRefName) {
-                PipeRefName name = (PipeRefName) o;
-                fire.setDestination(name.piperef);
-            } else {
-                throw new RecognitionException("invalid fire argument: " + o, parser, stream, ctx);
+            }
+            case PipeRefName name -> fire.setDestination(name.piperef);
+            default -> throw new RecognitionException("invalid fire argument: " + o, parser, stream, ctx);
             }
         }
         fire.setFields(fields);
         stack.pop();
-        stack.push(new ObjectWrapped<>(fire));
+        stack.pushWrapped(fire);
     }
 
     @Override
@@ -854,7 +847,7 @@ class ConfigListener extends RouteBaseListener {
         builder.setMessage(expression);
         builder.setLevel(ctx.level().getText());
         Log log = builder.build();
-        stack.push(new ObjectWrapped<>(log));
+        stack.pushWrapped(log);
     }
 
     @Override
@@ -896,7 +889,7 @@ class ConfigListener extends RouteBaseListener {
     }
 
     private String filterpathElement(PathElementContext pec) {
-        return pec.children.get(0).getText();
+        return pec.children.getFirst().getText();
     }
 
     @Override
@@ -918,15 +911,14 @@ class ConfigListener extends RouteBaseListener {
             break;
         }
         case("="): {
-            if (ctx.children.get(2) instanceof EventVariableContext) {
-                EventVariableContext evc = (EventVariableContext) ctx.children.get(2);
+            if (ctx.children.get(2) instanceof EventVariableContext evc) {
                 VariablePath vp = convertEventVariable(evc);
                 etl = Etl.Copy.of(lvalue, vp);
             } else if (ctx.nl != null) {
                 stack.pop();
                 etl = Etl.FromLiteral.of(lvalue, NullOrMissingValue.NULL);
             } else if (ctx.sl != null) {
-                String format = unWrapObject(stack.popTyped());
+                String format = stack.popWrapped();
                 VarFormatter vf = new VarFormatter(format);
                 if (vf.isEmpty()) {
                     etl = Etl.FromLiteral.of(lvalue, format);
@@ -934,7 +926,7 @@ class ConfigListener extends RouteBaseListener {
                     etl = Etl.VarFormat.of(lvalue, vf);
                 }
             } else if (ctx.c != null || ctx.l != null) {
-                Object obj = unWrapObject(stack.popTyped());
+                Object obj = stack.popWrapped();
                 etl = Etl.FromLiteral.of(lvalue, obj);
             } else {
                 Expression expression = resolveWrappedExpression();
@@ -952,7 +944,7 @@ class ConfigListener extends RouteBaseListener {
             break;
         }
         case("@"): {
-            Map<Object, Object> map = unWrapObject(stack.popTyped());
+            Map<Object, Object> map = stack.popWrapped();
             Expression expression = resolveWrappedExpression();
             etl = Mapper.of(lvalue, map, expression);
             break;
@@ -984,10 +976,10 @@ class ConfigListener extends RouteBaseListener {
                 } else {
                     value = o.getClass();
                 }
-                Object key = unWrapObject(stack.popTyped());
+                Object key = stack.popWrapped();
                 map.put(key, value);
             }
-            stack.push(new ObjectWrapped<Map<?, ?>>(map));
+            stack.pushWrapped(map);
         } else {
             Object o = stack.pop();
             assert o == ConfigListener.StackMarker.MAP;
@@ -997,7 +989,7 @@ class ConfigListener extends RouteBaseListener {
                 throw new RecognitionException("Undefined source " + sourceName, parser, stream, ctx);
             }
             Source s = sources.get(sourceName).get();
-            stack.push(new ObjectWrapped<>(s));
+            stack.pushWrapped(s);
         }
     }
 
@@ -1033,7 +1025,7 @@ class ConfigListener extends RouteBaseListener {
             patternDef = patternDef.substring(wrapperCount, patternDef.length() - wrapperCount);
             patternDef = regexContent.matcher(patternDef).replaceAll("$1");
             Pattern pattern = patternCache.computeIfAbsent(patternDef, Pattern::compile);
-            stack.push(new ObjectWrapped<>(pattern));
+            stack.pushWrapped(pattern);
         } catch (PatternSyntaxException e) {
             throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
         }
@@ -1057,7 +1049,7 @@ class ConfigListener extends RouteBaseListener {
             vp = VariablePath.parse(ctx.fsv.getText());
         }
         assert vp != null;
-        stack.push(new ObjectWrapped<>(vp));
+        stack.pushWrapped(vp);
     }
 
     /**
@@ -1076,7 +1068,7 @@ class ConfigListener extends RouteBaseListener {
         ExpressionBuilder expression;
         if (ctx.sl != null) {
             List<ExpressionBuilder> exlist = ctx.expressionsList() != null ? stack.popTyped() : null;
-            String format = unWrapObject(stack.popTyped());
+            String format = stack.popWrapped();
             VarFormatter vf = new VarFormatter(format);
             if (vf.isEmpty()) {
                 expression = ExpressionBuilder.of(format);
@@ -1096,13 +1088,13 @@ class ConfigListener extends RouteBaseListener {
             stack.pop();
             expression = ExpressionBuilder.of(NullOrMissingValue.NULL);
         } else if (ctx.c != null || ctx.l != null) {
-            Object literal = unWrapObject(stack.popTyped());
+            Object literal = stack.popWrapped();
             expression = ExpressionBuilder.of(literal);
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
             expression = ExpressionBuilder.of(path).setDeepCopy(true);
         } else if (ctx.opm != null) {
-            Pattern pattern = unWrapObject(stack.popTyped());
+            Pattern pattern = stack.popWrapped();
             ExpressionBuilder pre = stack.popTyped();
             String patternOperator = ctx.opm.getText();
             expression = ExpressionBuilder.of(pre, o -> Expression.regex(o, patternOperator, pattern)).setDeepCopy(false);
@@ -1189,20 +1181,32 @@ class ConfigListener extends RouteBaseListener {
             ExpressionBuilder subexpression = stack.popTyped();
             try {
                 Class<?> theClass = classLoader.loadClass(ctx.convertclass.getText());
-                UnaryOperator<Object> convert = o -> {
+                if (subexpression.getType() == ExpressionType.LITERAL) {
+                    Object payload = subexpression.getPayload();
                     try {
-                       return Expression.convertObject(
-                           theClass, o, Charset.defaultCharset(), ByteOrder.nativeOrder()
-                       );
-                    } catch (UnknownHostException ex) {
-                        throw new RecognitionException("Failed to parse IP address \"" + o + "\"", parser, stream, ctx);
-                    } catch (NumberFormatException ex) {
-                        throw new RecognitionException("Unable to parse \"" + o + "\" as a " + theClass.getName(), parser, stream, ctx);
+                        Object converted = Expression.convertObject(
+                                theClass, payload, Charset.defaultCharset(), ByteOrder.nativeOrder()
+                        );
+                        expression = ExpressionBuilder.of(converted);
                     } catch (InvocationTargetException ex) {
-                        throw new RecognitionException(Helpers.resolveThrowableException(ex.getCause()), parser, stream, ctx);
+                        throw new RecognitionException(
+                                "Unable to parse %s as a %s: %s".formatted(payload, theClass.getName(), Helpers.resolveThrowableException(ex.getCause())),
+                                parser, stream, ctx
+                        );
                     }
-                };
-                expression = ExpressionBuilder.of(subexpression, convert).setDeepCopy(false);
+                } else {
+                    UnaryOperator<Object> convert = o -> {
+                        try {
+                            return Expression.convertObject(
+                                    theClass, o, Charset.defaultCharset(), ByteOrder.nativeOrder()
+                            );
+                        } catch (InvocationTargetException ex) {
+                            String message = Helpers.resolveThrowableException(ex.getCause());
+                            throw new IllegalArgumentException("Unable to parse %s as a %s: %s".formatted(o, theClass.getName(), message));
+                        }
+                    };
+                    expression = ExpressionBuilder.of(subexpression, convert).setDeepCopy(false);
+                }
             } catch (ClassNotFoundException e) {
                 throw new RecognitionException("Unknown class: " + ctx.newclass.getText(), parser, stream, ctx);
             }
@@ -1224,7 +1228,7 @@ class ConfigListener extends RouteBaseListener {
             }
         } else if (ctx.arrayIndex != null) {
             int arrayIndexSign = ctx.arrayIndexSign != null ? -1 : 1;
-            int arrayIndex = ((Number) unWrapObject(stack.popTyped())).intValue() * arrayIndexSign;
+            int arrayIndex = ((Number) stack.popWrapped()).intValue() * arrayIndexSign;
             ExpressionBuilder subexpression = stack.popTyped();
             expression = ExpressionBuilder.of(subexpression, o -> Expression.getIterableIndex(o, arrayIndex)).setDeepCopy(subexpression.isDeepCopy());
         } else if (ctx.stringFunction != null) {
@@ -1233,26 +1237,25 @@ class ConfigListener extends RouteBaseListener {
             expression = ExpressionBuilder.of(subexpression, o -> Expression.stringFunction(stringFunction, o)).setDeepCopy(false);
         } else if (ctx.join != null) {
             ExpressionBuilder source = stack.popTyped();
-            String join = unWrapObject(stack.popTyped());
+            String join = stack.popWrapped();
             expression = ExpressionBuilder.of(source, o -> Expression.join(join, o)).setDeepCopy(false);
         } else if (ctx.split != null) {
             ExpressionBuilder source = stack.popTyped();
             Pattern pattern;
             if (ctx.pattern() != null) {
-                ObjectWrapped<Pattern> patternWrapper = stack.popTyped();
-                pattern = patternWrapper.wrapped;
+                pattern = stack.popWrapped();
             } else {
-                ObjectWrapped<String> patternWrapper = stack.popTyped();
+                String patternString = stack.popWrapped();
                 try {
-                    pattern = Pattern.compile(patternWrapper.wrapped);
+                    pattern = Pattern.compile(patternString);
                 } catch (PatternSyntaxException ex) {
                     throw new RecognitionException(Helpers.resolveThrowableException(ex), parser, stream, ctx);
                 }
             }
             expression = ExpressionBuilder.of(source, o -> Expression.split(o, pattern)).setDeepCopy(false);
         } else if (ctx.gsub != null) {
-            String substitution = unWrapObject(stack.popTyped());
-            Pattern pattern = unWrapObject(stack.popTyped());
+            String substitution = stack.popWrapped();
+            Pattern pattern = stack.popWrapped();
             ExpressionBuilder source = stack.popTyped();
             expression = ExpressionBuilder.of(source,
                     o -> Expression.gsub(o, pattern, substitution)).setDeepCopy(false);
@@ -1284,8 +1287,7 @@ class ConfigListener extends RouteBaseListener {
                 expression = ExpressionBuilder.of(expression, Expression::deepCopy);
             }
             String expressionSource;
-            if (stream instanceof CharStream) {
-                CharStream cs = (CharStream) stream;
+            if (stream instanceof CharStream cs) {
                 Interval i = Interval.of(ctx.start.getStartIndex(), ctx.stop.getStopIndex());
                 expressionSource = cs.getText(i);
             } else {
@@ -1295,12 +1297,12 @@ class ConfigListener extends RouteBaseListener {
             // A lambda only takes Expression as argument, so never optimize it
             if (stack.peek() != StackMarker.LAMBDA && expression.getType() == ExpressionBuilder.ExpressionType.LITERAL) {
                 try {
-                    stack.push(new ObjectWrapped<>(expr.eval()));
+                    stack.pushWrapped(expr.eval());
                 } catch (ProcessorException e) {
                     throw new RecognitionException("Invalid expression \"" + expressionSource + "\": " + Helpers.resolveThrowableException(e), parser, stream, ctx);
                 }
             } else {
-                stack.push(new ObjectWrapped<>(expr));
+                stack.pushWrapped(expr);
             }
         } else {
             stack.push(expression);
@@ -1314,14 +1316,14 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitLambda(RouteParser.LambdaContext ctx) {
-        Expression ex = unWrapObject(stack.popTyped());
+        Expression ex = stack.popWrapped();
         stack.pop();
-        stack.push(new ObjectWrapped<>(new Lambda(ex)));
+        stack.pushWrapped(new Lambda(ex));
     }
 
     @SuppressWarnings("unchecked")
     private  Expression resolveWrappedExpression() {
-        return resolveWrappedExpression((ObjectWrapped<Expression>) stack.pop());
+        return resolveWrappedExpression(stack.popTyped());
     }
 
     private Expression resolveWrappedExpression(ObjectWrapped<?> wrapper) {
@@ -1330,10 +1332,6 @@ class ConfigListener extends RouteBaseListener {
         } else {
             return new Expression(wrapper.wrapped);
         }
-    }
-
-    private <T> T unWrapObject(ObjectWrapped<T> ow) {
-        return ow.wrapped;
     }
 
     static Number resolveNumberLiteral(IntegerLiteralContext ctx) {

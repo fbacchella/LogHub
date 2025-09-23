@@ -1,7 +1,6 @@
 package loghub.receivers;
 
 import java.lang.reflect.InvocationTargetException;
-import java.net.UnknownHostException;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -333,7 +332,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
         if (keyClass != null) {
             try {
                 e.putMeta("kafka_key", Expression.convertObject(keyClass, keyBytes, StandardCharsets.UTF_8, ByteOrder.LITTLE_ENDIAN));
-            } catch (UnknownHostException | InvocationTargetException ex) {
+            } catch (InvocationTargetException ex) {
                 logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Unable to decode key: {}", () -> Helpers.resolveThrowableException(ex));
             }
         } else if (kafkaRecord.headers().lastHeader(HeadersTypes.KEYTYPE_HEADER_NAME) != null){

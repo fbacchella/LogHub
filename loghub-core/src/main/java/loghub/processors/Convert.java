@@ -1,8 +1,6 @@
 package loghub.processors;
 
 import java.lang.reflect.InvocationTargetException;
-import java.net.UnknownHostException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -98,17 +96,11 @@ public class Convert extends FieldsProcessor {
                 value = decoder.apply((String) value);
             }
             return Expression.convertObject(clazz, value, charset, byteOrder);
-        } catch (BufferUnderflowException ex) {
-            throw event.buildException("Unable to parse field as a " + clazz.getName() + ", not enough bytes", ex);
-        } catch (UnknownHostException ex) {
-            throw event.buildException("\"" + value + "\" not a valid IP address", ex);
-        } catch (NumberFormatException ex) {
-             throw event.buildException("Unable to parse \"" + value + "\" as a " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex));
         } catch (InvocationTargetException ex) {
             logger.atDebug()
                   .withThrowable(ex.getCause())
                   .log("Failed to parsed event {}", event);
-            throw event.buildException("Unable to parse \"" + value + "\" as a " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex));
+            throw event.buildException("Unable to parse \"%s\" as a %s: %s".formatted(value, clazz.getName(), Helpers.resolveThrowableException(ex.getCause())));
         }
     }
 

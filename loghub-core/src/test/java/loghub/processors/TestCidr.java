@@ -73,7 +73,8 @@ public class TestCidr {
         builder.setField(VariablePath.of("ip"));
         builder.setDestination(VariablePath.ofMeta("network"));
         IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, builder::build);
-        Assert.assertTrue(ex.getMessage().startsWith("Not an IP address: /256.256.256.256: "));
+        // Keep the startsWith, the message change with OS
+        Assert.assertTrue(ex.getMessage().startsWith("Not an IP address: Unknown host \"/256.256.256.256: "));
     }
 
     @Test

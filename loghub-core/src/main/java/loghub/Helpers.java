@@ -464,6 +464,8 @@ public final class Helpers {
             message = "Access denied to file " + t.getMessage();
         } else if (t instanceof ClosedChannelException) {
             message = "Closed channel";
+        } else if (t instanceof UnknownHostException) {
+            message = "Unknown host \"%s\"".formatted(t.getMessage());
         } else if (t instanceof SSLHandshakeException) {
             // SSLHandshakeException is a chain of the same message, keep the last one
             builder.setLength(0);

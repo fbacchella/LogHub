@@ -148,7 +148,7 @@ public class TestConvert {
     @Test
     public void testInvalidIp() {
         ProcessorException ex = Assert.assertThrows(loghub.ProcessorException.class, () -> check("java.net.InetAddress", java.net.Inet4Address.class, "www.google.com", "www.google.com"));
-        Assert.assertEquals("Field with path \"[message]\" invalid: \"www.google.com\" not a valid IP address", ex.getMessage());
+        Assert.assertEquals("Field with path \"[message]\" invalid: Unable to parse \"www.google.com\" as a java.net.InetAddress: Unknown host \"www.google.com\"", ex.getMessage());
     }
 
     @Test
