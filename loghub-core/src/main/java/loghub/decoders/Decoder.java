@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -72,63 +74,46 @@ public abstract class Decoder {
         return decodeObject(ctx, msg, 0, msg.length);
     }
 
-    protected Stream<Object> decodeStream(ConnectionContext<?> ctx, ObjectDecoder od) throws DecodeException {
-        return Stream.of(od.get());
+    private Stream<Map<String, Object>> resolve(ConnectionContext<?> ctx, Object o)  {
+        return resolveToStream(o).filter(Objects::nonNull)
+                                 .flatMap(getDecodeMap(ctx))
+                                 .filter(Objects::nonNull);
     }
 
-    private Stream<Map<String, Object>> resolve(ConnectionContext<?> ctx, Object o) throws DecodeException {
-        if (o == null) {
-            return Stream.empty();
-        } else  if (o instanceof Collection) {
-            @SuppressWarnings("unchecked")
-            Collection<Object> coll = (Collection<Object>) o;
-            return coll.stream().map(getDecodeMap(ctx));
-        } else if (o instanceof Iterable) {
-            @SuppressWarnings("unchecked")
-            Iterable<Object> i = (Iterable<Object>) o;
-            return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(Objects::nonNull);
-        } else if (o instanceof Stream) {
-            Stream<Object> s = (Stream<Object>) o;
-            return s.map(getDecodeMap(ctx)).filter(Objects::nonNull);
-        } else if (o instanceof Iterator) {
-            @SuppressWarnings("unchecked")
-            Iterator<Object> iter = (Iterator<Object>) o;
-            Iterable<Object> i = () -> iter;
-            return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(Objects::nonNull);
-        }  else {
-            return Stream.of(decodeMap(ctx, o));
-        }
+    private Function<Object, Stream<Map<String, Object>>> getDecodeMap(ConnectionContext<?> ctx) {
+        return m -> resolveToStream(m).map(i -> decodeMap(ctx, i));
     }
 
-    private Function<Object, Map<String, Object>> getDecodeMap(ConnectionContext<?> ctx) {
-        return m -> {
-            try {
-                return decodeMap(ctx, m);
-            } catch (DecodeException ex) {
-                manageDecodeException(ctx, ex);
-                return null;
-            }
+    private Stream<?> resolveToStream(Object source) {
+        return switch (source) {
+            case null -> Stream.empty();
+            case Collection<?> c -> c.stream();
+            case Stream<?> s -> s;
+            case Iterable<?> i -> StreamSupport.stream(i.spliterator(), false);
+            case Iterator<?> i ->
+                    StreamSupport.stream(Spliterators.spliteratorUnknownSize(i, Spliterator.ORDERED), false);
+            default -> Stream.of(source);
         };
     }
 
-    private Map<String, Object> decodeMap(ConnectionContext<?> ctx, Object o) throws DecodeException {
-        if (o instanceof Event) {
-            return (Event) o;
-        } else if (o instanceof EventBuilder) {
-            return ((EventBuilder)o).setContext(ctx).getInstance();
-        } else if (o instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<Object, Object> map = (Map<Object, Object>) o;
-            Map<String, Object> newMap = new HashMap<>(map.size());
-            map.forEach((key, value) -> newMap.put(key.toString(), value));
-            return newMap;
-        } else {
+    private Map<String, Object> decodeMap(ConnectionContext<?> ctx, Object o) {
+        return switch (o) {
+        case Event ev -> ev;
+        case EventBuilder evb -> evb.setContext(ctx).getInstance();
+        case Map<?, ?> map1 -> {
+            Map<String, Object> newMap = HashMap.newHashMap(map1.size());
+            map1.forEach((key, value) -> newMap.put(key.toString(), value));
+            yield newMap;
+        }
+        default -> {
             if (field != null) {
-                return Collections.singletonMap(field, o);
+                yield Collections.singletonMap(field, o);
             } else {
-                throw new DecodeException("Can't be mapped to event");
+                manageDecodeException(ctx, new DecodeException("Can't be mapped to event"));
+                yield null;
             }
         }
+        };
     }
 
     public final Stream<Map<String, Object>> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
@@ -144,14 +129,7 @@ public abstract class Decoder {
     }
 
     protected final Stream<Map<String, Object>> parseObjectStream(ConnectionContext<?> ctx, ObjectDecoder objectsSource) throws DecodeException {
-        return decodeStream(ctx, objectsSource).flatMap(i -> {
-            try {
-                return resolve(ctx, i);
-            } catch (DecodeException ex) {
-                manageDecodeException(ctx, ex);
-                return null;
-            }
-        });
+        return resolve(ctx, objectsSource.get());
     }
 
 }
