@@ -11,11 +11,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.NullOrMissingValue;
 
 import static loghub.cloners.MapCloner.MAP_MAPPING;
 
-public class CloneOpaque {
+class CloneOpaque {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private enum TYPE {
         NULL,
@@ -35,7 +40,7 @@ public class CloneOpaque {
     }
     private static final TYPE[] TYPES = TYPE.values();
 
-    public static class FastObjectInputStream extends ObjectInputStream {
+    static class FastObjectInputStream extends ObjectInputStream {
         private final FastObjectOutputStream out;
 
         public FastObjectInputStream(byte[] buffer, FastObjectOutputStream out) throws IOException {
@@ -98,7 +103,7 @@ public class CloneOpaque {
     }
 
     @SuppressWarnings("unchecked")
-    public static class FastObjectOutputStream extends ObjectOutputStream {
+    static class FastObjectOutputStream extends ObjectOutputStream {
         // Immutable objects can be reused, just forward a reference
         private final Map<Long, Object> immutableObjectsCache = new HashMap<>();
         private final AtomicLong ref = new AtomicLong(0);
@@ -177,7 +182,8 @@ public class CloneOpaque {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T clone(T object) {
+    static <T> T clone(T object) {
+        logger.warn("Failback to byte serialization clone for {}", () -> object.getClass().getName());
         // FastObjectInputStream
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); FastObjectOutputStream oos = new FastObjectOutputStream(bos)) {
             oos.writeObjectFast(object);
@@ -189,7 +195,6 @@ public class CloneOpaque {
         } catch (IOException | ClassNotFoundException e) {
             throw new IllegalStateException(e);
         }
-
     }
 
     private CloneOpaque() {

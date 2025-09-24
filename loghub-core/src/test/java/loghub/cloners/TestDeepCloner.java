@@ -59,12 +59,11 @@ public class TestDeepCloner {
     }
 
     private void checkIdentity(Object o) {
-        Assert.assertSame(o, CloneOpaque.clone(o));
         Assert.assertSame(o, DeepCloner.clone(o));
     }
 
     private void checkEquality(Object o) {
-        Object duplicated = CloneOpaque.clone(o);
+        Object duplicated = DeepCloner.clone(o);
         Assert.assertNotSame(o, duplicated);
         Assert.assertEquals(o, duplicated);
     }
@@ -96,16 +95,16 @@ public class TestDeepCloner {
         // Avoid static compilation of a constant
         checkIdentity(new StringBuffer("Log").append("Hub").toString());
         checkEquality(new Date());
-        checkEquality(1.0f);
-        checkEquality(1.0);
+        checkIdentity(1.0f);
+        checkIdentity(1.0);
         Object[] array = new Object[]{true, false, 1.0f, 1.0};
-        Assert.assertArrayEquals(array, CloneOpaque.clone(array));
+        Assert.assertArrayEquals(array, DeepCloner.clone(array));
         int[] intArray = new int[]{1, 2, 3};
-        Assert.assertArrayEquals(intArray, CloneOpaque.clone(intArray));
+        Assert.assertArrayEquals(intArray, DeepCloner.clone(intArray));
         byte[] byteArray = new byte[]{1, 2, 3};
-        Assert.assertArrayEquals(byteArray, CloneOpaque.clone(byteArray));
+        Assert.assertArrayEquals(byteArray, DeepCloner.clone(byteArray));
         double[] doubleArray = new double[]{1, 2, 3};
-        Assert.assertArrayEquals(doubleArray, CloneOpaque.clone(doubleArray), 1e-5);
+        Assert.assertArrayEquals(doubleArray, DeepCloner.clone(doubleArray), 1e-5);
         Map<DayOfWeek, Integer> daysMapping = Arrays.stream(DayOfWeek.values()).collect(
                 Collectors.toMap(
                         d -> d, DayOfWeek::getValue,
