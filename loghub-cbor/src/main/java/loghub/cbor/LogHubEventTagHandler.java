@@ -43,7 +43,7 @@ public class LogHubEventTagHandler extends CborTagHandler<Event> {
         p.writeEndArray();
     }
 
-    public static CustomParser<EventBuilder> eventParser(EventsFactory factory) {
+    public static CustomParser<Event> eventParser(EventsFactory factory) {
         return p -> {
             EventBuilder ev = new EventBuilder();
             JsonToken token = p.nextToken();
@@ -65,7 +65,7 @@ public class LogHubEventTagHandler extends CborTagHandler<Event> {
             assert token == JsonToken.END_ARRAY;
             ev.setData(data);
             ev.setFactory(factory);
-            return ev;
+            return ev.getInstance();
         };
     }
 
