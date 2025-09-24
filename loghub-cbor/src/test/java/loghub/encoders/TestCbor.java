@@ -6,7 +6,9 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -62,6 +64,24 @@ public class TestCbor {
         Assert.assertEquals(new Date(0), event.getTimestamp());
         Assert.assertEquals(1, event.getMeta("ameta"));
         Assert.assertFalse(event.getConnectionContext() instanceof GenericConnectionContext);
+    }
+
+    @Test
+    public void testSubCollection() throws EncodeException, DecodeException {
+        Cbor.Builder ebuilder = Cbor.getBuilder();
+        ebuilder.setForwardEvent(true);
+        loghub.encoders.Cbor encoder = ebuilder.build();
+        loghub.decoders.Cbor.Builder dbuilder = loghub.decoders.Cbor.getBuilder();
+        dbuilder.setEventsFactory(eventsFactory);
+        loghub.decoders.Cbor decoders = dbuilder.build();
+        Event e0 = eventsFactory.newEvent();
+        e0.put("a", 0);
+        Event e1 = eventsFactory.newEvent();
+        e1.put("a", 1);
+        byte[] result = encoder.encode(Stream.of(e0, e1));
+        List<Map<String, Object>> events = decoders.decode(new GenericConnectionContext("laddr", "raddr"), result).toList();
+        Assert.assertEquals(0, events.get(0).get("a"));
+        Assert.assertEquals(1, events.get(1).get("a"));
     }
 
     @Test
