@@ -5,7 +5,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 
-public class CloneCollection {
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+class CloneCollection {
+
+    private static final Logger logger = LogManager.getLogger();
 
     @SuppressWarnings("unchecked")
     static Collection<Object> clone(Collection<Object> oldList) {
@@ -22,13 +27,18 @@ public class CloneCollection {
         }
         try {
             Collection<Object> newList = sizeConstructor != null ? sizeConstructor.newInstance(size) : new ArrayList<>(size);
-            oldList.forEach(e -> newList.add(DeepCloner.clone(e)));
+            for (Object e: oldList) {
+                newList.add(DeepCloner.clone(e));
+            }
             if (sizeConstructor == null && collectionConstructor != null) {
                 return collectionConstructor.newInstance(newList);
             } else {
                 return newList;
             }
+        } catch (NotClonableException e) {
+            throw e;
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException | RuntimeException e) {
+            logger.atWarn().withThrowable(e).log("Failback to byte serialization clone for {}", () -> oldList.getClass().getName());
             return CloneOpaque.clone(oldList);
         }
     }

@@ -1,7 +1,8 @@
 package loghub.cloners;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
@@ -28,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.UnaryOperator;
 
 import javax.net.ssl.SSLSession;
 
@@ -92,31 +95,48 @@ public class DeepCloner {
         immutables.add(clazz);
     }
 
+    private static final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+    private static final MethodType CLONE_MT = MethodType.methodType(Object.class);
+    private static final ConcurrentHashMap<Class<?>, UnaryOperator<?>> CLONERS_MAP = new ConcurrentHashMap<>();
+
     static boolean isImmutable(Class<?> oClass) {
-        return SocketAddress.class.isAssignableFrom(oClass)
-                       || InetAddress.class.isAssignableFrom(oClass)
-                       || oClass.isEnum()
-                       || immutables.contains(oClass)
-                       || oClass.isAnnotationPresent(Immutable.class);
+        return oClass.isEnum()
+               || oClass.isRecord()
+               || immutables.contains(oClass)
+               || oClass.isAnnotationPresent(Immutable.class)
+               || SocketAddress.class.isAssignableFrom(oClass)
+               || InetAddress.class.isAssignableFrom(oClass);
     }
 
     static boolean isImmutable(Object o) {
-        Class<?> oClass = o.getClass();
-        return o instanceof  SocketAddress
+        return o instanceof SocketAddress
                || o instanceof InetAddress
-               || oClass.isEnum()
-               || immutables.contains(oClass)
-               || singlotons.contains(o)
-               || oClass.isAnnotationPresent(Immutable.class);
+               || o == null
+               || isImmutable(o.getClass())
+               || singlotons.contains(o);
     }
 
     @SuppressWarnings("unchecked")
     static <T> T tryClone(T obj) {
+        UnaryOperator<T> lambda = (UnaryOperator<T>) CLONERS_MAP.computeIfAbsent(obj.getClass(), DeepCloner::resolveHandle);
+        return lambda.apply(obj);
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> T cloneWithHandler(MethodHandle mh, T o) {
         try {
-            Method cloneMethod = obj.getClass().getMethod("clone");
-            return (T) cloneMethod.invoke(obj);
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            return CloneOpaque.clone(obj);
+            return (T) mh.invoke(o);
+        } catch (Throwable e) {
+            throw new NotClonableException(o.getClass(), e);
+        }
+    }
+
+    private static <T> UnaryOperator<T> resolveHandle(Class<T> clazz) {
+        try {
+            MethodHandle mh = lookup.findVirtual(clazz, "clone", CLONE_MT);
+            return o -> cloneWithHandler(mh, o);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            return CloneOpaque::clone;
         }
     }
 
@@ -142,15 +162,15 @@ public class DeepCloner {
             return o;
         } else if (faster.containsKey(o.getClass())) {
             return ((Cloner<T>) faster.get(o.getClass())).clone(o);
-        } else if (o instanceof Map) {
-            return (T) MapCloner.clone((Map<?, ?>) o);
-        } else if (o instanceof Collection) {
-            return (T) CloneCollection.clone((Collection<Object>) o);
+        } else if (o instanceof Map<?, ?> m) {
+            return (T) MapCloner.clone(m);
+        } else if (o instanceof Collection<?> c) {
+            return (T) CloneCollection.clone((Collection<Object>) c);
         } else if (o.getClass().isArray()) {
             return (T) CloneArray.clone(o);
-        } else if (o instanceof SSLSession) {
+        } else if (o instanceof SSLSession ssls) {
             // SSLSession is an interface, not detected in faster
-            return (T) SSLSessionCloned.clone((SSLSession) o);
+            return (T) SSLSessionCloned.clone(ssls);
         } else if (o instanceof Cloneable) {
             return tryClone(o);
         } else {

@@ -2,6 +2,7 @@ package loghub.cloners;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -28,6 +29,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.ConnectionContext;
+import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -41,21 +43,36 @@ public class TestDeepCloner {
     /**
      * A canary object that detect unexpected serialisation
      */
-    public class UnserializableObject implements Serializable {
-
+    public static class UnserializableObject implements Serializable {
+        @Serial
         private static final long serialVersionUID = 1L;
-
+        @Serial
         private void writeObject(ObjectOutputStream out) throws IOException {
             throw new IOException("Serialization not allowed for this object.");
         }
     }
-    private final UnserializableObject CANARY = new UnserializableObject();
+    private static final UnserializableObject CANARY = new UnserializableObject();
 
     public static class CloneableObject implements Cloneable {
         @Override
-        public Object clone() throws CloneNotSupportedException {
+        public Object clone() {
             return this;
         }
+    }
+
+    public static class NotCloneableObject implements Cloneable {
+        @Override
+        public Object clone() {
+            throw new IllegalStateException("Not clonable");
+        }
+    }
+
+    public static class NotForkableObject {
+
+    }
+
+    private record RecordTester(int v) {
+
     }
 
     private void checkIdentity(Object o) {
@@ -97,6 +114,7 @@ public class TestDeepCloner {
         checkEquality(new Date());
         checkIdentity(1.0f);
         checkIdentity(1.0);
+        checkIdentity(new RecordTester(1));
         Object[] array = new Object[]{true, false, 1.0f, 1.0};
         Assert.assertArrayEquals(array, DeepCloner.clone(array));
         int[] intArray = new int[]{1, 2, 3};
@@ -115,21 +133,34 @@ public class TestDeepCloner {
         Assert.assertEquals(daysMapping, duplicatedEnumMap);
         Map<?, ?> map = Map.of("a", true, 'b', false);
         Assert.assertEquals(map, DeepCloner.clone(map));
-        List l1 = new ArrayList<>(List.of(1, 2, 3));
+        List<?> l1 = new ArrayList<>(List.of(1, 2, 3));
         Assert.assertEquals(l1, DeepCloner.clone(l1));
-        List l2 = new LinkedList<>(l1);
+        List<?> l2 = new LinkedList<>(l1);
         Assert.assertEquals(l2, DeepCloner.clone(l2));
-        Set s1 = new HashSet<>(l1);
+        Set<?> s1 = new HashSet<>(l1);
         Assert.assertEquals(s1, DeepCloner.clone(s1));
     }
 
     @Test
-    public void fails() {
-        Assert.assertThrows(IllegalStateException.class, () -> DeepCloner.clone(Map.of("canary", CANARY)));
+    public void failsEventDuplicate() {
         Event ev = factory.newEvent();
         ev.putMeta("canary", Map.of("canary", CANARY));
-        loghub.ProcessorException pe = Assert.assertThrows(loghub.ProcessorException.class, ev::duplicate);
-        Assert.assertSame(IllegalStateException.class, pe.getCause().getClass());
+        ProcessorException pe = Assert.assertThrows(loghub.ProcessorException.class, ev::duplicate);
+        Assert.assertSame(NotClonableException.class, pe.getCause().getClass());
+    }
+
+    @Test
+    public void failsClone() {
+        // Using a collection to ensure that the failure is really done at the right class
+        checkFails(List.of("canary", CANARY), "loghub.cloners.TestDeepCloner.UnserializableObject");
+        checkFails(Map.of("canary", new NotCloneableObject()), "loghub.cloners.TestDeepCloner.NotCloneableObject");
+        checkFails(new Object[]{new NotForkableObject()}, "loghub.cloners.TestDeepCloner.NotForkableObject");
+    }
+
+    private void checkFails(Object o, String exptectedMessage) {
+        String message = Assert.assertThrows(NotClonableException.class, () -> DeepCloner.clone(o)).getMessage();
+        Assert.assertEquals(exptectedMessage, message);
+
     }
 
     @Test
@@ -140,6 +171,20 @@ public class TestDeepCloner {
         Assert.assertEquals(Map.copyOf(ev), Map.copyOf(DeepCloner.clone(ev)));
         Event wrapped = ev.wrap(VariablePath.of("a"));
         Assert.assertEquals(Map.copyOf(wrapped), Map.copyOf(DeepCloner.clone(wrapped)));
+    }
+
+    @Test
+    public void testEventDuplicate() throws ProcessorException {
+        Event ev = factory.newTestEvent();
+        ev.put("message", "message");
+        ev.putAtPath(VariablePath.of("a", "b"), 1);
+        ev.putMeta("meta", "meta");
+        ev.setTimestamp(Instant.ofEpochMilli(0));
+        Event duplicate = ev.duplicate();
+        Assert.assertEquals(Map.copyOf(ev), Map.copyOf(duplicate));
+        Assert.assertEquals(0, duplicate.getTimestamp().getTime());
+        Assert.assertEquals("meta", duplicate.getMeta("meta"));
+        Assert.assertTrue(duplicate.isTest());
     }
 
     @Test

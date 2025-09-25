@@ -50,35 +50,24 @@ class CloneOpaque {
 
         public Object readObjectFast() throws IOException, ClassNotFoundException {
             TYPE type = TYPES[read()];
-            switch (type) {
-            case NULL:
-                return NullOrMissingValue.NULL;
-            case TRUE:
-                return true;
-            case FALSE:
-                return false;
-            case BYTE:
-                return readByte();
-            case SHORT:
-                return readShort();
-            case INT:
-                return readInt();
-            case LONG:
-                return readLong();
-            case FLOAT:
-                return readFloat();
-            case DOUBLE:
-                return readDouble();
-            case CHAR:
-                return readChar();
-            case IMMUTABLE:
-                return readReference();
-            case FASTER:
-                ObjectFaster<?> of = (ObjectFaster<?>) readObject();
-                return of.get();
-            default:
-                return readObject();
-            }
+            return switch (type) {
+                case NULL -> NullOrMissingValue.NULL;
+                case TRUE -> true;
+                case FALSE -> false;
+                case BYTE -> readByte();
+                case SHORT -> readShort();
+                case INT -> readInt();
+                case LONG -> readLong();
+                case FLOAT -> readFloat();
+                case DOUBLE -> readDouble();
+                case CHAR -> readChar();
+                case IMMUTABLE -> readReference();
+                case FASTER -> {
+                    ObjectFaster<?> of = (ObjectFaster<?>) readObject();
+                    yield of.get();
+                }
+                default -> readObject();
+            };
         }
 
         @SuppressWarnings("unchecked")
@@ -119,27 +108,27 @@ class CloneOpaque {
                 write(TYPE.TRUE.ordinal());
             } else if (Boolean.FALSE.equals(o)) {
                 write(TYPE.FALSE.ordinal());
-            } else if (o instanceof Byte) {
+            } else if (o instanceof Byte b) {
                 write(TYPE.BYTE.ordinal());
-                writeByte((Byte) o);
-            } else if (o instanceof Short) {
+                writeByte(b);
+            } else if (o instanceof Short s) {
                 write(TYPE.SHORT.ordinal());
-                writeShort((Short) o);
-            } else if (o instanceof Integer) {
+                writeShort(s);
+            } else if (o instanceof Integer i) {
                 write(TYPE.INT.ordinal());
-                writeInt((Integer) o);
-            } else if (o instanceof Long) {
+                writeInt(i);
+            } else if (o instanceof Long l) {
                 write(TYPE.LONG.ordinal());
-                writeLong((Long) o);
-            } else if (o instanceof Float) {
+                writeLong(l);
+            } else if (o instanceof Float f) {
                 write(TYPE.FLOAT.ordinal());
-                writeFloat((Float) o);
-            } else if (o instanceof Double) {
+                writeFloat(f);
+            } else if (o instanceof Double d) {
                 write(TYPE.DOUBLE.ordinal());
-                writeDouble((Double) o);
-            } else if (o instanceof Character) {
+                writeDouble(d);
+            } else if (o instanceof Character c) {
                 write(TYPE.CHAR.ordinal());
-                writeChar((Character) o);
+                writeChar(c);
             } else if (DeepCloner.isImmutable(o)) {
                 write(TYPE.IMMUTABLE.ordinal());
                 writeReference(o);
@@ -193,7 +182,7 @@ class CloneOpaque {
                 return ((T) ois.readObjectFast());
             }
         } catch (IOException | ClassNotFoundException e) {
-            throw new IllegalStateException(e);
+            throw new NotClonableException(object.getClass(), e);
         }
     }
 

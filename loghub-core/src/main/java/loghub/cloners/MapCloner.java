@@ -18,8 +18,8 @@ public class MapCloner {
         EMPTYMAP(n -> Map.of()),
         IDENTITYHASHMAP(n -> new IdentityHashMap<>(n * 2)),
         CONCURRENTHASHMAP(n -> new ConcurrentHashMap<>(n * 2)),
-        HASHMAP(n -> new HashMap<>(n * 2)),
-        LINKEDHASHMAP(n -> new LinkedHashMap<>(n * 2)),
+        HASHMAP(HashMap::newHashMap),
+        LINKEDHASHMAP(LinkedHashMap::newHashMap),
         HASHTABLE(n -> new Hashtable<>(n * 2));
 
         private final Function<Integer, Map<Object, Object>> constructor;
@@ -34,12 +34,12 @@ public class MapCloner {
     }
 
     static final Map<Class<? extends Map>, MAPCONSTRUCTOR> MAP_MAPPING = Map.ofEntries(
-            Map.entry(Map.of(1, 2).getClass(), MAPCONSTRUCTOR.HASHMAP),
-            Map.entry(Map.of(1, 2, 3, 4).getClass(), MAPCONSTRUCTOR.HASHMAP),
-            Map.entry(IdentityHashMap.class, MAPCONSTRUCTOR.IDENTITYHASHMAP),
-            Map.entry(ConcurrentHashMap.class, MAPCONSTRUCTOR.CONCURRENTHASHMAP),
-            Map.entry(HashMap.class, MAPCONSTRUCTOR.HASHMAP),
-            Map.entry(LinkedHashMap.class, MAPCONSTRUCTOR.LINKEDHASHMAP)
+        Map.entry(Map.of(1, 2).getClass(), MAPCONSTRUCTOR.HASHMAP),
+        Map.entry(Map.of(1, 2, 3, 4).getClass(), MAPCONSTRUCTOR.HASHMAP),
+        Map.entry(IdentityHashMap.class, MAPCONSTRUCTOR.IDENTITYHASHMAP),
+        Map.entry(ConcurrentHashMap.class, MAPCONSTRUCTOR.CONCURRENTHASHMAP),
+        Map.entry(HashMap.class, MAPCONSTRUCTOR.HASHMAP),
+        Map.entry(LinkedHashMap.class, MAPCONSTRUCTOR.LINKEDHASHMAP)
     );
 
     private static final Map<Class<?>, UnaryOperator<? extends Map<?, ?>>> cloneCache = new ConcurrentHashMap<>();
