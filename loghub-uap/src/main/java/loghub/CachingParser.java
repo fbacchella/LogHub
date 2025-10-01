@@ -18,7 +18,7 @@ import ua_parser.UserAgent;
  * general the same browser will do multiple requests in sequence. This has the
  * effect that the same useragent will appear in the logfiles and we will see
  * the need to parse the same useragent over and over again.
- *
+ * <p/>
  * This class introduces a very simple LRU cache to reduce the number of times
  * the parsing is actually done.
  *
@@ -31,16 +31,6 @@ public class CachingParser extends Parser {
     private final Cache<String, UserAgent> cacheUserAgent;
     private final Cache<String, Device>    cacheDevice;
     private final Cache<String, OS>        cacheOS;
-
-    // ------------------------------------------
-
-    public CachingParser(int cacheSize, Properties props) {
-        super();
-        cacheClient = props.cacheManager.getBuilder(String.class, Client.class).setName("UA-client", this).build();
-        cacheUserAgent = props.cacheManager.getBuilder(String.class, UserAgent.class).setName("UA-useragent", this).build();
-        cacheDevice = props.cacheManager.getBuilder(String.class, Device.class).setName("UA-device", this).build();
-        cacheOS = props.cacheManager.getBuilder(String.class, OS.class).setName("UA-os", this).build();
-    }
 
     public CachingParser(int cacheSize, Properties props, InputStream regexYaml) {
         super(regexYaml);
@@ -65,7 +55,7 @@ public class CachingParser extends Parser {
         if (agentString == null) {
             return null;
         } else {
-            return getObject(cacheClient, agentString, i -> super.parse(agentString));
+            return getObject(cacheClient, agentString, super::parse);
         }
     }
 
@@ -74,7 +64,7 @@ public class CachingParser extends Parser {
         if (agentString == null) {
             return null;
         } else {
-            return getObject(cacheUserAgent, agentString, i -> super.parseUserAgent(agentString));
+            return getObject(cacheUserAgent, agentString, super::parseUserAgent);
         }
     }
 
@@ -83,7 +73,7 @@ public class CachingParser extends Parser {
         if (agentString == null) {
             return null;
         } else {
-            return getObject(cacheDevice, agentString, i -> super.parseDevice(agentString));
+            return getObject(cacheDevice, agentString, super::parseDevice);
         }
     }
 
@@ -92,7 +82,7 @@ public class CachingParser extends Parser {
         if (agentString == null) {
             return null;
         } else {
-            return getObject(cacheOS, agentString, i -> super.parseOS(agentString));
+            return getObject(cacheOS, agentString, super::parseOS);
         }
     }
 

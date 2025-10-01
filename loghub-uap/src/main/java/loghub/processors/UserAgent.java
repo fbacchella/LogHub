@@ -84,10 +84,10 @@ public class UserAgent extends FieldsProcessor {
     public Object fieldFunction(Event event, Object value) {
         Client c = uaParser.parse(value.toString());
 
-        Map<String, Object> ua = new HashMap<>(3);
+        Map<String, Object> ua = HashMap.newHashMap(3);
         Optional.of(c.device.family).ifPresent(v -> ua.put("device", v));
 
-        Map<String, Object> os =  new HashMap<>(5);
+        Map<String, Object> os = HashMap.newHashMap(5);
         Optional.ofNullable(c.os.family).ifPresent(v -> os.put("family", v));
         Optional.ofNullable(c.os.major).ifPresent(v -> os.put("major", v));
         Optional.ofNullable(c.os.minor).ifPresent(v -> os.put("minor", v));
@@ -97,7 +97,7 @@ public class UserAgent extends FieldsProcessor {
             ua.put("os", os);
         }
 
-        Map<String, Object> agent =  new HashMap<>(4);
+        Map<String, Object> agent = HashMap.newHashMap(4);
         Optional.ofNullable(c.userAgent.family).ifPresent(v -> agent.put("family", v));
         Optional.ofNullable(c.userAgent.major).ifPresent(v -> agent.put("major", v));
         Optional.ofNullable(c.userAgent.minor).ifPresent(v -> agent.put("minor", v));
