@@ -34,7 +34,7 @@ class ExecutionStackElement {
         if (running) {
             long elapsed = System.nanoTime() - startTime;
             duration += elapsed;
-            Stats.pipelineHanding(pipe.getName(), Stats.PipelineStat.INFLIGHTDOWN);
+            Stats.pipelineInFlightDown(pipe.getName());
         }
         Stats.timerUpdate(pipe.getName(), duration, TimeUnit.NANOSECONDS);
         duration = 0;
@@ -44,7 +44,7 @@ class ExecutionStackElement {
 
     void pause() {
         running = false;
-        Stats.pipelineHanding(pipe.getName(), Stats.PipelineStat.INFLIGHTDOWN);
+        Stats.pipelineInFlightDown(pipe.getName());
         long elapsed = System.nanoTime() - startTime;
         duration += elapsed;
     }
@@ -52,7 +52,7 @@ class ExecutionStackElement {
     void restart() {
         startTime = System.nanoTime();
         running = true;
-        Stats.pipelineHanding(pipe.getName(), Stats.PipelineStat.INFLIGHTUP);
+        Stats.pipelineInFlightUp(pipe.getName());
     }
 
     Logger getLogger() {

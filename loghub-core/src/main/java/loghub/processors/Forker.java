@@ -8,6 +8,7 @@ import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.metrics.Stats;
+import loghub.metrics.Stats.PipelineStat;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -37,8 +38,7 @@ public class Forker extends Processor {
             newEvent.reinject(pipeDestination, mainQueue);
         } catch (ProcessorException ex) {
             logger.error("Failed to fork {}: {}", event, Helpers.resolveThrowableException(ex));
-            event.doMetric(Stats.PipelineStat.FAILURE, ex);
-
+            event.doMetric(PipelineStat.EXCEPTION, ex);
         }
     }
 

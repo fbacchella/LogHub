@@ -207,7 +207,7 @@ public class EventsProcessor extends Thread {
             ((Forwarder) p).forward(e);
             status = ProcessingStatus.CONTINUE;
         } else if (p instanceof Drop) {
-            e.doMetric(Stats.PipelineStat.DROP);
+            Stats.pipelineDrop(e.getRunningPipeline());
             status = ProcessingStatus.DROPED;
         } else if (e.processingDone() > maxSteps) {
             e.getPipelineLogger().warn("Too much steps for an event in pipeline. Done {} steps, still {} left, looping event: {}", e::processingDone, e::processingLeft, () -> e);
@@ -291,7 +291,7 @@ public class EventsProcessor extends Thread {
                         status = ProcessingStatus.PAUSED;
                     } else {
                         status = ProcessingStatus.DROPED;
-                        e.doMetric(Stats.PipelineStat.DROP);
+                        Stats.pipelineDrop(e.getRunningPipeline());
                     }
                 } else if (ex.getFuture() == null) {
                     // No future, internal handling of the pause

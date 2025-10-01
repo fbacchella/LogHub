@@ -25,6 +25,7 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
+import loghub.metrics.Stats.EventExceptionDescription;
 
 /**
  * @author Fabrice Bacchella
@@ -122,7 +123,7 @@ public class TestFieldsProcessor {
         e.put("b", 2);
         Tools.runProcessing(e, "main", Collections.singletonList(p));
         long found = Stats.getErrors().stream()
-                                      .map(Throwable.class::cast)
+                                      .map(EventExceptionDescription::payload)
                                       .map(Throwable::getMessage)
                                       .filter(i -> Pattern.matches("Field with path \"\\[.\\]\" invalid: Expected error", i))
                                       .count();
@@ -153,7 +154,7 @@ public class TestFieldsProcessor {
         e.put("b", 2);
         Tools.runProcessing(e, "main", Collections.singletonList(p));
         long found = Stats.getErrors().stream()
-                                      .map(Throwable.class::cast)
+                                      .map(EventExceptionDescription::payload)
                                       .map(Throwable::getMessage)
                                       .filter(i -> Pattern.matches("Field with path \"\\[.\\]\" invalid: Expected unchecked error", i))
                                        .count();

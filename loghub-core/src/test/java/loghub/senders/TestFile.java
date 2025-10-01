@@ -134,7 +134,7 @@ public class TestFile {
         Assert.assertEquals(2, Stats.getSent());
         Assert.assertEquals(1, Stats.getFailed());
         Assert.assertEquals(1, Stats.getSenderError().size());
-        Assert.assertTrue(Stats.getSenderError().stream().findFirst().get().contains("Access denied to file "));
+        Assert.assertTrue(Stats.getSenderError().stream().findFirst().get().payload().toString().contains("Access denied to file "));
         Assert.assertEquals(1L, Stats.getFailed());
     }
 

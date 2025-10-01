@@ -209,6 +209,11 @@ class EventWrapper extends Event {
     }
 
     @Override
+    public String getRunningPipeline() {
+        return event.getRunningPipeline();
+    }
+
+    @Override
     public boolean process(Processor p) throws ProcessorException {
         return p.process(this);
     }

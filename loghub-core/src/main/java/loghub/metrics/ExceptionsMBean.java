@@ -14,7 +14,7 @@ public interface ExceptionsMBean {
     @MetricType(MetricType.GAUGE)
     default String[] getProcessorsFailures() {
         return loghub.metrics.Stats.getErrors().stream()
-                        .map(i -> Helpers.resolveThrowableException((Throwable) i))
+                        .map(i -> Helpers.resolveThrowableException(i.payload()))
                         .toArray(String[]::new);
     }
 

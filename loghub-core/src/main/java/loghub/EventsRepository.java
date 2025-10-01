@@ -182,7 +182,7 @@ public class EventsRepository<KEY> {
         try {
             timeout(paused.key);
         } catch (Throwable ex) {
-            Stats.pipelineHanding(paused.event.getCurrentPipeline(), PipelineStat.EXCEPTION, ex);
+            Stats.pipelineHanding(paused.event, PipelineStat.EXCEPTION, ex);
             if (Helpers.isFatal(ex)) {
                 logger.fatal("Caught a critical exception", ex);
                 ShutdownTask.fatalException(ex);

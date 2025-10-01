@@ -464,6 +464,8 @@ public abstract class Event extends HashMap<String, Object> implements Cloneable
 
     public abstract String getNextPipeline();
 
+    public abstract String getRunningPipeline();
+
     public abstract boolean process(Processor p) throws ProcessorException;
 
     public abstract Date getTimestamp();

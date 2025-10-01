@@ -287,9 +287,13 @@ class EventInstance extends Event {
     @Override
     public void doMetric(PipelineStat status, Throwable ex) {
         if (! test) {
-            String name = Optional.ofNullable(executionStack.peek()).map(c -> c.pipe.getName()).orElse(currentPipeline);
-            Stats.pipelineHanding(name, status, ex);
+            Stats.pipelineHanding(this, status, ex);
         }
+    }
+
+    @Override
+    public String getRunningPipeline() {
+        return Optional.ofNullable(executionStack.peek()).map(c -> c.pipe.getName()).orElse(currentPipeline);
     }
 
     @SuppressWarnings("unchecked")

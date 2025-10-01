@@ -23,6 +23,7 @@ import com.codahale.metrics.Timer.Context;
 import loghub.Dashboard;
 import loghub.Helpers;
 import loghub.ProcessingException;
+import loghub.VarFormatter;
 import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
@@ -115,22 +116,29 @@ public final class Stats {
     private static final CopyOnWriteMap<Object, CopyOnWriteMap<String, Metric>> metricsCache = new CopyOnWriteMap<>();
     private static final CopyOnWriteMap<Object, CopyOnWriteMap<Integer, Timer>> webCache = new CopyOnWriteMap<>();
 
-    private static final Queue<ProcessingException> processorExceptions = new LinkedBlockingQueue<>(100);
+    private static final Queue<EventExceptionDescription<Throwable>> processorExceptions = new LinkedBlockingQueue<>(100);
     private static final Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
     private static final Queue<String> decodeMessage = new LinkedBlockingQueue<>(100);
-    private static final Queue<String> senderMessages = new LinkedBlockingQueue<>(100);
+    private static final Queue<EventExceptionDescription<String>> senderMessages = new LinkedBlockingQueue<>(100);
     private static final Queue<String> receiverMessages = new LinkedBlockingQueue<>(100);
+
+    private static final VarFormatter JSON_FORMATER = new VarFormatter("${%j}");
+    public record EventExceptionDescription<P >(String eventJson, P payload) {
+        EventExceptionDescription(Event event, P payload) {
+            this(JSON_FORMATER.format(event), payload);
+        }
+        EventExceptionDescription(P payload) {
+            this((String)null, payload);
+        }
+    }
 
     static MetricRegistry metricsRegistry = new MetricRegistry();
 
     public enum PipelineStat {
         FAILURE,
-        DROP,
         DISCARD,
         EXCEPTION,
         LOOPOVERFLOW,
-        INFLIGHTUP,
-        INFLIGHTDOWN,
     }
 
     static {
@@ -375,45 +383,44 @@ public final class Stats {
         tctxt.stop();
     }
 
-    public static void pipelineHanding(String name, PipelineStat status) {
-        pipelineHanding(name, status, null);
-    }
-
-    public static void pipelineHanding(String name, PipelineStat status, Throwable ex) {
+    public static void pipelineHanding(Event ev, PipelineStat status, Throwable ex) {
         switch (status) {
         case FAILURE:
-            if (ex instanceof ProcessingException pe) {
-                storeException(processorExceptions, pe);
-            }
+            storeException(processorExceptions, new EventExceptionDescription<>(ev, ex));
             getMetric(String.class, METRIC_PIPELINE_FAILED, Meter.class).mark();
-            getMetric(name, METRIC_PIPELINE_FAILED, Meter.class).mark();
-            break;
-        case DROP:
-            getMetric(String.class, METRIC_PIPELINE_DROPPED, Meter.class).mark();
-            getMetric(name, METRIC_PIPELINE_DROPPED, Meter.class).mark();
+            getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_FAILED, Meter.class).mark();
             break;
         case DISCARD:
             getMetric(String.class, METRIC_PIPELINE_DISCARDED, Meter.class).mark();
-            getMetric(name, METRIC_PIPELINE_DISCARDED, Meter.class).mark();
+            getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_DISCARDED, Meter.class).mark();
             break;
         case EXCEPTION:
             if (ex != null) {
                 storeException(exceptions, ex);
             }
             getMetric(String.class, METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
-            getMetric(name, METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
+            getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
             break;
         case LOOPOVERFLOW:
             getMetric(String.class, METRIC_PIPELINE_LOOPOVERFLOW, Meter.class).mark();
-            getMetric(name, METRIC_PIPELINE_LOOPOVERFLOW, Meter.class).mark();
+            getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_LOOPOVERFLOW, Meter.class).mark();
             break;
-        case INFLIGHTUP:
-            getMetric(name, METRIC_PIPELINE_INFLIGHT, Counter.class).inc();
-            break;
-        case INFLIGHTDOWN:
-            getMetric(name, METRIC_PIPELINE_INFLIGHT, Counter.class).dec();
-            break;
+        default:
+            throw new IllegalStateException("Not reachable");
         }
+    }
+
+    public static void pipelineDrop(String name) {
+        getMetric(String.class, METRIC_PIPELINE_DROPPED, Meter.class).mark();
+        getMetric(name, METRIC_PIPELINE_DROPPED, Meter.class).mark();
+    }
+
+    public static void pipelineInFlightUp(String name) {
+        getMetric(name, METRIC_PIPELINE_INFLIGHT, Counter.class).inc();
+    }
+
+    public static void pipelineInFlightDown(String name) {
+        getMetric(name, METRIC_PIPELINE_INFLIGHT, Counter.class).dec();
     }
 
     public static void timerUpdate(String name, long duration, TimeUnit tu) {
@@ -452,10 +459,6 @@ public final class Stats {
         failedSentEvent(sender, (String) null, ev);
     }
 
-    public static synchronized void failedSentEvent(Sender sender, String msg) {
-        failedSentEvent(sender, msg, null);
-    }
-
     public static synchronized void failedSentEvent(Sender sender, Throwable t, Event ev) {
         failedSentEvent(sender, Helpers.resolveThrowableException(t), ev);
     }
@@ -466,7 +469,7 @@ public final class Stats {
             getMetric(Sender.class, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
         }
         if (msg != null) {
-            storeException(senderMessages, msg);
+            storeException(senderMessages, new EventExceptionDescription<>(ev, msg));
         }
     }
 
@@ -510,7 +513,7 @@ public final class Stats {
      * Getting queues *
     \******************/
 
-    public static Collection<ProcessingException> getErrors() {
+    public static Collection<EventExceptionDescription<Throwable>> getErrors() {
         synchronized (processorExceptions) {
             return new ArrayList<>(processorExceptions);
         }
@@ -528,7 +531,7 @@ public final class Stats {
         }
     }
 
-    public static Collection<String> getSenderError() {
+    public static Collection<EventExceptionDescription<String>> getSenderError() {
         synchronized (senderMessages) {
             return new ArrayList<>(senderMessages);
         }
@@ -551,7 +554,7 @@ public final class Stats {
 
     public static void eventEnd(String pipeline, int stepsCount) {
         if (pipeline != null) {
-            pipelineHanding(pipeline, PipelineStat.INFLIGHTDOWN);
+            Stats.pipelineInFlightDown(pipeline);
         }
         getMetric(Stats.class, METRIC_ALL_INFLIGHT, Counter.class).dec();
         getMetric(Stats.class, METRIC_ALL_STEPS, Histogram.class).update(stepsCount);
