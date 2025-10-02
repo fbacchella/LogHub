@@ -290,8 +290,9 @@ public class EventsProcessor extends Thread {
                         });
                         status = ProcessingStatus.PAUSED;
                     } else {
-                        status = ProcessingStatus.DROPED;
-                        Stats.pipelineDrop(e.getRunningPipeline());
+                        logger.warn("Failed to pause event, discarded");
+                        status = ProcessingStatus.DISCARD;
+                        e.doMetric(PipelineStat.DISCARD);
                     }
                 } else if (ex.getFuture() == null) {
                     // No future, internal handling of the pause
