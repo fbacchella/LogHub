@@ -1,7 +1,7 @@
 package loghub;
 
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
@@ -232,23 +232,21 @@ public class EventsProcessor extends Thread {
                     // The event to pause might be a transformation of the original event.
                     // A paused event was catch, create a custom FuturProcess for it that will be awakened when event come back
                     Future<?> future = ex.getFuture();
-                    // Wait if too much asynchronous event are waiting
-                    try {
-                        ap.getLimiter().ifPresent(t -> {
-                            try {
-                                t.acquire();
-                            } catch (InterruptedException iex) {
-                                throw new UndeclaredThrowableException(iex);
-                            }
-                        });
-                    } catch (UndeclaredThrowableException uex) {
-                        Thread.currentThread().interrupt();
-                        InterruptedException iex = (InterruptedException) uex.getCause();
-                        e.doMetric(Stats.PipelineStat.FAILURE, iex);
-                        e.getPipelineLogger().error("Interrupted");
-                        e.getPipelineLogger().catching(Level.DEBUG, iex);
-                        future.cancel(true);
-                        return ProcessingStatus.ERROR;
+                    // Wait if too much asynchronous events are waiting
+                    Optional<Semaphore> limiterSemaphore = ap.getLimiter();
+                    if (limiterSemaphore.isPresent()) {
+                        try {
+                            limiterSemaphore.get().acquire();
+                        } catch (InterruptedException iex) {
+                            e.doMetric(PipelineStat.EXCEPTION, iex);
+                            Logger pipelineLogger = e.getPipelineLogger();
+                            pipelineLogger.atError()
+                                          .withThrowable(pipelineLogger.isDebugEnabled() ? iex : null)
+                                          .log("Interrupted");
+                            future.cancel(true);
+                            Thread.currentThread().interrupt();
+                            return ProcessingStatus.ERROR;
+                        }
                     }
                     // Compilation fails if builder is used directly
                     PausedEvent.Builder<Future<?>> builder = PausedEvent.builder(e, future);
