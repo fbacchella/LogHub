@@ -319,7 +319,7 @@ public class EventsProcessor extends Thread {
                     e.insertProcessor(exceptionProcessor);
                     status = ProcessingStatus.CONTINUE;
                 } else {
-                    e.doMetric(Stats.PipelineStat.FAILURE, rex);
+                    Stats.pipelineProcessorException(e, rex);
                     status = ProcessingStatus.ERROR;
                 }
             } catch (Throwable ex) {

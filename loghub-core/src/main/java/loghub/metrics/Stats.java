@@ -22,7 +22,7 @@ import com.codahale.metrics.Timer.Context;
 
 import loghub.Dashboard;
 import loghub.Helpers;
-import loghub.ProcessingException;
+import loghub.ProcessorException;
 import loghub.VarFormatter;
 import loghub.events.Event;
 import loghub.receivers.Receiver;
@@ -116,7 +116,7 @@ public final class Stats {
     private static final CopyOnWriteMap<Object, CopyOnWriteMap<String, Metric>> metricsCache = new CopyOnWriteMap<>();
     private static final CopyOnWriteMap<Object, CopyOnWriteMap<Integer, Timer>> webCache = new CopyOnWriteMap<>();
 
-    private static final Queue<EventExceptionDescription<Throwable>> processorExceptions = new LinkedBlockingQueue<>(100);
+    private static final Queue<EventExceptionDescription<ProcessorException>> processorExceptions = new LinkedBlockingQueue<>(100);
     private static final Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
     private static final Queue<String> decodeMessage = new LinkedBlockingQueue<>(100);
     private static final Queue<EventExceptionDescription<String>> senderMessages = new LinkedBlockingQueue<>(100);
@@ -385,11 +385,6 @@ public final class Stats {
 
     public static void pipelineHanding(Event ev, PipelineStat status, Throwable ex) {
         switch (status) {
-        case FAILURE:
-            storeException(processorExceptions, new EventExceptionDescription<>(ev, ex));
-            getMetric(String.class, METRIC_PIPELINE_FAILED, Meter.class).mark();
-            getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_FAILED, Meter.class).mark();
-            break;
         case DISCARD:
             getMetric(String.class, METRIC_PIPELINE_DISCARDED, Meter.class).mark();
             getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_DISCARDED, Meter.class).mark();
@@ -408,6 +403,12 @@ public final class Stats {
         default:
             throw new IllegalStateException("Not reachable");
         }
+    }
+
+    public static void pipelineProcessorException(Event ev, ProcessorException ex) {
+        storeException(processorExceptions, new EventExceptionDescription<>(ev, ex));
+        getMetric(String.class, METRIC_PIPELINE_FAILED, Meter.class).mark();
+        getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_FAILED, Meter.class).mark();
     }
 
     public static void pipelineDrop(String name) {
@@ -513,7 +514,7 @@ public final class Stats {
      * Getting queues *
     \******************/
 
-    public static Collection<EventExceptionDescription<Throwable>> getErrors() {
+    public static Collection<EventExceptionDescription<ProcessorException>> getErrors() {
         synchronized (processorExceptions) {
             return new ArrayList<>(processorExceptions);
         }
