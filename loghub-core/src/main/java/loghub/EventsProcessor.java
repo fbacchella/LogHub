@@ -198,7 +198,7 @@ public class EventsProcessor extends Thread {
         }
     }
 
-    ProcessingStatus process(Event e, Processor p) {
+    public ProcessingStatus process(Event e, Processor p) {
         ProcessingStatus status;
         if (p instanceof Forker) {
             ((Forker) p).fork(e);
