@@ -145,12 +145,13 @@ public class EventsProcessor extends Thread {
                 // If next processor is null, refill the event
                 // Tests event are not forwarded to next pipeline
                 while (processor == null && event.getNextPipeline() != null && ! event.isTest()) {
-                    event.getPipelineLogger().trace("next pipeline is {}", event.getNextPipeline());
+                    String nextPipeline = event.getNextPipeline();
+                    event.getPipelineLogger().trace("next pipeline is {}", nextPipeline);
                     // Send to another pipeline, loop in the main processing queue
-                    Pipeline next = namedPipelines.get(event.getNextPipeline());
+                    Pipeline next = namedPipelines.get(nextPipeline);
                     if (next == null) {
-                        event.getPipelineLogger().error("Failed to forward to pipeline {}, not found", event.getNextPipeline());
-                        event.doMetric(PipelineStat.FAILURE);
+                        event.getPipelineLogger().error("Failed to forward to pipeline \"{}\", not found", nextPipeline);
+                        event.doMetric(PipelineStat.DISCARD);
                         event.end();
                         event = null;
                         break;
