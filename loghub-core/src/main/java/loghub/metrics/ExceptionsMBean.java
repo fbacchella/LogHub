@@ -6,6 +6,7 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 
 import loghub.Helpers;
+import loghub.metrics.Stats.EventExceptionDescription;
 
 @MXBean
 public interface ExceptionsMBean {
@@ -44,7 +45,7 @@ public interface ExceptionsMBean {
     @Units(Units.EXCEPTIONS)
     @MetricType(MetricType.GAUGE)
     default String[] getSendersFailures() {
-        return Stats.getSenderError().toArray(String[]::new);
+        return Stats.getSenderError().stream().map(EventExceptionDescription::payload).toArray(String[]::new);
     }
 
     @Units(Units.EXCEPTIONS)

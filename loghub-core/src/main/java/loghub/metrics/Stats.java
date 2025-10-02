@@ -127,9 +127,6 @@ public final class Stats {
         EventExceptionDescription(Event event, P payload) {
             this(JSON_FORMATER.format(event), payload);
         }
-        EventExceptionDescription(P payload) {
-            this((String)null, payload);
-        }
     }
 
     static MetricRegistry metricsRegistry = new MetricRegistry();
@@ -327,11 +324,6 @@ public final class Stats {
         }
     }
 
-    public static void newUnhandledException(Throwable e) {
-        getMetric(Stats.class, METRIC_ALL_EXCEPTION, Meter.class).mark();
-        storeException(exceptions, e);
-    }
-
     /*****************************\
     |* Handling receivers events *|
     \*****************************/
@@ -390,9 +382,7 @@ public final class Stats {
             getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_DISCARDED, Meter.class).mark();
             break;
         case EXCEPTION:
-            if (ex != null) {
-                storeException(exceptions, ex);
-            }
+            storeException(exceptions, ex);
             getMetric(String.class, METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
             getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
             break;

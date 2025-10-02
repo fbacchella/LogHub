@@ -19,7 +19,6 @@ import javax.management.MBeanFeatureInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
-import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.ReflectionException;
 
@@ -68,24 +67,6 @@ public class TestJmxStats {
     @After
     public void stop() {
         JmxService.stop();
-    }
-
-    @Test
-    public void test1() throws NotCompliantMBeanException {
-        ExceptionsMBean exceptions = new ExceptionsMBean.Implementation();
-        Exception e = new NullPointerException();
-        Stats.newUnhandledException(e);
-        assertEquals(String.format("NullPointerException at loghub.metrics.TestJmxStats.test1 line %d", e.getStackTrace()[0].getLineNumber()), exceptions.getUnhandledExceptions()[0]);
-        assertEquals(1, Stats.getExceptionsCount());
-    }
-
-    @Test
-    public void test2() throws NotCompliantMBeanException {
-        ExceptionsMBean exceptions = new ExceptionsMBean.Implementation();
-        Exception e = new RuntimeException("some message");
-        Stats.newUnhandledException(e);
-        assertEquals(String.format("some message at loghub.metrics.TestJmxStats.test2 line %d", e.getStackTrace()[0].getLineNumber()), exceptions.getUnhandledExceptions()[0]);
-        assertEquals(1, Stats.getExceptionsCount());
     }
 
     @Test
