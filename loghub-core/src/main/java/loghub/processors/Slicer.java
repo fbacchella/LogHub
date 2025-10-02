@@ -18,8 +18,10 @@ import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
+import loghub.cloners.NotClonableException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.metrics.Stats.PipelineStat;
 import lombok.Setter;
 
 @BuilderClass(Slicer.Builder.class)
@@ -61,7 +63,7 @@ public class Slicer extends Processor {
     @Override
     public boolean process(Event event) throws ProcessorException {
         Stream<Object> enumerator;
-        Object values = event.getAtPath(toSlice);
+        Object values = event.removeAtPath(toSlice);
         if (values instanceof Collection) {
             @SuppressWarnings("unchecked")
             Collection<Object> collection = ((Collection<Object>) values);
@@ -88,20 +90,26 @@ public class Slicer extends Processor {
                 Object key = bucket.eval(event.wrap(toSlice));
                 newValues.computeIfAbsent(key, k -> new ArrayList<>()).add(i);
             }
+            event.removeAtPath(toSlice);
+            List<Event> newEvents = new ArrayList<>(newValues.size());
             for (List<Object> sub : newValues.values()) {
                 Event ev = event.duplicate();
                 if (flatten && sub.size() == 1) {
-                    ev.putAtPath(toSlice, sub.get(0));
+                    ev.putAtPath(toSlice, sub.getFirst());
                 } else {
                     ev.putAtPath(toSlice, sub);
                 }
+                newEvents.add(ev);
+            }
+            // All new event generated without errors, can inject them
+            for (Event ev: newEvents) {
                 ev.reinject(event, mainQueue);
             }
-            throw DiscardedEventException.INSTANCE;
-        } catch (ProcessorException | RuntimeException ex) {
-            event.putAtPath(toSlice, values);
-            throw ex;
+        } catch (RuntimeException | NotClonableException ex) {
+            event.doMetric(PipelineStat.EXCEPTION, ex);
         }
+        event.putAtPath(toSlice, values);
+        throw DiscardedEventException.INSTANCE;
     }
 
 }

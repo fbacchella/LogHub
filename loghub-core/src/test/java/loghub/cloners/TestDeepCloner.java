@@ -29,7 +29,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.ConnectionContext;
-import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -75,19 +74,19 @@ public class TestDeepCloner {
 
     }
 
-    private void checkIdentity(Object o) {
+    private void checkIdentity(Object o) throws NotClonableException {
         Assert.assertSame(o, DeepCloner.clone(o));
     }
 
-    private void checkEquality(Object o) {
+    private void checkEquality(Object o) throws NotClonableException {
         Object duplicated = DeepCloner.clone(o);
         Assert.assertNotSame(o, duplicated);
         Assert.assertEquals(o, duplicated);
     }
 
     @Test
-    public void testIdentity() throws IOException {
-        checkIdentity(1l);
+    public void testIdentity() throws IOException, NotClonableException {
+        checkIdentity(1L);
         checkIdentity(1);
         checkIdentity((byte)1);
         checkIdentity(true);
@@ -145,8 +144,8 @@ public class TestDeepCloner {
     public void failsEventDuplicate() {
         Event ev = factory.newEvent();
         ev.putMeta("canary", Map.of("canary", CANARY));
-        ProcessorException pe = Assert.assertThrows(loghub.ProcessorException.class, ev::duplicate);
-        Assert.assertSame(NotClonableException.class, pe.getCause().getClass());
+        NotClonableException pe = Assert.assertThrows(NotClonableException.class, ev::duplicate);
+        Assert.assertSame(IOException.class, pe.getCause().getClass());
     }
 
     @Test
@@ -164,7 +163,7 @@ public class TestDeepCloner {
     }
 
     @Test
-    public void testEvent() {
+    public void testEvent() throws NotClonableException {
         Event ev = factory.newEvent();
         ev.put("message", "message");
         ev.putAtPath(VariablePath.of("a", "b"), 1);
@@ -174,7 +173,7 @@ public class TestDeepCloner {
     }
 
     @Test
-    public void testEventDuplicate() throws ProcessorException {
+    public void testEventDuplicate() throws NotClonableException {
         Event ev = factory.newTestEvent();
         ev.put("message", "message");
         ev.putAtPath(VariablePath.of("a", "b"), 1);
@@ -188,7 +187,7 @@ public class TestDeepCloner {
     }
 
     @Test
-    public void testProp() {
+    public void testProp() throws NotClonableException {
         Properties p = new Properties();
         p.put("a", List.of(1));
         Properties pc = DeepCloner.clone(p);

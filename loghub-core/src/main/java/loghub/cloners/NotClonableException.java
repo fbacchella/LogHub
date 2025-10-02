@@ -1,6 +1,6 @@
 package loghub.cloners;
 
-public class NotClonableException extends RuntimeException {
+public class NotClonableException extends Exception {
 
     NotClonableException(Class<?> clazz, Throwable cause) {
         super(resolveName(clazz), cause);

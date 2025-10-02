@@ -88,7 +88,7 @@ public class MapCloner {
     }
 
     @SuppressWarnings("unchecked")
-    public static <K, V> Map<K, V> clone(Map<K, V> oldMap) {
+    public static <K, V> Map<K, V> clone(Map<K, V> oldMap) throws NotClonableException {
         Map<K, V> newMap;
         if (MapCloner.MAP_MAPPING.containsKey(oldMap.getClass())) {
             newMap = (Map<K, V>) MAP_MAPPING.get(oldMap.getClass()).generate(oldMap.size());
@@ -98,7 +98,9 @@ public class MapCloner {
         } else {
             newMap = findCreator((Class<Map<K, V>>)oldMap.getClass(), MapCloner::findConstructor).apply(oldMap);
         }
-        oldMap.forEach((k, v) -> newMap.put(DeepCloner.clone(k), DeepCloner.clone(v)));
+        for (Map.Entry<K, V> e: oldMap.entrySet()) {
+            newMap.put(DeepCloner.clone(e.getKey()), DeepCloner.clone(e.getValue()));
+        }
         return newMap;
     }
 

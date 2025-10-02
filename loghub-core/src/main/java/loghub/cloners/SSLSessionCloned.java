@@ -4,6 +4,7 @@ import java.security.Principal;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -88,16 +89,16 @@ public class SSLSessionCloned implements SSLSession {
         }
     }
 
-    public static SSLSession clone(SSLSession session) {
-
-        Map<String, Object> values = Collections.unmodifiableMap(
-                Arrays.stream(session.getValueNames())
-                      .filter(name -> session.getValue(name) != null)
-                      .collect(Collectors.toMap(
-                              name -> name,
-                              name -> DeepCloner.clone(session.getValue(name))
-                        ))
-        );
+    public static SSLSession clone(SSLSession session) throws NotClonableException {
+        String[] valueNames = session.getValueNames();
+        Map<String, Object> values = HashMap.newHashMap(valueNames.length);
+        for(String name: valueNames) {
+            Object value = session.getValue(name);
+            if (value != null) {
+                values.put(name, DeepCloner.clone(value));
+            }
+        }
+        values = Map.copyOf(values);
         Certificate[] peerCertificats;
         SSLPeerUnverifiedException peerCertificatsException;
         try {

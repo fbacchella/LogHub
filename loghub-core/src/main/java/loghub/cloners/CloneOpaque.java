@@ -101,7 +101,7 @@ class CloneOpaque {
             super(out);
         }
 
-        public void writeObjectFast(Object o) throws IOException {
+        public void writeObjectFast(Object o) throws IOException, NotClonableException {
             if (o == null) {
                 write(TYPE.NULL.ordinal());
             } else if (Boolean.TRUE.equals(o)) {
@@ -171,7 +171,7 @@ class CloneOpaque {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T clone(T object) {
+    static <T> T clone(T object) throws NotClonableException {
         logger.warn("Failback to byte serialization clone for {}", () -> object.getClass().getName());
         // FastObjectInputStream
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); FastObjectOutputStream oos = new FastObjectOutputStream(bos)) {

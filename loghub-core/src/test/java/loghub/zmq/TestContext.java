@@ -5,7 +5,7 @@ import java.net.InetSocketAddress;
 import org.junit.Assert;
 import org.junit.Test;
 
-import loghub.ProcessorException;
+import loghub.cloners.NotClonableException;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import zmq.Msg;
@@ -17,7 +17,7 @@ public class TestContext {
     private final EventsFactory factory = new EventsFactory();
 
     @Test
-    public void testContext() throws ProcessorException {
+    public void testContext() throws NotClonableException {
         InetSocketAddress sa = InetSocketAddress.createUnresolved("127.0.0.1", 32000);
         Msg msg = new Msg(10);
         Metadata md = new Metadata();

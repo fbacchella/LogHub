@@ -30,6 +30,7 @@ import loghub.ProcessorException;
 import loghub.SubPipeline;
 import loghub.VariablePath;
 import loghub.cloners.DeepCloner;
+import loghub.cloners.NotClonableException;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 import lombok.Getter;
@@ -37,7 +38,7 @@ import lombok.Getter;
 class EventInstance extends Event {
 
     static {
-        DeepCloner.register(EventInstance.class, o -> ((EventInstance)o).clone());
+        DeepCloner.register(EventInstance.class, o -> ((EventInstance)o).deepClone());
     }
 
     private static final Logger logger = LogManager.getLogger();
@@ -114,12 +115,8 @@ class EventInstance extends Event {
      * <p>
      * @return a copy of this event, with a different key
      */
-    public Event duplicate() throws ProcessorException {
-        try {
-            return DeepCloner.clone(this);
-        } catch (RuntimeException ex) {
-            throw new ProcessorException(this, "Unable to serialise event : " + Helpers.resolveThrowableException(ex), ex);
-        }
+    public Event duplicate() throws NotClonableException {
+        return DeepCloner.clone(this);
     }
 
     @Override
@@ -358,7 +355,7 @@ class EventInstance extends Event {
     }
 
     @Override
-    public Object clone() {
+    Event deepClone() throws NotClonableException {
         EventInstance newEvent = (EventInstance) factory.newEvent(ctx);
         newEvent.setTimestamp(timestamp);
         newEvent.currentPipeline = currentPipeline;
@@ -366,9 +363,13 @@ class EventInstance extends Event {
         newEvent.stepsCount = stepsCount;
         newEvent.test = test;
         newEvent.metas.clear();
-        metas.forEach((k, v) -> newEvent.metas.put(k, DeepCloner.clone(v)));
+        for (Map.Entry<String, Object> e: metas.entrySet()) {
+            newEvent.metas.put(e.getKey(), DeepCloner.clone(e.getValue()));
+        }
         newEvent.clear();
-        forEach((k, v) -> newEvent.put(k, DeepCloner.clone(v)));
+        for (Map.Entry<String, Object> e: entrySet()) {
+            newEvent.put(e.getKey(), DeepCloner.clone(e.getValue()));
+        }
         return newEvent;
     }
 

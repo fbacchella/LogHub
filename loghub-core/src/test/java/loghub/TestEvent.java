@@ -21,6 +21,7 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Meter;
 
 import loghub.EventsProcessor.ProcessingStatus;
+import loghub.cloners.NotClonableException;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
@@ -57,7 +58,7 @@ public class TestEvent {
     }
 
     @Test
-    public void testCanFork() throws ProcessorException {
+    public void testCanFork() throws NotClonableException {
         Event e = factory.newTestEvent();
         Pipeline ppl = new Pipeline(Collections.emptyList(), "main", "next");
         e.refill(ppl);
@@ -206,14 +207,14 @@ public class TestEvent {
     }
 
     @Test
-    public void testEventClone() {
+    public void testEventClone() throws NotClonableException {
         BuildableConnectionContext<Object> ctx = new BuildableConnectionContext.GenericConnectionContext("laddr", "raddr");
         ctx.setPrincipal(() -> "someone");
         ctx.setDecoder(StringCodec.getBuilder().build());
         AtomicInteger count = new AtomicInteger();
         ctx.setOnAcknowledge(count::decrementAndGet);
         Event original = factory.newEvent(ctx);
-        Event clone = (Event) original.clone();
+        Event clone = original.duplicate();
         try {
             original.getConnectionContext().acknowledge();
             clone.getConnectionContext().acknowledge();

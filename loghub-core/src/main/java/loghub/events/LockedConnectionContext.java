@@ -7,6 +7,7 @@ import java.util.Optional;
 import loghub.BuildableConnectionContext;
 import loghub.ConnectionContext;
 import loghub.cloners.DeepCloner;
+import loghub.cloners.NotClonableException;
 import loghub.decoders.Decoder;
 import lombok.Getter;
 
@@ -31,16 +32,20 @@ class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
     }
 
     private LockedConnectionContext(ConnectionContext<?> context, boolean clone) {
-        localAddress = context.getLocalAddress();
-        remoteAddress = context.getRemoteAddress();
-        principal = context.getPrincipal();
-        onAcknowledge = clone ? () -> {} : context.getOnAcknowledge();
-        switch (context) {
-        case BuildableConnectionContext<?> bcc -> properties = Map.copyOf(DeepCloner.clone(bcc.getProperties()));
-        case LockedConnectionContext lcc ->
-            // Already locked and copied, simple copy
-            properties = lcc.properties;
-        default -> properties = Map.of();
+        try {
+            localAddress = context.getLocalAddress();
+            remoteAddress = context.getRemoteAddress();
+            principal = context.getPrincipal();
+            onAcknowledge = clone ? () -> {} : context.getOnAcknowledge();
+            switch (context) {
+            case BuildableConnectionContext<?> bcc -> properties = Map.copyOf(DeepCloner.clone(bcc.getProperties()));
+            case LockedConnectionContext lcc ->
+                // Already locked and copied, simple copy
+                properties = lcc.properties;
+            default -> properties = Map.of();
+            }
+        } catch (NotClonableException e) {
+            throw new IllegalArgumentException("Not clonable context", e);
         }
     }
 

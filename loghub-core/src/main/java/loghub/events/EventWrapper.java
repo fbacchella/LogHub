@@ -18,6 +18,7 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.cloners.DeepCloner;
+import loghub.cloners.NotClonableException;
 import loghub.metrics.Stats.PipelineStat;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,7 +26,7 @@ import lombok.Getter;
 class EventWrapper extends Event {
 
     static {
-        DeepCloner.register(EventWrapper.class, o -> ((EventWrapper)o).clone());
+        DeepCloner.register(EventWrapper.class, o -> ((EventWrapper)o).deepClone());
     }
 
     private final Event event;
@@ -141,7 +142,7 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public Event duplicate() throws ProcessorException {
+    public Event duplicate() throws NotClonableException {
         return event.duplicate();
     }
 
@@ -313,8 +314,8 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public Object clone() {
-        return ((Event) event.clone()).wrap(path);
+    public Event deepClone() throws NotClonableException {
+        return event.deepClone().wrap(path);
     }
 
 }

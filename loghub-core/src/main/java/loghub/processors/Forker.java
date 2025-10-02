@@ -4,7 +4,7 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
-import loghub.ProcessorException;
+import loghub.cloners.NotClonableException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.metrics.Stats;
@@ -36,7 +36,7 @@ public class Forker extends Processor {
         try {
             Event newEvent = event.duplicate();
             newEvent.reinject(pipeDestination, mainQueue);
-        } catch (ProcessorException ex) {
+        } catch (NotClonableException ex) {
             logger.error("Failed to fork {}: {}", event, Helpers.resolveThrowableException(ex));
             event.doMetric(PipelineStat.EXCEPTION, ex);
         }

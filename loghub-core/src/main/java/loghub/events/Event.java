@@ -34,10 +34,11 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.UncheckedProcessorException;
 import loghub.VariablePath;
+import loghub.cloners.NotClonableException;
 import loghub.metrics.Stats.PipelineStat;
 
 @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class)
-public abstract class Event extends HashMap<String, Object> implements Cloneable {
+public abstract class Event extends HashMap<String, Object> {
 
     public static final String TIMESTAMPKEY = "@timestamp";
     public static final String LASTEXCEPTIONKEY = "@lastException";
@@ -448,7 +449,7 @@ public abstract class Event extends HashMap<String, Object> implements Cloneable
 
     public abstract void finishPipeline();
 
-    public abstract Event duplicate() throws ProcessorException;
+    public abstract Event duplicate() throws NotClonableException;
 
     public abstract Processor next();
 
@@ -566,4 +567,5 @@ public abstract class Event extends HashMap<String, Object> implements Cloneable
         return System.identityHashCode(this);
     }
 
+    abstract Event deepClone() throws NotClonableException;
 }

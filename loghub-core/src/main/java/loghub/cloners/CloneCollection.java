@@ -13,7 +13,7 @@ class CloneCollection {
     private static final Logger logger = LogManager.getLogger();
 
     @SuppressWarnings("unchecked")
-    static Collection<Object> clone(Collection<Object> oldList) {
+    static Collection<Object> clone(Collection<Object> oldList) throws NotClonableException {
         int size = oldList.size();
         Constructor<? extends Collection<Object>> sizeConstructor = null;
         Constructor<? extends Collection<Object>> collectionConstructor = null;
@@ -35,8 +35,6 @@ class CloneCollection {
             } else {
                 return newList;
             }
-        } catch (NotClonableException e) {
-            throw e;
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException | RuntimeException e) {
             logger.atWarn().withThrowable(e).log("Failback to byte serialization clone for {}", () -> oldList.getClass().getName());
             return CloneOpaque.clone(oldList);

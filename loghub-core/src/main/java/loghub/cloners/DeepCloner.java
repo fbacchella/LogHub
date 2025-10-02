@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.UnaryOperator;
 
 import javax.net.ssl.SSLSession;
 
@@ -97,7 +96,7 @@ public class DeepCloner {
 
     private static final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
     private static final MethodType CLONE_MT = MethodType.methodType(Object.class);
-    private static final ConcurrentHashMap<Class<?>, UnaryOperator<?>> CLONERS_MAP = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Cloner<?>> CLONERS_MAP = new ConcurrentHashMap<>();
 
     static boolean isImmutable(Class<?> oClass) {
         return oClass.isEnum()
@@ -117,13 +116,13 @@ public class DeepCloner {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T tryClone(T obj) {
-        UnaryOperator<T> lambda = (UnaryOperator<T>) CLONERS_MAP.computeIfAbsent(obj.getClass(), DeepCloner::resolveHandle);
-        return lambda.apply(obj);
+    static <T> T tryClone(T obj) throws NotClonableException {
+        Cloner<T> lambda = (Cloner<T>) CLONERS_MAP.computeIfAbsent(obj.getClass(), DeepCloner::resolveHandle);
+        return lambda.clone(obj);
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T cloneWithHandler(MethodHandle mh, T o) {
+    static <T> T cloneWithHandler(MethodHandle mh, T o) throws NotClonableException {
         try {
             return (T) mh.invoke(o);
         } catch (Throwable e) {
@@ -131,7 +130,7 @@ public class DeepCloner {
         }
     }
 
-    private static <T> UnaryOperator<T> resolveHandle(Class<T> clazz) {
+    private static <T> Cloner<T> resolveHandle(Class<T> clazz) {
         try {
             MethodHandle mh = lookup.findVirtual(clazz, "clone", CLONE_MT);
             return o -> cloneWithHandler(mh, o);
@@ -141,7 +140,7 @@ public class DeepCloner {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T clone(T o) {
+    public static <T> T clone(T o) throws NotClonableException {
         if (o == null) {
             return null;
         } else if (o instanceof Byte) {

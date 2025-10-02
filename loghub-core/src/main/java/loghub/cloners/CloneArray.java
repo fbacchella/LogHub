@@ -5,7 +5,7 @@ import java.util.Arrays;
 
 public class CloneArray {
 
-    static Object clone(Object o) {
+    static Object clone(Object o) throws NotClonableException {
         Class<?> component = o.getClass().getComponentType();
         int length = Array.getLength(o);
         if (component.isPrimitive()) {
