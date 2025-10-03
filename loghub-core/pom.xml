@@ -234,7 +234,7 @@
         <dependency>
             <groupId>fr.loghub</groupId>
             <artifactId>netty-beats</artifactId>
-            <version>1.0.1-SNAPSHOT</version>
+            <version>1.0.1</version>
         </dependency>
         <!-- **************** -->
         <!-- Compress dependencies -->
@@ -251,7 +251,7 @@
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.5.7-4</version>
+            <version>1.5.7-5</version>
         </dependency>
         <dependency>
             <groupId>org.brotli</groupId>
@@ -281,7 +281,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.19.0</version>
+            <version>5.20.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -296,7 +296,7 @@
                 <!-- Because of  CVE-2025-48924 introduced by gok -->
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.18.0</version>
+                <version>3.19.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
