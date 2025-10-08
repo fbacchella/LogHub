@@ -10,7 +10,7 @@ import javax.management.openmbean.SimpleType;
 import loghub.Helpers;
 import loghub.receivers.Receiver;
 
-record ReceivedExceptionDescription(String receiver, String message) {
+public record ReceivedExceptionDescription(String receiver, String message) {
 
     ReceivedExceptionDescription(Receiver<?, ?> r, String msg) {
         this(r.getReceiverName(), msg);
@@ -20,7 +20,7 @@ record ReceivedExceptionDescription(String receiver, String message) {
         this(r.getReceiverName(), Helpers.resolveThrowableException(ex));
     }
 
-    public CompositeData toCompositeData() {
+     CompositeData toCompositeData() {
         try {
             return new CompositeDataSupport(TYPE,
                     itemNames,

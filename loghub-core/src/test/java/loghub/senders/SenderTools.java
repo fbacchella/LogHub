@@ -16,7 +16,7 @@ import loghub.encoders.Encoder;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
-import loghub.metrics.Stats.EventExceptionDescription;
+import loghub.metrics.EventExceptionDescription;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -51,7 +51,7 @@ public class SenderTools {
         ConnectionContext<Semaphore> ctxt = ev.getConnectionContext();
         ctxt.getLocalAddress().acquire();
         Assert.assertEquals(1, Stats.getMetric(Sender.class, "failedSend", Meter.class).getCount());
-        Assert.assertTrue(Stats.getSenderError().stream().map(EventExceptionDescription::payload).collect(Collectors.toSet()).contains("Dummy exception"));
+        Assert.assertTrue(Stats.getSenderError().stream().map(EventExceptionDescription::message).collect(Collectors.toSet()).contains("Dummy exception"));
         Assert.assertEquals(1L, Stats.getFailed());
     }
 

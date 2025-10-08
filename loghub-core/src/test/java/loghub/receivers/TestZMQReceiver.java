@@ -44,6 +44,7 @@ import loghub.decoders.Msgpack;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.ReceivedExceptionDescription;
 import loghub.metrics.Stats;
 import loghub.types.MimeType;
 import loghub.zmq.MsgHeaders;
@@ -198,7 +199,8 @@ public class TestZMQReceiver {
         } finally {
             p.getZMQSocketFactory().close();
         }
-        Assert.assertEquals("Failed to decode ZMQ message: Unable to decode header: Expected Map, but got Integer (00)", Stats.getReceiverError().stream().findAny().orElse(""));
+        ReceivedExceptionDescription red = Stats.getReceiverError().stream().findAny().orElse(null);
+        Assert.assertEquals("Unable to decode header: Expected Map, but got Integer (00)", red.message());
     }
 
     @Test(timeout = 5000)

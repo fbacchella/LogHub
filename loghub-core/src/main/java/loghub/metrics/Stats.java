@@ -21,9 +21,8 @@ import com.codahale.metrics.Timer;
 import com.codahale.metrics.Timer.Context;
 
 import loghub.Dashboard;
-import loghub.Helpers;
 import loghub.ProcessorException;
-import loghub.VarFormatter;
+import loghub.decoders.DecodeException;
 import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
@@ -116,18 +115,11 @@ public final class Stats {
     private static final CopyOnWriteMap<Object, CopyOnWriteMap<String, Metric>> metricsCache = new CopyOnWriteMap<>();
     private static final CopyOnWriteMap<Object, CopyOnWriteMap<Integer, Timer>> webCache = new CopyOnWriteMap<>();
 
-    private static final Queue<EventExceptionDescription<ProcessorException>> processorExceptions = new LinkedBlockingQueue<>(100);
-    private static final Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
-    private static final Queue<String> decodeMessage = new LinkedBlockingQueue<>(100);
-    private static final Queue<EventExceptionDescription<String>> senderMessages = new LinkedBlockingQueue<>(100);
-    private static final Queue<String> receiverMessages = new LinkedBlockingQueue<>(100);
-
-    private static final VarFormatter JSON_FORMATER = new VarFormatter("${%j}");
-    public record EventExceptionDescription<P >(String eventJson, P payload) {
-        EventExceptionDescription(Event event, P payload) {
-            this(JSON_FORMATER.format(event), payload);
-        }
-    }
+    private static final Queue<EventExceptionDescription> processorExceptions = new LinkedBlockingQueue<>(100);
+    private static final Queue<FullStackExceptionDescription> unexpectedExceptions = new LinkedBlockingQueue<>(100);
+    private static final Queue<ReceivedExceptionDescription> decodeMessage = new LinkedBlockingQueue<>(100);
+    private static final Queue<EventExceptionDescription> senderMessages = new LinkedBlockingQueue<>(100);
+    private static final Queue<ReceivedExceptionDescription> receiverMessages = new LinkedBlockingQueue<>(100);
 
     static MetricRegistry metricsRegistry = new MetricRegistry();
 
@@ -152,7 +144,7 @@ public final class Stats {
         metricsCache.clear();
         webCache.clear();
 
-        Stream<Queue<?>> qs = Stream.of(processorExceptions, exceptions, decodeMessage, senderMessages, receiverMessages);
+        Stream<Queue<?>> qs = Stream.of(processorExceptions, unexpectedExceptions, decodeMessage, senderMessages, receiverMessages);
         qs.forEach(q -> {
             synchronized (q) {
                 q.clear();
@@ -338,10 +330,10 @@ public final class Stats {
         getMetric(Receiver.class, METRIC_RECEIVER_BYTES, Meter.class).mark(bytes);
     }
 
-    public static void newDecodError(Receiver<?, ?> r, String msg) {
+    public static void newDecodeError(Receiver<?, ?> r, DecodeException ex) {
         getMetric(r, METRIC_RECEIVER_FAILEDDECODE, Meter.class).mark();
         getMetric(Receiver.class, METRIC_RECEIVER_FAILEDDECODE, Meter.class).mark();
-        storeException(decodeMessage, msg);
+        storeException(decodeMessage, new ReceivedExceptionDescription(r, ex));
     }
 
     public static void newBlockedError(Receiver<?, ?> r) {
@@ -352,13 +344,19 @@ public final class Stats {
     public static void newUnhandledException(Receiver<?, ?> receiver, Exception ex) {
         getMetric(receiver, METRIC_RECEIVER_EXCEPTION, Meter.class).mark();
         getMetric(Receiver.class, METRIC_RECEIVER_EXCEPTION, Meter.class).mark();
-        storeException(exceptions, ex);
+        storeException(unexpectedExceptions, new FullStackExceptionDescription(receiver, ex));
     }
 
     public static void newReceivedError(Receiver<?, ?> r, String msg) {
         getMetric(r, METRIC_RECEIVER_ERROR, Meter.class).mark();
         getMetric(Receiver.class, METRIC_RECEIVER_ERROR, Meter.class).mark();
-        storeException(receiverMessages, msg);
+        storeException(receiverMessages, new ReceivedExceptionDescription(r, msg));
+    }
+
+    public static void newReceivedError(Receiver<?, ?> r, Throwable t) {
+        getMetric(r, METRIC_RECEIVER_ERROR, Meter.class).mark();
+        getMetric(Receiver.class, METRIC_RECEIVER_ERROR, Meter.class).mark();
+        storeException(receiverMessages, new ReceivedExceptionDescription(r, t));
     }
 
     /******************************\
@@ -382,7 +380,7 @@ public final class Stats {
             getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_DISCARDED, Meter.class).mark();
             break;
         case EXCEPTION:
-            storeException(exceptions, ex);
+            storeException(unexpectedExceptions, new FullStackExceptionDescription(ev, ex));
             getMetric(String.class, METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
             getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_EXCEPTION, Meter.class).mark();
             break;
@@ -395,10 +393,10 @@ public final class Stats {
         }
     }
 
-    public static void pipelineProcessorException(Event ev, ProcessorException ex) {
-        storeException(processorExceptions, new EventExceptionDescription<>(ev, ex));
+    public static void pipelineProcessorException(ProcessorException ex) {
+        storeException(processorExceptions, new EventExceptionDescription(ex));
         getMetric(String.class, METRIC_PIPELINE_FAILED, Meter.class).mark();
-        getMetric(ev.getRunningPipeline(), METRIC_PIPELINE_FAILED, Meter.class).mark();
+        getMetric(ex.getEvent().getRunningPipeline(), METRIC_PIPELINE_FAILED, Meter.class).mark();
     }
 
     public static void pipelineDrop(String name) {
@@ -447,25 +445,21 @@ public final class Stats {
     }
 
     public static void failedSentEvent(Sender sender, Event ev) {
-        failedSentEvent(sender, (String) null, ev);
+        getMetric(sender, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
+        getMetric(Sender.class, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
+        storeException(senderMessages, new EventExceptionDescription(ev, sender));
     }
 
-    public static synchronized void failedSentEvent(Sender sender, Throwable t, Event ev) {
-        failedSentEvent(sender, Helpers.resolveThrowableException(t), ev);
+    public static void failedSentEvent(Sender sender, String message, Event ev) {
+        getMetric(sender, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
+        getMetric(Sender.class, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
+        storeException(senderMessages, new EventExceptionDescription(ev, sender, message));
     }
 
-    public static synchronized void failedSentEvent(Sender sender, String msg, Event ev) {
-        if (ev != null) {
-            getMetric(sender, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
-            getMetric(Sender.class, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
-        }
-        if (msg != null) {
-            storeException(senderMessages, new EventExceptionDescription<>(ev, msg));
-        }
-    }
-
-    public static void newUnhandledException(Sender sender, Throwable ex) {
-        newUnhandledException(sender, ex, null);
+    public static void failedSentEvent(Sender sender, Throwable t, Event ev) {
+        getMetric(sender, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
+        getMetric(Sender.class, METRIC_SENDER_FAILEDSEND, Meter.class).mark();
+        storeException(senderMessages, new EventExceptionDescription(ev, sender, t));
     }
 
     public static void newUnhandledException(Sender sender, Throwable ex, Event ev) {
@@ -473,7 +467,7 @@ public final class Stats {
             getMetric(sender, METRIC_SENDER_EXCEPTION, Meter.class).mark();
             getMetric(Sender.class, METRIC_SENDER_EXCEPTION, Meter.class).mark();
         }
-        storeException(exceptions, ex);
+        storeException(unexpectedExceptions, new FullStackExceptionDescription(ev, sender, ex));
     }
 
     public static void flushingBatch(Sender sender, int batchSize) {
@@ -504,31 +498,31 @@ public final class Stats {
      * Getting queues *
     \******************/
 
-    public static Collection<EventExceptionDescription<ProcessorException>> getErrors() {
+    public static Collection<EventExceptionDescription> getErrors() {
         synchronized (processorExceptions) {
             return new ArrayList<>(processorExceptions);
         }
     }
 
-    public static Collection<String> getDecodeErrors() {
+    public static Collection<ReceivedExceptionDescription> getDecodeErrors() {
         synchronized (decodeMessage) {
             return new ArrayList<>(decodeMessage);
         }
     }
 
-    public static Collection<Throwable> getExceptions() {
-        synchronized (exceptions) {
-            return new ArrayList<>(exceptions);
+    public static Collection<FullStackExceptionDescription> getUnexpectedExceptions() {
+        synchronized (unexpectedExceptions) {
+            return new ArrayList<>(unexpectedExceptions);
         }
     }
 
-    public static Collection<EventExceptionDescription<String>> getSenderError() {
+    public static Collection<EventExceptionDescription> getSenderError() {
         synchronized (senderMessages) {
             return new ArrayList<>(senderMessages);
         }
     }
 
-    public static Collection<String> getReceiverError() {
+    public static Collection<ReceivedExceptionDescription> getReceiverError() {
         synchronized (receiverMessages) {
             return new ArrayList<>(receiverMessages);
         }

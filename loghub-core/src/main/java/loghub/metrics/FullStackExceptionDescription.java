@@ -1,5 +1,8 @@
 package loghub.metrics;
 
+import java.util.List;
+import java.util.Map;
+
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.CompositeType;
@@ -14,28 +17,62 @@ import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
 
-record FullStackExceptionDescription(String eventJson, String context, String contextKind, Throwable ex) {
+public record FullStackExceptionDescription(String eventJson, CONTEXT context, String contextName, Throwable ex) {
+
+    private enum CONTEXT {
+        PIPELINE(List.of("event", "pipeline", "throwable")) {
+            @Override
+            Map<String, Object> values(FullStackExceptionDescription descr) throws OpenDataException {
+                return Map.of("event", descr.eventJson, "pipeline", descr.contextName(), "throwable", descr.toCompositeData(descr.ex));
+            }
+        },
+        RECEIVER(List.of("event", "receiver", "throwable")) {
+            @Override
+            Map<String, Object> values(FullStackExceptionDescription descr) throws OpenDataException {
+                return Map.of("event", descr.eventJson, "receiver", descr.contextName(), "throwable", descr.toCompositeData(descr.ex));
+            }
+        },
+        SENDER(List.of("event", "sender", "throwable")) {
+            @Override
+            Map<String, Object> values(FullStackExceptionDescription descr) throws OpenDataException {
+                return Map.of("event", descr.eventJson, "sender", descr.contextName(), "throwable", descr.toCompositeData(descr.ex));
+            }
+        },
+        ;
+        private final CompositeType type;
+        CONTEXT(List<String> fields) {
+            try {
+                String[] itemNames = fields.toArray(new String[0]);
+                String[] itemDescriptions = { "Serialized event", "The exception receiver name", "Root cause message" };
+                OpenType<?>[] itemTypes = { SimpleType.STRING, SimpleType.STRING, EXCEPTION_TYPE};
+
+                type = new CompositeType("FullStackCompositeData", "A composite type for MyRecord", itemNames, itemDescriptions, itemTypes);
+            } catch (OpenDataException e) {
+                throw new ExceptionInInitializerError(e);
+            }
+        }
+        abstract Map<String, Object> values(FullStackExceptionDescription descr) throws OpenDataException;
+    }
 
     private static final VarFormatter JSON_FORMATER = new VarFormatter("${%j}");
 
     FullStackExceptionDescription(Event ev, Throwable ex) {
-        this(JSON_FORMATER.format(ev), ev.getRunningPipeline(), "Pipeline", ex);
+        this(JSON_FORMATER.format(ev), CONTEXT.PIPELINE, ev.getRunningPipeline(), ex);
     }
 
     FullStackExceptionDescription(Event ev, Sender sender, Throwable ex) {
-        this(JSON_FORMATER.format(ev), sender.getSenderName(), "Sender", ex);
+        this(JSON_FORMATER.format(ev), CONTEXT.SENDER, sender.getSenderName(), ex);
     }
 
     FullStackExceptionDescription(Receiver<?, ?> receiver, Throwable ex) {
-        this("{}", receiver.getReceiverName(), "Receiver", ex);
+        this("{}", CONTEXT.RECEIVER, receiver.getReceiverName(), ex);
     }
 
     CompositeData toCompositeData() {
         try {
             return new CompositeDataSupport(
-                    INSTANCE,
-                    itemNames,
-                    new Object[]{eventJson, context, contextKind, toCompositeData(ex)}
+                    context.type,
+                    context.values(this)
             );
         } catch (OpenDataException e) {
             return null;
@@ -220,19 +257,6 @@ record FullStackExceptionDescription(String eventJson, String context, String co
             }
         }
         return tab;
-    }
-
-    private static final String[] itemNames = { "event", "receiver", "contextKind", "throwable" };
-    private static final String[] itemDescriptions = { "Serialized event", "The exception receiver name", "The kind of receiver", "Root cause message" };
-    private static final OpenType<?>[] itemTypes = { SimpleType.STRING, SimpleType.STRING, SimpleType.STRING, EXCEPTION_TYPE};
-
-    private static final CompositeType INSTANCE;
-    static {
-        try {
-            INSTANCE = new CompositeType("FullStackCompositeData", "A composite type for MyRecord", itemNames, itemDescriptions, itemTypes);
-        } catch (OpenDataException e) {
-            throw new ExceptionInInitializerError(e);
-        }
     }
 
 }

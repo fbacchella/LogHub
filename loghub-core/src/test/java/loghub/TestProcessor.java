@@ -18,7 +18,6 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
-import loghub.metrics.Stats.EventExceptionDescription;
 import loghub.processors.Drop;
 import loghub.processors.Identity;
 

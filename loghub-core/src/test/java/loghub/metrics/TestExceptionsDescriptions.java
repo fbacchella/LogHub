@@ -2,6 +2,7 @@ package loghub.metrics;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeDataSupport;
@@ -10,6 +11,7 @@ import javax.management.openmbean.TabularDataSupport;
 import org.junit.Assert;
 import org.junit.Test;
 
+import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -24,11 +26,14 @@ public class TestExceptionsDescriptions {
     public void eventExceptionDescription1() {
         Event ev = factory.newEvent();
         ev.setTimestamp(Instant.ofEpochMilli(0));
+        Pipeline pp = new Pipeline(List.of(), "main", null);
+        ev.refill(pp);
+        ev.next();
         EventExceptionDescription evd1 = new EventExceptionDescription(new ProcessorException(ev, "message"));
         CompositeDataSupport cds = evd1.toCompositeData();
         Assert.assertEquals("{\"loghub.Event\":{\"@timestamp\":\"1970-01-01T00:00:00Z\",\"@fields\":{},\"@METAS\":{}}}",
                 cds.get("event"));
-        Assert.assertNull(cds.get("receiver"));
+        Assert.assertEquals("main", cds.get("pipeline"));
         Assert.assertEquals("message", cds.get("message"));
     }
 
@@ -42,7 +47,7 @@ public class TestExceptionsDescriptions {
         CompositeDataSupport cds = evd1.toCompositeData();
         Assert.assertEquals("{\"loghub.Event\":{\"@timestamp\":\"1970-01-01T00:00:00Z\",\"@fields\":{},\"@METAS\":{}}}",
                 cds.get("event"));
-        Assert.assertEquals("Null", cds.get("receiver"));
+        Assert.assertEquals("Null", cds.get("sender"));
         Assert.assertEquals("Connection reset", cds.get("message"));
     }
 
@@ -55,7 +60,7 @@ public class TestExceptionsDescriptions {
         CompositeDataSupport cds = evd1.toCompositeData();
         Assert.assertEquals("{\"loghub.Event\":{\"@timestamp\":\"1970-01-01T00:00:00Z\",\"@fields\":{},\"@METAS\":{}}}",
                 cds.get("event"));
-        Assert.assertEquals("Null", cds.get("receiver"));
+        Assert.assertEquals("Null", cds.get("sender"));
         Assert.assertEquals("Connection reset", cds.get("message"));
     }
 
@@ -68,7 +73,7 @@ public class TestExceptionsDescriptions {
         CompositeDataSupport cds = evd1.toCompositeData();
         Assert.assertEquals("{\"loghub.Event\":{\"@timestamp\":\"1970-01-01T00:00:00Z\",\"@fields\":{},\"@METAS\":{}}}",
                 cds.get("event"));
-        Assert.assertEquals("Null", cds.get("receiver"));
+        Assert.assertEquals("Null", cds.get("sender"));
         Assert.assertEquals("Generic failure", cds.get("message"));
     }
 
@@ -76,11 +81,13 @@ public class TestExceptionsDescriptions {
     public void fullStackDescription1() {
         Event ev = factory.newEvent();
         ev.setTimestamp(Instant.ofEpochMilli(0));
+        Pipeline pp = new Pipeline(List.of(), "main", null);
+        ev.refill(pp);
+        ev.next();
         FullStackExceptionDescription fsd = new FullStackExceptionDescription(ev, new IllegalArgumentException(new NullPointerException()));
         CompositeData exceptionCompositeData = fsd.toCompositeData();
         Assert.assertEquals("{\"loghub.Event\":{\"@timestamp\":\"1970-01-01T00:00:00Z\",\"@fields\":{},\"@METAS\":{}}}", exceptionCompositeData.get("event"));
-        Assert.assertNull(exceptionCompositeData.get("receiver"));
-        Assert.assertEquals("Pipeline", exceptionCompositeData.get("contextKind"));
+        Assert.assertEquals("main", exceptionCompositeData.get("pipeline"));
         CompositeData throwable = (CompositeData) exceptionCompositeData.get("throwable");
         Assert.assertEquals("java.lang.IllegalArgumentException", throwable.get("exceptionClass"));
         Assert.assertEquals("java.lang.NullPointerException", throwable.get("message"));
@@ -101,8 +108,7 @@ public class TestExceptionsDescriptions {
         FullStackExceptionDescription fsd = new FullStackExceptionDescription(ev, nullSender, new IOException("Unknown host"));
         CompositeData exceptionCompositeData = fsd.toCompositeData();
         Assert.assertEquals("{\"loghub.Event\":{\"@timestamp\":\"1970-01-01T00:00:00Z\",\"@fields\":{},\"@METAS\":{}}}", exceptionCompositeData.get("event"));
-        Assert.assertEquals("Null", exceptionCompositeData.get("receiver"));
-        Assert.assertEquals("Sender", exceptionCompositeData.get("contextKind"));
+        Assert.assertEquals("Null", exceptionCompositeData.get("sender"));
         CompositeData throwable = (CompositeData) exceptionCompositeData.get("throwable");
         Assert.assertEquals("java.io.IOException", throwable.get("exceptionClass"));
         Assert.assertEquals("Unknown host", throwable.get("message"));
@@ -120,7 +126,6 @@ public class TestExceptionsDescriptions {
         CompositeData exceptionCompositeData = fsd.toCompositeData();
         Assert.assertEquals("{}", exceptionCompositeData.get("event"));
         Assert.assertEquals("TimeSerie", exceptionCompositeData.get("receiver"));
-        Assert.assertEquals("Receiver", exceptionCompositeData.get("contextKind"));
         CompositeData throwable = (CompositeData) exceptionCompositeData.get("throwable");
         Assert.assertEquals("java.lang.IllegalStateException", throwable.get("exceptionClass"));
         Assert.assertEquals("Unknown host", throwable.get("message"));

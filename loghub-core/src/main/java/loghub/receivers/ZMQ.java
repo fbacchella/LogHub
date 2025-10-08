@@ -160,7 +160,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
                 });
             }
         } catch (IOException | RuntimeException ex) {
-            Stats.newReceivedError(this, "Failed to decode ZMQ message: " + Helpers.resolveThrowableException(ex));
+            Stats.newReceivedError(this, ex);
             logger.atError()
                   .withThrowable(logger.isDebugEnabled() ? ex : null)
                   .log("Failed to decode ZMQ message: {}", () -> Helpers.resolveThrowableException(ex));
