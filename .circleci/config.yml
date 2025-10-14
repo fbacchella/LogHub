@@ -16,7 +16,7 @@ jobs:
                     sudo sudo mv /usr/share/snmp/mibs/iana/* /usr/share/snmp/mibs/
                     sudo rm /usr/share/snmp/mibs/HPR-MIB
                     # A bug in dependency:go-offline, see https://issues.apache.org/jira/browse/MDEP-688
-                    mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help gpg:help -Psonar,versions -fn
+                    mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help gpg:help -Psonar,versions,gpgsign -fn
                 environment:
                     MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
@@ -116,14 +116,18 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
                 command: |
-                    # If no symbolic name, it's a PR, will not publish results
-                    if [ -n "$(git symbolic-ref HEAD 2>/dev/null)" ] ; then
-                        PUBLISH="deploy"
-                    else
-                        PUBLISH="install"
-                    fi
-                    echo "publishing jobs: $PUBLISH"
-                    mvn -B $PUBLISH -Pskip $GPGSIGN -DskipTests -Dmaven.javadoc.skip=false -s .circleci/settings.xml
+                  if [ -n "$SECRING_GPG_ASC_BASE64" ] ; then
+                      echo "$SECRING_GPG_ASC_BASE64" | base64 --decode | gpg --batch --no-tty --import --yes
+                      GPGSIGN="-P gpgsign -Dgpg.keyname=41438883"
+                  fi
+                  # If no symbolic name, it's a PR, will not publish results
+                  if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" -a "$CIRCLE_REPOSITORY_URL" == "git@github.com:fbacchella/loghub.git" ] ; then
+                      PUBLISH="deploy"
+                  else
+                      PUBLISH="install"
+                  fi
+                  echo "publishing jobs: $PUBLISH"
+                  mvn -B $PUBLISH -Pskip $GPGSIGN -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - store_artifacts:
