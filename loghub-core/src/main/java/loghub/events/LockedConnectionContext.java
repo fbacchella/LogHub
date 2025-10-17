@@ -14,7 +14,7 @@ import lombok.Getter;
 class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
 
     static {
-        DeepCloner.register(LockedConnectionContext.class, o -> ((LockedConnectionContext)o).clone());
+        DeepCloner.register(LockedConnectionContext.class, o -> (LockedConnectionContext) o.clone());
     }
 
     @Getter

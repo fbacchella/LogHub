@@ -87,7 +87,7 @@ public class DeepCloner {
         singlotons.add(NullOrMissingValue.MISSING);
     }
 
-    public static <T> void register(Class<T> clazz, Cloner<?> customCloner) {
+    public static <T> void register(Class<T> clazz, Cloner<T> customCloner) {
         faster.put(clazz, customCloner);
     }
     public static void registerImmutable(Class<?> clazz) {
