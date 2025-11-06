@@ -45,7 +45,7 @@
         <!-- **************** -->
         <!-- ZMQ dependencies -->
         <dependency>
-            <groupId>org.zeromq</groupId>
+            <groupId>fr.loghub</groupId>
             <artifactId>jeromq</artifactId>
             <version>0.7.0-SNAPSHOT</version>
         </dependency>
