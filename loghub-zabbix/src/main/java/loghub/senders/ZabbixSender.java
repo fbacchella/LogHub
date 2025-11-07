@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -43,6 +44,7 @@ public class ZabbixSender extends Sender {
          private int connectTimeout = -1;
          private int socketTimeout = -1;
          private SSLContext sslContext;
+         private SSLParameters sslParameters;
          private boolean withSsl;
          @Override
          public ZabbixSender build() {
@@ -103,6 +105,7 @@ public class ZabbixSender extends Sender {
         }
         if (builder.withSsl) {
             zbuilder.sslContext(builder.sslContext);
+            zbuilder.sslParameters(builder.sslParameters);
         }
         zabbixClient = zbuilder.build();
         clock = builder.clock;
@@ -125,12 +128,12 @@ public class ZabbixSender extends Sender {
             if (keyName == null) {
                 throw new EncodeException("Unresolved key name");
             }
-            Object keyValues = getKeyValues(e);
-            if (keyValues instanceof List) {
-                dataObjectBuilder.key(keyName, (List<Object>)keyValues);
-            } else if (keyValues != null && keyValues.getClass().isArray()) {
-                dataObjectBuilder.key(keyName, (Object[])keyValues);
-            } else if (keyValues != null) {
+            Object kvs = getKeyValues(e);
+            if (kvs instanceof List<?> l) {
+                dataObjectBuilder.key(keyName, l);
+            } else if (kvs != null && kvs.getClass().isArray()) {
+                dataObjectBuilder.key(keyName, (Object[])kvs);
+            } else if (kvs != null) {
                 throw new EncodeException("Unusable key names");
             } else {
                 dataObjectBuilder.key(keyName);
@@ -154,13 +157,11 @@ public class ZabbixSender extends Sender {
     private Instant resolveClock(Event e) {
         try {
             Object data = clock.eval(e);
-            if (data instanceof TemporalAccessor) {
-                return Instant.from((TemporalAccessor)data);
-            } else if (data instanceof Date) {
-                return ((Date)data).toInstant();
-            } else {
-                return Instant.now();
-            }
+            return switch (data) {
+                case TemporalAccessor ta -> Instant.from(ta);
+                case Date d -> d.toInstant();
+                default -> Instant.now();
+            };
         } catch (ProcessorException ex) {
             throw new IllegalStateException(ex);
         }
