@@ -25,7 +25,7 @@
         <dependency>
             <groupId>org.jolokia</groupId>
             <artifactId>jolokia-agent-jvm</artifactId>
-            <version>2.3.0</version>
+            <version>2.4.1</version>
             <classifier>javaagent</classifier>
         </dependency>
         <dependency>
@@ -38,7 +38,7 @@
         <dependency>
             <groupId>org.jolokia</groupId>
             <artifactId>jolokia-client-jmx-adapter</artifactId>
-            <version>2.3.0</version>
+            <version>2.4.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
