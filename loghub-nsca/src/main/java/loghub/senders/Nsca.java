@@ -6,7 +6,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import com.googlecode.jsendnsca.Level;
 import com.googlecode.jsendnsca.MessagePayload;
@@ -51,7 +50,7 @@ public class Nsca extends Sender {
         LEVEL,
         SERVICE,
     }
-    private static final List<FIELDS> MAPFIELDS = Arrays.stream(FIELDS.values()).collect(Collectors.toList());
+    private static final List<FIELDS> MAPFIELDS = Arrays.stream(FIELDS.values()).toList();
 
     private final NagiosPassiveCheckSender sender;
     private final EnumMap<FIELDS, Expression> mappings = new EnumMap<>(FIELDS.class);
@@ -86,8 +85,8 @@ public class Nsca extends Sender {
     }
 
     private Expression convertToExpression(Object v) {
-        if (v instanceof Expression) {
-            return (Expression)v;
+        if (v instanceof Expression e) {
+            return e;
         } else {
             return new Expression(v);
         }
@@ -106,7 +105,7 @@ public class Nsca extends Sender {
                 }
             }) && super.configure(properties);
         } catch (IllegalArgumentException e) {
-            logger.error("invalid NSCA configuration: {}", e.getMessage());
+            logger.error("Invalid NSCA configuration: {}", e.getMessage());
             return false;
         }
     }
@@ -120,13 +119,11 @@ public class Nsca extends Sender {
             String hostName = resolve(FIELDS.HOST, event);
             MessagePayload payload = new MessagePayload(hostName, level, serviceName, message);
             logger.debug("Message payload is {}", payload);
-            try {
-                sender.send(payload);
-                return true;
-            } catch (NagiosException | UncheckedIOException e) {
-                throw new SendException(e);
-            }
-        } catch (ProcessorException e) {
+            sender.send(payload);
+            return true;
+        } catch (UncheckedIOException e) {
+            throw new SendException(e.getCause());
+        } catch (ProcessorException | NagiosException e) {
             throw new SendException(e);
         }
     }

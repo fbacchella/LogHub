@@ -3,6 +3,7 @@ package loghub.senders;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.ConnectException;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -47,7 +48,8 @@ public class TestNsca {
         ev.put("message", "message");
         ev.put("host", "host");
 
-        Assert.assertThrows("Connection refused", SendException.class, () -> sender.send(ev));
+        SendException ex = Assert.assertThrows("Connection refused", SendException.class, () -> sender.send(ev));
+        Assert.assertEquals(ConnectException.class, ex.getCause().getClass());
         sender.stopSending();
     }
 
