@@ -51,6 +51,7 @@
                             <artifactSet>
                                 <excludes>
                                     <exclude>io.netty:netty-transport-classes-kqueue:*:*</exclude>
+                                    <exclude>io.netty:netty-transport-native-kqueue:*:*</exclude>
                                     <exclude>io.netty:*:*:osx-aarch_64</exclude>
                                     <exclude>io.netty:*:*:osx-x86_64</exclude>
                                     <exclude>io.netty:netty-resolver-dns-classes-macos:*:*</exclude>
@@ -68,19 +69,13 @@
                                     </excludes>
                                 </filter>
                                 <filter>
-                                    <artifact>fr.loghub:loghub</artifact>
-                                    <includes>
-                                        <include>loghub/netty/transport/EpollPollerServiceProvider*</include>
-                                        <include>loghub/netty/transport/IoUringPollerServiceProvider*</include>
-                                    </includes>
-                                </filter>
-                                <filter>
                                     <artifact>fr.loghub:loghub-core</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>
                                     <excludes>
                                         <exclude>META-INF/services/loghub.netty.transport.PollerServiceProvider</exclude>
+                                        <exclude>loghub/netty/transport/KQueuePollerServiceProvider*</exclude>
                                     </excludes>
                                 </filter>
                                 <filter>
@@ -142,7 +137,7 @@
                                     <artifact>com.github.luben:zstd-jni</artifact>
                                     <includes>
                                         <include>com/github/luben/zstd/**</include>
-                                        <include>linux/adm64/*</include>
+                                        <include>linux/amd64/*</include>
                                     </includes>
                                 </filter>
                             </filters>
@@ -174,9 +169,10 @@
                             <artifactSet>
                                 <excludes>
                                     <exclude>io.netty:netty-transport-classes-epoll</exclude>
-                                    <exclude>io.netty:netty-transport-native-epoll:linux-x86_64</exclude>
-                                    <exclude>io.netty.incubator:netty-incubator-transport-classes-io_uring</exclude>
-                                    <exclude>io.netty.incubator:netty-incubator-transport-native-io_uring:linux-x86_64</exclude>
+                                    <exclude>io.netty:netty-transport-native-epoll</exclude>
+                                    <exclude>io.netty:netty-transport-classes-io_uring</exclude>
+                                    <exclude>io.netty:netty-transport-native-io_uring</exclude>
+                                    <exclude>io.netty:*:*:linux-x86_64</exclude>
                                 </excludes>
                             </artifactSet>
                             <filters>
@@ -190,17 +186,13 @@
                                     </excludes>
                                 </filter>
                                 <filter>
-                                    <artifact>fr.loghub:loghub</artifact>
-                                    <includes>
-                                        <include>loghub/netty/transport/KQueuePollerServiceProvider*</include>
-                                    </includes>
-                                </filter>
-                                <filter>
                                     <artifact>fr.loghub:loghub-core</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>
                                     <excludes>
+                                        <exclude>loghub/netty/transport/EpollPollerServiceProvider*</exclude>
+                                        <exclude>loghub/netty/transport/IoUringPollerServiceProvider*</exclude>
                                         <exclude>META-INF/services/loghub.netty.transport.PollerServiceProvider</exclude>
                                     </excludes>
                                 </filter>
@@ -264,6 +256,132 @@
                                     <includes>
                                         <include>com/github/luben/zstd/**</include>
                                         <include>darwin/aarch64/*</include>
+                                    </includes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>shaded-windows-x86_64</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <minimizeJar>true</minimizeJar>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>windows-x86_64</shadedClassifierName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>${mainClass}</mainClass>
+                                    <manifestEntries>
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                    <resource>META-INF/services/loghub.netty.transport.PollerServiceProvider</resource>
+                                    <file>src/main/resources.windows/META-INF/services/loghub.netty.transport.PollerServiceProvider</file>
+                                </transformer>
+                            </transformers>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>io.netty:netty-transport-native-unix-common</exclude>
+                                    <exclude>io.netty:netty-transport-classes-epoll</exclude>
+                                    <exclude>io.netty:netty-transport-native-epoll</exclude>
+                                    <exclude>io.netty:netty-transport-classes-io_uring</exclude>
+                                    <exclude>io.netty:netty-transport-native-io_uring</exclude>
+                                    <exclude>io.netty:netty-transport-classes-kqueue:*:*</exclude>
+                                    <exclude>io.netty:netty-transport-native-kqueue:*:*</exclude>
+                                    <exclude>io.netty:*:*:osx-aarch_64</exclude>
+                                    <exclude>io.netty:*:*:osx-x86_64</exclude>
+                                    <exclude>io.netty:*:*:linux-x86_64</exclude>
+                                    <exclude>io.netty:netty-resolver-dns-classes-macos:*:*</exclude>
+                                    <exclude>io.netty:netty-resolver-dns-classes-macos:*:*</exclude>
+                                </excludes>
+                            </artifactSet>
+                            <filters>
+                                <filter>
+                                    <!-- Shading signed JARs will fail without this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>fr.loghub:loghub-core</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                    <excludes>
+                                        <exclude>loghub/netty/transport/KQueuePollerServiceProvider*</exclude>
+                                        <exclude>loghub/netty/transport/EpollPollerServiceProvider*</exclude>
+                                        <exclude>loghub/netty/transport/IoUringPollerServiceProvider*</exclude>
+                                        <exclude>META-INF/services/loghub.netty.transport.PollerServiceProvider</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>javax.cache:cache-api</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>org.cache2k:*</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>io.krakens:java-grok</artifact>
+                                    <excludes>
+                                        <exclude>patterns/*</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>log4j:log4j</artifact>
+                                    <includes>
+                                        <include>org/apache/log4j/spi/LoggingEvent.class</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>org.apache.logging.log4j:log4j-*</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>org.codehaus.groovy:groovy</artifact>
+                                    <excludes>
+                                        <exclude>groovyjarjarpicocli/**</exclude>
+                                        <exclude>groovyjarjarantlr/**</exclude>
+                                        <exclude>groovyjarjarantlr4/**</exclude>
+                                        <exclude>groovy/cli/**</exclude>
+                                        <exclude>groovy/ui/**</exclude>
+                                        <exclude>org/apache/groovy/antlr/**</exclude>
+                                        <exclude>org/apache/groovy/parser/antlr4/**</exclude>
+                                        <exclude>org/codehaus/groovy/antlr/**</exclude>
+                                        <!--exclude>org/codehaus/groovy/ast/**</exclude-->
+                                        <exclude>org/codehaus/groovy/classgen/**</exclude>
+                                        <exclude>org/codehaus/groovy/runtime/dgm*</exclude>
+                                    </excludes>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>com.fasterxml.woodstox:woodstox-core</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>com.github.luben:zstd-jni</artifact>
+                                    <includes>
+                                        <include>com/github/luben/zstd/**</include>
+                                        <include>win/amd64/*</include>
                                     </includes>
                                 </filter>
                             </filters>
