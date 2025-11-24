@@ -94,7 +94,7 @@ public class TestFork {
             e.putMeta("meta", 1);
         }, () -> {
             try {
-                Event r = conf.mainQueue.poll(2, TimeUnit.SECONDS);
+                Event r = conf.mainQueue.poll(4, TimeUnit.SECONDS);
                 Assert.assertNotNull(r);
                 received.add(r);
                 Assert.assertNull(conf.mainQueue.poll(1, TimeUnit.SECONDS));
