@@ -71,6 +71,7 @@ public class TestFork {
                 d -> d, DayOfWeek::getValue,
                 (a, b) -> b,
                 () -> new EnumMap<>(DayOfWeek.class)));
+        List<Event> received = new ArrayList<>();
         Event processed = Tools.processEventWithPipeline(factory, conf, "main", e -> {
             m.put("boolMap", boolMap);
             m.put("intMap", intMap);
@@ -91,7 +92,17 @@ public class TestFork {
             e.put("staticMap", Map.of(1, 2));
             e.put("daysMapping", daysMapping);
             e.putMeta("meta", 1);
+        }, () -> {
+            try {
+                Event r = conf.mainQueue.poll(2, TimeUnit.SECONDS);
+                Assert.assertNotNull(r);
+                received.add(r);
+                Assert.assertNull(conf.mainQueue.poll(1, TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+                throw new IllegalStateException(e);
+            }
         });
+        received.add(processed);
         Consumer<Event> checkEvent = e -> {
             Map<?, ?> message = (Map<?, ?>) e.get("message");
             Assert.assertEquals(boolMap, message.get("boolMap"));
@@ -117,11 +128,10 @@ public class TestFork {
             Assert.assertEquals(Map.of(1, 2), e.get("staticMap"));
             Assert.assertEquals(daysMapping, e.get("daysMapping"));
         };
-        checkEvent.accept(processed);
-        Event forked = conf.mainQueue.poll(4, TimeUnit.SECONDS);
-        Assert.assertNotNull(forked);
-        checkEvent.accept(forked);
-        Assert.assertArrayEquals(new Object[]{NullOrMissingValue.NULL, NullOrMissingValue.NULL}, (Object[]) forked.get("null"));
+        Assert.assertEquals(2, received.size());
+        for (Event ev: received) {
+            checkEvent.accept(ev);
+        }
     }
 
     @Test

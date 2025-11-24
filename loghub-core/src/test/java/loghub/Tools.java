@@ -223,6 +223,11 @@ public class Tools {
 
     public static Event processEventWithPipeline(EventsFactory factory, Properties props, String pipelineName,
             Consumer<Event> populateEvent) throws InterruptedException {
+        return processEventWithPipeline(factory, props, pipelineName, populateEvent, () -> {});
+    }
+
+    public static Event processEventWithPipeline(EventsFactory factory, Properties props, String pipelineName,
+            Consumer<Event> populateEvent, Runnable postRun) throws InterruptedException {
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100,
                 props.repository);
         ep.start();
@@ -232,6 +237,7 @@ public class Tools {
         ev.inject(props.namedPipeLine.get(pipelineName), props.mainQueue, true);
         boolean computed = ctx.getLocalAddress().tryAcquire(5, TimeUnit.SECONDS);
         Assert.assertTrue(computed);
+        postRun.run();
         ep.interrupt();
         ep.join();
         return ev;
