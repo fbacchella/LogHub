@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
@@ -332,6 +333,16 @@ public class Configuration {
         lockedProperties.add(PROPERTY_LOCALE);
     }
 
+    private Map<Class<?>, Object> processConfigurationProvider(ClassLoader cl) {
+        ServiceLoader<ConfigurationObjectProvider> serviceLoader = ServiceLoader.load(ConfigurationObjectProvider.class, cl);
+        Map<Class<?>, Object> configurationObjects = new HashMap<>();
+        for(ConfigurationObjectProvider cop: (Iterable<ConfigurationObjectProvider>) serviceLoader::iterator) {
+            Map<String, Object> specificProperties = Helpers.filterPrefix(configurationProperties, cop.getPrefixFilter());
+            configurationObjects.put(cop.getClassConfiguration(), cop.getConfigurationObject(specificProperties));
+        }
+        return Map.copyOf(configurationObjects);
+    }
+
     private Properties runparsing(CharStream cs, Map<String, Object> properties) throws ConfigException {
         if (properties.containsKey(PROPERTY_LOG4J_FILE)) {
             lockedProperties.add(PROPERTY_LOG4J_URL);
@@ -395,6 +406,7 @@ public class Configuration {
 
             configurationProperties.putAll(resolvedSecrets);
             configurationProperties.entrySet().removeIf(e -> e.getValue() == null);
+            Map<Class<?>, Object> configurationObjects = processConfigurationProvider(filter.getClassLoader());
             CacheManager cacheManager = new CacheManager(filter.getClassLoader());
             ConfigListener conflistener = ConfigListener.builder()
                                                         .classLoader(filter.getClassLoader())
@@ -407,6 +419,7 @@ public class Configuration {
                                                         .beansManager(filter.getManager())
                                                         .implicitObjets(filter.getImplicitObjets())
                                                         .eventsFactory(eventsFactory)
+                                                        .configurationObjects(configurationObjects)
                                                         .build();
             logger.debug("Walk configuration");
             trees.forEach(t -> {

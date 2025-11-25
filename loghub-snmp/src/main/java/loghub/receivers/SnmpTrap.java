@@ -102,6 +102,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         private String listen = "0.0.0.0";
         private int worker = 1;
         protected int rcvBuf = -1;
+        private OIDFormatter formatter = null;
         @Override
         public SnmpTrap build() {
             return new SnmpTrap(this);
@@ -136,7 +137,10 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             throw new IllegalArgumentException("Unhandled protocol: " + builder.protocol);
         }
         snmp = new Snmp(dispatcher);
+        snmp.getMessageDispatcher().addCommandResponder(this);
         receiverName = "SnmpTrap/" + builder.protocol + "/" + Helpers.ListenString(builder.listen) + "/" + builder.port;
+        // To be kept to handle legacy compatibility
+        formatter.updateAndGet(v -> v == null ? builder.formatter : v);
     }
 
     private <A extends TransportIpAddress> TransportMapping<A> generate(A listenAddress, GenerateMapping<A> generator) {

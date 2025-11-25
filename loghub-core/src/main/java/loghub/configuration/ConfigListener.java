@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -118,7 +119,7 @@ class ConfigListener extends RouteBaseListener {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private static final Class[] INJECTED_BEANS_CLASSES = new Class[]{
+    private static final Class[] INJECTED_BEANS_CLASSES = new Class[] {
             SSLContext.class,
             SslContextBuilder.class,
             javax.security.auth.login.Configuration.class,
@@ -256,6 +257,8 @@ class ConfigListener extends RouteBaseListener {
     private final BeansManager beansManager;
     private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets;
     private final EventsFactory eventsFactory;
+    private final Map<Class<?>, Object> configurationObjects;
+    private final Set<Class> injectionClasses;
     final ConfigurationProperties properties;
 
     private Parser parser;
@@ -264,7 +267,7 @@ class ConfigListener extends RouteBaseListener {
     @Builder
     private ConfigListener(ClassLoader classLoader, SecretsHandler secrets,
             SslContextBuilder sslBuilder, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager,
-            ConfigurationProperties properties, BeansManager beansManager, Map<RouteParser.BeanValueContext, Class<?>> implicitObjets, EventsFactory eventsFactory) {
+            ConfigurationProperties properties, BeansManager beansManager, Map<RouteParser.BeanValueContext, Class<?>> implicitObjets, EventsFactory eventsFactory, Map<Class<?>, Object> configurationObjects) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.beansManager = beansManager != null ? beansManager : new BeansManager();
@@ -276,6 +279,11 @@ class ConfigListener extends RouteBaseListener {
         this.properties = Optional.ofNullable(properties).filter(Objects::nonNull).orElseGet(ConfigurationProperties::new);
         this.implicitObjets = Optional.ofNullable(implicitObjets).filter(Objects::nonNull).orElseGet(Map::of);
         this.eventsFactory = eventsFactory;
+        this.configurationObjects = configurationObjects != null ? configurationObjects : Map.of();
+        List<Class> workInjectionClasses = new ArrayList<>();
+        workInjectionClasses.addAll(Arrays.asList(INJECTED_BEANS_CLASSES));
+        workInjectionClasses.addAll(configurationObjects.keySet());
+        injectionClasses = Set.copyOf(workInjectionClasses);
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -422,7 +430,7 @@ class ConfigListener extends RouteBaseListener {
         String qualifiedName = ctx.QualifiedIdentifier().getText();
         ObjectWrapped<Object> wobject = getObject(qualifiedName, ctx);
         // Check for some beans to inject
-        for (Class<?> c : INJECTED_BEANS_CLASSES) {
+        for (Class<?> c : injectionClasses) {
             beansManager.getBeanByType(wobject.wrapped, c).ifPresent(m -> {
                 try {
                     Object value;
@@ -442,6 +450,8 @@ class ConfigListener extends RouteBaseListener {
                         value = this.properties;
                     } else if (c == EventsFactory.class) {
                         value = this.eventsFactory;
+                    } else if (configurationObjects.containsKey(c)) {
+                        value = configurationObjects.get(c);
                     } else {
                         throw new IllegalStateException("Unhandled bean injection value");
                     }
