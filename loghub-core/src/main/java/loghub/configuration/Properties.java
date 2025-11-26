@@ -379,4 +379,8 @@ public class Properties extends HashMap<String, Object> {
         }).factory;
     }
 
+    public void addShutdownTask(Runnable task) {
+        shutdownTasks.add(task);
+    }
+
 }

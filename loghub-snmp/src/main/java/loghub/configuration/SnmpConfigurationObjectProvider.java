@@ -34,7 +34,6 @@ public class SnmpConfigurationObjectProvider implements ConfigurationObjectProvi
         } else {
             return OIDFormatter.register();
         }
-
     }
 
     @Override

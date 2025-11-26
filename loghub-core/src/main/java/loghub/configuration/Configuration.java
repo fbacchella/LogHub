@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.ServiceLoader.Provider;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
@@ -333,14 +334,20 @@ public class Configuration {
         lockedProperties.add(PROPERTY_LOCALE);
     }
 
-    private Map<Class<?>, Object> processConfigurationProvider(ClassLoader cl) {
+    @SuppressWarnings("unchecked")
+    private Map<Class<?>, ConfigurationObjectProvider<?>> processConfigurationProvider(ClassLoader cl) {
         ServiceLoader<ConfigurationObjectProvider> serviceLoader = ServiceLoader.load(ConfigurationObjectProvider.class, cl);
-        Map<Class<?>, Object> configurationObjects = new HashMap<>();
-        for(ConfigurationObjectProvider cop: (Iterable<ConfigurationObjectProvider>) serviceLoader::iterator) {
-            Map<String, Object> specificProperties = Helpers.filterPrefix(configurationProperties, cop.getPrefixFilter());
-            configurationObjects.put(cop.getClassConfiguration(), cop.getConfigurationObject(specificProperties));
+        return serviceLoader.stream().map(Provider::get).collect(Collectors.toMap(
+                ConfigurationObjectProvider::getClassConfiguration, p -> p));
+    }
+
+    private Map<Class<?>, Object> resolveConfigurationObject(Map<Class<?>, ConfigurationObjectProvider<?>> providers) {
+        Map<Class<?>, Object> values = HashMap.newHashMap(providers.size());
+        for(Map.Entry<Class<?>, ConfigurationObjectProvider<?>> e: providers.entrySet()) {
+            Map<String, Object> specificProperties = Helpers.filterPrefix(configurationProperties, e.getValue().getPrefixFilter());
+            values.put(e.getKey(), e.getValue().getConfigurationObject(specificProperties));
         }
-        return Map.copyOf(configurationObjects);
+        return Map.copyOf(values);
     }
 
     private Properties runparsing(CharStream cs, Map<String, Object> properties) throws ConfigException {
@@ -406,7 +413,7 @@ public class Configuration {
 
             configurationProperties.putAll(resolvedSecrets);
             configurationProperties.entrySet().removeIf(e -> e.getValue() == null);
-            Map<Class<?>, Object> configurationObjects = processConfigurationProvider(filter.getClassLoader());
+            Map<Class<?>, ConfigurationObjectProvider<?>> configurationObjectsProviders = processConfigurationProvider(filter.getClassLoader());
             CacheManager cacheManager = new CacheManager(filter.getClassLoader());
             ConfigListener conflistener = ConfigListener.builder()
                                                         .classLoader(filter.getClassLoader())
@@ -419,7 +426,7 @@ public class Configuration {
                                                         .beansManager(filter.getManager())
                                                         .implicitObjets(filter.getImplicitObjets())
                                                         .eventsFactory(eventsFactory)
-                                                        .configurationObjects(configurationObjects)
+                                                        .configurationObjects(resolveConfigurationObject(configurationObjectsProviders))
                                                         .build();
             logger.debug("Walk configuration");
             trees.forEach(t -> {
@@ -427,6 +434,7 @@ public class Configuration {
                 conflistener.startWalk(t.config, t.stream, t.parser);
             });
             Properties props = analyze(conflistener, cacheManager);
+            configurationObjectsProviders.forEach((c, p) -> p.configure(props));
             filter.checkUndeclaredProperties(logger);
             return props;
         } catch (RecognitionException e) {

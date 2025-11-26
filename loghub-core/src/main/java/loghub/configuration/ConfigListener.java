@@ -282,7 +282,9 @@ class ConfigListener extends RouteBaseListener {
         this.configurationObjects = configurationObjects != null ? configurationObjects : Map.of();
         List<Class> workInjectionClasses = new ArrayList<>();
         workInjectionClasses.addAll(Arrays.asList(INJECTED_BEANS_CLASSES));
-        workInjectionClasses.addAll(configurationObjects.keySet());
+        if (configurationObjects != null) {
+            workInjectionClasses.addAll(configurationObjects.keySet());
+        }
         injectionClasses = Set.copyOf(workInjectionClasses);
     }
 
