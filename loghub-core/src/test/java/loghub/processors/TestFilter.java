@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -38,7 +38,7 @@ public class TestFilter {
 
     private Event runTest(String conf, Consumer<Event> fillEvent) throws IOException {
         Properties p = Configuration.parse(new StringReader(conf));
-        Processor pr = p.namedPipeLine.get("main").processors.get(0);
+        Processor pr = p.namedPipeLine.get("main").processors.getFirst();
         Assert.assertTrue(pr.configure(p));
 
         EventsFactory factory = new EventsFactory();
@@ -85,6 +85,17 @@ public class TestFilter {
         Assert.assertEquals(1, ev.get("a3"));
         Assert.assertEquals(0, ev.get("c"));
         Assert.assertEquals(7, ev.size());
+    }
+
+    @Test
+    public void testDeepEmpty() throws IOException {
+        String conf = "pipeline[main]{loghub.processors.Filter {lambda: x -> isEmpty(x), field: [a],}}";
+        Event ev = runTest(conf, e -> {
+            e.putAtPath(VariablePath.of("a", "b", "1"), NullOrMissingValue.NULL);
+            e.putAtPath(VariablePath.of("a", "b", "2"), List.of());
+            e.putAtPath(VariablePath.of("a", "b", "3"), new Object[]{});
+        });
+        Assert.assertEquals(0, ev.size());
     }
 
     @Test

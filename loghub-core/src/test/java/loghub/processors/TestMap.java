@@ -34,7 +34,7 @@ public class TestMap {
 
     public void runTest(String conf, Event ev) throws IOException {
         Properties p = Configuration.parse(new StringReader(conf));
-        Processor pr = p.namedPipeLine.get("main").processors.get(0);
+        Processor pr = p.namedPipeLine.get("main").processors.getFirst();
         Assert.assertTrue(pr.configure(p));
         Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);
     }
@@ -77,6 +77,36 @@ public class TestMap {
         @SuppressWarnings("unchecked")
         Set<Object> a = (Set<Object>) ev.get("a");
         Assert.assertEquals(Set.of(0, 1), a);
+    }
+
+    @Test
+    public void testRecurseSet() throws IOException {
+        String conf = "pipeline[main]{ loghub.processors.Map {lambda: x -> x % 2, field: [a]}}";
+        Event ev = factory.newEvent();
+        ev.put("a", Set.of(Set.of(1, 2), Set.of(3, 4)));
+        runTest(conf, ev);
+        Assert.assertEquals(1, ev.size());
+        Assert.assertEquals(Set.of(Set.of(0,1)), ev.get("a"));
+    }
+
+    @Test
+    public void testRecurseList() throws IOException {
+        String conf = "pipeline[main]{ loghub.processors.Map {lambda: x -> x % 2, field: [a], traversal: \"DEPTH\"}}";
+        Event ev = factory.newEvent();
+        ev.put("a", List.of(List.of(1, 2), List.of(3, 4)));
+        runTest(conf, ev);
+        Assert.assertEquals(1, ev.size());
+        Assert.assertEquals(List.of(List.of(1, 0), List.of(1, 0)), ev.get("a"));
+    }
+
+    @Test
+    public void testRecurseArray() throws IOException {
+        String conf = "pipeline[main]{ loghub.processors.Map {lambda: x -> x % 2, field: [a], traversal: \"DEPTH\"}}";
+        Event ev = factory.newEvent();
+        ev.put("a", List.of(new Integer[]{1, 2}, new Integer[]{3, 4}));
+        runTest(conf, ev);
+        Assert.assertEquals(1, ev.size());
+        Assert.assertEquals(List.of(List.of(1, 0), List.of(1, 0)), ev.get("a"));
     }
 
     @Test
