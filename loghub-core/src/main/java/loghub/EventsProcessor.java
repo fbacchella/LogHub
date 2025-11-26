@@ -171,7 +171,11 @@ public class EventsProcessor extends Thread {
                     // Checked after pipeline forwarding, but before output sending
                     TestEventProcessing.log(event);
                     try {
-                        outQueues.get(event.getCurrentPipeline()).put(event);
+                        String pipeline = event.getCurrentPipeline();
+                        // An output queue that can be used to save test event
+                        if (pipeline != null && outQueues.containsKey(pipeline)) {
+                            outQueues.get(pipeline).put(event);
+                        }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }

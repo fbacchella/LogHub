@@ -552,6 +552,7 @@ public abstract class Event extends HashMap<String, Object> {
     public Throwable getLastException() {
         return exceptionStack.peek();
     }
+
     /**
      * An event is only equals to itself.
      * @param o object to be compared for equality with this map

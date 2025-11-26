@@ -54,6 +54,11 @@ public class EventsFactory {
         }
     }
 
+    /**
+     * Finish an event timer and log if an event was leaked
+     * @param leak true it was a leak
+     * @param timer the timer to stop
+     */
     static void finishEvent(boolean leak, Timer.Context timer) {
         timer.close();
         if (leak) {

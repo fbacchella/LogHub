@@ -104,7 +104,7 @@ public class TestEvent {
     public void testDrop() throws IOException, InterruptedException {
         String confile = "pipeline[main] { $dropper} pipeline[dropper] {[a] = true | drop}";
         Event ev = Tools.processEventWithPipeline(factory, confile, "main", e -> {});
-        Assert.assertTrue((Boolean) ev.get("a"));
+        Assert.assertTrue((Boolean) ev.getMeta("_processing_dropped"));
         Assert.assertEquals(1, Stats.getDropped());
         Assert.assertEquals(0, Stats.getInflight());
         Assert.assertEquals(0, Stats.getMetric("main", "dropped", Meter.class).getCount());

@@ -73,6 +73,7 @@ class EventInstance extends Event {
         if (!test) {
             timer = Stats.eventTimer();
         }
+        Stats.eventStart();
         processors = new LinkedList<>();
         executionStack = Collections.asLifoQueue(new ArrayDeque<>());
         ref = new EventFinalizer(this, factory.referenceQueue, timer);
@@ -80,15 +81,15 @@ class EventInstance extends Event {
 
     public void end() {
         ref.clear();
+        String pipeName = Optional.of(executionStack)
+                                  .map(Queue::peek)
+                                  .map(e -> e.pipe)
+                                  .map(Pipeline::getName)
+                                  .orElse(null);
+        Stats.eventEnd(pipeName, stepsCount);
         Optional.ofNullable(ctx).ifPresent(ConnectionContext::acknowledge);
         if (! test) {
             EventsFactory.finishEvent(false, timer);
-            String pipeName = Optional.of(executionStack)
-                                      .map(Queue::peek)
-                                      .map(e -> e.pipe)
-                                      .map(Pipeline::getName)
-                                      .orElse(null);
-            Stats.eventEnd(pipeName, stepsCount);
         } else {
             synchronized (this) {
                 notify();
@@ -101,7 +102,7 @@ class EventInstance extends Event {
         end();
         if (test) {
             clear();
-            put("_processing_dropped", Boolean.TRUE);
+            putMeta("_processing_dropped", true);
         }
     }
 

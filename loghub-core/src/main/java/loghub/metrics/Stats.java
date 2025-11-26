@@ -533,8 +533,11 @@ public final class Stats {
     \*************************/
 
     public static Context eventTimer() {
-        getMetric(Stats.class, METRIC_ALL_INFLIGHT, Counter.class).inc();
         return getMetric(Stats.class, METRIC_ALL_TIMER, Timer.class).time();
+    }
+
+    public static void eventStart() {
+        getMetric(Stats.class, METRIC_ALL_INFLIGHT, Counter.class).inc();
     }
 
     public static void eventEnd(String pipeline, int stepsCount) {
