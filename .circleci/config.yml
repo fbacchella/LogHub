@@ -25,7 +25,6 @@ jobs:
                     - home/circleci/.m2/repository
                     - home/circleci/.sonar/cache
                     - home/circleci/project
-                    - home/circleci/.ssh/*
                     - usr/share/snmp/mibs/
     build:
         docker:
@@ -47,7 +46,6 @@ jobs:
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/project
-                    - home/circleci/.ssh
     testsj24:
         docker:
             - image: cimg/openjdk:24.0
@@ -59,18 +57,12 @@ jobs:
                     mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
-                    mv -n /tmp/ws/home/circleci/.ssh /home/circleci/
                     sudo mkdir -p /usr/share/snmp/mibs/
                     sudo mv -n /tmp/ws/usr/share/snmp/mibs/* /usr/share/snmp/mibs/
             - run:
                 command: |
                     # If no symbolic name, it's a PR, will run sonar
                     if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                        # CircleCI does a shallow clone, unshallow is needed by sonar
-                        CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-                        git fetch --unshallow origin "$CURRENT_BRANCH" || \
-                        git fetch --depth=2147483647 origin "$CURRENT_BRANCH"
-                        git fetch --no-filter origin "$CURRENT_BRANCH"
                         SONAR="jacoco:report sonar:sonar -Psonar -Dsonar.projectKey=$SONARCLOUD_PROJECTKEY"
                         echo "Doing sonar"
                     else
