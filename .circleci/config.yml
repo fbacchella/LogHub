@@ -128,14 +128,20 @@ jobs:
                 environment:
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - store_artifacts:
-                path: /home/circleci/.m2/repository/fr/loghub/loghub
-                destination: /loghub
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub
+                  destination: /loghub
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-apacheclient
+                  destination: /loghub-apacheclient
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-cbor
+                  destination: /loghub-cbor
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-core
                   destination: /loghub-core
             - store_artifacts:
-                  path: /home/circleci/.m2/repository/fr/loghub/loghub-apacheclient
-                  destination: /loghub-apacheclient
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-csv
+                  destination: /loghub-csv
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-espipeline
                   destination: /loghub-espipeline
@@ -152,8 +158,11 @@ jobs:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-kafka
                   destination: /loghub-kafka
             - store_artifacts:
-                path: /home/circleci/.m2/repository/fr/loghub/loghub-netflow
-                destination: /loghub-netflow
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-kaitai
+                  destination: /loghub-kaitai
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-netflow
+                  destination: /loghub-netflow
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-nsca
                   destination: /loghub-nsca
@@ -173,8 +182,8 @@ jobs:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-ratelimiter
                   destination: /loghub-ratelimiter
             - store_artifacts:
-                path: /home/circleci/.m2/repository/fr/loghub/loghub-sflow
-                destination: /loghub-sflow
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-sflow
+                  destination: /loghub-sflow
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-snmp
                   destination: /loghub-snmp
