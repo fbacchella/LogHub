@@ -16,7 +16,6 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -31,6 +30,7 @@ import loghub.BeanChecks;
 import loghub.ConnectionContext;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
@@ -71,8 +71,10 @@ public class TestFork {
                 d -> d, DayOfWeek::getValue,
                 (a, b) -> b,
                 () -> new EnumMap<>(DayOfWeek.class)));
-        List<Event> received = new ArrayList<>();
-        Event processed = Tools.processEventWithPipeline(factory, conf, "main", e -> {
+        PriorityBlockingQueue commonQueue = new PriorityBlockingQueue();
+        conf.outputQueues.put("main", commonQueue);
+        conf.outputQueues.put("newpipe", commonQueue);
+        Tools.processEventWithPipeline(factory, conf, "main", e -> {
             m.put("boolMap", boolMap);
             m.put("intMap", intMap);
             m.put("floatMap", floatMap);
@@ -94,15 +96,14 @@ public class TestFork {
             e.putMeta("meta", 1);
         }, () -> {
             try {
-                Event r = conf.mainQueue.poll(4, TimeUnit.SECONDS);
-                Assert.assertNotNull(r);
-                received.add(r);
-                Assert.assertNull(conf.mainQueue.poll(1, TimeUnit.SECONDS));
+                while (commonQueue.size() != 2) {
+                    Thread.sleep(100);
+                }
             } catch (InterruptedException e) {
                 throw new IllegalStateException(e);
             }
         });
-        received.add(processed);
+
         Consumer<Event> checkEvent = e -> {
             Map<?, ?> message = (Map<?, ?>) e.get("message");
             Assert.assertEquals(boolMap, message.get("boolMap"));
@@ -128,8 +129,8 @@ public class TestFork {
             Assert.assertEquals(Map.of(1, 2), e.get("staticMap"));
             Assert.assertEquals(daysMapping, e.get("daysMapping"));
         };
-        Assert.assertEquals(2, received.size());
-        for (Event ev: received) {
+        Assert.assertEquals(2, commonQueue.size());
+        for (Event ev: commonQueue) {
             checkEvent.accept(ev);
         }
     }

@@ -232,7 +232,7 @@ public class Tools {
                 props.repository);
         ep.start();
         BlockingConnectionContext ctx = new BlockingConnectionContext();
-        Event ev = factory.newEvent(ctx);
+        Event ev = factory.newEvent(ctx, true);
         populateEvent.accept(ev);
         ev.inject(props.namedPipeLine.get(pipelineName), props.mainQueue, true);
         boolean computed = ctx.getLocalAddress().tryAcquire(5, TimeUnit.SECONDS);
