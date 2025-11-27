@@ -295,6 +295,17 @@ public class TestEtl {
     }
 
     @Test
+    public void testRenameSelf() throws ProcessorException {
+        Event ev =  runEtl("[.] < [b]", i -> {
+            i.putAtPath(VariablePath.of("b", "c"), 1);
+            i.putAtPath(VariablePath.of("b", "d"), 2);
+        });
+        Assert.assertEquals(1, ev.remove("c"));
+        Assert.assertEquals(2, ev.remove("d"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
     public void testRenameIndirecDeep() throws ProcessorException {
         Map<String, Object> amap = Collections.singletonMap("b", "c");
         Event ev =  runEtl("[<- a b] < [d]", i -> {

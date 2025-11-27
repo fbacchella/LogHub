@@ -343,6 +343,13 @@ public abstract class Event extends HashMap<String, Object> {
             Object oldValue = Expression.deepCopy(ev);
             Action.CLEAR.action.apply(ev, null, value == NullOrMissingValue.NULL ? null : value);
             return oldValue;
+        case PUT:
+            if (value instanceof Map<?, ?> m) {
+                m.entrySet().forEach(e -> ev.put(e.getKey().toString(), Expression.deepCopy(e.getValue())));
+                return ev;
+            } else {
+                throw IgnoredEventException.INSTANCE;
+            }
         default:
             return f.action.apply(ev, null, value == NullOrMissingValue.NULL ? null : value);
         }
