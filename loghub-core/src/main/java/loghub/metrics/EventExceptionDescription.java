@@ -2,12 +2,16 @@ package loghub.metrics;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.CompositeType;
 import javax.management.openmbean.OpenDataException;
 import javax.management.openmbean.OpenType;
 import javax.management.openmbean.SimpleType;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
 import loghub.ProcessorException;
@@ -16,7 +20,17 @@ import loghub.events.Event;
 import loghub.senders.Sender;
 
 public record EventExceptionDescription(String eventJson, CONTEXT context, String contextName, String message) {
+    private static final Logger logger = LogManager.getLogger();
+
     private static final VarFormatter JSON_FORMATER = new VarFormatter("${%j}");
+    private static final Function<Event, String> FORMATER = e -> {
+        try {
+            return JSON_FORMATER.format(e);
+        } catch (RuntimeException ex) {
+            logger.atError().withThrowable(ex).log("Unformatable event :" + Helpers.resolveThrowableException(ex));
+            return "Unformatable event :" + Helpers.resolveThrowableException(ex);
+        }
+    };
 
     private enum CONTEXT {
         PIPELINE(List.of("event", "pipeline", "message")) {
@@ -47,19 +61,19 @@ public record EventExceptionDescription(String eventJson, CONTEXT context, Strin
     }
 
     EventExceptionDescription(ProcessorException ex) {
-        this(JSON_FORMATER.format(ex.getEvent()), CONTEXT.PIPELINE, ex.getEvent().getRunningPipeline(), Helpers.resolveThrowableException(ex));
+        this(FORMATER.apply(ex.getEvent()), CONTEXT.PIPELINE, ex.getEvent().getRunningPipeline(), Helpers.resolveThrowableException(ex));
     }
 
     EventExceptionDescription(Event event, Sender sender, Throwable ex) {
-        this(JSON_FORMATER.format(event), CONTEXT.SENDER, sender.getSenderName(), Helpers.resolveThrowableException(ex));
+        this(FORMATER.apply(event), CONTEXT.SENDER, sender.getSenderName(), Helpers.resolveThrowableException(ex));
     }
 
     EventExceptionDescription(Event event, Sender sender, String message) {
-        this(JSON_FORMATER.format(event), CONTEXT.SENDER, sender.getSenderName(), message);
+        this(FORMATER.apply(event), CONTEXT.SENDER, sender.getSenderName(), message);
     }
 
     EventExceptionDescription(Event event, Sender sender) {
-        this(JSON_FORMATER.format(event), CONTEXT.SENDER, sender.getSenderName(), "Generic failure");
+        this(FORMATER.apply(event), CONTEXT.SENDER, sender.getSenderName(), "Generic failure");
     }
 
     CompositeDataSupport toCompositeData() {

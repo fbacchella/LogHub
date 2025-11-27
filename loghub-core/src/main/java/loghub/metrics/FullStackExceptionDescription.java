@@ -2,6 +2,7 @@ package loghub.metrics;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeDataSupport;
@@ -12,12 +13,18 @@ import javax.management.openmbean.SimpleType;
 import javax.management.openmbean.TabularDataSupport;
 import javax.management.openmbean.TabularType;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import loghub.Helpers;
 import loghub.VarFormatter;
 import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
 
 public record FullStackExceptionDescription(String eventJson, CONTEXT context, String contextName, Throwable ex) {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private enum CONTEXT {
         PIPELINE(List.of("event", "pipeline", "throwable")) {
@@ -55,13 +62,21 @@ public record FullStackExceptionDescription(String eventJson, CONTEXT context, S
     }
 
     private static final VarFormatter JSON_FORMATER = new VarFormatter("${%j}");
+    private static final Function<Event, String> FORMATER = e -> {
+        try {
+            return JSON_FORMATER.format(e);
+        } catch (RuntimeException ex) {
+            logger.atError().withThrowable(ex).log("Unformatable event :" + Helpers.resolveThrowableException(ex));
+            return "Unformatable event :" + Helpers.resolveThrowableException(ex);
+        }
+    };
 
     FullStackExceptionDescription(Event ev, Throwable ex) {
-        this(JSON_FORMATER.format(ev), CONTEXT.PIPELINE, ev.getRunningPipeline(), ex);
+        this(FORMATER.apply(ev), CONTEXT.PIPELINE, ev.getRunningPipeline(), ex);
     }
 
     FullStackExceptionDescription(Event ev, Sender sender, Throwable ex) {
-        this(JSON_FORMATER.format(ev), CONTEXT.SENDER, sender.getSenderName(), ex);
+        this(FORMATER.apply(ev), CONTEXT.SENDER, sender.getSenderName(), ex);
     }
 
     FullStackExceptionDescription(Receiver<?, ?> receiver, Throwable ex) {
