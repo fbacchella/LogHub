@@ -1288,6 +1288,9 @@ class ConfigListener extends RouteBaseListener {
                 ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
                 expression = ExpressionBuilder.of(expressions, o -> Expression.asCollection(collectionType, o)).setDeepCopy(false);
             }
+        } else if (ctx.flatten != null) {
+            ExpressionBuilder subexpression = stack.popTyped();
+            expression = ExpressionBuilder.of(subexpression, Expression::flatten).setDeepCopy(false);
         } else if (ctx.lambdavar != null) {
             expression = ExpressionBuilder.of(Expression.ExpressionData::getValue).setDeepCopy(true);
         } else {

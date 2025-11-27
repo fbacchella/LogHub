@@ -35,6 +35,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.jupiter.api.DisplayName;
 
 import loghub.BuildableConnectionContext;
 import loghub.ConnectionContext;
@@ -1190,6 +1191,13 @@ public class TestExpressionParsing {
         Assert.assertEquals(1, map.get("b"));
         Assert.assertEquals(NullOrMissingValue.NULL, map.get("c"));
         Assert.assertEquals(List.of(NullOrMissingValue.NULL, NullOrMissingValue.NULL), map.get("d"));
+    }
+
+    @Test
+    @DisplayName("Test flatten")
+    public void testFlatten() throws ProcessorException {
+        Event ev = factory.newTestEvent();
+        Assert.assertEquals(Set.of(1, 2), Tools.evalExpression("flatten(set(list(1), 2, list(1)))", ev));
     }
 
     <T> ConnectionContext<T> getConnexionContext(Principal principal) {

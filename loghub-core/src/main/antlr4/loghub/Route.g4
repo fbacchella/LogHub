@@ -243,6 +243,7 @@ expression
     |   isEmpty = 'isEmpty' '(' expression ')'
     |   isIp = 'isIP' '(' expression ')'
     |   collection=('set' | 'list') ('(' ')' | expressionsList)
+    |   flatten = Flatten '(' expression ')'
     |   {inLambda()}? lambdavar=Identifier {lambdaVariable.equals($lambdavar.text)}?
     ;
 
@@ -255,6 +256,7 @@ Lowercase: 'lowercase';
 Uppercase: 'uppercase';
 Join: 'join';
 Split: 'split';
+Flatten: 'flatten';
 
 expressionsList
     : '(' expression ( ','  expression )* ','? ')'
@@ -314,6 +316,7 @@ identifier
     | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize' | 'lowercase' | 'uppercase' | 'split' | 'join' | 'gsub'
     | 'text' | 'blob'
     | 'set' | 'list'
+    | Flatten
     | Identifier
     ;
 

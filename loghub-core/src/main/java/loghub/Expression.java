@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
@@ -911,6 +912,37 @@ public class Expression {
         } else {
             return v;
         }
+    }
+
+    public static Object flatten(Object value) {
+        if ((value == null) || (! (value instanceof Collection)  && (! value.getClass().isArray()) && (! (value instanceof Stream<?>)))) {
+            return value;
+        } else {
+            Stream<?> flatStream = toStream(value);
+            return switch (value) {
+                case Stream<?> s-> flatStream;
+                case Set<?> s -> flatStream.collect(Collectors.toSet());
+                default -> flatStream.toList();
+            };
+        }
+    }
+
+    private static Stream<?> toStream(Object value) {
+        return switch (value) {
+            case null -> Stream.of(NullOrMissingValue.NULL);
+            case Collection<?> c -> c.stream().flatMap(Expression::toStream);
+            case Object[] arr -> Arrays.stream(arr).flatMap(Expression::toStream);
+            case int[] arr -> Arrays.stream(arr).boxed();
+            case long[] arr -> Arrays.stream(arr).boxed();
+            case double[] arr -> Arrays.stream(arr).boxed();
+            case byte[] arr -> IntStream.range(0, arr.length).mapToObj(i -> arr[i]);
+            case short[] arr -> IntStream.range(0, arr.length).mapToObj(i -> arr[i]);
+            case float[] arr -> IntStream.range(0, arr.length).mapToObj(i -> arr[i]);
+            case char[] arr -> IntStream.range(0, arr.length).mapToObj(i -> arr[i]);
+            case boolean[] arr -> IntStream.range(0, arr.length).mapToObj(i -> arr[i]);
+            case Stream<?> s -> s.flatMap(Expression::toStream);
+            default -> Stream.of(value);
+        };
     }
 
     /**
