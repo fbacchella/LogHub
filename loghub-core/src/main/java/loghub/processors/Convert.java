@@ -15,7 +15,6 @@ import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.events.Event;
 import lombok.Setter;
-import zmq.util.Z85;
 
 /**
  * A processor that take a String field and transform it to any object that can
@@ -79,9 +78,6 @@ public class Convert extends FieldsProcessor {
         case "BASE64URL": {
             Base64.Decoder b64decoder = Base64.getUrlDecoder();
             return b64decoder::decode;
-        }
-        case "Z85": {
-            return Z85::decode;
         }
         default: {
             throw new IllegalArgumentException(String.format("Unsupported text decoder \"%s\"", encoding));

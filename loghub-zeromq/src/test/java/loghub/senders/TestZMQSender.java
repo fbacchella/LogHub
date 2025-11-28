@@ -127,6 +127,7 @@ public class TestZMQSender {
         builder.setEncoder(ToJson.getBuilder().build());
         builder.setType(SocketType.PUSH);
         builder.setDestination(rendezvous);
+        builder.setSocketFactory(tctxt.getFactory());
         configure.accept(builder);
 
         try (ZMQSink<String> ignored = sinkbuilder.build(); ZMQ sender = builder.build()) {
@@ -142,7 +143,6 @@ public class TestZMQSender {
         } finally {
             injector.interrupt();
         }
-        p.getZMQSocketFactory().close();
         String buf = received.toString();
         Assert.assertTrue(buf, Pattern.matches(pattern, buf));
         ObjectName on = ObjectName.getInstance("loghub", new Hashtable<>(
@@ -227,6 +227,7 @@ public class TestZMQSender {
         builder.setEncoder(ToJson.getBuilder().build());
         builder.setType(SocketType.PUSH);
         builder.setDestination("tcp://localhost:" + Tools.tryGetPort());
+        builder.setSocketFactory(tctxt.getFactory());
         SenderTools.send(builder);
     }
 

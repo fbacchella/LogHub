@@ -42,20 +42,6 @@
             <artifactId>reload4j</artifactId>
             <version>1.2.26</version>
         </dependency>
-        <!-- **************** -->
-        <!-- ZMQ dependencies -->
-        <dependency>
-            <groupId>fr.loghub</groupId>
-            <artifactId>jeromq</artifactId>
-            <version>0.7.0</version>
-        </dependency>
-        <dependency>
-            <groupId>fr.loghub</groupId>
-            <artifactId>naclprovider</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <!-- end of ZMQ dependencies -->
-        <!-- **************** -->
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>

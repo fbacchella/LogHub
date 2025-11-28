@@ -37,7 +37,6 @@ import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.types.Dn;
 import loghub.types.MacAddress;
-import zmq.util.Z85;
 
 public class TestConvert {
 
@@ -155,7 +154,6 @@ public class TestConvert {
     public void testEncoded() throws ProcessorException {
         byte[] content = generate(8, b -> b.putDouble(38));
         check("java.lang.Double", Double.class, b -> b.setEncoding("BASE64"), Base64.getEncoder().encodeToString(content), (double) 38);
-        check("java.lang.Double", Double.class, b -> b.setEncoding("Z85"), Z85.encode(content, 8), (double) 38);
     }
 
     @Test

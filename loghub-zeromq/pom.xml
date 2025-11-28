@@ -27,11 +27,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>fr.jrds</groupId>
-            <artifactId>snmpcodec</artifactId>
-            <version>0.0.8</version>
-        </dependency>
-        <dependency>
             <groupId>fr.loghub</groupId>
             <artifactId>jeromq</artifactId>
             <version>0.7.0</version>
@@ -40,6 +35,12 @@
             <groupId>fr.loghub</groupId>
             <artifactId>naclprovider</artifactId>
             <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.20.0</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>

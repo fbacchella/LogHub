@@ -27,7 +27,6 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
-import loghub.ZMQFactory;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.processors.Identity;
@@ -40,9 +39,6 @@ public class TestConfigurations {
 
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
-
-    @Rule
-    public ZMQFactory tctxt = new ZMQFactory();
 
     @BeforeClass
     public static void configure() {
@@ -139,8 +135,8 @@ public class TestConfigurations {
         for (String plName : new String[]{"main", "oneref", "groovy"}) {
             Assert.assertTrue("pipeline '" + plName + "'not found", conf.namedPipeLine.containsKey(plName));
         }
-        Assert.assertEquals("input not found", 1, conf.receivers.size());
-        Assert.assertEquals("ouput not found", 3, conf.senders.size());
+        Assert.assertEquals("input not found", 0, conf.receivers.size());
+        Assert.assertEquals("ouput not found", 2, conf.senders.size());
         Assert.assertEquals(5, conf.mainQueue.remainingCapacity());
         Assert.assertEquals(5, conf.mainQueue.remainingBlockingCapacity());
         Assert.assertEquals(10, conf.mainQueue.getWeight());

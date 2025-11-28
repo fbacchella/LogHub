@@ -23,6 +23,7 @@ import loghub.zmq.MsgHeaders.Header;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZMQSocketFactory;
 import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import lombok.Getter;
 import lombok.Setter;
@@ -48,6 +49,7 @@ public class ZMQ extends Sender {
         private Mechanisms security = Mechanisms.NULL;
         private boolean withHeader = false;
         ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
+        private ZMQSocketFactory socketFactory;
 
         public ZMQ build() {
             return new ZMQ(this);
@@ -106,6 +108,7 @@ public class ZMQ extends Sender {
                                 .setMask(ZPoller.OUT)
                                 .setLatch(latch)
                                 .build();
+        handler.setZfactory(builder.socketFactory);
     }
 
     private void publisherRun() {
@@ -125,12 +128,6 @@ public class ZMQ extends Sender {
         } finally {
             handler.close();
         }
-    }
-
-    @Override
-    public boolean configure(Properties properties) {
-        handler.setZfactory(properties.getZMQSocketFactory());
-        return super.configure(properties);
     }
 
     @Override

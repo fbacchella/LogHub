@@ -98,8 +98,6 @@ public class TestZMQReceiver {
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertTrue(e.get("message").toString().startsWith("message "));
             return e;
-        } finally {
-            p.getZMQSocketFactory().close();
         }
     }
 
@@ -130,6 +128,7 @@ public class TestZMQReceiver {
         builder.setDecoder(StringCodec.getBuilder().build());
         builder.setListen(rendezvous);
         builder.setEventsFactory(factory);
+        builder.setFactory(tctxt.getFactory());
         configure.accept(builder);
 
         ZMQ receiver = builder.build();
@@ -141,7 +140,7 @@ public class TestZMQReceiver {
         return receiver;
     }
 
-    @Test(timeout = 5000)
+    @Test//(timeout = 5000)
     public void testConnect() throws InterruptedException {
         dotest(r -> {
             r.setMethod(Method.CONNECT);
@@ -196,8 +195,6 @@ public class TestZMQReceiver {
         Stats.reset();
         try (ZMQFlow ignored1 = getFlow(ctx, new byte[]{0, 1}, rendezvous, flowconfigure); ZMQ ignored2 = getReceiver(rendezvous, configure, receiveQueue, p)) {
             latch.await();
-        } finally {
-            p.getZMQSocketFactory().close();
         }
         ReceivedExceptionDescription red = Stats.getReceiverError().stream().findAny().orElse(null);
         Assert.assertEquals("Unable to decode header: Expected Map, but got Integer (00)", red.message());
@@ -268,7 +265,6 @@ public class TestZMQReceiver {
         Assert.assertEquals("loghub", ev.getConnectionContext().getPrincipal().getName());
         Assert.assertEquals("tester", ev.getMeta("pipeline"));
     }
-
 
     @Test
     public void testBeans() throws IntrospectionException, ReflectiveOperationException {

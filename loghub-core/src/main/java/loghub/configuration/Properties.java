@@ -49,7 +49,6 @@ import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
 import loghub.senders.Sender;
 import loghub.sources.Source;
-import loghub.zmq.ZMQSocketFactory;
 import lombok.AllArgsConstructor;
 
 public class Properties extends HashMap<String, Object> {
@@ -87,11 +86,6 @@ public class Properties extends HashMap<String, Object> {
         }
     }
 
-    private static class ZMQFactoryReference {
-        private ZMQSocketFactory.ZMQSocketFactoryBuilder builder = null;
-        private ZMQSocketFactory factory = null;
-    }
-
     public final ClassLoader classloader;
     public final Map<String, Pipeline> namedPipeLine;
     public final Collection<Pipeline> pipelines;
@@ -120,7 +114,6 @@ public class Properties extends HashMap<String, Object> {
     public final Timer timer = new Timer("loghubtimer", true);
 
     private final Set<Runnable> shutdownTasks = new HashSet<>();
-    private final AtomicReference<ZMQFactoryReference> zmqFactoryReference = new AtomicReference<>(new ZMQFactoryReference());
     private final Set<EventsRepository<?>> repositories = new HashSet<>();
 
     @SuppressWarnings("unchecked")
@@ -182,8 +175,6 @@ public class Properties extends HashMap<String, Object> {
                       .orElseGet(sslBuilder::build);
         jaasConfig = (javax.security.auth.login.Configuration) properties.get(PROPSNAMES.JAASCONFIG.toString());
         jwtHandler = (JWTHandler) properties.get(PROPSNAMES.JWTHANDLER.toString());
-
-        zmqFactoryReference.get().builder = getFactory(Helpers.filterPrefix(properties, "zmq"));
 
         try {
             jmxServiceConfiguration = JmxService.configuration()
@@ -355,28 +346,6 @@ public class Properties extends HashMap<String, Object> {
                 .ifPresent(p -> collect.put("jolokia.policyLocation", p.toString()));
         builder.setDashboardServicesProperties(collect);
         return builder.build();
-    }
-
-    private ZMQSocketFactory.ZMQSocketFactoryBuilder getFactory(Map<String, Object> properties) {
-        ZMQSocketFactory.ZMQSocketFactoryBuilder builder = ZMQSocketFactory.builder();
-        Optional.ofNullable(properties.remove("keystore")).map(String.class::cast).map(Paths::get).ifPresent(builder::zmqKeyStore);
-        Optional.ofNullable(properties.remove("certsDirectory")).map(String.class::cast).map(Paths::get).ifPresent(builder::zmqCertsDir);
-        Optional.ofNullable(properties.remove("withZap")).map(Boolean.class::cast).ifPresent(builder::withZap);
-        Optional.ofNullable(properties.remove("numSocket")).map(Integer.class::cast).ifPresent(builder::numSocket);
-        Optional.ofNullable(properties.remove("linger")).map(Integer.class::cast).ifPresent(builder::linger);
-        return builder;
-    }
-
-    public ZMQSocketFactory getZMQSocketFactory() {
-        return zmqFactoryReference.updateAndGet(f -> {
-            if (f.factory == null) {
-                f.factory = f.builder.build();
-                f.builder = null;
-                shutdownTasks.add(f.factory::close);
-                f.factory.setExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
-            }
-            return f;
-        }).factory;
     }
 
     public void addShutdownTask(Runnable task) {

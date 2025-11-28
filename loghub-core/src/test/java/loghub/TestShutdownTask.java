@@ -26,9 +26,6 @@ import loghub.senders.Sender;
 
 public class TestShutdownTask {
 
-    @Rule
-    public ZMQFactory tctxt = new ZMQFactory();
-
     @BeforeClass
     public static void configure() {
         Tools.configure();
