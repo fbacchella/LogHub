@@ -193,6 +193,12 @@ jobs:
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-zabbix
                   destination: /loghub-zabbix
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-zeromq
+                  destination: /loghub-zeromq
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-zeromq2
+                  destination: /loghub-zeromq2
             - persist_to_workspace:
                 root: /
                 paths:
