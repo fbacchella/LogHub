@@ -5,7 +5,6 @@ import java.security.Principal;
 
 import loghub.BuildableConnectionContext;
 import loghub.cloners.Immutable;
-import lombok.Data;
 import zmq.Msg;
 import zmq.io.Metadata;
 import zmq.io.mechanism.Mechanisms;
@@ -16,10 +15,11 @@ public class ZmqConnectionContext extends BuildableConnectionContext<String> {
     private final String selfAddress;
     private final String peerAddress;
 
-    @Data
-    public static class ZmqPrincipal implements Principal, Serializable {
-        private final String name;
-        private final Mechanisms mechanism;
+    public record ZmqPrincipal(String name, Mechanisms mechanism) implements Principal, Serializable {
+        @Override
+        public String getName() {
+            return name;
+        }
     }
 
     public ZmqConnectionContext(Msg msg, Mechanisms security) {

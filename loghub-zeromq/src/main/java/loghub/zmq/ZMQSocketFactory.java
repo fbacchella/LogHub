@@ -231,8 +231,8 @@ public class ZMQSocketFactory implements AutoCloseable {
             if (e == null) {
                 throw new IllegalArgumentException("Invalid key store, the curve key is missing");
             }
-            if (e instanceof PrivateKeyEntry) {
-                return (PrivateKeyEntry) e;
+            if (e instanceof PrivateKeyEntry pke) {
+                return pke;
             } else {
                 throw new IllegalArgumentException("Invalid key store, the curve key type is not a private key entry");
             }

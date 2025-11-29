@@ -13,11 +13,8 @@ import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
-import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
-import loghub.senders.SendException;
-import loghub.senders.Sender;
 import loghub.zmq.MsgHeaders;
 import loghub.zmq.MsgHeaders.Header;
 import loghub.zmq.ZMQCheckedException;
@@ -107,8 +104,8 @@ public class ZMQ extends Sender {
                                 .setSend(sender)
                                 .setMask(ZPoller.OUT)
                                 .setLatch(latch)
+                                .setZfactory(builder.socketFactory)
                                 .build();
-        handler.setZfactory(builder.socketFactory);
     }
 
     private void publisherRun() {
@@ -116,17 +113,21 @@ public class ZMQ extends Sender {
             handler.start();
             latch.await();
             while (isRunning()) {
-                byte[] msg = exchanger.take();
-                try {
-                    handler.dispatch(msg);
-                } catch (ZMQCheckedException t) {
-                    handleException(t);
-                }
+                handleMessage();
             }
         } catch (Throwable t) {
             handleException(t);
         } finally {
             handler.close();
+        }
+    }
+
+    private void handleMessage() throws InterruptedException {
+        byte[] msg = exchanger.take();
+        try {
+            handler.dispatch(msg);
+        } catch (ZMQCheckedException t) {
+            handleException(t);
         }
     }
 

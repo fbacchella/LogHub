@@ -49,7 +49,6 @@ import org.zeromq.ZContext;
 import org.zeromq.ZEvent;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZMonitor;
 import org.zeromq.ZPoller;
 
 import fr.loghub.naclprovider.NaclCertificate;
@@ -232,8 +231,8 @@ public class ZMQSocketFactory implements AutoCloseable {
             if (e == null) {
                 throw new IllegalArgumentException("Invalid key store, the curve key is missing");
             }
-            if (e instanceof PrivateKeyEntry) {
-                return (PrivateKeyEntry) e;
+            if (e instanceof PrivateKeyEntry pke) {
+                return pke;
             } else {
                 throw new IllegalArgumentException("Invalid key store, the curve key type is not a private key entry");
             }

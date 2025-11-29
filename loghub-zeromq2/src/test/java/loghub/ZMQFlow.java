@@ -1,7 +1,8 @@
 package loghub;
 
 import java.security.KeyStore.PrivateKeyEntry;
-import java.util.function.Function;
+import java.util.function.BiPredicate;
+import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,67 +20,81 @@ import lombok.experimental.Accessors;
 import zmq.io.mechanism.Mechanisms;
 
 @Accessors(chain = true)
-public class ZMQSink<M> extends Thread implements AutoCloseable {
+public class ZMQFlow extends Thread implements AutoCloseable {
 
     private static final Logger logger = LogManager.getLogger();
 
     @Setter
-    public static class Builder<M> {
-        private String source = "tcp://localhost:2120";
-        private SocketType type = SocketType.SUB;
+    public static class Builder {
+        private String destination = "tcp://localhost:2120";
+        private SocketType type = SocketType.PUB;
         private int hwm = 1000;
-        private Method method = Method.BIND;
+        private Method method = Method.CONNECT;
         private String serverKey = null;
         PrivateKeyEntry keyEntry = null;
         private Mechanisms security = Mechanisms.NULL;
         private ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
+        private Supplier<byte[]> source;
+        private int msPause;
         private ZMQSocketFactory zmqFactory = null;
-        Function<Socket, M> receive = null;
-        byte[] topic = null;
+        private BiPredicate<Socket, byte[]> sender = Socket::send;
 
-        private Builder() {}
-
-        public ZMQSink<M> build() {
-            return new ZMQSink<>(this);
+        public ZMQFlow build() {
+            return new ZMQFlow(this);
         }
     }
 
-    public static <M> Builder<M> getBuilder() {
-        return new Builder<>();
-    }
+    public volatile boolean running = false;
+    private final Supplier<byte[]> source;
+    private final int msPause;
+    private final ZMQHandler<byte[]> handler;
 
-    private final ZMQHandler<M> handler;
-
-    private ZMQSink(Builder<M> builder) {
-        handler = new ZMQHandler.Builder<M>()
+    private ZMQFlow(Builder builder) {
+        this.handler = new ZMQHandler.Builder<byte[]>()
                         .setHwm(builder.hwm)
-                        .setSocketUrl(builder.source)
+                        .setSocketUrl(builder.destination)
                         .setMethod(builder.method)
                         .setType(builder.type)
-                        .setTopic(builder.topic)
                         .setLogger(logger)
-                        .setName("ZMQSink")
-                        .setReceive(builder.receive)
-                        .setMask(ZPoller.IN)
+                        .setName("ZMQFlow")
+                        .setSend(builder.sender)
+                        .setMask(ZPoller.OUT | ZPoller.ERR)
                         .setSecurity(builder.security)
                         .setZapHandler(builder.zapHandler)
                         .setKeyEntry(builder.keyEntry)
                         .setServerPublicKeyToken(builder.serverKey)
                         .setZfactory(builder.zmqFactory)
                         .build();
+
+        this.source = builder.source;
+        this.msPause = builder.msPause;
         setDaemon(true);
-        setName("Sink");
+        setName("EventSource");
         start();
     }
 
     @Override
     public void run() {
+        logger.debug("flow started");
         try {
             handler.start();
-            logger.debug("Sink started");
-            while (handler.isRunning()) {
-                logger.trace("Sink loop");
-                handler.dispatch(null);
+            running = true;
+            while (running) {
+                byte[] message = source.get();
+                if (message == null) {
+                    break;
+                }
+                handler.dispatch(message);
+                if (msPause > 0) {
+                    try {
+                        Thread.sleep(msPause);
+                    } catch (InterruptedException e) {
+                        running = false;
+                        Thread.interrupted();
+                    }
+                } else {
+                    running = false;
+                }
             }
         } catch (ZMQCheckedException ex) {
             logger.error("Failed handler dispatch", ex);
@@ -90,12 +105,8 @@ public class ZMQSink<M> extends Thread implements AutoCloseable {
 
     @Override
     public synchronized void close() {
-       handler.stopRunning();
-    }
-
-    @Override
-    public void interrupt() {
-        handler.interrupt(this, super::interrupt);
+        running = false;
+        handler.stopRunning();
     }
 
 }

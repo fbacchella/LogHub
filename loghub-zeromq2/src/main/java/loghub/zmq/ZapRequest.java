@@ -1,5 +1,6 @@
 package loghub.zmq;
 
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Locale;
@@ -42,13 +43,14 @@ public class ZapRequest {
         mechanism = Mechanisms.valueOf(request.popString().toUpperCase(Locale.ENGLISH));
 
         // Get mechanism-specific frames
-        if (mechanism == Mechanisms.PLAIN) {
+        switch (mechanism) {
+        case Mechanisms.PLAIN -> {
             username = request.popString();
             password = request.popString();
             clientKey = null;
             principal = null;
         }
-        else if (mechanism == Mechanisms.CURVE) {
+        case Mechanisms.CURVE -> {
             ZFrame frame = request.pop();
             byte[] clientPublicKey = frame.getData();
             username = null;
@@ -56,13 +58,13 @@ public class ZapRequest {
             clientKey = clientPublicKey;
             principal = null;
         }
-        else if (mechanism == Mechanisms.NULL) {
+        case Mechanisms.NULL -> {
             username = null;
             password = null;
             clientKey = null;
             principal = null;
         }
-        else {
+        default ->
             throw new UnsupportedOperationException(mechanism + " not handled");
         }
     }
@@ -79,7 +81,7 @@ public class ZapRequest {
     @Override
     public String toString() {
         return "ZapRequest [" + (version != null ? "version=" + version + ", " : "")
-                       + (requestId != null ? "sequence=" + requestId + ", " : "")
+                       + (requestId != null ? "sequence=" + Arrays.toString(requestId) + ", " : "")
                        + (domain != null ? "domain=" + domain + ", " : "")
                        + (address != null ? "address=" + address + ", " : "")
                        + (identity != null ? "identity=" + identity + ", " : "")

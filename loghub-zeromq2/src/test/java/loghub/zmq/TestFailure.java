@@ -13,7 +13,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.SocketType;
 import org.zeromq.UncheckedZMQException;
-import org.zeromq.ZMQ.Error;
+import org.zeromq.Errors;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.LogUtils;
@@ -46,7 +46,7 @@ public class TestFailure {
             ) {
             // empty
         } catch (ZMQCheckedException ex) {
-            Assert.assertEquals(Error.EADDRINUSE, ex.getError());
+            Assert.assertEquals(Errors.EADDRINUSE, ex.getError());
             logger.debug(ex);
             throw ex;
         }
@@ -61,7 +61,7 @@ public class TestFailure {
              Socket s2 = ctx.getBuilder(Method.BIND, SocketType.SUB, endpoint).build()) {
             // empty
         } catch (ZMQCheckedException ex) {
-            Assert.assertEquals(Error.EPROTONOSUPPORT, ex.getError());
+            Assert.assertEquals(Errors.EPROTONOSUPPORT, ex.getError());
             logger.debug(ex);
             throw ex;
         }
@@ -97,7 +97,7 @@ public class TestFailure {
                 throw e.getCause();
             }
         });
-        Assert.assertEquals(Error.EINTR, ex.getError());
+        Assert.assertEquals(Errors.EINTR, ex.getError());
         ctx.close();
     }
 

@@ -34,17 +34,15 @@ public class ZMQCheckedException extends Exception {
 
     public ZMQCheckedException(UncheckedZMQException e) {
         super(filterCause(e));
-        if (e instanceof ZError.IOException) {
+        switch (e) {
+        case ZError.IOException ignored -> {
             IOException cause = (IOException) e.getCause();
             error = Errors.findByCode(ZError.exccode(cause));
-        } else if (e instanceof ZError.CtxTerminatedException) {
-            error = Errors.ETERM;
-        } else if (e instanceof ZError.InstantiationException) {
-            throw e;
-        } else if (e instanceof ZMQException) {
-            error = Errors.findByCode(((ZMQException) e).getErrorCode());
-        } else {
-            throw new IllegalStateException("Unhandled ZMQ Exception", e);
+        }
+        case ZError.CtxTerminatedException ignored -> error = Errors.ETERM;
+        case ZError.InstantiationException ignored -> throw e;
+        case ZMQException ex -> error = Errors.findByCode(ex.getErrorCode());
+        case null, default -> throw new IllegalStateException("Unhandled ZMQ Exception", e);
         }
         setStackTrace(e.getStackTrace());
     }
@@ -77,8 +75,7 @@ public class ZMQCheckedException extends Exception {
     public static void logZMQException(Logger l, String prefix, UncheckedZMQException e) {
         ZMQCheckedException zex = new ZMQCheckedException(e);
         switch (zex.error) {
-        case EINTR:
-        case ETERM:
+        case EINTR, ETERM:
             l.debug(prefix, zex.getMessage());
             break;
         default:

@@ -58,8 +58,7 @@ public class MsgHeaders {
     }
 
     public MsgHeaders(byte[] content) throws IOException {
-        try (MessageUnpacker unpacker = new UnpackerConfig().newUnpacker(content)
-        ) {
+        try (MessageUnpacker unpacker = new UnpackerConfig().newUnpacker(content)) {
             int size = unpacker.unpackMapHeader();
             for (int i = 0; i < size; i++) {
                 Header header  = headersMapping.get(unpacker.unpackString());
@@ -90,7 +89,7 @@ public class MsgHeaders {
                 MessagePacker packer = MessagePack.newDefaultPacker(output)) {
             packer.packMapHeader(headers.size());
             for (Map.Entry<Header, Value> e: headers.entrySet()) {
-                packer.packString(e.getKey().headerName.toString());
+                packer.packString(e.getKey().headerName);
                 packer.packValue(e.getValue());
             }
             packer.flush();

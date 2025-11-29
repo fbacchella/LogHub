@@ -19,11 +19,8 @@ import org.zeromq.ZPoller;
 import loghub.BuilderClass;
 import loghub.Helpers;
 import loghub.ShutdownTask;
-import loghub.configuration.Properties;
 import loghub.decoders.Decoder;
 import loghub.metrics.Stats;
-import loghub.receivers.Blocking;
-import loghub.receivers.Receiver;
 import loghub.types.MimeType;
 import loghub.zmq.MsgHeaders;
 import loghub.zmq.MsgHeaders.Header;
@@ -78,21 +75,22 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         listen = builder.listen;
         this.security = builder.security;
         this.decoders = resolverDecoders(builder.decoders);
+        String receiverName = "zmqhandler/" + listen.replaceFirst("://", "/").replace(':', '/').replaceFirst("\\*", "0.0.0.0");
         handler = new ZMQHandler.Builder<Msg>()
-                          .setHwm(builder.hwm)
-                .setSocketUrl(builder.listen)
-                .setMethod(builder.method)
-                .setType(builder.type)
-                .setTopic(builder.topic.getBytes(StandardCharsets.UTF_8))
-                .setSecurity(security)
-                .setZapHandler(builder.zapHandler)
-                .setServerPublicKeyToken(builder.serverKey)
-                .setLogger(logger)
-                .setName("zmqhandler/" + listen.replaceFirst("://", "/").replace(':', '/').replaceFirst("\\*", "0.0.0.0"))
-                .setReceive(Socket::recvMsg)
-                .setMask(ZPoller.IN)
-                .setZfactory(builder.factory)
-                          .build();
+                                .setHwm(builder.hwm)
+                                .setSocketUrl(builder.listen)
+                                .setMethod(builder.method)
+                                .setType(builder.type)
+                                .setTopic(builder.topic.getBytes(StandardCharsets.UTF_8))
+                                .setSecurity(security)
+                                .setZapHandler(builder.zapHandler)
+                                .setServerPublicKeyToken(builder.serverKey)
+                                .setLogger(logger)
+                                .setName(receiverName)
+                                .setReceive(Socket::recvMsg)
+                                .setMask(ZPoller.IN)
+                                .setZfactory(builder.factory)
+                                .build();
     }
 
     @Override

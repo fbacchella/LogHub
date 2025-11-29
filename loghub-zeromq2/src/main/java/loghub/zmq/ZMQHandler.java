@@ -82,9 +82,7 @@ public class ZMQHandler<M> implements AutoCloseable {
     private Socket socket;
     private Thread runningThread = null;
     private ZPoller pooler;
-    // Settings of the factory can be delayed
-    @Setter
-    private ZMQSocketFactory zfactory;
+    private final ZMQSocketFactory zfactory;
     //Interrupt is only allowed outside ZMQ poll or socket options, this flag protect that
     private volatile boolean canInterrupt = true;
 
