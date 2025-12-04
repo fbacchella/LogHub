@@ -130,6 +130,8 @@
                                     <include>com.sun.activation:javax.activation</include>
                                     <include>com.beust:jcommander</include>
                                     <include>org.apache.logging.log4j:*</include>
+                                    <include>io.netty:netty-codec-http</include>
+                                    <include>io.netty:netty-common</include>
                                 </includes>
                            </artifactSet>
                             <filters>
@@ -149,6 +151,7 @@
                                         <include>loghub/Start.class</include>
                                         <include>loghub/Helpers.*</include>
                                         <include>loghub/ShutdownTask.class</include>
+                                        <include>loghub/security/ssl/**</include>
                                         <include>META-INF/mime.types</include>
                                     </includes>
                                 </filter>
@@ -162,6 +165,21 @@
                                     <artifact>eu.neilalexander</artifact>
                                     <includes>
                                         <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>io.netty:netty-codec-http</artifact>
+                                    <includes>
+                                        <include>io/netty/handler/codec/http/QueryStringDecoder*</include>
+                                        <include>io/netty/handler/codec/http/HttpConstants*</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>io.netty:netty-common</artifact>
+                                    <includes>
+                                        <include>io/netty/util/internal/ObjectUtil*</include>
+                                        <include>io/netty/util/internal/StringUtil*</include>
+                                        <include>io/netty/util/CharsetUtil*</include>
                                     </includes>
                                 </filter>
                             </filters>

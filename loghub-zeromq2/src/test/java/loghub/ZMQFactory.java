@@ -116,7 +116,7 @@ public class ZMQFactory extends ExternalResource {
         ZConfig zpl = new ZConfig("root", null);
         properties.forEach(zpl::putValue);
         zpl.putValue("/curve/public-key", ZMQHelper.makeServerIdentityZ85(certificate));
-        zpl.save(publicKeyZplPath.toString());
+        zpl.save(publicKeyZplPath);
         PrivateKey prk = kp.getPrivate();
         return new PrivateKeyEntry(prk, new NaclCertificate[] {certificate});
     }

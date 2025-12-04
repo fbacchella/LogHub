@@ -23,7 +23,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.zeromq.SocketType;
 import org.zeromq.ZConfig;
-import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
 
 import fr.loghub.naclprovider.NaclCertificate;
@@ -75,9 +74,9 @@ public class TestCurve {
         Path securePath = tctxt.getSecurityFolder();
 
         Path zplPath = securePath.resolve("zmqtest.zpl");
-        ZConfig zplConfig = ZConfig.load(zplPath.toString());
+        ZConfig zplConfig = ZConfig.load(zplPath);
         zplConfig.putValue("User-Id", "loghub");
-        zplConfig.save(zplPath.toString());
+        zplConfig.save(zplPath);
         tctxt.getFactory().reloadCerts(securePath);
 
         tctxt.getFactory().getZapService().addFilter("ZAPDOMAIN", ZapDomainHandler.ZapDomainHandlerProvider.METADATA.get(tctxt.getFactory(), Mechanisms.CURVE));
@@ -100,9 +99,9 @@ public class TestCurve {
                 .setSocketLogger(logger);
         try (Socket server = serverBuilder.build();
              Socket client = clientBuilder.build()) {
-            Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE,
+            Assert.assertEquals(Mechanisms.CURVE,
                     server.getMechanism());
-            Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE,
+            Assert.assertEquals(Mechanisms.CURVE,
                     client.getMechanism());
             client.send("Hello, World!");
             Msg msg = server.base().recv(0);
@@ -140,8 +139,8 @@ public class TestCurve {
         try (Socket server = serverBuilder.build();
              Socket client = clientBuilder.build()) {
 
-            Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE, server.getMechanism());
-            Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE, client.getMechanism());
+            Assert.assertEquals(Mechanisms.CURVE, server.getMechanism());
+            Assert.assertEquals(Mechanisms.CURVE, client.getMechanism());
             client.send("Hello, World!");
             Assert.assertEquals("Hello, World!", server.recvStr());
         } finally {
@@ -172,8 +171,8 @@ public class TestCurve {
 
         try (Socket server = serverBuilder.build();
              Socket client = clientBuilder.build()) {
-            Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE, server.getMechanism());
-            Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE, client.getMechanism());
+            Assert.assertEquals(Mechanisms.CURVE, server.getMechanism());
+            Assert.assertEquals(Mechanisms.CURVE, client.getMechanism());
             client.send("Hello, World!");
             Assert.assertNull(server.recvStr());
         } finally {

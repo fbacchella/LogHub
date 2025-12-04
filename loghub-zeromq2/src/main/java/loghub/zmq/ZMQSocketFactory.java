@@ -160,7 +160,7 @@ public class ZMQSocketFactory implements AutoCloseable {
 
     private void loadZCert(Path tryCert, Map<String, ZConfig> buildingPublicKeys) {
         try {
-            ZConfig zconf = ZConfig.load(tryCert.toString());
+            ZConfig zconf = ZConfig.load(tryCert);
             String publicKey = zconf.getValue("curve/public-key");
             if (publicKey != null && publicKey.length() == Options.CURVE_KEYSIZE_Z85) { // we want to store the public-key as Z85-String
                 buildingPublicKeys.put(publicKey, zconf);
