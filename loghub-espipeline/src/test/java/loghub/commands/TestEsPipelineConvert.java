@@ -270,4 +270,26 @@ public class TestEsPipelineConvert {
         convert(esPipeline, expected);
     }
 
+    @Test
+    public void testHierarchical() throws IOException {
+        String esPipeline = """
+          - dot_expander:
+              field: event.original
+          - dot_expander:
+              field: "*"
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            loghub.processors.Hierarchical {
+                fields: ["event.original"],
+            } |
+            loghub.processors.Hierarchical {
+                fields: ["*"],
+            }
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
 }

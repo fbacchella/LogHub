@@ -177,7 +177,8 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 Map.entry("json", this::json),
                 Map.entry("user_agent", p -> doSimpleProcessor("loghub.processors.UserAgent", p)),
                 Map.entry("urldecode", p -> doSimpleProcessor("loghub.processors.DecodeUrl", p)),
-                Map.entry("csv", this::csv)
+                Map.entry("csv", this::csv),
+                Map.entry("dot_expander", this::hierarchical)
         );
     }
 
@@ -510,6 +511,12 @@ public class EsPipelineConvert implements BaseParametersRunner {
         List<VariablePath> fields = target_fields.stream().map(VariablePath::parse).toList();
         attributes.put("headers", fields);
         doProcessor("loghub.processors.ParseCsv", filterComments(params, attributes), attributes);
+    }
+
+    private void hierarchical(Map<String, Object> params) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        attributes.put("fields", "[\"%s\"]".formatted(params.remove("field")));
+        doProcessor("loghub.processors.Hierarchical", filterComments(params, attributes), attributes);
     }
 
     private void doSimpleProcessor(String processor, Map<String, Object> params) {
