@@ -292,4 +292,21 @@ public class TestEsPipelineConvert {
         convert(esPipeline, expected);
     }
 
+    @Test
+    public void testDrop() throws IOException {
+        String esPipeline = """
+          - drop: {}
+          - drop:
+              if: ctx.filter != null
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            drop |
+            [filter] == * ? drop
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
 }

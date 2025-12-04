@@ -178,7 +178,8 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 Map.entry("user_agent", p -> doSimpleProcessor("loghub.processors.UserAgent", p)),
                 Map.entry("urldecode", p -> doSimpleProcessor("loghub.processors.DecodeUrl", p)),
                 Map.entry("csv", this::csv),
-                Map.entry("dot_expander", this::hierarchical)
+                Map.entry("dot_expander", this::hierarchical),
+                Map.entry("drop", p -> ifWrapper(p, this::drop))
         );
     }
 
@@ -187,6 +188,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
         outputConfiguration = null;
     }
 
+    @Override
     public int run(List<String> mainParameters, PrintWriter out, PrintWriter err) {
         Pattern spliter = Pattern.compile("@");
         try (Writer w = getWriter(out)){
@@ -517,6 +519,11 @@ public class EsPipelineConvert implements BaseParametersRunner {
         Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put("fields", "[\"%s\"]".formatted(params.remove("field")));
         doProcessor("loghub.processors.Hierarchical", filterComments(params, attributes), attributes);
+    }
+
+    private void drop(Map<String, Object> params) {
+        output.format("drop");
+        output.endStep();
     }
 
     private void doSimpleProcessor(String processor, Map<String, Object> params) {
