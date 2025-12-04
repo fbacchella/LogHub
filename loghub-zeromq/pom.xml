@@ -97,6 +97,76 @@
                             </artifactSet>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>keytool</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>keytool</shadedClassifierName>
+                            <minimizeJar>false</minimizeJar>
+                            <entryPoints>
+                                <entryPoint>loghub.Start</entryPoint>
+                            </entryPoints>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>${mainClass}</mainClass>
+                                    <manifestEntries>
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/mime.types</resource>
+                                </transformer>
+                            </transformers>
+                            <artifactSet>
+                                <includes>
+                                    <include>fr.loghub:loghub-core</include>
+                                    <include>fr.loghub:naclprovider</include>
+                                    <include>eu.neilalexander:jnacl</include>
+                                    <include>com.sun.activation:javax.activation</include>
+                                    <include>com.beust:jcommander</include>
+                                    <include>org.apache.logging.log4j:*</include>
+                                </includes>
+                           </artifactSet>
+                            <filters>
+                                <filter>
+                                    <!-- Shading signed JARs will fail without this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>fr.loghub:loghub-core</artifact>
+                                    <includes>
+                                        <include>loghub/commands/**</include>
+                                        <include>loghub/Start.class</include>
+                                        <include>loghub/Helpers.*</include>
+                                        <include>loghub/ShutdownTask.class</include>
+                                        <include>META-INF/mime.types</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>fr.loghub:naclprovider</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>eu.neilalexander</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
