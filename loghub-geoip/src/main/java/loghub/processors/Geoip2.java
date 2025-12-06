@@ -9,14 +9,13 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -25,30 +24,10 @@ import javax.cache.Cache;
 import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.MutableEntry;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.maxmind.db.CacheKey;
 import com.maxmind.db.DecodedValue;
 import com.maxmind.db.NodeCache;
 import com.maxmind.db.Reader;
-import com.maxmind.geoip2.model.AnonymousPlusResponse;
-import com.maxmind.geoip2.model.AsnResponse;
-import com.maxmind.geoip2.model.CityResponse;
-import com.maxmind.geoip2.model.ConnectionTypeResponse;
-import com.maxmind.geoip2.model.CountryResponse;
-import com.maxmind.geoip2.model.DomainResponse;
-import com.maxmind.geoip2.model.EnterpriseResponse;
-import com.maxmind.geoip2.model.IpRiskResponse;
-import com.maxmind.geoip2.model.IspResponse;
-import com.maxmind.geoip2.record.City;
-import com.maxmind.geoip2.record.Continent;
-import com.maxmind.geoip2.record.Country;
-import com.maxmind.geoip2.record.Location;
-import com.maxmind.geoip2.record.Postal;
-import com.maxmind.geoip2.record.RepresentedCountry;
-import com.maxmind.geoip2.record.Subdivision;
-import com.maxmind.geoip2.record.Traits;
 
 import loghub.BuilderClass;
 import loghub.Helpers;
@@ -61,7 +40,6 @@ import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
 import loghub.httpclient.JavaHttpClientService;
-import loghub.jackson.JacksonBuilder;
 import loghub.processors.Geoip2.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -69,20 +47,7 @@ import lombok.Setter;
 @BuilderClass(Builder.class)
 public class Geoip2 extends FieldsProcessor {
 
-    enum LocationType {
-        COUNTRY,
-        REGISTREDCOUNTRY,
-        REPRESENTEDCOUNTRY,
-        CITY,
-        LOCATION,
-        CONTINENT,
-        POSTAL,
-        SUBDIVISION,
-        ISP,
-        TRAITS
-    }
-
-    private static final ObjectMapper mapper = JacksonBuilder.get(JsonMapper.class).getMapper();
+    private static final Set<String> ALL = HashSet.newHashSet(0);
 
     private record LogHubNodeCache(Cache<CacheKey, DecodedValue> cache) implements NodeCache {
         @Override
@@ -119,12 +84,15 @@ public class Geoip2 extends FieldsProcessor {
     @Setter
     public static class Builder extends FieldsProcessor.Builder<Geoip2> {
         private String geoipdb = null;
+        // Keep compatibily with previous version of this processor
+        private String isoCodeKey = "code";
         private String[] types = new String[] {};
-        private String locale = Locale.getDefault().getCountry();
+        private String locale = Locale.getDefault().getLanguage();
         private int cacheSize = 100;
         private String refresh = "";
         private CacheManager cacheManager;
         private boolean required = true;
+        private boolean keepOld = true;
         public Geoip2 build() {
             return new Geoip2(this);
         }
@@ -135,7 +103,7 @@ public class Geoip2 extends FieldsProcessor {
 
     @Getter
     private final URI geoipdb;
-    private final LocationType[] types;
+    private final Set<String> types;
     @Getter
     private final String locale;
     @Getter
@@ -144,23 +112,29 @@ public class Geoip2 extends FieldsProcessor {
     private final boolean required;
     @Getter
     private final Duration delay;
+    private final String isoCodeKey;
+    private final boolean keepOld;
     private final ReadWriteLock dbProtectionLock = new ReentrantReadWriteLock();
     private volatile long lastBuildDate = 0;
 
     public Geoip2(Builder builder) {
         super(builder);
-        if (builder.types.length == 0) {
-            this.types = LocationType.values();
+        if (builder.types.length == 0 && builder.keepOld) {
+            this.types = Set.of("country", "continent", "name", "city", "latitude", "longitude", "code", "timezone",
+                                "accuray_radius", "metro_code", "average_income", "population_density");
+        } else if (builder.types.length == 0) {
+            this.types = Set.of("country", "continent", "name", "city", "latitude", "longitude", builder.isoCodeKey);
+        } else if (builder.types.length == 1 && builder.types[0].equalsIgnoreCase("all")) {
+            this.types = ALL;
         } else {
-            this.types = Arrays.stream(builder.types)
-                               .map(s -> s.toUpperCase(Locale.ENGLISH))
-                               .map(LocationType::valueOf)
-                               .toArray(LocationType[]::new);
+            this.types = Set.of(builder.types);
         }
+        this.keepOld = builder.keepOld;
+        this.isoCodeKey = builder.keepOld ? "code" : builder.isoCodeKey;
         this.geoipdb = Optional.ofNullable(builder.geoipdb)
                                .map(Helpers::fileUri)
                                .orElse(null);
-        this.locale = Locale.forLanguageTag(builder.locale).getLanguage();
+        this.locale = builder.locale.equals("posix") ? "en" : Locale.forLanguageTag(builder.locale).getLanguage();
         if (!builder.refresh.trim().isEmpty()) {
             this.delay = Duration.parse(builder.refresh);
         } else {
@@ -216,183 +190,11 @@ public class Geoip2 extends FieldsProcessor {
             return RUNSTATUS.FAILED;
         }
 
-        Country country = null;
-        Country registredCountry = null;
-        RepresentedCountry representedCountry = null;
-        City city = null;
-        Continent continent = null;
-        Location location = null;
-        Postal postal = null;
-        List<Subdivision> subdivision = null;
-        Traits traits = null;
-        Map<?, ?> isp = null;
-        Map<?, ?> anonymous = null;
-        Map<?, ?> ipRisk = null;
-        Map<?, ?> connectionType = null;
-        Map<?, ?> domain = null;
-        Map<?, ?> asn = null;
-        Map<?, ?> densityIncome = null;
-        double ipScore = Double.NaN;
-        Map<?, ?> userCount = null;
-
-
-        Map<String, Object> informations = new HashMap<>();
+        Map<String, Object> informations;
         try {
-            switch (reader.getMetadata().databaseType()) {
-            case "GeoIP2-City", "GeoLite2-City", "GeoIP2-City-Shield" -> {
-                CityResponse response = reader.getRecord(ipInfo, CityResponse.class).data();
-                if (response == null) {
-                    return RUNSTATUS.FAILED;
-                }
-                country = response.country();
-                city = response.city();
-                continent = response.continent();
-                location = response.location();
-                postal = response.postal();
-                registredCountry = response.registeredCountry();
-                representedCountry = response.representedCountry();
-                subdivision = response.subdivisions();
-                traits = response.traits();
-            }
-            case "GeoIP2-Country", "GeoLite2-Country", "GeoIP2-Country-Shield" -> {
-                CountryResponse response = reader.getRecord(ipInfo, CountryResponse.class).data();
-                if (response == null) {
-                    return RUNSTATUS.FAILED;
-                }
-                country = response.country();
-                continent = response.continent();
-                registredCountry = response.registeredCountry();
-                representedCountry = response.representedCountry();
-                traits = response.traits();
-            }
-            case "GeoIP2-Precision-Enterprise", "GeoIP2-Enterprise", "GeoIP2-Enterprise-Shield", "GeoIP2-Precision-Enterprise-Shield" -> {
-                EnterpriseResponse response = reader.getRecord(ipInfo, EnterpriseResponse.class).data();
-                if (response == null) {
-                    return RUNSTATUS.FAILED;
-                }
-                country = response.country();
-                city = response.city();
-                continent = response.continent();
-                location = response.location();
-                postal = response.postal();
-                registredCountry = response.registeredCountry();
-                representedCountry = response.representedCountry();
-                subdivision = response.subdivisions();
-                traits = response.traits();
-            }
-            case "GeoIP-Anonymous-Plus", "GeoIP2-Anonymous-IP" ->
-                    anonymous = readRecordAsMap(ipInfo, AnonymousPlusResponse.class);
-            case "GeoIP2-Connection-Type" -> connectionType = readRecordAsMap(ipInfo, ConnectionTypeResponse.class);
-            case "GeoIP2-ISP" -> isp = readRecordAsMap(ipInfo, IspResponse.class);
-            case "GeoIP2-IP-Risk" -> ipRisk = readRecordAsMap(ipInfo, IpRiskResponse.class);
-            case "GeoIP2-Domain" -> domain = readRecordAsMap(ipInfo, DomainResponse.class);
-            case "GeoLite2-ASN" -> asn = readRecordAsMap(ipInfo, AsnResponse.class);
-            case "GeoIP2-DensityIncome" -> densityIncome = reader.getRecord(ipInfo, Map.class).data();
-            case "GeoIP2-User-Count" -> userCount = reader.getRecord(ipInfo, Map.class).data();
-            case "GeoIP2-Static-IP-Score" -> {
-                Map<?, ?> map = reader.getRecord(ipInfo, Map.class).data();
-                ipScore = ((Number) map.get("score")).doubleValue();
-            }
-            default -> {
-                Map<?, ?> response = reader.getRecord(ipInfo, Map.class).data();
-                System.err.println(response);
-                return response == null ? RUNSTATUS.FAILED : response;
-            }
-            }
+            informations = filterMap(reader.getRecord(ipInfo, Map.class).data());
         } catch (IOException e) {
             throw event.buildException("Can't read GeoIP database", e);
-        }
-
-        for (LocationType type: types) {
-            switch(type) {
-            case COUNTRY -> {
-                if (country != null) {
-                    Map<String, Object> infos = HashMap.newHashMap(2);
-                    Optional.ofNullable(country.isoCode()).ifPresent(i -> infos.put("code", i));
-                    Optional.ofNullable(country.names().get(locale)).ifPresent(i -> infos.put("name", i));
-                    if (!infos.isEmpty()) {
-                        informations.put("country", infos);
-                    }
-                }
-            }
-            case REPRESENTEDCOUNTRY -> {
-                if (representedCountry != null) {
-                    Map<String, Object> infos = HashMap.newHashMap(2);
-                    Optional.ofNullable(representedCountry.isoCode()).ifPresent(i -> infos.put("code", i));
-                    Optional.ofNullable(representedCountry.names().get(locale)).ifPresent(i -> infos.put("name", i));
-                    Optional.ofNullable(representedCountry.type()).ifPresent(i -> infos.put("type", i));
-                    if (!infos.isEmpty()) {
-                        informations.put("represented_country", infos);
-                    }
-                }
-            }
-            case REGISTREDCOUNTRY -> {
-                if (registredCountry != null) {
-                    Map<String, Object> infos = HashMap.newHashMap(2);
-                    Optional.ofNullable(registredCountry.isoCode()).ifPresent(i -> infos.put("code", i));
-                    Optional.ofNullable(registredCountry.names().get(locale)).ifPresent(i -> infos.put("name", i));
-                    if (!infos.isEmpty()) {
-                        informations.put("registred_country", infos);
-                    }
-                }
-            }
-            case CITY -> {
-                if (city != null) {
-                    Optional.ofNullable(city.names().get(locale)).ifPresent(i -> informations.put("city", i));
-                }
-            }
-            case LOCATION -> {
-                Map<String, Object> infos = HashMap.newHashMap(7);
-                if (location != null) {
-                    Optional.ofNullable(location.latitude()).ifPresent(i -> infos.put("latitude", i));
-                    Optional.ofNullable(location.longitude()).ifPresent(i -> infos.put("longitude", i));
-                    Optional.ofNullable(location.timeZone()).ifPresent(i -> infos.put("timezone", i));
-                    Optional.ofNullable(location.accuracyRadius()).ifPresent(i -> infos.put("accuray_radius", i));
-                    Optional.ofNullable(location.averageIncome()).ifPresent(i -> infos.put("average_income", i));
-                    Optional.ofNullable(location.populationDensity()).ifPresent(i -> infos.put("population_density", i));
-                    if (!infos.isEmpty()) {
-                        informations.put("location", infos);
-                    }
-                }
-            }
-            case CONTINENT -> {
-                if (continent != null) {
-                    Optional.ofNullable(continent.names().get(locale)).ifPresent(i -> informations.put("continent", i));
-                }
-            }
-            case POSTAL -> {
-                if (postal != null) {
-                    Optional.ofNullable(postal.code()).ifPresent(i -> informations.put("postal", i));
-                }
-            }
-            case SUBDIVISION -> {
-                if (subdivision != null) {
-                    List<Map<String, Object>> all = new ArrayList<>(subdivision.size());
-                    for (Subdivision sub: subdivision) {
-                        Map<String, Object> subdivisioninfo = HashMap.newHashMap(2);
-                        Optional.ofNullable(sub.isoCode()).ifPresent(i -> subdivisioninfo.put("code", i));
-                        Optional.ofNullable(sub.names().get(locale)).ifPresent(i -> subdivisioninfo.put("name", i));
-                        if (!subdivisioninfo.isEmpty()) {
-                            all.add(subdivisioninfo);
-                        }
-                    }
-                    if (!all.isEmpty()) {
-                        informations.put("subdivisions", all);
-                    }
-                }
-            }
-            case ISP -> {
-                if (isp != null && ! isp.isEmpty()) {
-                    informations.put("isp", isp);
-                }
-            }
-            case TRAITS -> {
-                if (traits != null) {
-                    Map<String, Object> infos = filterRecord(traits);
-                    informations.put("traits", infos);
-                }
-            }
-            }
         }
         if (! informations.isEmpty()) {
             return informations;
@@ -401,17 +203,61 @@ public class Geoip2 extends FieldsProcessor {
         }
     }
 
-    private Map<String, Object> filterRecord(Record r) {
-        return mapper.convertValue(r, new TypeReference<Map<String, Object>>() {})
-                     .entrySet()
-                     .stream()
-                     .filter(e -> e.getValue() != null)
-                     .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+    private Map<String, Object> filterMap(Map<String, Object> map) {
+        return map.entrySet()
+                  .stream()
+                  .map(this::filterRecordEntry)
+                  .filter(Optional::isPresent)
+                  .map(Optional::get)
+                  .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
     }
 
-    private <R extends Record> Map<String, Object> readRecordAsMap(InetAddress addr, Class<R> cls) throws IOException {
-        R response = reader.getRecord(addr, cls).data();
-        return filterRecord(response);
+    private Optional<Map.Entry<String, Object>> filterRecordEntry(Map.Entry<String, Object> e) {
+        if (e.getValue() == null) {
+            return Optional.empty();
+        } else if (e.getKey().equals("names") && checkKey("name")) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> langs = (Map<String, String>) e.getValue();
+            return Optional.of(Map.entry("name", langs.get(locale)));
+        } else if (e.getKey().equals("iso_code") && checkKey(isoCodeKey)){
+            return Optional.of(Map.entry(isoCodeKey, e.getValue()));
+        } else if (e.getKey().equals("continent") && checkKey("continent") && keepOld) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
+            return filtered.containsKey("name") ? Optional.of(Map.entry("continent", filtered.get("name"))) : Optional.empty();
+        } else if (e.getKey().equals("postal") && checkKey(isoCodeKey) && keepOld) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
+            return filtered.containsKey("code") ? Optional.of(Map.entry("postal", filtered.get("code"))) : Optional.empty();
+        } else if (e.getKey().equals("city") && e.getValue() instanceof Map && checkKey(isoCodeKey) && keepOld) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
+            return filtered.containsKey("name") ? Optional.of(Map.entry("city", filtered.get("name"))) : Optional.empty();
+        } else if (e.getValue() instanceof Map && checkKey(e.getKey())){
+            @SuppressWarnings("unchecked")
+            Map<String, Object> submap = (Map<String, Object>) e.getValue();
+            Map<String, Object> filtered = filterMap(submap);
+            return filtered.isEmpty() ? Optional.empty() : Optional.of(Map.entry(e.getKey(), filtered));
+        } else if (e.getValue() instanceof List<?> l && checkKey(e.getKey())) {
+            String key = e.getKey();
+            List<?> filtered = l.stream()
+                                .map(i -> filterRecordEntry(Map.entry(key, i)))
+                                .filter(Optional::isPresent)
+                                .map(o -> o.get().getValue())
+                                .toList();
+            return filtered.isEmpty() ? Optional.empty() : Optional.of(Map.entry(key, filtered));
+        } else if (checkKey(e.getKey())) {
+            return Optional.of(e);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private boolean checkKey(String key) {
+        if (types == ALL || (types.contains("all") && ! types.contains("-" + key))) {
+            return true;
+        } else
+            return types.contains(key) && !types.contains("-" + key);
     }
 
     @Override
@@ -532,7 +378,7 @@ public class Geoip2 extends FieldsProcessor {
     }
 
     public String[] getTypes() {
-        return Arrays.stream(types).map(LocationType::name).toArray(String[]::new);
+        return types.toArray(String[]::new);
     }
 
 }

@@ -7,6 +7,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -31,6 +32,8 @@ import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class TestGeoip2 {
 
@@ -58,22 +61,44 @@ public class TestGeoip2 {
     public void testProcessCityAll() throws ProcessorException {
         Geoip2 geoip = build(b -> {
             b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString());
-            b.setTypes(new String[0]);
+            b.setTypes(List.of("all").toArray(new String[0]));
         } );
         Map<Object, Object> geoinfos = runString(geoip);
         assertEquals("not enough elements", 7, geoinfos.size());
+        assertTrue(geoinfos.containsKey("continent"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> subdivisions = (List<Map<String, Object>>) geoinfos.get("subdivisions");
+        assertEquals(1, subdivisions.size());
+        assertEquals("California", subdivisions.getFirst().get("name"));
+    }
+
+    @Test
+    public void testProcessCityFiltered() throws ProcessorException {
+        Geoip2 geoip = build(b -> {
+            b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString());
+            b.setTypes(List.of("all", "-continent").toArray(new String[0]));
+        } );
+        Map<Object, Object> geoinfos = runString(geoip);
+        assertEquals("not enough elements", 6, geoinfos.size());
+        assertFalse(geoinfos.containsKey("continent"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> subdivisions = (List<Map<String, Object>>) geoinfos.get("subdivisions");
+        assertEquals(1, subdivisions.size());
+        assertEquals("California", subdivisions.getFirst().get("name"));
     }
 
     @Test
     public void testProcessCityCountry() throws ProcessorException {
         Geoip2 geoip = build(b -> {
             b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString());
-            b.setTypes(new String[]{Geoip2.LocationType.COUNTRY.name()});
+            b.setTypes(new String[]{"name", "code", "country"});
+            b.setKeepOld(false);
         });
         Map<Object, Object> geoinfos = runString(geoip);
         assertEquals(1, geoinfos.size());
         @SuppressWarnings("unchecked")
         Map<String, String> country = (Map<String, String>) geoinfos.get("country");
+        assertEquals(2, country.size());
         assertEquals("United States", country.get("name"));
         assertEquals("US", country.get("code"));
     }
@@ -82,7 +107,8 @@ public class TestGeoip2 {
     public void testProcessCountry() throws ProcessorException {
         Geoip2 geoip = build(b -> b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-Country.mmdb").toString()));
         Map<Object, Object> geoinfos = runString(geoip);
-        assertEquals(3, geoinfos.size());
+        System.err.println(geoinfos);
+        assertEquals(2, geoinfos.size());
         assertEquals("North America", geoinfos.get("continent"));
     }
 
@@ -91,12 +117,6 @@ public class TestGeoip2 {
         Geoip2.Builder builder = Geoip2.getBuilder();
         builder.setField(VariablePath.parse("ip"));
         builder.setDestination(VariablePath.parse("geoip"));
-        Geoip2.LocationType[] types = Geoip2.LocationType.values();
-        String[] typesNames = new String[types.length];
-        for(int i = 0 ; i < types.length ; i++) {
-            typesNames[i] = types[i].name().toLowerCase();
-        }
-        builder.setTypes(typesNames);
         builder.setLocale("en");
         builder.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-Country.mmdb").toString());
         builder.setCacheManager(props.cacheManager);
@@ -130,19 +150,20 @@ public class TestGeoip2 {
     @SuppressWarnings("unchecked")
     public void parseConfig() throws IOException, ProcessorException {
         String geoipPath = TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString();
-        String config = String.format("pipeline[geoip]{loghub.processors.Geoip2 {geoipdb: \"%s\", field: [ip], types: [\"country\"], destination: [geoip]}}", geoipPath);
+        String config = String.format("pipeline[geoip]{loghub.processors.Geoip2 {geoipdb: \"%s\", field: [ip], types: [\"all\"], destination: [geoip]}}", geoipPath);
         Properties conf = Configuration.parse(new StringReader(config));
         Geoip2 geoip = conf.namedPipeLine.get("geoip").processors.stream().findAny().map(Geoip2.class::cast).orElseThrow(() -> new IllegalStateException("No received defined"));
         geoip.configure(conf);
         // Resolve a String
         Map<Object, Object> geoinfos = runString(geoip);
-        assertEquals(1, geoinfos.size());
+        System.err.println(geoinfos);
+        assertEquals(7, geoinfos.size());
         Map<String, String> country = (Map<String, String>) geoinfos.get("country");
         assertEquals("US", country.get("code"));
 
         // Resolve an InetAddress
         geoinfos = runIP(geoip);
-        assertEquals(1, geoinfos.size());
+        assertEquals(7, geoinfos.size());
         country = (Map<String, String>) geoinfos.get("country");
         assertEquals("US", country.get("code"));
     }
