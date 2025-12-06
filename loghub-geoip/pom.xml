@@ -13,7 +13,7 @@
     <name>LogHub :: MaxMind GeoIP</name>
 
     <properties>
-        <geoip2.version>4.4.0</geoip2.version>
+        <geoip2.version>5.0.1</geoip2.version>
     </properties>
 
     <dependencies>

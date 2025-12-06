@@ -140,7 +140,7 @@ public class TestGeoip2 {
         Map<String, String> country = (Map<String, String>) geoinfos.get("country");
         assertEquals("US", country.get("code"));
 
-        // Resolve a InetAddress
+        // Resolve an InetAddress
         geoinfos = runIP(geoip);
         assertEquals(1, geoinfos.size());
         country = (Map<String, String>) geoinfos.get("country");
