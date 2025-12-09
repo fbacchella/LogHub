@@ -9,6 +9,7 @@ import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 import loghub.NullOrMissingValue;
 import loghub.Processor;
 import loghub.VariablePath;
+import loghub.configuration.Properties;
 import loghub.events.Event;
 
 public class ForEach extends Processor {
@@ -77,6 +78,11 @@ public class ForEach extends Processor {
     public ForEach(VariablePath collectionPath, Processor subProcessor) {
         this.collectionPath = collectionPath;
         this.subProcessor = subProcessor;
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        return subProcessor.configure(properties) && super.configure(properties);
     }
 
     @Override
