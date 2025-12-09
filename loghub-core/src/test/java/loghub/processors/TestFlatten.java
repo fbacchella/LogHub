@@ -3,6 +3,7 @@ package loghub.processors;
 import java.beans.IntrospectionException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -92,16 +93,16 @@ public class TestFlatten {
     @DisplayName("Stream containing nested structures must be flattened")
     void testStreamFlattening() {
         Stream<?> src = Stream.of(1, Stream.of(2, 3), Arrays.asList(4, 5));
-        Stream<?> r = (Stream<?>) Expression.flatten(src);
-        Assertions.assertEquals(List.of(1, 2, 3, 4, 5), r.toList());
+        Collection<?> c = (Collection<?>) Expression.flatten(src);
+        Assertions.assertEquals(List.of(1, 2, 3, 4, 5), c);
     }
 
     @Test
     @DisplayName("Nested streams must be flattened")
     void testNestedStream() {
         Stream<?> v = Stream.of(1, Stream.of(2, Stream.of(3, 4)), 5);
-        Stream<?> r = (Stream<?>) Expression.flatten(v);
-        Assertions.assertEquals(List.of(1, 2, 3, 4, 5), r.toList());
+        Collection<?> c = (Collection<?>) Expression.flatten(v);
+        Assertions.assertEquals(List.of(1, 2, 3, 4, 5), c);
     }
 
     @Test
@@ -202,6 +203,83 @@ public class TestFlatten {
     }
 
     /* ====================================================================== */
+    /*  Unwrapped single entry                                                */
+    /* ====================================================================== */
+
+    static Stream<Arguments> provideSingle() {
+        return Stream.of(
+                // Primitive arrays with a single element
+                Arguments.of(new int[]{1}, 1),
+                Arguments.of(new long[]{42L}, 42L),
+                Arguments.of(new double[]{3.14}, 3.14),
+                Arguments.of(new byte[]{127}, (byte) 127),
+                Arguments.of(new short[]{100}, (short) 100),
+                Arguments.of(new float[]{2.71f}, 2.71f),
+                Arguments.of(new char[]{'a'}, 'a'),
+                Arguments.of(new boolean[]{true}, true),
+
+                // Object arrays with a single element
+                Arguments.of(new Integer[]{5}, 5),
+                Arguments.of(new String[]{"hello"}, "hello"),
+                Arguments.of(new Object[]{42}, 42),
+
+                // Collections with a single element
+                Arguments.of(List.of(10), 10),
+                Arguments.of(Set.of("single"), "single"),
+                Arguments.of(Collections.singletonList(99), 99),
+                Arguments.of(Collections.singletonList(Arrays.asList(1, 2, 3)), List.of(1, 2, 3)),
+
+                // Nested singletons - double-wrapped
+                Arguments.of(List.of(new int[]{42}), 42),
+                Arguments.of(new Object[]{List.of(7)}, 7),
+                Arguments.of(List.of(Set.of(15)), 15),
+
+                // Triple nested singletons
+                Arguments.of(List.of(List.of(List.of(3))), 3),
+                Arguments.of(List.of(Arrays.asList(new Object[]{99})), 99),
+
+                // Nested collections with flattening
+                Arguments.of(Set.of(List.of(5)), 5),
+
+                // Single element wrapped multiple times
+                Arguments.of(
+                        List.of(Collections.singletonList(Arrays.asList(new int[]{8}))),
+                        8
+                ),
+
+                //Stream is unwrapped
+                Arguments.of(
+                        Stream.of(8),
+                        8
+                ),
+
+                //Empty elements are discared
+                Arguments.of(
+                        List.of(List.of(), List.of(8)),
+                        8
+                ),
+                Arguments.of(
+                        List.of(List.of(8), List.of()),
+                        8
+                ),
+                Arguments.of(
+                        List.of(new int[0], List.of(8)),
+                        8
+                )
+
+        );
+    }
+
+    @ParameterizedTest(name = "Flatten singleton #{index}: {0} => {1}")
+    @MethodSource("provideSingle")
+    @DisplayName("Singleton structures must be unwrapped to single value")
+    void testUnwrap(Object input, Object expected) {
+        Object result = Expression.flatten(input);
+        Assertions.assertEquals(expected, result);
+    }
+
+
+    /* ====================================================================== */
     /*  Empty structures                                                      */
     /* ====================================================================== */
 
@@ -222,8 +300,21 @@ public class TestFlatten {
     @Test
     @DisplayName("Empty stream must return empty stream")
     void testEmptyStream() {
-        Stream<?> r = (Stream<?>) Expression.flatten(Stream.empty());
-        Assertions.assertEquals(0, r.count());
+        Collection<?> c = (Collection<?>) Expression.flatten(Stream.empty());
+        Assertions.assertEquals(0, c.size());
+    }
+
+    @DisplayName("The iterate attribute is ignored")
+    @Test
+    void testIterateAttribute() {
+        Flatten.Builder builder = Flatten.getBuilder();
+        builder.setIterate(true);
+        Flatten flatten = builder.build();
+        Event ev = factory.newTestEvent();
+        ev.putAtPath(VariablePath.of("message"), Set.of(List.of(1), Set.of(1)));
+        Tools.runProcessing(ev, "main", List.of(flatten));
+        Integer result = (Integer) ev.getAtPath(VariablePath.of("message"));
+        Assertions.assertEquals(1, result);
     }
 
     @Test
@@ -240,19 +331,6 @@ public class TestFlatten {
                 , BeanChecks.BeanInfo.build("failure", Processor.class)
                 , BeanChecks.BeanInfo.build("exception", Processor.class)
         );
-    }
-
-    @DisplayName("The iterate attribute is ignored")
-    @Test
-    void testIterateAttribute() {
-        Flatten.Builder builder = Flatten.getBuilder();
-        builder.setIterate(true);
-        Flatten flatten = builder.build();
-        Event ev = factory.newTestEvent();
-        ev.putAtPath(VariablePath.of("message"), Set.of(List.of(1), Set.of(1)));
-        Tools.runProcessing(ev, "main", List.of(flatten));
-        Collection<?> result = (Collection<?>) ev.getAtPath(VariablePath.of("message"));
-        Assertions.assertEquals(1, result.size());
     }
 
 }

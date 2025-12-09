@@ -919,11 +919,15 @@ public class Expression {
             return value;
         } else {
             Stream<?> flatStream = toStream(value);
-            return switch (value) {
-                case Stream<?> s-> flatStream;
+            Collection<?> c =  switch (value) {
                 case Set<?> s -> flatStream.collect(Collectors.toSet());
                 default -> flatStream.toList();
             };
+            if (c.size() == 1) {
+                return c.iterator().next();
+            } else {
+                return c;
+            }
         }
     }
 
