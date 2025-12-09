@@ -91,7 +91,7 @@ public class Launch implements BaseParametersRunner {
     @SuppressWarnings("unchecked")
     public <T> Optional<T> getField(String name) {
         if (name.equals("configFile")) {
-            return Optional.of((T) configFile);
+            return Optional.ofNullable((T) configFile);
         } else {
             return Optional.empty();
         }
