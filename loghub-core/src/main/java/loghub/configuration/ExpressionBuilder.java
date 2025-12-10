@@ -1,6 +1,8 @@
 package loghub.configuration;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -10,6 +12,7 @@ import loghub.Expression;
 import loghub.ProcessorException;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.events.Event;
 import loghub.groovy.GroovyMethods;
 import lombok.Getter;
 
@@ -124,6 +127,25 @@ class ExpressionBuilder {
     }
 
     public static ExpressionBuilder of(Expression.ExpressionLambda l) {
+        return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(l);
+    }
+
+    public static ExpressionBuilder of(Map<String, Expression> mapEntries) {
+        Expression.ExpressionLambda l = ed -> {
+            // Expression data is shared as a thread local, save the event
+            Event ev = ed.getEvent();
+            Object value = ed.getValue();
+            Map<String, Object> values = HashMap.newHashMap(mapEntries.size());
+            for (Map.Entry<String, Expression> e: mapEntries.entrySet()) {
+                try {
+                    Object o = e.getValue().eval(ev, value);
+                    values.put(e.getKey(), o);
+                } catch (ProcessorException ex) {
+                    throw new IllegalArgumentException(ex);
+                }
+            }
+            return values;
+        };
         return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(l);
     }
 

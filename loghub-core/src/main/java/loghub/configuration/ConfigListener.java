@@ -56,6 +56,7 @@ import loghub.RouteParser.DropContext;
 import loghub.RouteParser.EtlContext;
 import loghub.RouteParser.EventVariableContext;
 import loghub.RouteParser.ExpressionContext;
+import loghub.RouteParser.ExpressionMapContext;
 import loghub.RouteParser.ExpressionsListContext;
 import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FireContext;
@@ -1293,6 +1294,16 @@ class ConfigListener extends RouteBaseListener {
             expression = ExpressionBuilder.of(subexpression, Expression::flatten).setDeepCopy(false);
         } else if (ctx.lambdavar != null) {
             expression = ExpressionBuilder.of(Expression.ExpressionData::getValue).setDeepCopy(true);
+        } else if (ctx.expressionMap() != null) {
+            ExpressionMapContext emc = ctx.expressionMap();
+            int entries = emc.expression().size();
+            Map<String, Expression> mapEntries = HashMap.newHashMap(entries);
+            for (int i = (entries - 1); i >= 0; i--) {
+                String identifier = emc.identifier(i).getText();
+                ExpressionBuilder subexpression = stack.popTyped();
+                mapEntries.put(identifier, subexpression.build(emc.expression(i).getText()));
+            }
+            expression = ExpressionBuilder.of(mapEntries);
         } else {
             throw new IllegalStateException("Unreachable code");
         }

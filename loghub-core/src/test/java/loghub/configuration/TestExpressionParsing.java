@@ -541,6 +541,17 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testMap() throws ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", 1);
+        ev.put("b", 2);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> i = (Map<String, Object>) Tools.evalExpression("{c: [a], d: [b]}", ev);
+        Assert.assertEquals(1, i.get("c"));
+        Assert.assertEquals(2, i.get("d"));
+    }
+
+    @Test
     public void testCollectionsJoin() throws ProcessorException {
         Set<?> i1 = (Set<?>) Tools.evalExpression("set(1, 2, 3) + list(4,5,6)", factory.newEvent());
         Assert.assertEquals(Set.of(1, 2, 3, 4, 5, 6), i1);

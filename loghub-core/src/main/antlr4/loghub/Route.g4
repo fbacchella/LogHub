@@ -243,6 +243,7 @@ expression
     |   isEmpty = 'isEmpty' '(' expression ')'
     |   isIp = 'isIP' '(' expression ')'
     |   collection=('set' | 'list') ('(' ')' | expressionsList)
+    |   expressionMap
     |   flatten = Flatten '(' expression ')'
     |   {inLambda()}? lambdavar=Identifier {lambdaVariable.equals($lambdavar.text)}?
     ;
@@ -260,6 +261,10 @@ Flatten: 'flatten';
 
 expressionsList
     : '(' expression ( ','  expression )* ','? ')'
+    ;
+
+expressionMap
+    : '{' (identifier ':' expression ( ',' ? identifier ':' expression)*)? ','? '}'
     ;
 
 matchOperator
