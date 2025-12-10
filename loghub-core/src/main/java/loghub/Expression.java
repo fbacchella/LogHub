@@ -915,7 +915,11 @@ public class Expression {
     }
 
     public static Object flatten(Object value) {
-        if ((value == null) || (! (value instanceof Collection)  && (! value.getClass().isArray()) && (! (value instanceof Stream<?>)))) {
+        if (value == null || value == NullOrMissingValue.NULL) {
+            return NullOrMissingValue.NULL;
+        } else if (value == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
+        } else if (! (value instanceof Collection)  && (! value.getClass().isArray()) && (! (value instanceof Stream<?>))) {
             return value;
         } else {
             Stream<?> flatStream = toStream(value);
@@ -934,7 +938,8 @@ public class Expression {
     private static Stream<?> toStream(Object value) {
         return switch (value) {
             case null -> Stream.of(NullOrMissingValue.NULL);
-            case Collection<?> c -> c.stream().flatMap(Expression::toStream);
+            case NullOrMissingValue n -> n == NullOrMissingValue.MISSING ? Stream.empty() : Stream.of(NullOrMissingValue.NULL);
+            case Collection<?> c -> c.stream().filter(e -> e != NullOrMissingValue.MISSING).flatMap(Expression::toStream);
             case Object[] arr -> Arrays.stream(arr).flatMap(Expression::toStream);
             case int[] arr -> Arrays.stream(arr).boxed();
             case long[] arr -> Arrays.stream(arr).boxed();
@@ -944,7 +949,7 @@ public class Expression {
             case float[] arr -> IntStream.range(0, arr.length).mapToObj(i -> arr[i]);
             case char[] arr -> IntStream.range(0, arr.length).mapToObj(i -> arr[i]);
             case boolean[] arr -> IntStream.range(0, arr.length).mapToObj(i -> arr[i]);
-            case Stream<?> s -> s.flatMap(Expression::toStream);
+            case Stream<?> s -> s.filter(e -> e != NullOrMissingValue.MISSING).flatMap(Expression::toStream);
             default -> Stream.of(value);
         };
     }

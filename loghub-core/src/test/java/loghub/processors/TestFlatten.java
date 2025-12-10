@@ -8,10 +8,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.BeforeClass;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,7 +19,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import loghub.BeanChecks;
 import loghub.Expression;
-import loghub.LogUtils;
+import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 import loghub.Processor;
 import loghub.Tools;
@@ -30,31 +28,73 @@ import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 
-public class TestFlatten {
+class TestFlatten {
 
     private final EventsFactory factory = new EventsFactory();
     private static final Logger logger = LogManager.getLogger();
-
-    @BeforeClass
-    public static void configure() {
-        Tools.configure();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.AnsiClean");
-    }
 
     /* ====================================================================== */
     /*  Simple values                                                         */
     /* ====================================================================== */
 
     @Test
-    @DisplayName("Null must return null")
-    void testNullValue() {
-        Assertions.assertNull(Expression.flatten(null));
-    }
-
-    @Test
     @DisplayName("Simple standalone value must remain unchanged")
     void testSimpleValue() {
         Assertions.assertEquals("hello", Expression.flatten("hello"));
+    }
+
+    /* ====================================================================== */
+    /*  Missing or null values                                                */
+    /* ====================================================================== */
+
+    static Stream<Arguments> provideNull() {
+        return Stream.of(
+                Arguments.of(
+                        null,
+                        NullOrMissingValue.NULL
+                ),
+                Arguments.of(
+                        List.of(NullOrMissingValue.NULL),
+                        NullOrMissingValue.NULL
+                ),
+                Arguments.of(
+                        Collections.singletonList(null),
+                        NullOrMissingValue.NULL
+                ),
+                Arguments.of(
+                        new Object[]{null, NullOrMissingValue.NULL},
+                        List.of(NullOrMissingValue.NULL, NullOrMissingValue.NULL)
+                ),
+                Arguments.of(
+                        List.of(NullOrMissingValue.MISSING),
+                        List.of()
+                ),
+                Arguments.of(
+                        List.of(NullOrMissingValue.MISSING, 1),
+                        1
+                ),
+                Arguments.of(
+                        List.of(NullOrMissingValue.MISSING, 1, 2),
+                        List.of(1, 2)
+                ),
+                Arguments.of(
+                        NullOrMissingValue.NULL,
+                        NullOrMissingValue.NULL
+                )
+        );
+    }
+
+    @DisplayName("Null or missing must be correctly filtered")
+    @ParameterizedTest(name = "Flatten {0}")
+    @MethodSource("provideNull")
+    void testNullValue(Object input, Object expected) {
+        Assertions.assertEquals(expected, Expression.flatten(input));
+    }
+
+    @Test
+    @DisplayName("Ignored missing value")
+    void testMissing() {
+        Assertions.assertThrows(IgnoredEventException.class, () -> Expression.flatten(NullOrMissingValue.MISSING));
     }
 
     /* ====================================================================== */
