@@ -18,6 +18,7 @@ import loghub.AsyncProcessor;
 import loghub.DiscardedEventException;
 import loghub.EventsRepository;
 import loghub.Expression;
+import loghub.Helpers;
 import loghub.NullOrMissingValue;
 import loghub.PausedEvent;
 import loghub.Processor;
@@ -307,6 +308,12 @@ public class Merge extends Processor {
                 return Cumulator.LIST.cumulate(o);
             } else if (o instanceof Map) {
                 return Cumulator.MAP.cumulate(o);
+            } else if (o instanceof Expression ex) {
+                try {
+                    return getCumulator(ex.eval());
+                } catch (ProcessorException e) {
+                    throw new IllegalArgumentException("Can't identify the merge format: " + Helpers.resolveThrowableException(e), e);
+                }
             } else {
                 return Cumulator.LIST.cumulate(o);
             }
