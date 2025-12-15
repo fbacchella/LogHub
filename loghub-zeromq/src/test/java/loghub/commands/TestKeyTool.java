@@ -14,14 +14,14 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.beust.jcommander.JCommander;
 
-public class TestKeyTool {
+class TestKeyTool {
 
     @TempDir
     Path tempDir;
 
     @Test
     @DisplayName("Test multiple run")
-    public void test() throws IOException {
+    void test() throws IOException {
         Path storefolder = Files.createDirectories(tempDir.resolve("store"));
         String generatedPublicKey = run("--generate", "--export", storefolder.resolve("try.jks").toString());
         Assertions.assertEquals(generatedPublicKey, run("--import", storefolder.resolve("try.jks").toString(), "--export", storefolder.resolve("try.zpl").toString()));
@@ -31,7 +31,7 @@ public class TestKeyTool {
 
     @Test
     @DisplayName("P12 can't handle NaCl")
-    public void testFailedP12() throws IOException {
+    void testFailedP12() throws IOException {
         Path storefolder = Files.createDirectories(tempDir.resolve("storeP12"));
         run("--generate", "--export", storefolder.resolve("try.jks").toString());
         Parser parser = new Parser();
@@ -45,7 +45,7 @@ public class TestKeyTool {
 
     @Test
     @DisplayName("Wrong command line arguments to parse")
-    public void testFailedWrongArguments() throws IOException {
+    void testFailedWrongArguments() throws IOException {
         Parser parser = new Parser();
         JCommander jcom = parser.parse("--ignored1", "--ignored2");
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); PrintWriter w = new PrintWriter(bos, true)) {
@@ -57,7 +57,7 @@ public class TestKeyTool {
 
     @Test
     @DisplayName("Multiple export in a single run")
-    public void testMultipleExports() throws IOException {
+    void testMultipleExports() throws IOException {
         Path folder = Files.createDirectories(tempDir.resolve("multi"));
         // Generate once to JKS
         String generatedPublicKey = run("--generate", "--export", folder.resolve("init.jks").toString());
@@ -78,7 +78,7 @@ public class TestKeyTool {
 
     @Test
     @DisplayName("Verbose mode logs actions")
-    public void testVerboseMode() throws IOException {
+    void testVerboseMode() throws IOException {
         Path folder = Files.createDirectories(tempDir.resolve("verbose"));
         String target = folder.resolve("out.p8").toString();
         String output = run("--verbose", "--generate", "--export", target);
