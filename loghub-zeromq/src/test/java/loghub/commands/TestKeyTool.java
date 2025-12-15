@@ -39,7 +39,7 @@ public class TestKeyTool {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); PrintWriter w = new PrintWriter(bos, true)) {
             int status = parser.process(jcom, w, w);
             Assertions.assertEquals(14, status);
-            Assertions.assertEquals("Unhandled key format: application/x-pkcs12", bos.toString(StandardCharsets.UTF_8));
+            Assertions.assertEquals("Unhandled key format: application/x-pkcs12" + System.lineSeparator(), bos.toString(StandardCharsets.UTF_8));
         }
     }
 
@@ -51,7 +51,7 @@ public class TestKeyTool {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); PrintWriter w = new PrintWriter(bos, true)) {
             int status = parser.process(jcom, w, w);
             Assertions.assertEquals(14, status);
-            Assertions.assertEquals("Unhandled arguments: '--ignored1' '--ignored2'", bos.toString(StandardCharsets.UTF_8));
+            Assertions.assertEquals("Unhandled arguments: '--ignored1' '--ignored2'" + System.lineSeparator(), bos.toString(StandardCharsets.UTF_8));
         }
     }
 

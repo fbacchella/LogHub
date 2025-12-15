@@ -83,7 +83,7 @@ public class KeyTool implements BaseParametersRunner {
     @Override
     public int run(List<String> mainParameters, PrintWriter out, PrintWriter err) {
         if (! mainParameters.isEmpty()) {
-            err.format("Unhandled arguments: %s", mainParameters.stream().map("'%s'"::formatted).collect(Collectors.joining(" ")));
+            err.format("Unhandled arguments: %s%n", mainParameters.stream().map("'%s'"::formatted).collect(Collectors.joining(" ")));
             return ExitCode.INVALIDARGUMENTS;
         }
         KeyPair k;
@@ -91,7 +91,7 @@ public class KeyTool implements BaseParametersRunner {
             try {
                 k = generateKey();
             } catch (NoSuchAlgorithmException e) {
-                err.format("Unable to generate key %s", e.getMessage());
+                err.format("Unable to generate key %s%n", e.getMessage());
                 return ExitCode.CRITICALFAILURE;
             }
         } else if (keypath != null) {
@@ -107,14 +107,14 @@ public class KeyTool implements BaseParametersRunner {
                     default -> null;
                 };
                 if (k == null) {
-                    err.format("Unknown key format: %s", mimeType);
+                    err.format("Unknown key format: %s%n", mimeType);
                     return ExitCode.INVALIDARGUMENTS;
                 }
             } catch (GeneralSecurityException e) {
-                err.format("Unable to decode key: %s", e.getMessage());
+                err.format("Unable to decode key: %s%n", e.getMessage());
                 return ExitCode.INVALIDARGUMENTS;
             } catch (IOException e) {
-                err.format("Unable to read key file \"%s\": %s", keypath, e.getMessage());
+                err.format("Unable to read key file \"%s\": %s%n", keypath, e.getMessage());
                 return ExitCode.INVALIDARGUMENTS;
             }
         } else {
@@ -132,7 +132,7 @@ public class KeyTool implements BaseParametersRunner {
                          "application/x-java-bc-keystore",
                          "application/x-java-bc-uber-keystore" -> writeToKeystore(exportPath, mimeType, k);
                     default -> {
-                        err.format("Unhandled key format: %s", mimeType);
+                        err.format("Unhandled key format: %s%n", mimeType);
                         return ExitCode.INVALIDARGUMENTS;
                     }
                     }
@@ -142,10 +142,10 @@ public class KeyTool implements BaseParametersRunner {
             out.println("Curve: " + Base64.getEncoder().encodeToString(pubspec.getBytes()));
             return ExitCode.OK;
         } catch (GeneralSecurityException e) {
-            err.format("Unable to decode key: %s", e.getMessage());
+            err.format("Unable to decode key: %s%n", e.getMessage());
             return ExitCode.CRITICALFAILURE;
         } catch (IOException e) {
-            err.format("Unable to write key file: %s", e.getMessage());
+            err.format("Unable to write key file: %s%n", e.getMessage());
             return ExitCode.INVALIDARGUMENTS;
         }
     }
