@@ -76,6 +76,9 @@ public class KeyTool implements BaseParametersRunner {
     @Parameter(names = {"-v", "--verbose"}, description = "Enable verbose output")
     private boolean verbose = false;
 
+    @Parameter(names = {"--publickey"}, description = "Display public key in Base64 and Z85")
+    private boolean showPublicKey = false;
+
     @Override
     public void reset() {
         keypath = null;
@@ -83,6 +86,7 @@ public class KeyTool implements BaseParametersRunner {
         generate = false;
         exportPaths = List.of();
         verbose = false;
+        showPublicKey = false;
     }
 
     @Override
@@ -132,6 +136,12 @@ public class KeyTool implements BaseParametersRunner {
             return ExitCode.INVALIDARGUMENTS;
         }
         try {
+            if (showPublicKey) {
+                NaclPublicKeySpec pubspec = NACLKEYFACTORY.getKeySpec(k.getPublic(), NaclPublicKeySpec.class);
+                byte[] pubBytes = pubspec.getBytes();
+                out.println("Curve (base64): " + Base64.getEncoder().encodeToString(pubBytes));
+                out.println("Curve (Z85): " + ZMQ.Curve.z85Encode(pubBytes));
+            }
             if (! exportPaths.isEmpty()) {
                 for (Path exportPath : exportPaths) {
                     String mimeType = Helpers.getMimeType(exportPath.toString());
@@ -155,8 +165,6 @@ public class KeyTool implements BaseParametersRunner {
                     }
                 }
             }
-            NaclPublicKeySpec pubspec = NACLKEYFACTORY.getKeySpec(k.getPublic(), NaclPublicKeySpec.class);
-            out.println("Curve: " + Base64.getEncoder().encodeToString(pubspec.getBytes()));
             return ExitCode.OK;
         } catch (GeneralSecurityException e) {
             err.format("Unable to decode key: %s%n", e.getMessage());

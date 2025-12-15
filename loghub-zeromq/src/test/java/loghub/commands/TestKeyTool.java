@@ -23,10 +23,10 @@ class TestKeyTool {
     @DisplayName("Test multiple run")
     void test() throws IOException {
         Path storefolder = Files.createDirectories(tempDir.resolve("store"));
-        String generatedPublicKey = run("--generate", "--export", storefolder.resolve("try.jks").toString());
-        Assertions.assertEquals(generatedPublicKey, run("--import", storefolder.resolve("try.jks").toString(), "--export", storefolder.resolve("try.zpl").toString()));
-        Assertions.assertEquals(generatedPublicKey, run("--import", storefolder.resolve("try.zpl").toString(), "--export", storefolder.resolve("try.p8").toString()));
-        Assertions.assertEquals(generatedPublicKey, run("--import", storefolder.resolve("try.p8").toString(), "--export", storefolder.resolve("try.jceks").toString()));
+        String generatedPublicKey = run("--public", "--generate", "--export", storefolder.resolve("try.jks").toString());
+        Assertions.assertEquals(generatedPublicKey, run("--public", "--import", storefolder.resolve("try.jks").toString(), "--export", storefolder.resolve("try.zpl").toString()));
+        Assertions.assertEquals(generatedPublicKey, run("--public", "--import", storefolder.resolve("try.zpl").toString(), "--export", storefolder.resolve("try.p8").toString()));
+        Assertions.assertEquals(generatedPublicKey, run("--public", "--import", storefolder.resolve("try.p8").toString(), "--export", storefolder.resolve("try.jceks").toString()));
     }
 
     @Test
@@ -60,13 +60,13 @@ class TestKeyTool {
     void testMultipleExports() throws IOException {
         Path folder = Files.createDirectories(tempDir.resolve("multi"));
         // Generate once to JKS
-        String generatedPublicKey = run("--generate", "--export", folder.resolve("init.jks").toString());
+        String generatedPublicKey = run("--public", "--generate", "--export", folder.resolve("init.jks").toString());
         // Import and export to multiple destinations in one run
         String out1 = folder.resolve("out1.zpl").toString();
         String out2 = folder.resolve("out2.p8").toString();
         String out3 = folder.resolve("out3.jceks").toString();
         String out4 = folder.resolve("out4.zpl").toString();
-        String result = run("--import", folder.resolve("init.jks").toString(), "--export", out1, "--export", out2, "--export", out3, "--export", out4);
+        String result = run("--public", "--import", folder.resolve("init.jks").toString(), "--export", out1, "--export", out2, "--export", out3, "--export", out4);
         Assertions.assertEquals(generatedPublicKey, result);
         Assertions.assertTrue(Files.exists(Path.of(out1)));
         Assertions.assertTrue(Files.exists(Path.of(out2)));
@@ -81,11 +81,12 @@ class TestKeyTool {
     void testVerboseMode() throws IOException {
         Path folder = Files.createDirectories(tempDir.resolve("verbose"));
         String target = folder.resolve("out.p8").toString();
-        String output = run("--verbose", "--generate", "--export", target);
+        String output = run("--public", "--verbose", "--generate", "--export", target);
         Assertions.assertTrue(output.contains("Generating new key"), "Should log generation start");
         Assertions.assertTrue(output.contains("Exporting to \"" + target + "\""), "Should log export start");
         Assertions.assertTrue(output.contains("Exported to \"" + target + "\""), "Should log export end");
-        Assertions.assertTrue(output.contains("Curve: "), "Should print curve on stdout");
+        Assertions.assertTrue(output.contains("Curve (base64): "), "Should print base64 curve on stdout");
+        Assertions.assertTrue(output.contains("Curve (Z85): "), "Should print Z85 curve on stdout");
     }
 
     private String run(String... args) throws IOException {
