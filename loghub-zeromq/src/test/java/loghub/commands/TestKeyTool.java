@@ -4,50 +4,76 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.beust.jcommander.JCommander;
 
 public class TestKeyTool {
 
-    @Rule
-    public final TemporaryFolder testFolder = new TemporaryFolder();
+    @TempDir
+    Path tempDir;
 
     @Test
+    @DisplayName("Test multiple run")
     public void test() throws IOException {
-        String storefolder = testFolder.newFolder().toString();
-        String generatedPublicKey = run("--generate", "--export", storefolder + "/try.jks");
-        Assert.assertEquals(generatedPublicKey, run("--import", storefolder + "/try.jks", "--export", storefolder + "/try.zpl"));
-        Assert.assertEquals(generatedPublicKey, run("--import", storefolder + "/try.zpl", "--export", storefolder + "/try.p8"));
-        Assert.assertEquals(generatedPublicKey, run("--import", storefolder + "/try.p8", "--export", storefolder + "/try.jceks"));
+        Path storefolder = Files.createDirectories(tempDir.resolve("store"));
+        String generatedPublicKey = run("--generate", "--export", storefolder.resolve("try.jks").toString());
+        Assertions.assertEquals(generatedPublicKey, run("--import", storefolder.resolve("try.jks").toString(), "--export", storefolder.resolve("try.zpl").toString()));
+        Assertions.assertEquals(generatedPublicKey, run("--import", storefolder.resolve("try.zpl").toString(), "--export", storefolder.resolve("try.p8").toString()));
+        Assertions.assertEquals(generatedPublicKey, run("--import", storefolder.resolve("try.p8").toString(), "--export", storefolder.resolve("try.jceks").toString()));
     }
 
     @Test
+    @DisplayName("P12 can't handle NaCl")
     public void testFailedP12() throws IOException {
-        String storefolder = testFolder.newFolder().toString();
-        run("--generate", "--export", storefolder + "/try.jks");
+        Path storefolder = Files.createDirectories(tempDir.resolve("storeP12"));
+        run("--generate", "--export", storefolder.resolve("try.jks").toString());
         Parser parser = new Parser();
-        JCommander jcom = parser.parse("--import", storefolder + "/try.jks", "--export", storefolder + "/try.p12");
+        JCommander jcom = parser.parse("--import", storefolder.resolve("try.jks").toString(), "--export", storefolder.resolve("try.p12").toString());
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); PrintWriter w = new PrintWriter(bos, true)) {
             int status = parser.process(jcom, w, w);
-            Assert.assertEquals(14, status);
-            Assert.assertEquals("Unhandled key format: application/x-pkcs12", bos.toString(StandardCharsets.UTF_8));
+            Assertions.assertEquals(14, status);
+            Assertions.assertEquals("Unhandled key format: application/x-pkcs12", bos.toString(StandardCharsets.UTF_8));
         }
     }
 
     @Test
+    @DisplayName("Wrong command line arguments to parse")
     public void testFailedWrongArguments() throws IOException {
         Parser parser = new Parser();
         JCommander jcom = parser.parse("--ignored1", "--ignored2");
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); PrintWriter w = new PrintWriter(bos, true)) {
             int status = parser.process(jcom, w, w);
-            Assert.assertEquals(14, status);
-            Assert.assertEquals("Unhandled arguments: '--ignored1' '--ignored2'", bos.toString(StandardCharsets.UTF_8));
+            Assertions.assertEquals(14, status);
+            Assertions.assertEquals("Unhandled arguments: '--ignored1' '--ignored2'", bos.toString(StandardCharsets.UTF_8));
         }
+    }
+
+    @Test
+    @DisplayName("Multiple export in a single run")
+    public void testMultipleExports() throws IOException {
+        Path folder = Files.createDirectories(tempDir.resolve("multi"));
+        // Generate once to JKS
+        String generatedPublicKey = run("--generate", "--export", folder.resolve("init.jks").toString());
+        // Import and export to multiple destinations in one run
+        String out1 = folder.resolve("out1.zpl").toString();
+        String out2 = folder.resolve("out2.p8").toString();
+        String out3 = folder.resolve("out3.jceks").toString();
+        String out4 = folder.resolve("out4.zpl").toString();
+        String result = run("--import", folder.resolve("init.jks").toString(), "--export", out1, "--export", out2, "--export", out3, "--export", out4);
+        Assertions.assertEquals(generatedPublicKey, result);
+        Assertions.assertTrue(Files.exists(Path.of(out1)));
+        Assertions.assertTrue(Files.exists(Path.of(out2)));
+        Assertions.assertTrue(Files.exists(Path.of(out3)));
+        byte[] out1Bytes = Files.readAllBytes(folder.resolve("out1.zpl"));
+        byte[] out4Bytes = Files.readAllBytes(folder.resolve("out4.zpl"));
+        Assertions.assertArrayEquals(out1Bytes, out4Bytes);
     }
 
     private String run(String... args) throws IOException {
@@ -55,7 +81,7 @@ public class TestKeyTool {
         JCommander jcom = parser.parse(args);
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); PrintWriter w = new PrintWriter(bos, true)) {
             int status = parser.process(jcom, w, w);
-            Assert.assertEquals(0, status);
+            Assertions.assertEquals(0, status);
             return bos.toString(StandardCharsets.UTF_8);
         }
     }

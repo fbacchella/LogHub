@@ -69,15 +69,15 @@ public class KeyTool implements BaseParametersRunner {
     @Parameter(names = {"--generate"}, description = "Generate a new key")
     private boolean generate = false;
 
-    @Parameter(names = {"--export"}, description = "Export key file")
-    private Path exportPath = null;
+    @Parameter(names = {"--export"}, description = "Export key file (can be specified multiple times)")
+    private List<Path> exportPaths = List.of();
 
     @Override
     public void reset() {
         keypath = null;
         keyname = ZMQSocketFactory.KEYNAME;
         generate = false;
-        exportPath = null;
+        exportPaths = List.of();
     }
 
     @Override
@@ -121,19 +121,21 @@ public class KeyTool implements BaseParametersRunner {
             return ExitCode.INVALIDARGUMENTS;
         }
         try {
-            if (exportPath != null) {
-                String mimeType = Helpers.getMimeType(exportPath.toString());
-                switch (mimeType) {
-                case "application/x-zeromq-zpl" -> writeToZpl(k);
-                case "application/pkcs8" -> writeToP8(k);
-                case "application/x-java-keystore",
-                     "application/x-java-jce-keystore",
-                     "application/x-java-bc-keystore",
-                     "application/x-java-bc-uber-keystore" -> writeToKeystore(mimeType, k);
-                default -> {
-                    err.format("Unhandled key format: %s", mimeType);
-                    return ExitCode.INVALIDARGUMENTS;
-                }
+            if (! exportPaths.isEmpty()) {
+                for (Path exportPath : exportPaths) {
+                    String mimeType = Helpers.getMimeType(exportPath.toString());
+                    switch (mimeType) {
+                    case "application/x-zeromq-zpl" -> writeToZpl(exportPath, k);
+                    case "application/pkcs8" -> writeToP8(exportPath, k);
+                    case "application/x-java-keystore",
+                         "application/x-java-jce-keystore",
+                         "application/x-java-bc-keystore",
+                         "application/x-java-bc-uber-keystore" -> writeToKeystore(exportPath, mimeType, k);
+                    default -> {
+                        err.format("Unhandled key format: %s", mimeType);
+                        return ExitCode.INVALIDARGUMENTS;
+                    }
+                    }
                 }
             }
             NaclPublicKeySpec pubspec = NACLKEYFACTORY.getKeySpec(k.getPublic(), NaclPublicKeySpec.class);
@@ -143,12 +145,12 @@ public class KeyTool implements BaseParametersRunner {
             err.format("Unable to decode key: %s", e.getMessage());
             return ExitCode.CRITICALFAILURE;
         } catch (IOException e) {
-            err.format("Unable to write key file \"%s\": %s", exportPath, e.getMessage());
+            err.format("Unable to write key file: %s", e.getMessage());
             return ExitCode.INVALIDARGUMENTS;
         }
     }
 
-    private void writeToKeystore(String mimeType, KeyPair k) throws GeneralSecurityException, IOException {
+    private void writeToKeystore(Path exportPath, String mimeType, KeyPair k) throws GeneralSecurityException, IOException {
         KeyStore ks = KeyStore.getInstance(MAPPING.get(mimeType));
         ks.load(null);
         NaclCertificate certificate = new NaclCertificate(k.getPublic());
@@ -156,11 +158,11 @@ public class KeyTool implements BaseParametersRunner {
         ks.store(Files.newOutputStream(exportPath), password);
     }
 
-    private void writeToP8(KeyPair k) throws IOException {
+    private void writeToP8(Path exportPath, KeyPair k) throws IOException {
         Files.write(exportPath, k.getPrivate().getEncoded());
     }
 
-    private void writeToZpl(KeyPair k) throws GeneralSecurityException, IOException {
+    private void writeToZpl(Path exportPath, KeyPair k) throws GeneralSecurityException, IOException {
         ZConfig zconf = new ZConfig("root", null);
         NaclPublicKeySpec pubSpec = NACLKEYFACTORY.getKeySpec(k.getPublic(), NaclPublicKeySpec.class);
         NaclPrivateKeySpec privSpec = NACLKEYFACTORY.getKeySpec(k.getPrivate(), NaclPrivateKeySpec.class);
