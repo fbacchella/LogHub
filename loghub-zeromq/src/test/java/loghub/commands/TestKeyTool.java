@@ -76,6 +76,18 @@ public class TestKeyTool {
         Assertions.assertArrayEquals(out1Bytes, out4Bytes);
     }
 
+    @Test
+    @DisplayName("Verbose mode logs actions")
+    public void testVerboseMode() throws IOException {
+        Path folder = Files.createDirectories(tempDir.resolve("verbose"));
+        String target = folder.resolve("out.p8").toString();
+        String output = run("--verbose", "--generate", "--export", target);
+        Assertions.assertTrue(output.contains("Generating new key"), "Should log generation start");
+        Assertions.assertTrue(output.contains("Exporting to \"" + target + "\""), "Should log export start");
+        Assertions.assertTrue(output.contains("Exported to \"" + target + "\""), "Should log export end");
+        Assertions.assertTrue(output.contains("Curve: "), "Should print curve on stdout");
+    }
+
     private String run(String... args) throws IOException {
         Parser parser = new Parser();
         JCommander jcom = parser.parse(args);

@@ -55,7 +55,8 @@ public class KeyTool implements BaseParametersRunner {
             "application/x-java-keystore", "JKS",
             "application/x-java-jce-keystore", "JCEKS",
             "application/x-java-bc-keystore", "BKS",
-            "application/x-java-bc-uber-keystore", "Keystore.UBER"
+            "application/x-java-bc-uber-keystore", "Keystore.UBER",
+            "application/x-zeromq-zpl", "ZPL"
     );
 
     @SuppressWarnings("CanBeFinal")
@@ -72,12 +73,16 @@ public class KeyTool implements BaseParametersRunner {
     @Parameter(names = {"--export"}, description = "Export key file (can be specified multiple times)")
     private List<Path> exportPaths = List.of();
 
+    @Parameter(names = {"-v", "--verbose"}, description = "Enable verbose output")
+    private boolean verbose = false;
+
     @Override
     public void reset() {
         keypath = null;
         keyname = ZMQSocketFactory.KEYNAME;
         generate = false;
         exportPaths = List.of();
+        verbose = false;
     }
 
     @Override
@@ -89,6 +94,9 @@ public class KeyTool implements BaseParametersRunner {
         KeyPair k;
         if (generate) {
             try {
+                if (verbose) {
+                    err.format("Generating new key%n");
+                }
                 k = generateKey();
             } catch (NoSuchAlgorithmException e) {
                 err.format("Unable to generate key %s%n", e.getMessage());
@@ -97,6 +105,9 @@ public class KeyTool implements BaseParametersRunner {
         } else if (keypath != null) {
             String mimeType = Helpers.getMimeType(keypath.toString());
             try {
+                if (verbose) {
+                    err.format("Importing key from \"%s\" (type: %s)%n", keypath, MAPPING.get(mimeType));
+                }
                 k = switch (mimeType) {
                     case "application/x-zeromq-zpl" -> readFromZpl();
                     case "application/pkcs8" -> readFromP8();
@@ -124,6 +135,9 @@ public class KeyTool implements BaseParametersRunner {
             if (! exportPaths.isEmpty()) {
                 for (Path exportPath : exportPaths) {
                     String mimeType = Helpers.getMimeType(exportPath.toString());
+                    if (verbose) {
+                        err.format("Exporting to \"%s\" %s (type: %s)%n", exportPath, mimeType, MAPPING.get(mimeType));
+                    }
                     switch (mimeType) {
                     case "application/x-zeromq-zpl" -> writeToZpl(exportPath, k);
                     case "application/pkcs8" -> writeToP8(exportPath, k);
@@ -135,6 +149,9 @@ public class KeyTool implements BaseParametersRunner {
                         err.format("Unhandled key format: %s%n", mimeType);
                         return ExitCode.INVALIDARGUMENTS;
                     }
+                    }
+                    if (verbose) {
+                        err.format("Exported to \"%s\"%n", exportPath);
                     }
                 }
             }
