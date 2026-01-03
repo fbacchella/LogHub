@@ -9,6 +9,7 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -25,6 +26,7 @@ import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.MutableEntry;
 
 import com.maxmind.db.CacheKey;
+import com.maxmind.db.DatabaseRecord;
 import com.maxmind.db.DecodedValue;
 import com.maxmind.db.NodeCache;
 import com.maxmind.db.Reader;
@@ -32,6 +34,7 @@ import com.maxmind.db.Reader;
 import loghub.BuilderClass;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.configuration.CacheManager;
 import loghub.configuration.CacheManager.Policy;
 import loghub.configuration.Properties;
@@ -40,12 +43,14 @@ import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
 import loghub.httpclient.JavaHttpClientService;
-import loghub.processors.Geoip2.Builder;
+import loghub.processors.FieldsProcessor.InPlace;
+import loghub.processors.GeoipNext.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
 @BuilderClass(Builder.class)
-public class Geoip2 extends FieldsProcessor {
+@InPlace
+public class GeoipNext extends FieldsProcessor {
 
     private static final Set<String> ALL = HashSet.newHashSet(0);
 
@@ -82,7 +87,7 @@ public class Geoip2 extends FieldsProcessor {
     }
 
     @Setter
-    public static class Builder extends FieldsProcessor.Builder<Geoip2> {
+    public static class Builder extends FieldsProcessor.Builder<GeoipNext> {
         private String geoipdb = null;
         // Keep compatibily with previous version of this processor
         private String isoCodeKey = "code";
@@ -92,9 +97,10 @@ public class Geoip2 extends FieldsProcessor {
         private String refresh = "";
         private CacheManager cacheManager;
         private boolean required = true;
-        private boolean keepOld = true;
-        public Geoip2 build() {
-            return new Geoip2(this);
+        private boolean keepOldLayout = true;
+        private boolean returnNetwork = false;
+        public GeoipNext build() {
+            return new GeoipNext(this);
         }
     }
     public static Builder getBuilder() {
@@ -113,13 +119,14 @@ public class Geoip2 extends FieldsProcessor {
     @Getter
     private final Duration delay;
     private final String isoCodeKey;
-    private final boolean keepOld;
+    private final boolean keepOldLayout;
+    private final boolean returnNetwok;
     private final ReadWriteLock dbProtectionLock = new ReentrantReadWriteLock();
     private volatile long lastBuildDate = 0;
 
-    public Geoip2(Builder builder) {
+    public GeoipNext(Builder builder) {
         super(builder);
-        if (builder.types.length == 0 && builder.keepOld) {
+        if (builder.types.length == 0 && builder.keepOldLayout) {
             this.types = Set.of("country", "continent", "name", "city", "latitude", "longitude", "code", "timezone",
                                 "accuray_radius", "metro_code", "average_income", "population_density");
         } else if (builder.types.length == 0) {
@@ -129,8 +136,9 @@ public class Geoip2 extends FieldsProcessor {
         } else {
             this.types = Set.of(builder.types);
         }
-        this.keepOld = builder.keepOld;
-        this.isoCodeKey = builder.keepOld ? "code" : builder.isoCodeKey;
+        this.keepOldLayout = builder.keepOldLayout;
+        this.returnNetwok = builder.returnNetwork;
+        this.isoCodeKey = builder.keepOldLayout ? "code" : builder.isoCodeKey;
         this.geoipdb = Optional.ofNullable(builder.geoipdb)
                                .map(Helpers::fileUri)
                                .orElse(null);
@@ -171,6 +179,12 @@ public class Geoip2 extends FieldsProcessor {
     }
 
     private Object resolution(Event event, Object addr) throws ProcessorException {
+        // If reader is null, it started with a failed geoloc db and required is false
+        // so just fails the resolution
+        if (reader == null) {
+            return RUNSTATUS.FAILED;
+        }
+
         InetAddress ipInfo;
         switch (addr) {
         case InetAddress inetAddres -> ipInfo = inetAddres;
@@ -178,40 +192,46 @@ public class Geoip2 extends FieldsProcessor {
             try {
                 ipInfo = Helpers.parseIpAddress(s);
             } catch (UnknownHostException e) {
-                throw event.buildException("can't read IP address " + addr, e);
+                throw event.buildException("Can't read IP address " + addr, e);
             }
         }
         default -> throw event.buildException("It's not an IP address: " + addr);
         }
 
-        // If reader is null, it started with a failed geoloc db and required is false
-        // so just fails the resolution
-        if (reader == null) {
-            return RUNSTATUS.FAILED;
-        }
-
-        Map<String, Object> informations;
+        DatabaseRecord<Map> dbRecord;
         try {
-            informations = filterMap(reader.getRecord(ipInfo, Map.class).data());
+            dbRecord = reader.getRecord(ipInfo, Map.class);
         } catch (IOException e) {
             throw event.buildException("Can't read GeoIP database", e);
         }
-        if (! informations.isEmpty()) {
+        Map<String, Object> informations = filterMap(dbRecord.data());
+        if (returnNetwok && ! informations.containsKey("network")) {
+            informations.put("network", dbRecord.network().toString());
+        }
+        if (informations.isEmpty()) {
+            return RUNSTATUS.FAILED;
+        } else if (! isInPlace()) {
             return informations;
         } else {
-            return RUNSTATUS.FAILED;
+            for (Map.Entry<String, Object> e : informations.entrySet()) {
+                VariablePath vp = VariablePath.of(e.getKey());
+                event.putAtPath(vp, e.getValue());
+            }
+            return RUNSTATUS.NOSTORE;
         }
     }
 
     private Map<String, Object> filterMap(Map<String, Object> map) {
-        return map == null ?
-            Map.of() :
-            map.entrySet()
-               .stream()
-               .map(this::filterRecordEntry)
-               .filter(Optional::isPresent)
-               .map(Optional::get)
-               .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+        if (map == null) {
+            return HashMap.newHashMap(1);
+        } else {
+            return map.entrySet()
+                      .stream()
+                      .map(this::filterRecordEntry)
+                      .filter(Optional::isPresent)
+                      .map(Optional::get)
+                      .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+        }
     }
 
     private Optional<Map.Entry<String, Object>> filterRecordEntry(Map.Entry<String, Object> e) {
@@ -223,15 +243,15 @@ public class Geoip2 extends FieldsProcessor {
             return Optional.of(Map.entry("name", langs.get(locale)));
         } else if (e.getKey().equals("iso_code") && checkKey(isoCodeKey)){
             return Optional.of(Map.entry(isoCodeKey, e.getValue()));
-        } else if (e.getKey().equals("continent") && checkKey("continent") && keepOld) {
+        } else if (e.getKey().equals("continent") && checkKey("continent") && keepOldLayout) {
             @SuppressWarnings("unchecked")
             Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
             return filtered.containsKey("name") ? Optional.of(Map.entry("continent", filtered.get("name"))) : Optional.empty();
-        } else if (e.getKey().equals("postal") && checkKey(isoCodeKey) && keepOld) {
+        } else if (e.getKey().equals("postal") && checkKey(isoCodeKey) && keepOldLayout) {
             @SuppressWarnings("unchecked")
             Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
             return filtered.containsKey("code") ? Optional.of(Map.entry("postal", filtered.get("code"))) : Optional.empty();
-        } else if (e.getKey().equals("city") && e.getValue() instanceof Map && checkKey(isoCodeKey) && keepOld) {
+        } else if (e.getKey().equals("city") && e.getValue() instanceof Map && checkKey(isoCodeKey) && keepOldLayout) {
             @SuppressWarnings("unchecked")
             Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
             return filtered.containsKey("name") ? Optional.of(Map.entry("city", filtered.get("name"))) : Optional.empty();
@@ -324,7 +344,7 @@ public class Geoip2 extends FieldsProcessor {
                 temproraryReader = new Reader(new ByteArrayInputStream(content));
             }
         } else {
-            try (InputStream is = Geoip2.class.getResourceAsStream("GeoLite2-City.mmdb")) {
+            try (InputStream is = GeoipNext.class.getResourceAsStream("GeoLite2-City.mmdb")) {
                 if (is == null) {
                     logger.error("Didn't find a default database");
                     return Optional.empty();
@@ -341,7 +361,7 @@ public class Geoip2 extends FieldsProcessor {
                 if (content != null) {
                     mr = c -> {
                         try (InputStream is = new ByteArrayInputStream(content)) {
-                            return new Reader(is, geoipCache);
+                            return new Reader(is, c);
                         }
                     };
                 } else {
