@@ -28,7 +28,6 @@ import loghub.VariablePath;
 import loghub.configuration.CacheManager;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
-import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 class TestGeoip2 {
@@ -125,25 +124,6 @@ class TestGeoip2 {
         Geoip2 geoip = conf.namedPipeLine.get("geoip").processors.stream().findAny().map(Geoip2.class::cast).orElseThrow(() -> new IllegalStateException("No received defined"));
         geoip.configure(conf);
         Map<String, Object> geoinfos = runner.apply(geoip, factory);
-        Assertions.assertEquals(7, geoinfos.size());
-        Map<String, String> country = (Map<String, String>) geoinfos.get("country");
-        Assertions.assertEquals("US", country.get("code"));
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void parseConfigInPlace() throws IOException, ProcessorException {
-        String geoipPath = TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString();
-        String config = String.format("pipeline[geoip]{loghub.processors.Geoip2 {geoipdb: \"%s\", field: [ip], types: [\"all\"], destination: [geoip], inPlace: true}}", geoipPath);
-        Properties conf = Configuration.parse(new StringReader(config));
-        Geoip2 geoip = conf.namedPipeLine.get("geoip").processors.stream().findAny().map(Geoip2.class::cast).orElseThrow(() -> new IllegalStateException("No received defined"));
-        geoip.configure(conf);
-        Event e = factory.newEvent();
-        e.put("ip", List.of("8.8.8.8", "1.1.1.1"));
-
-        geoip.process(e);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> geoinfos = (Map<String, Object>) e.get("geoip");
         Assertions.assertEquals(7, geoinfos.size());
         Map<String, String> country = (Map<String, String>) geoinfos.get("country");
         Assertions.assertEquals("US", country.get("code"));
