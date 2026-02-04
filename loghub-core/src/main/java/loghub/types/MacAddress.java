@@ -14,7 +14,7 @@ import lombok.EqualsAndHashCode;
 @Immutable
 public class MacAddress {
 
-    private static final Pattern macPattern = Pattern.compile("([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})(?:[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2}))?");
+    private static final Pattern macPattern = Pattern.compile("([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})(?:[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2}))?");
     private static final ThreadLocal<Matcher> localMatcher = ThreadLocal.withInitial(() -> macPattern.matcher(""));
     private static final VarFormatter formatter48 = new VarFormatter("${#1%02X}-${#2%02X}-${#3%02X}-${#4%02X}-${#5%02X}-${#6%02X}");
     private static final VarFormatter formatter64 = new VarFormatter("${#1%02X}-${#2%02X}-${#3%02X}-${#4%02X}-${#5%02X}-${#6%02X}-${#7%02X}-${#8%02X}");
