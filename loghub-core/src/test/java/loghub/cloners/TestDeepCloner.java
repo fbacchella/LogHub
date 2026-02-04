@@ -8,6 +8,7 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -108,6 +109,8 @@ public class TestDeepCloner {
         checkIdentity(Collections.emptyMap());
         checkIdentity(Collections.emptyList());
         checkIdentity(new CloneableObject());
+        checkIdentity(ByteBuffer.allocate(1).asReadOnlyBuffer());
+        checkIdentity(ByteBuffer.allocateDirect(1).asReadOnlyBuffer());
         // Avoid static compilation of a constant
         checkIdentity(new StringBuffer("Log").append("Hub").toString());
         checkEquality(new Date());

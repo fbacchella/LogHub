@@ -5,6 +5,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.net.InetAddress;
 import java.net.SocketAddress;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -156,6 +157,8 @@ public class DeepCloner {
         } else if (o instanceof Double) {
             return o;
         } else if (o instanceof Character) {
+            return o;
+        } else if (o instanceof ByteBuffer bb && bb.isReadOnly()) {
             return o;
         } else if (isImmutable(o)) {
             return o;
