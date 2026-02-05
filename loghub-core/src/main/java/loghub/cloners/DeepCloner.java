@@ -159,7 +159,7 @@ public class DeepCloner {
         } else if (o instanceof Character) {
             return o;
         } else if (o instanceof ByteBuffer bb && bb.isReadOnly()) {
-            return o;
+            return (T) bb.duplicate();
         } else if (isImmutable(o)) {
             return o;
         } else if (faster.containsKey(o.getClass())) {

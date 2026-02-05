@@ -109,8 +109,8 @@ public class TestDeepCloner {
         checkIdentity(Collections.emptyMap());
         checkIdentity(Collections.emptyList());
         checkIdentity(new CloneableObject());
-        checkIdentity(ByteBuffer.allocate(1).asReadOnlyBuffer());
-        checkIdentity(ByteBuffer.allocateDirect(1).asReadOnlyBuffer());
+        checkEquality(ByteBuffer.allocate(1).asReadOnlyBuffer());
+        checkEquality(ByteBuffer.allocateDirect(1).asReadOnlyBuffer());
         // Avoid static compilation of a constant
         checkIdentity(new StringBuffer("Log").append("Hub").toString());
         checkEquality(new Date());
