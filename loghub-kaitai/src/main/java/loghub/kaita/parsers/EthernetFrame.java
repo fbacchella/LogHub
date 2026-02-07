@@ -1,13 +1,15 @@
-package kaitai;// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
+package loghub.kaita.parsers;
+// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
-
+import loghub.kaita.KaitaiStreamDecoderService;
 
 /**
  * Ethernet frame is a OSI data link layer (layer 2) protocol data unit
@@ -76,8 +78,17 @@ public class EthernetFrame extends KaitaiStruct {
                     this.body = new Ipv4Packet(_io__raw_body);
                     break;
                 }
+                case IPV6: {
+                    this._raw_body = this._io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new Ipv6Packet(_io__raw_body);
+                    break;
+                }
                 default: {
-                    this.body = this._io.readBytesFull();
+                    this._raw_body = this._io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    Optional<? extends KaitaiStruct> decoded = KaitaiStreamDecoderService.resolve(this, _io__raw_body);
+                    this.body = decoded.isPresent() ? decoded.get() : _raw_body;
                     break;
                 }
                 }

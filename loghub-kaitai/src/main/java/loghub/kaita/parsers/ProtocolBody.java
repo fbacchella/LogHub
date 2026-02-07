@@ -1,13 +1,15 @@
-package kaitai;
+package loghub.kaita.parsers;
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
 import io.kaitai.struct.KaitaiStream;
+import loghub.kaita.KaitaiStreamDecoderService;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.HashMap;
-
+import java.util.Optional;
 
 /**
  * Protocol body represents particular payload on transport level (OSI
@@ -224,9 +226,12 @@ public class ProtocolBody extends KaitaiStruct {
                     break;
                 }
                 case TCP: {
-                    this.body = new TcpSegment(this._io);
+                    this.body = new TcpSegment(this._io, this._parent);
                     break;
                 }
+                default:
+                    KaitaiStreamDecoderService.resolve(this, this._io)
+                                              .ifPresent(o -> this.body = o);
                 }
             }
         }

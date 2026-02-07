@@ -1,9 +1,10 @@
-package kaitai;
+package loghub.kaita.parsers;
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
 import io.kaitai.struct.KaitaiStream;
+
 import java.io.IOException;
 
 public class Ipv6Packet extends KaitaiStruct {

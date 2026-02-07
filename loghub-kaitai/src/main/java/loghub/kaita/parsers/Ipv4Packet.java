@@ -1,4 +1,4 @@
-package kaitai;// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
+package loghub.kaita.parsers;// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -42,7 +42,7 @@ public class Ipv4Packet extends KaitaiStruct {
         this.options = new Ipv4Options(_io__raw_options, this, _root);
         this._raw_body = this._io.readBytes((totalLength() - ihlBytes()));
         KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
-        this.body = new ProtocolBody(_io__raw_body, protocol());
+        this.body = new ProtocolBody(_io__raw_body, this, protocol());
     }
     public static class Ipv4Options extends KaitaiStruct {
         public static Ipv4Options fromFile(String fileName) throws IOException {

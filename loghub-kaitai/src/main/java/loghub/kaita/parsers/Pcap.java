@@ -1,4 +1,4 @@
-package kaitai;// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
+package loghub.kaita.parsers;// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -9,7 +9,6 @@ import java.util.Map;
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
-
 
 /**
  * PCAP (named after libpcap / winpcap) is a popular format for saving
