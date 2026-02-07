@@ -6,6 +6,8 @@ import io.kaitai.struct.KaitaiStruct;
 import io.kaitai.struct.KaitaiStream;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 public class Ipv6Packet extends KaitaiStruct {
     public static Ipv6Packet fromFile(String fileName) throws IOException {
@@ -34,8 +36,12 @@ public class Ipv6Packet extends KaitaiStruct {
         this.payloadLength = this._io.readU2be();
         this.nextHeaderType = this._io.readU1();
         this.hopLimit = this._io.readU1();
-        this.srcIpv6Addr = this._io.readBytes(16);
-        this.dstIpv6Addr = this._io.readBytes(16);
+        try {
+            this.srcIpv6Addr = InetAddress.getByAddress(this._io.readBytes(16));
+            this.dstIpv6Addr = InetAddress.getByAddress(this._io.readBytes(16));
+        } catch (UnknownHostException e) {
+            // unreachable
+        }
         this.nextHeader = new ProtocolBody(this._io, nextHeaderType());
         this.rest = this._io.readBytesFull();
     }
@@ -45,8 +51,8 @@ public class Ipv6Packet extends KaitaiStruct {
     private int payloadLength;
     private int nextHeaderType;
     private int hopLimit;
-    private byte[] srcIpv6Addr;
-    private byte[] dstIpv6Addr;
+    private InetAddress srcIpv6Addr;
+    private InetAddress dstIpv6Addr;
     private ProtocolBody nextHeader;
     private byte[] rest;
     private Ipv6Packet _root;
@@ -57,8 +63,8 @@ public class Ipv6Packet extends KaitaiStruct {
     public int payloadLength() { return payloadLength; }
     public int nextHeaderType() { return nextHeaderType; }
     public int hopLimit() { return hopLimit; }
-    public byte[] srcIpv6Addr() { return srcIpv6Addr; }
-    public byte[] dstIpv6Addr() { return dstIpv6Addr; }
+    public InetAddress srcIpv6Addr() { return srcIpv6Addr; }
+    public InetAddress dstIpv6Addr() { return dstIpv6Addr; }
     public ProtocolBody nextHeader() { return nextHeader; }
     public byte[] rest() { return rest; }
     public Ipv6Packet _root() { return _root; }

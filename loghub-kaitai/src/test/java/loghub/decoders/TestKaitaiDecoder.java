@@ -2,6 +2,8 @@ package loghub.decoders;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
@@ -13,12 +15,18 @@ import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
 import loghub.ConnectionContext;
+import loghub.VariablePath;
+import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.kaita.KaitaiStreamDecoderService;
 import loghub.kaita.parsers.EthernetFrame;
 import loghub.kaita.parsers.Pcap;
 import loghub.kaita.parsers.Pcap.Packet;
+import loghub.types.MacAddress;
 
 class TestKaitaiDecoder {
+
+    private final EventsFactory factory = new EventsFactory();
 
     public static class MockKaitaiStruct extends KaitaiStruct {
         public String visibleField = "visible";
@@ -59,9 +67,13 @@ class TestKaitaiDecoder {
             Pcap pcap = new Pcap(pcapcontent);
             for (Packet i: pcap.packets()) {
                 Map<String, Object> o = (Map<String, Object>) decoder.decodeObject(ConnectionContext.EMPTY, i._raw_body());
-                Assertions.assertNotNull(o);
-                Assertions.assertEquals("IPV4", o.get("etherType"));
-                Assertions.assertInstanceOf(Map.class, o.get("body"));
+                Event ev = factory.newEvent();
+                ev.putAll(o);
+                Assertions.assertEquals("IPV4", ev.getAtPath(VariablePath.of("etherType")).toString());
+                Assertions.assertInstanceOf(MacAddress.class, ev.getAtPath(VariablePath.of("dstMac")));
+                Assertions.assertInstanceOf(MacAddress.class, ev.getAtPath(VariablePath.of("srcMac")));
+                Assertions.assertInstanceOf(InetAddress.class, ev.getAtPath(VariablePath.of("body", "srcIpAddr")));
+                Assertions.assertInstanceOf(InetAddress.class, ev.getAtPath(VariablePath.of("body", "dstIpAddr")));
             }
         }
     }
@@ -76,9 +88,14 @@ class TestKaitaiDecoder {
             Pcap pcap = new Pcap(pcapcontent);
             for (Packet i: pcap.packets()) {
                 Map<String, Object> o = (Map<String, Object>) decoder.decodeObject(ConnectionContext.EMPTY, i._raw_body());
-                Assertions.assertNotNull(o);
-                Assertions.assertEquals("IPV4", o.get("etherType"));
-                Assertions.assertInstanceOf(Map.class, o.get("body"));
+                Event ev = factory.newEvent();
+                ev.putAll(o);
+                Assertions.assertEquals("IPV4", ev.getAtPath(VariablePath.of("etherType")).toString());
+                Assertions.assertInstanceOf(MacAddress.class, ev.getAtPath(VariablePath.of("dstMac")));
+                Assertions.assertInstanceOf(MacAddress.class, ev.getAtPath(VariablePath.of("srcMac")));
+                Assertions.assertInstanceOf(Inet4Address.class, ev.getAtPath(VariablePath.of("body", "srcIpAddr")));
+                Assertions.assertInstanceOf(Inet4Address.class, ev.getAtPath(VariablePath.of("body", "dstIpAddr")));
+                Assertions.assertEquals("ICMP", ev.getAtPath(VariablePath.of("body", "body", "protocol")).toString());
             }
         }
     }

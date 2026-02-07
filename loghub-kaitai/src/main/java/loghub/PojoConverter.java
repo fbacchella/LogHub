@@ -17,10 +17,9 @@ public class PojoConverter {
     }
 
     private Object convertObject(Object obj, Set<Object> visited) throws Exception {
-        if (obj == null || obj == NullOrMissingValue.NULL) {
+        if (obj == null) {
             return null;
         }
-
 
         if (obj instanceof KaitaiStruct) {
             // Circular reference check

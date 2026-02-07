@@ -10,6 +10,7 @@ import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
 import loghub.kaita.KaitaiStreamDecoderService;
+import loghub.types.MacAddress;
 
 /**
  * Ethernet frame is a OSI data link layer (layer 2) protocol data unit
@@ -59,8 +60,8 @@ public class EthernetFrame extends KaitaiStruct {
         _read();
     }
     private void _read() {
-        this.dstMac = this._io.readBytes(6);
-        this.srcMac = this._io.readBytes(6);
+        this.dstMac = new MacAddress(this._io.readBytes(6));
+        this.srcMac = new MacAddress(this._io.readBytes(6));
         this.etherType1 = EtherTypeEnum.byId(this._io.readU2be());
         if (etherType1() == EtherTypeEnum.IEEE_802_1Q_TPID) {
             this.tci = new TagControlInfo(this._io, this, _root);
@@ -167,8 +168,8 @@ public class EthernetFrame extends KaitaiStruct {
         this.etherType = (etherType1() == EtherTypeEnum.IEEE_802_1Q_TPID ? etherType2() : etherType1());
         return this.etherType;
     }
-    private byte[] dstMac;
-    private byte[] srcMac;
+    private MacAddress dstMac;
+    private MacAddress srcMac;
     private EtherTypeEnum etherType1;
     private TagControlInfo tci;
     private EtherTypeEnum etherType2;
@@ -180,12 +181,12 @@ public class EthernetFrame extends KaitaiStruct {
     /**
      * Destination MAC address
      */
-    public byte[] dstMac() { return dstMac; }
+    public MacAddress dstMac() { return dstMac; }
 
     /**
      * Source MAC address
      */
-    public byte[] srcMac() { return srcMac; }
+    public MacAddress srcMac() { return srcMac; }
 
     /**
      * Either ether type or TPID if it is a IEEE 802.1Q frame

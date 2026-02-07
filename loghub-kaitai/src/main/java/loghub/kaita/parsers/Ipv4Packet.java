@@ -1,6 +1,8 @@
 package loghub.kaita.parsers;// This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
@@ -35,8 +37,12 @@ public class Ipv4Packet extends KaitaiStruct {
         this.ttl = this._io.readU1();
         this.protocol = this._io.readU1();
         this.headerChecksum = this._io.readU2be();
-        this.srcIpAddr = this._io.readBytes(4);
-        this.dstIpAddr = this._io.readBytes(4);
+        try {
+            this.srcIpAddr = InetAddress.getByAddress(this._io.readBytes(4));
+            this.dstIpAddr = InetAddress.getByAddress(this._io.readBytes(4));
+        } catch (UnknownHostException e) {
+            // unreachable
+        }
         this._raw_options = this._io.readBytes((ihlBytes() - 20));
         KaitaiStream _io__raw_options = new ByteBufferKaitaiStream(_raw_options);
         this.options = new Ipv4Options(_io__raw_options, this, _root);
@@ -171,8 +177,8 @@ public class Ipv4Packet extends KaitaiStruct {
     private int ttl;
     private int protocol;
     private int headerChecksum;
-    private byte[] srcIpAddr;
-    private byte[] dstIpAddr;
+    private InetAddress srcIpAddr;
+    private InetAddress dstIpAddr;
     private Ipv4Options options;
     private ProtocolBody body;
     private Ipv4Packet _root;
@@ -187,8 +193,8 @@ public class Ipv4Packet extends KaitaiStruct {
     public int ttl() { return ttl; }
     public int protocol() { return protocol; }
     public int headerChecksum() { return headerChecksum; }
-    public byte[] srcIpAddr() { return srcIpAddr; }
-    public byte[] dstIpAddr() { return dstIpAddr; }
+    public InetAddress srcIpAddr() { return srcIpAddr; }
+    public InetAddress dstIpAddr() { return dstIpAddr; }
     public Ipv4Options options() { return options; }
     public ProtocolBody body() { return body; }
     public Ipv4Packet _root() { return _root; }
