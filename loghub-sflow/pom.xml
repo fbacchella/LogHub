@@ -33,6 +33,12 @@
         <dependency>
             <groupId>fr.loghub</groupId>
             <artifactId>loghub-kaitai</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>fr.loghub</groupId>
+            <artifactId>loghub-kaitai</artifactId>
             <classifier>tests</classifier>
             <version>${project.version}</version>
             <scope>test</scope>

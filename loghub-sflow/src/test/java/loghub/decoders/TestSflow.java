@@ -17,7 +17,7 @@ import org.junit.Test;
 
 import io.netty.buffer.Unpooled;
 import loghub.BeanChecks;
-import loghub.CaptureStream;
+import loghub.kaitai.CaptureStream;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.LogUtils;
