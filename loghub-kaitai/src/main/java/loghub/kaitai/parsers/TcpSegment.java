@@ -1,5 +1,6 @@
-package loghub.kaitai.parsers;
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
+
+package loghub.kaitai.parsers;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
@@ -39,15 +40,20 @@ public class TcpSegment extends KaitaiStruct {
         this.ackNum = this._io.readU4be();
         this.dataOffset = this._io.readBitsIntBe(4);
         this.reserved = this._io.readBitsIntBe(4);
-        this._io.alignToByte();
         this.flags = new Flags(this._io, this, _root);
         this.windowSize = this._io.readU2be();
         this.checksum = this._io.readU2be();
         this.urgentPointer = this._io.readU2be();
-        if (((dataOffset() * 4) - 20) != 0) {
-            this.options = this._io.readBytes(((dataOffset() * 4) - 20));
+        if (dataOffset() * 4 - 20 != 0) {
+            this.options = this._io.readBytes(dataOffset() * 4 - 20);
         }
         this.body = this._io.readBytesFull();
+    }
+
+    public void _fetchInstances() {
+        this.flags._fetchInstances();
+        if (dataOffset() * 4 - 20 != 0) {
+        }
     }
 
     /**
@@ -81,6 +87,9 @@ public class TcpSegment extends KaitaiStruct {
             this.rst = this._io.readBitsIntBe(1) != 0;
             this.syn = this._io.readBitsIntBe(1) != 0;
             this.fin = this._io.readBitsIntBe(1) != 0;
+        }
+
+        public void _fetchInstances() {
         }
         private boolean cwr;
         private boolean ece;
@@ -134,6 +143,11 @@ public class TcpSegment extends KaitaiStruct {
         public boolean fin() { return fin; }
         public TcpSegment _root() { return _root; }
         public TcpSegment _parent() { return _parent; }
+
+        @Override
+        public String toString() {
+            return (((((((cwr() ? "|CWR" : "") + (ece() ? "|ECE" : "")) + (urg() ? "|URG" : "")) + (ack() ? "|ACK" : "")) + (psh() ? "|PSH" : "")) + (rst() ? "|RST" : "")) + (syn() ? "|SYN" : "")) + (fin() ? "|FIN" : "");
+        }
     }
     private int srcPort;
     private int dstPort;

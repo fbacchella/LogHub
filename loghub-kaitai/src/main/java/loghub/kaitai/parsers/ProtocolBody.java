@@ -1,25 +1,27 @@
-package loghub.kaitai.parsers;
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+package loghub.kaitai.parsers;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
-import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
+import io.kaitai.struct.KaitaiStream;
 import loghub.kaitai.KaitaiStreamDecoderService;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.HashMap;
+
 
 /**
  * Protocol body represents particular payload on transport level (OSI
  * layer 4).
- *
+ * 
  * Typically this payload in encapsulated into network level (OSI layer
  * 3) packet, which includes "protocol number" field that would be used
  * to decide what's inside the payload and how to parse it. Thanks to
  * IANA's standardization effort, multiple network level use the same
  * IDs for these payloads named "protocol numbers".
- *
+ * 
  * This is effectively a "router" type: it expects to get protocol
  * number as a parameter, and then invokes relevant type parser based
  * on that parameter.
@@ -204,28 +206,73 @@ public class ProtocolBody extends KaitaiStruct {
             ProtocolEnum on = protocol();
             if (on != null) {
                 switch (protocol()) {
-                case IPV6_NONXT: {
-                    this.body = new NoNextHeader(this._io, this, _root);
+                case HOPOPT: {
+                    this.body = new OptionHopByHop(this._io, this, _root);
+                    break;
+                }
+                case ICMP: {
+                    this.body = new IcmpPacket(this._io);
                     break;
                 }
                 case IPV4: {
                     this.body = new Ipv4Packet(this._io);
                     break;
                 }
-                case UDP: {
-                    this.body = new UdpDatagram(this._io);
-                    break;
-                }
-                case HOPOPT: {
-                    this.body = new OptionHopByHop(this._io, this, _root);
-                    break;
-                }
                 case IPV6: {
                     this.body = new Ipv6Packet(this._io);
                     break;
                 }
+                case IPV6_NONXT: {
+                    this.body = new NoNextHeader(this._io, this, _root);
+                    break;
+                }
                 case TCP: {
-                    this.body = new TcpSegment(this._io, this._parent);
+                    this.body = new TcpSegment(this._io);
+                    break;
+                }
+                case UDP: {
+                    this.body = new UdpDatagram(this._io);
+                    break;
+                }
+                default:
+                    KaitaiStreamDecoderService.resolve(this, this._io)
+                            .ifPresent(o -> this.body = o);
+                }
+            }
+        }
+    }
+
+    public void _fetchInstances() {
+        {
+            ProtocolEnum on = protocol();
+            if (on != null) {
+                switch (protocol()) {
+                case HOPOPT: {
+                    ((OptionHopByHop) (this.body))._fetchInstances();
+                    break;
+                }
+                case ICMP: {
+                    ((IcmpPacket) (this.body))._fetchInstances();
+                    break;
+                }
+                case IPV4: {
+                    ((Ipv4Packet) (this.body))._fetchInstances();
+                    break;
+                }
+                case IPV6: {
+                    ((Ipv6Packet) (this.body))._fetchInstances();
+                    break;
+                }
+                case IPV6_NONXT: {
+                    ((NoNextHeader) (this.body))._fetchInstances();
+                    break;
+                }
+                case TCP: {
+                    ((TcpSegment) (this.body))._fetchInstances();
+                    break;
+                }
+                case UDP: {
+                    ((UdpDatagram) (this.body))._fetchInstances();
                     break;
                 }
                 default:
@@ -260,6 +307,9 @@ public class ProtocolBody extends KaitaiStruct {
         }
         private void _read() {
         }
+
+        public void _fetchInstances() {
+        }
         private ProtocolBody _root;
         private ProtocolBody _parent;
         public ProtocolBody _root() { return _root; }
@@ -287,8 +337,12 @@ public class ProtocolBody extends KaitaiStruct {
         private void _read() {
             this.nextHeaderType = this._io.readU1();
             this.hdrExtLen = this._io.readU1();
-            this.body = this._io.readBytes((hdrExtLen() > 0 ? (hdrExtLen() - 1) : 1));
-            this.nextHeader = new ProtocolBody(this._io, nextHeaderType());
+            this.body = this._io.readBytes((hdrExtLen() > 0 ? hdrExtLen() - 1 : 1));
+            this.nextHeader = new ProtocolBody(this._io, this, _root, nextHeaderType());
+        }
+
+        public void _fetchInstances() {
+            this.nextHeader._fetchInstances();
         }
         private int nextHeaderType;
         private int hdrExtLen;

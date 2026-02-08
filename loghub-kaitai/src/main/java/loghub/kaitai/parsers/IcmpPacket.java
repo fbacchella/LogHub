@@ -1,5 +1,6 @@
-package loghub.kaitai.parsers;
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
+
+package loghub.kaitai.parsers;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
@@ -83,8 +84,8 @@ public class IcmpPacket extends KaitaiStruct {
             PORT_UNREACHABLE(3),
             FRAGMENTATION_NEEDED_AND_DF_SET(4),
             SOURCE_ROUTE_FAILED(5),
-            DST_NET_UNKNOWN(6),
-            SDT_HOST_UNKNOWN(7),
+            DST_NET_UNKOWN(6),
+            SDT_HOST_UNKOWN(7),
             SRC_ISOLATED(8),
             NET_PROHIBITED_BY_ADMIN(9),
             HOST_PROHIBITED_BY_ADMIN(10),

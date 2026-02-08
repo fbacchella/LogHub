@@ -1,14 +1,15 @@
-package loghub.kaitai.parsers;
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
+package loghub.kaitai.parsers;
+
+import io.kaitai.struct.ByteBufferKaitaiStream;
+import io.kaitai.struct.KaitaiStruct;
+import io.kaitai.struct.KaitaiStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-
-import io.kaitai.struct.ByteBufferKaitaiStream;
-import io.kaitai.struct.KaitaiStream;
-import io.kaitai.struct.KaitaiStruct;
+import java.util.List;
 
 public class Ipv4Packet extends KaitaiStruct {
     public static Ipv4Packet fromFile(String fileName) throws IOException {
@@ -44,12 +45,74 @@ public class Ipv4Packet extends KaitaiStruct {
         } catch (UnknownHostException e) {
             // unreachable
         }
-        this._raw_options = this._io.readBytes((ihlBytes() - 20));
-        KaitaiStream _io__raw_options = new ByteBufferKaitaiStream(_raw_options);
-        this.options = new Ipv4Options(_io__raw_options, this, _root);
-        this._raw_body = this._io.readBytes((totalLength() - ihlBytes()));
-        KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
-        this.body = new ProtocolBody(_io__raw_body, this, protocol());
+        KaitaiStream _io_options = this._io.substream(ihlBytes() - 20);
+        this.options = new Ipv4Options(_io_options, this, _root);
+        KaitaiStream _io_body = this._io.substream(totalLength() - ihlBytes());
+        this.body = new ProtocolBody(_io_body, protocol());
+    }
+
+    public void _fetchInstances() {
+        this.options._fetchInstances();
+        this.body._fetchInstances();
+    }
+    public static class Ipv4Option extends KaitaiStruct {
+        public static Ipv4Option fromFile(String fileName) throws IOException {
+            return new Ipv4Option(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public Ipv4Option(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public Ipv4Option(KaitaiStream _io, Ipv4Packet.Ipv4Options _parent) {
+            this(_io, _parent, null);
+        }
+
+        public Ipv4Option(KaitaiStream _io, Ipv4Packet.Ipv4Options _parent, Ipv4Packet _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.b1 = this._io.readU1();
+            this.len = this._io.readU1();
+            this.body = this._io.readBytes((len() > 2 ? len() - 2 : 0));
+        }
+
+        public void _fetchInstances() {
+        }
+        private Integer copy;
+        public Integer copy() {
+            if (this.copy != null)
+                return this.copy;
+            this.copy = ((Number) ((b1() & 128) >> 7)).intValue();
+            return this.copy;
+        }
+        private Integer number;
+        public Integer number() {
+            if (this.number != null)
+                return this.number;
+            this.number = ((Number) (b1() & 31)).intValue();
+            return this.number;
+        }
+        private Integer optClass;
+        public Integer optClass() {
+            if (this.optClass != null)
+                return this.optClass;
+            this.optClass = ((Number) ((b1() & 96) >> 5)).intValue();
+            return this.optClass;
+        }
+        private int b1;
+        private int len;
+        private byte[] body;
+        private Ipv4Packet _root;
+        private Ipv4Packet.Ipv4Options _parent;
+        public int b1() { return b1; }
+        public int len() { return len; }
+        public byte[] body() { return body; }
+        public Ipv4Packet _root() { return _root; }
+        public Ipv4Packet.Ipv4Options _parent() { return _parent; }
     }
     public static class Ipv4Options extends KaitaiStruct {
         public static Ipv4Options fromFile(String fileName) throws IOException {
@@ -80,95 +143,39 @@ public class Ipv4Packet extends KaitaiStruct {
                 }
             }
         }
-        private ArrayList<Ipv4Option> entries;
+
+        public void _fetchInstances() {
+            for (int i = 0; i < this.entries.size(); i++) {
+                this.entries.get(((Number) (i)).intValue())._fetchInstances();
+            }
+        }
+        private List<Ipv4Option> entries;
         private Ipv4Packet _root;
         private Ipv4Packet _parent;
-        public ArrayList<Ipv4Option> entries() { return entries; }
+        public List<Ipv4Option> entries() { return entries; }
         public Ipv4Packet _root() { return _root; }
         public Ipv4Packet _parent() { return _parent; }
-    }
-    public static class Ipv4Option extends KaitaiStruct {
-        public static Ipv4Option fromFile(String fileName) throws IOException {
-            return new Ipv4Option(new ByteBufferKaitaiStream(fileName));
-        }
-
-        public Ipv4Option(KaitaiStream _io) {
-            this(_io, null, null);
-        }
-
-        public Ipv4Option(KaitaiStream _io, Ipv4Options _parent) {
-            this(_io, _parent, null);
-        }
-
-        public Ipv4Option(KaitaiStream _io, Ipv4Options _parent, Ipv4Packet _root) {
-            super(_io);
-            this._parent = _parent;
-            this._root = _root;
-            _read();
-        }
-        private void _read() {
-            this.b1 = this._io.readU1();
-            this.len = this._io.readU1();
-            this.body = this._io.readBytes((len() > 2 ? (len() - 2) : 0));
-        }
-        private Integer copy;
-        public Integer copy() {
-            if (this.copy != null)
-                return this.copy;
-            int _tmp = (int) (((b1() & 128) >> 7));
-            this.copy = _tmp;
-            return this.copy;
-        }
-        private Integer optClass;
-        public Integer optClass() {
-            if (this.optClass != null)
-                return this.optClass;
-            int _tmp = (int) (((b1() & 96) >> 5));
-            this.optClass = _tmp;
-            return this.optClass;
-        }
-        private Integer number;
-        public Integer number() {
-            if (this.number != null)
-                return this.number;
-            int _tmp = (int) ((b1() & 31));
-            this.number = _tmp;
-            return this.number;
-        }
-        private int b1;
-        private int len;
-        private byte[] body;
-        private Ipv4Packet _root;
-        private Ipv4Options _parent;
-        public int b1() { return b1; }
-        public int len() { return len; }
-        public byte[] body() { return body; }
-        public Ipv4Packet _root() { return _root; }
-        public Ipv4Options _parent() { return _parent; }
-    }
-    private Integer version;
-    public Integer version() {
-        if (this.version != null)
-            return this.version;
-        int _tmp = (int) (((b1() & 240) >> 4));
-        this.version = _tmp;
-        return this.version;
     }
     private Integer ihl;
     public Integer ihl() {
         if (this.ihl != null)
             return this.ihl;
-        int _tmp = (int) ((b1() & 15));
-        this.ihl = _tmp;
+        this.ihl = ((Number) (b1() & 15)).intValue();
         return this.ihl;
     }
     private Integer ihlBytes;
     public Integer ihlBytes() {
         if (this.ihlBytes != null)
             return this.ihlBytes;
-        int _tmp = (int) ((ihl() * 4));
-        this.ihlBytes = _tmp;
+        this.ihlBytes = ((Number) (ihl() * 4)).intValue();
         return this.ihlBytes;
+    }
+    private Integer version;
+    public Integer version() {
+        if (this.version != null)
+            return this.version;
+        this.version = ((Number) ((b1() & 240) >> 4)).intValue();
+        return this.version;
     }
     private int b1;
     private int b2;
@@ -184,8 +191,6 @@ public class Ipv4Packet extends KaitaiStruct {
     private ProtocolBody body;
     private Ipv4Packet _root;
     private KaitaiStruct _parent;
-    private byte[] _raw_options;
-    private byte[] _raw_body;
     public int b1() { return b1; }
     public int b2() { return b2; }
     public int totalLength() { return totalLength; }
@@ -200,6 +205,4 @@ public class Ipv4Packet extends KaitaiStruct {
     public ProtocolBody body() { return body; }
     public Ipv4Packet _root() { return _root; }
     public KaitaiStruct _parent() { return _parent; }
-    public byte[] _raw_options() { return _raw_options; }
-    public byte[] _raw_body() { return _raw_body; }
 }
