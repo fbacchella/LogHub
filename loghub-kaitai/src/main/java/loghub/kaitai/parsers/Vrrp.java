@@ -6,6 +6,9 @@ import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
 import io.kaitai.struct.KaitaiStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,8 +39,8 @@ public class Vrrp extends KaitaiStruct {
         this.vrid = this._io.readU1();
         this.priority = this._io.readU1();
         this.numIpAddresses = this._io.readU1();
-        this.authTypeOrMaxAdvertIntHigh = this._io.readU1();
-        this.advertIntOrMaxAdvertIntLow = this._io.readU1();
+        int authTypeOrMaxAdvertIntHigh = this._io.readU1();
+        int advertIntOrMaxAdvertIntLow = this._io.readU1();
         this.checksum = this._io.readU2be();
         if ( ((version() == 2) || ( ((version() == 3) && (ipVersion() == 4)) )) ) {
             this.ipAddresses = new ArrayList<IpAddress>();
@@ -46,7 +49,14 @@ public class Vrrp extends KaitaiStruct {
             }
         }
         if ( ((version() == 2) && (authType() != 0)) ) {
+            this.authType = authTypeOrMaxAdvertIntHigh;
             this.authenticationData = this._io.readBytes(8);
+        }
+        if (version == 3) {
+            int maxAdvertIntCentiseconds = ((Number) (authTypeOrMaxAdvertIntHigh << 8 | advertIntOrMaxAdvertIntLow)).intValue();
+            this.advertInt = Duration.ofMillis(maxAdvertIntCentiseconds * 10L);
+        } else if (version == 2) {
+            this.advertInt = Duration.ofSeconds(advertIntOrMaxAdvertIntLow);
         }
     }
 
@@ -79,34 +89,32 @@ public class Vrrp extends KaitaiStruct {
             _read();
         }
         private void _read() {
-            this.address = this._io.readBytes(_parent().ipAddrLen());
+            try {
+                this.address = InetAddress.getByAddress(this._io.readBytes(_parent().ipAddrLen()));
+            } catch (UnknownHostException e) {
+                throw new IllegalStateException("Invalid address lenght " + _parent().ipAddrLen());
+            }
         }
 
         public void _fetchInstances() {
         }
-        private byte[] address;
+        private InetAddress address;
         private Vrrp _root;
         private Vrrp _parent;
 
         /**
          * IPv4 (4 bytes) or IPv6 (16 bytes) address
          */
-        public byte[] address() { return address; }
+        public InetAddress address() { return address; }
         public Vrrp _root() { return _root; }
         public Vrrp _parent() { return _parent; }
     }
-    private Integer advertIntSeconds;
 
     /**
-     * Advertisement interval in seconds (VRRPv2)
+     * Advertisement interval
      */
-    public Integer advertIntSeconds() {
-        if (this.advertIntSeconds != null)
-            return this.advertIntSeconds;
-        if (version() == 2) {
-            this.advertIntSeconds = ((Number) (advertIntOrMaxAdvertIntLow())).intValue();
-        }
-        return this.advertIntSeconds;
+    public Duration advertInt() {
+        return this.advertInt;
     }
     private Integer authType;
 
@@ -114,11 +122,6 @@ public class Vrrp extends KaitaiStruct {
      * Authentication type (VRRPv2 only)
      */
     public Integer authType() {
-        if (this.authType != null)
-            return this.authType;
-        if (version() == 2) {
-            this.authType = ((Number) (authTypeOrMaxAdvertIntHigh())).intValue();
-        }
         return this.authType;
     }
     private Byte ipAddrLen;
@@ -178,32 +181,7 @@ public class Vrrp extends KaitaiStruct {
         this.isValidVersion =  ((version() == 2) || (version() == 3)) ;
         return this.isValidVersion;
     }
-    private Integer maxAdvertIntCentiseconds;
 
-    /**
-     * Maximum advertisement interval in centiseconds (VRRPv3)
-     */
-    public Integer maxAdvertIntCentiseconds() {
-        if (this.maxAdvertIntCentiseconds != null)
-            return this.maxAdvertIntCentiseconds;
-        if (version() == 3) {
-            this.maxAdvertIntCentiseconds = ((Number) (authTypeOrMaxAdvertIntHigh() << 8 | advertIntOrMaxAdvertIntLow())).intValue();
-        }
-        return this.maxAdvertIntCentiseconds;
-    }
-    private Double maxAdvertIntSeconds;
-
-    /**
-     * Maximum advertisement interval converted to seconds (VRRPv3)
-     */
-    public Double maxAdvertIntSeconds() {
-        if (this.maxAdvertIntSeconds != null)
-            return this.maxAdvertIntSeconds;
-        if (version() == 3) {
-            this.maxAdvertIntSeconds = ((Number) (maxAdvertIntCentiseconds() / 100.0)).doubleValue();
-        }
-        return this.maxAdvertIntSeconds;
-    }
     private Integer type;
 
     /**
@@ -230,8 +208,7 @@ public class Vrrp extends KaitaiStruct {
     private int vrid;
     private int priority;
     private int numIpAddresses;
-    private int authTypeOrMaxAdvertIntHigh;
-    private int advertIntOrMaxAdvertIntLow;
+    private Duration advertInt;
     private int checksum;
     private List<IpAddress> ipAddresses;
     private byte[] authenticationData;
@@ -259,18 +236,6 @@ public class Vrrp extends KaitaiStruct {
      * Number of IP addresses (count IPvX addr in VRRPv2, 0 in VRRPv3 for IPv6)
      */
     public int numIpAddresses() { return numIpAddresses; }
-
-    /**
-     * VRRPv2: Authentication Type (0=No Auth, 1=Simple, 2=IP Auth Header)
-     * VRRPv3: High byte of Max Advertisement Interval
-     */
-    public int authTypeOrMaxAdvertIntHigh() { return authTypeOrMaxAdvertIntHigh; }
-
-    /**
-     * VRRPv2: Advertisement Interval in seconds
-     * VRRPv3: Low byte of Max Advertisement Interval (in centiseconds)
-     */
-    public int advertIntOrMaxAdvertIntLow() { return advertIntOrMaxAdvertIntLow; }
 
     /**
      * VRRPv2: Checksum of VRRP message only
