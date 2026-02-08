@@ -1,15 +1,14 @@
-package loghub.kaita.parsers;
+package loghub.kaitai.parsers;
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-import io.kaitai.struct.ByteBufferKaitaiStream;
-import io.kaitai.struct.KaitaiStruct;
-import io.kaitai.struct.KaitaiStream;
-import loghub.kaita.KaitaiStreamDecoderService;
-
 import java.io.IOException;
-import java.util.Map;
 import java.util.HashMap;
-import java.util.Optional;
+import java.util.Map;
+
+import io.kaitai.struct.ByteBufferKaitaiStream;
+import io.kaitai.struct.KaitaiStream;
+import io.kaitai.struct.KaitaiStruct;
+import loghub.kaitai.KaitaiStreamDecoderService;
 
 /**
  * Protocol body represents particular payload on transport level (OSI

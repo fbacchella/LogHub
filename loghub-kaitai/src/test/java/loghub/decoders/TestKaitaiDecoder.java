@@ -18,10 +18,10 @@ import loghub.ConnectionContext;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.kaita.KaitaiStreamDecoderService;
-import loghub.kaita.parsers.EthernetFrame;
-import loghub.kaita.parsers.Pcap;
-import loghub.kaita.parsers.Pcap.Packet;
+import loghub.kaitai.KaitaiStreamDecoderService;
+import loghub.kaitai.parsers.EthernetFrame;
+import loghub.kaitai.parsers.Pcap;
+import loghub.kaitai.parsers.Pcap.Packet;
 import loghub.types.MacAddress;
 
 class TestKaitaiDecoder {

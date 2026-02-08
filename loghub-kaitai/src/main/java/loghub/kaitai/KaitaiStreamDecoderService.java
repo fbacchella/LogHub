@@ -1,4 +1,4 @@
-package loghub.kaita;
+package loghub.kaitai;
 
 import java.util.HashMap;
 import java.util.List;

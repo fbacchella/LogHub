@@ -1,4 +1,4 @@
-package loghub.kaita.parsers;
+package loghub.kaitai.parsers;
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
 import java.io.IOException;
@@ -9,7 +9,7 @@ import java.util.Optional;
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
-import loghub.kaita.KaitaiStreamDecoderService;
+import loghub.kaitai.KaitaiStreamDecoderService;
 import loghub.types.MacAddress;
 
 /**

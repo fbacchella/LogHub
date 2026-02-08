@@ -6,10 +6,11 @@ import java.io.InputStream;
 import java.util.stream.Stream;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
-import loghub.kaita.parsers.EthernetFrame;
-import loghub.kaita.parsers.Ipv4Packet;
-import loghub.kaita.parsers.Pcap;
-import loghub.kaita.parsers.UdpDatagram;
+import loghub.kaitai.parsers.EthernetFrame;
+import loghub.kaitai.parsers.Ipv4Packet;
+import loghub.kaitai.parsers.Pcap;
+import loghub.kaitai.parsers.TcpSegment;
+import loghub.kaitai.parsers.UdpDatagram;
 
 public class CaptureStream {
 
