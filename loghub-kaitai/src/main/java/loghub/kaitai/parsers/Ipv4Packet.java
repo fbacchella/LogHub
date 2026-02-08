@@ -48,7 +48,7 @@ public class Ipv4Packet extends KaitaiStruct {
         KaitaiStream _io_options = this._io.substream(ihlBytes() - 20);
         this.options = new Ipv4Options(_io_options, this, _root);
         KaitaiStream _io_body = this._io.substream(totalLength() - ihlBytes());
-        this.body = new ProtocolBody(_io_body, protocol());
+        this.body = new ProtocolBody(_io_body, this, protocol());
     }
 
     public void _fetchInstances() {

@@ -41,7 +41,7 @@ public class Ipv6Packet extends KaitaiStruct {
         } catch (UnknownHostException e) {
             // unreachable
         }
-        this.nextHeader = new ProtocolBody(this._io, nextHeaderType());
+        this.nextHeader = new ProtocolBody(this._io, this, nextHeaderType());
         this.rest = this._io.readBytesFull();
     }
 
