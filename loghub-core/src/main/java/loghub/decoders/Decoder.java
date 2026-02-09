@@ -1,5 +1,6 @@
 package loghub.decoders;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,12 +67,16 @@ public abstract class Decoder {
         throw new UnsupportedOperationException();
     }
 
+    protected Object decodeObject(ConnectionContext<?> ctx, byte[] msg) throws DecodeException {
+        return decodeObject(ctx, msg, 0, msg.length);
+    }
+
     protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         throw new UnsupportedOperationException();
     }
 
-    protected Object decodeObject(ConnectionContext<?> ctx, byte[] msg) throws DecodeException {
-        return decodeObject(ctx, msg, 0, msg.length);
+    protected Object decodeObject(ConnectionContext<?> ctx, ByteBuffer bbuf) throws DecodeException {
+        throw new UnsupportedOperationException();
     }
 
     private Stream<Map<String, Object>> resolve(ConnectionContext<?> ctx, Object o)  {
@@ -117,6 +122,10 @@ public abstract class Decoder {
     }
 
     public final Stream<Map<String, Object>> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
+        return parseObjectStream(ctx, () -> decodeObject(ctx, bbuf));
+    }
+
+    public final Stream<Map<String, Object>> decode(ConnectionContext<?> ctx, ByteBuffer bbuf) throws DecodeException {
         return parseObjectStream(ctx, () -> decodeObject(ctx, bbuf));
     }
 
