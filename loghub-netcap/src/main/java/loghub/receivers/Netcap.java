@@ -19,6 +19,7 @@ import loghub.ConnectionContext;
 import loghub.decoders.DecodeException;
 import loghub.events.EventsFactory;
 import loghub.netcap.PCAP_LINKTYPE;
+import loghub.netcap.SLL_PROTOCOL;
 import loghub.netcap.SocketaddrLl;
 import loghub.netcap.StdlibProvider;
 import loghub.netcap.BpfProgram;
@@ -31,7 +32,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
     // Linux system constants
     private static final int AF_PACKET = 17;
     private static final int SOCK_RAW = 3;
-    private static final int ETH_P_ALL = 0x0003;
+    //private static final int ETH_P_ALL = 0x0003;
     private static final int SOL_SOCKET = 1;
     private static final int SO_ATTACH_FILTER = 26;
 
@@ -101,14 +102,12 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         try (Arena arena = Arena.ofConfined()) {
             BpfProgram bpfProgram = bpfCompiler.apply(arena);
             bpfCompiler = null;
-            short protocol = stdlib.htons((short) ETH_P_ALL);
-
             // Create AF_PACKET socket
-            sockfd = stdlib.socket(AF_PACKET, SOCK_RAW, protocol & 0xFFFF);
+            sockfd = stdlib.socket(AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue() & 0xFFFF);
             stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
             SocketaddrLl sockaddr = new SocketaddrLl(arena);
             sockaddr.setFamily((short) AF_PACKET);
-            sockaddr.setProtocol(protocol);
+            sockaddr.setProtocol(SLL_PROTOCOL.ETH_P_ALL);
             sockaddr.setIfindex(ifIndex);
             stdlib.bind(sockfd, sockaddr.getSegment(), 20);
             MemorySegment buffer = arena.allocate(snaplen);

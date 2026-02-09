@@ -56,12 +56,13 @@ public class SocketaddrLl {
         FAMILY.set(segment, 0L, family);
     }
 
-    public short getProtocol() {
-        return (short) PROTOCOL.get(segment, 0L);
+    public SLL_PROTOCOL getProtocol() {
+        short protocol = (short) PROTOCOL.get(segment, 0L);
+        return SLL_PROTOCOL.fromValue(Short.toUnsignedInt(StdlibProvider.ntohs(protocol)));
     }
 
-    public void setProtocol(short protocol) {
-        PROTOCOL.set(segment, 0L, protocol);
+    public void setProtocol(SLL_PROTOCOL protocol) {
+        PROTOCOL.set(segment, 0L, protocol.getNetworkValue());
     }
 
     public int getIfindex() {

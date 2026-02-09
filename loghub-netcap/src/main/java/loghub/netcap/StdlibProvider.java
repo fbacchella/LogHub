@@ -208,12 +208,16 @@ public class StdlibProvider {
         }
     }
 
-    public short htons(short hostshort) {
-        if (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
+    public static short htons(short hostshort) {
+        if (java.nio.ByteOrder.nativeOrder() == java.nio.ByteOrder.LITTLE_ENDIAN) {
             return Short.reverseBytes(hostshort);
         } else {
             return hostshort;
         }
+    }
+
+    public static short ntohs(short netshort) {
+        return htons(netshort);
     }
 
     public void setsockopt(int sockfd, int level, int optname, MemorySegment optval, int len)
