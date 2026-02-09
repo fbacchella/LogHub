@@ -27,6 +27,9 @@ public class KaitaiDecoder extends Decoder {
             return new KaitaiDecoder(this);
         }
     }
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
     private final PojoConverter converter = new PojoConverter();
     private final MethodHandle kaitaiStructConstructor;

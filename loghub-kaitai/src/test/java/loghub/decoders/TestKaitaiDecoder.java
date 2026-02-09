@@ -1,5 +1,6 @@
 package loghub.decoders;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Inet4Address;
@@ -8,13 +9,20 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
+import loghub.BeanChecks;
 import loghub.ConnectionContext;
+import loghub.LogUtils;
+import loghub.Tools;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -25,6 +33,15 @@ import loghub.kaitai.parsers.Pcap.Packet;
 import loghub.types.MacAddress;
 
 class TestKaitaiDecoder {
+
+    private static Logger logger;
+
+    @BeforeAll
+    public static void configure() {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.decoders.KaitaiDecoder");
+    }
 
     private final EventsFactory factory = new EventsFactory();
 
@@ -44,7 +61,7 @@ class TestKaitaiDecoder {
 
     @Test
     void testIgnoreInternalFields() throws DecodeException {
-        KaitaiDecoder.Builder builder = new KaitaiDecoder.Builder();
+        KaitaiDecoder.Builder builder = KaitaiDecoder.getBuilder();
         builder.setKaitaiStruct(MockKaitaiStruct.class.getName());
         KaitaiDecoder decoder = builder.build();
 
@@ -59,7 +76,7 @@ class TestKaitaiDecoder {
 
     @Test
     void testChargenUdp() throws IOException, DecodeException {
-        KaitaiDecoder.Builder builder = new KaitaiDecoder.Builder();
+        KaitaiDecoder.Builder builder = KaitaiDecoder.getBuilder();
         builder.setKaitaiStruct(EthernetFrame.class.getName());
         KaitaiDecoder decoder = builder.build();
         try(InputStream is = TestKaitaiDecoder.class.getResourceAsStream("/chargen-udp.pcap")) {
@@ -80,7 +97,7 @@ class TestKaitaiDecoder {
 
     @Test
     void testIcmp() throws IOException, DecodeException {
-        KaitaiDecoder.Builder builder = new KaitaiDecoder.Builder();
+        KaitaiDecoder.Builder builder = KaitaiDecoder.getBuilder();
         builder.setKaitaiStruct(EthernetFrame.class.getName());
         KaitaiDecoder decoder = builder.build();
         try(InputStream is = TestKaitaiDecoder.class.getResourceAsStream("/ipv4frags.pcap")) {
@@ -122,4 +139,12 @@ class TestKaitaiDecoder {
         Optional<?> result = KaitaiStreamDecoderService.resolve(mock, new ByteBufferKaitaiStream(raw));
         Assertions.assertTrue(result.isEmpty());
     }
+
+    @Test
+    public void test_loghub_decoders_KaitaiDecoder() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.decoders.KaitaiDecoder"
+                , BeanChecks.BeanInfo.build("kaitaiStruct", String.class)
+        );
+    }
+
 }
