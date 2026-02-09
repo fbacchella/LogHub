@@ -3,15 +3,18 @@ package loghub.decoders;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.ByteBuffer;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
 import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
 import io.netty.buffer.ByteBuf;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.PojoConverter;
 import lombok.Setter;
 
+@BuilderClass(KaitaiDecoder.Builder.class)
 public class KaitaiDecoder extends Decoder {
 
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
@@ -51,6 +54,12 @@ public class KaitaiDecoder extends Decoder {
     @Override
     protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         KaitaiStream stream = new ByteBufferKaitaiStream(bbuf.nioBuffer());
+        return decodeKaitai(stream);
+    }
+
+    @Override
+    protected Object decodeObject(ConnectionContext<?> ctx, ByteBuffer bbuf) throws DecodeException {
+        KaitaiStream stream = new ByteBufferKaitaiStream(bbuf);
         return decodeKaitai(stream);
     }
 
