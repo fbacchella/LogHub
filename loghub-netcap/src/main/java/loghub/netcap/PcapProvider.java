@@ -114,12 +114,13 @@ public class PcapProvider {
     /**
      * Compiles a BPF filter expression using libpcap
      *
+     * @param arena            Memory arena for allocation
      * @param filterExpression tcpdump-style filter expression
-     * @param arena Memory arena for allocation
+     * @param snaplen
      * @return BpfProgram a BpfProgram
      */
-    public BpfProgram compileBpfFilter(String filterExpression, Arena arena) throws ExecutionException {
-        PcapHandle handle = new PcapHandle(this);
+    public BpfProgram compileBpfFilter(Arena arena, String filterExpression, PCAP_LINKTYPE linktype, int snaplen) throws ExecutionException {
+        PcapHandle handle = new PcapHandle(this, linktype, snaplen);
         return handle.compile(arena, filterExpression);
     }
 

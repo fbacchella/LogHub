@@ -4,16 +4,22 @@ import java.io.IOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.decoders.DecodeException;
 import loghub.events.EventsFactory;
+import loghub.netcap.PCAP_LINKTYPE;
+import loghub.netcap.SocketaddrLl;
 import loghub.netcap.StdlibProvider;
 import loghub.netcap.BpfProgram;
 import loghub.netcap.PcapProvider;
@@ -45,6 +51,9 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
     @Setter
     public static class Builder extends Receiver.Builder<Netcap, Netcap.Builder> {
         String bpfFilter;
+        PCAP_LINKTYPE linktype = PCAP_LINKTYPE.DLT_EN10MB;
+        int snaplen = 65535;
+        String ifname = "";
         @Override
         public Netcap build() {
             return new Netcap(this);
@@ -54,13 +63,33 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         return new Builder();
     }
 
-    private final String bpfFilter;
+    private Function<Arena, BpfProgram> bpfCompiler;
+    private final int snaplen;
+    private final int ifIndex;
+
     public Netcap(Builder builder) {
         super(builder);
+        this.snaplen = builder.snaplen;
+        if (builder.ifname.isBlank() || "all".equalsIgnoreCase(builder.ifname)) {
+            ifIndex = 0;
+        } else {
+            try {
+                NetworkInterface ni = NetworkInterface.getByName(builder.ifname);
+                ifIndex = ni.getIndex();
+            } catch (SocketException e) {
+                throw new RuntimeException(e);
+            }
+        }
         try (Arena arena = Arena.ofConfined()){
+            bpfCompiler = (a) -> bpfCompile(a, builder.bpfFilter, builder.linktype, builder.snaplen);
             // try to compile the bpf program
-            pcap.compileBpfFilter(builder.bpfFilter, arena);
-            bpfFilter = builder.bpfFilter;
+            bpfCompiler.apply(arena);
+        }
+    }
+
+    private BpfProgram bpfCompile(Arena arena, String bpfFilter, PCAP_LINKTYPE linktype, int snaplen) {
+        try {
+            return pcap.compileBpfFilter(arena, bpfFilter, linktype, snaplen);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         }
@@ -70,15 +99,23 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
     public void run() {
         int sockfd = -1;
         try (Arena arena = Arena.ofConfined()) {
-            BpfProgram bpfProgram = pcap.compileBpfFilter(bpfFilter, arena);
+            BpfProgram bpfProgram = bpfCompiler.apply(arena);
+            bpfCompiler = null;
             short protocol = stdlib.htons((short) ETH_P_ALL);
 
             // Create AF_PACKET socket
             sockfd = stdlib.socket(AF_PACKET, SOCK_RAW, protocol & 0xFFFF);
             stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
-            MemorySegment buffer = arena.allocate(65536);
+            SocketaddrLl sockaddr = new SocketaddrLl(arena);
+            sockaddr.setFamily((short) AF_PACKET);
+            sockaddr.setProtocol(protocol);
+            sockaddr.setIfindex(ifIndex);
+            stdlib.bind(sockfd, sockaddr.getSegment(), 20);
+            MemorySegment buffer = arena.allocate(snaplen);
+            MemorySegment addrlen = arena.allocate(ValueLayout.JAVA_INT);
+            sockaddr.fill((byte) 0);
             while (! interrupted()) {
-                receptionIteration(buffer, sockfd);
+                receptionIteration(sockfd, buffer, sockaddr.getSegment(), addrlen);
             }
         } catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -97,9 +134,9 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         }
     }
 
-    private void receptionIteration(MemorySegment buffer, int sockfd) {
+    private void receptionIteration(int sockfd, MemorySegment buffer, MemorySegment sockaddr, MemorySegment addrlen) {
         try {
-            ByteBuffer packet = readFd(buffer, sockfd);
+            ByteBuffer packet = readFd(sockfd, buffer, sockaddr, addrlen);
             for (Map<String, Object> m: decoder.decode(ConnectionContext.EMPTY, packet).toList()) {
                 send(mapToEvent(ConnectionContext.EMPTY, m));
             }
@@ -110,7 +147,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
 
     }
 
-    private ByteBuffer readFd(MemorySegment buffer, int sockfd) {
+    private ByteBuffer readFd(int sockfd, MemorySegment buffer, MemorySegment sockaddr, MemorySegment addrlen) {
         try {
             AtomicBoolean withData = new AtomicBoolean(false);
             AtomicBoolean withError = new AtomicBoolean(false);
@@ -121,10 +158,10 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
                 long bytesReadLong = stdlib.recvfrom(
                         sockfd,
                         buffer,
-                        65536L,
+                        snaplen,
                         0,
-                        MemorySegment.NULL,
-                        MemorySegment.NULL
+                        sockaddr,
+                        addrlen
                 );
                 int bytesRead = Math.toIntExact(bytesReadLong);
                 return buffer.asSlice(0L, bytesRead).asByteBuffer();

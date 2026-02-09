@@ -14,9 +14,9 @@ class PcapHandle implements AutoCloseable {
     @Getter
     private final MemorySegment pcapHandle;
 
-    PcapHandle(PcapProvider pcap) throws ExecutionException {
+    PcapHandle(PcapProvider pcap, PCAP_LINKTYPE linktype, int snaplen) throws ExecutionException {
         this.pcap = pcap;
-        this.pcapHandle =  pcap.pcap_open_dead(PCAP_LINKTYPE.DLT_EN10MB, 65535);;
+        this.pcapHandle =  pcap.pcap_open_dead(linktype, snaplen);
         if (pcapHandle.address() == 0) {
             throw new IllegalArgumentException("Failed to create pcap handle");
         }
