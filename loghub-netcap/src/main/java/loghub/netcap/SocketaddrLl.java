@@ -73,12 +73,13 @@ public class SocketaddrLl {
         IFINDEX.set(segment, 0L, ifindex);
     }
 
-    public short getHatype() {
-        return (short) HATYPE.get(segment, 0L);
+    public SLL_HATYPE getHatype() {
+        short hatype = (short) HATYPE.get(segment, 0L);
+        return SLL_HATYPE.fromValue(Short.toUnsignedInt(StdlibProvider.ntohs(hatype)));
     }
 
-    public void setHatype(short hatype) {
-        HATYPE.set(segment, 0L, hatype);
+    public void setHatype(SLL_HATYPE hatype) {
+        HATYPE.set(segment, 0L, hatype.getValue());
     }
 
     public byte getPkttype() {
