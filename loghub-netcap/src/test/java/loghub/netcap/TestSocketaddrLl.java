@@ -16,7 +16,7 @@ public class TestSocketaddrLl {
         sll.setProtocol(SLL_PROTOCOL.ETH_P_IP);
         sll.setIfindex(1);
         sll.setHatype(SLL_HATYPE.ARPHRD_ETHER);
-        sll.setPkttype((byte) 1);
+        sll.setPkttype(SLL_PKTTYPE.PACKET_BROADCAST);
         MacAddress mac = new MacAddress("00:11:22:33:44:55");
         sll.setAddr(mac);
 
@@ -27,7 +27,7 @@ public class TestSocketaddrLl {
             Assertions.assertEquals(SLL_PROTOCOL.ETH_P_IP.getNetworkValue(), (short) SocketaddrSll.PROTOCOL.get(segment, 0L));
             Assertions.assertEquals(1, (int) SocketaddrSll.IFINDEX.get(segment, 0L));
             Assertions.assertEquals(SLL_HATYPE.ARPHRD_ETHER.getValue(), (short) SocketaddrSll.HATYPE.get(segment, 0L));
-            Assertions.assertEquals((byte) 1, (byte) SocketaddrSll.PKTTYPE.get(segment, 0L));
+            Assertions.assertEquals(SLL_PKTTYPE.PACKET_BROADCAST.getValue(), (byte) SocketaddrSll.PKTTYPE.get(segment, 0L));
             Assertions.assertEquals((byte) 6, (byte) SocketaddrSll.HALEN.get(segment, 0L));
 
             byte[] addr = new byte[6];
@@ -50,8 +50,8 @@ public class TestSocketaddrLl {
         sll.setHatype(SLL_HATYPE.ARPHRD_IEEE802);
         Assertions.assertEquals(SLL_HATYPE.ARPHRD_IEEE802, sll.getHatype());
 
-        sll.setPkttype((byte) 2);
-        Assertions.assertEquals((byte) 2, sll.getPkttype());
+        sll.setPkttype(SLL_PKTTYPE.PACKET_MULTICAST);
+        Assertions.assertEquals(SLL_PKTTYPE.PACKET_MULTICAST, sll.getPkttype());
 
         MacAddress mac = new MacAddress("aa:bb:cc:dd:ee:ff");
         sll.setAddr(mac);
@@ -66,7 +66,7 @@ public class TestSocketaddrLl {
             SocketaddrSll.PROTOCOL.set(segment, 0L, SLL_PROTOCOL.ETH_P_IP.getNetworkValue());
             SocketaddrSll.IFINDEX.set(segment, 0L, 42);
             SocketaddrSll.HATYPE.set(segment, 0L, (short) SLL_HATYPE.ARPHRD_ETHER.getValue());
-            SocketaddrSll.PKTTYPE.set(segment, 0L, (byte) 3);
+            SocketaddrSll.PKTTYPE.set(segment, 0L, SLL_PKTTYPE.PACKET_OTHERHOST.getValue());
             SocketaddrSll.HALEN.set(segment, 0L, (byte) 6);
             byte[] macBytes = new MacAddress("11:22:33:44:55:66").getBytes();
             MemorySegment.copy(MemorySegment.ofArray(macBytes), 0, segment, SocketaddrSll.SOCKADDR_LL_LAYOUT.byteOffset(java.lang.foreign.MemoryLayout.PathElement.groupElement("sll_addr")), 6);
@@ -76,7 +76,7 @@ public class TestSocketaddrLl {
             Assertions.assertEquals(SLL_PROTOCOL.ETH_P_IP, sll.getProtocol());
             Assertions.assertEquals(42, sll.getIfindex());
             Assertions.assertEquals(SLL_HATYPE.ARPHRD_ETHER, sll.getHatype());
-            Assertions.assertEquals((byte) 3, sll.getPkttype());
+            Assertions.assertEquals(SLL_PKTTYPE.PACKET_OTHERHOST, sll.getPkttype());
             Assertions.assertArrayEquals(macBytes, sll.getAddr().getBytes());
         }
     }

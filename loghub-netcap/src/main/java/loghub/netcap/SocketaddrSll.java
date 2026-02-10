@@ -41,7 +41,7 @@ public class SocketaddrSll {
     private SLL_PROTOCOL protocol;
     private int ifindex;
     private SLL_HATYPE hatype;
-    private byte pkttype;
+    private SLL_PKTTYPE pkttype;
     private MacAddress addr;
 
     public SocketaddrSll() {
@@ -53,7 +53,7 @@ public class SocketaddrSll {
         this.ifindex = (int) IFINDEX.get(segment, 0L);
         short hatypeValue = (short) HATYPE.get(segment, 0L);
         this.hatype = SLL_HATYPE.fromValue(Short.toUnsignedInt(hatypeValue));
-        this.pkttype = (byte) PKTTYPE.get(segment, 0L);
+        this.pkttype = SLL_PKTTYPE.fromValue((byte) PKTTYPE.get(segment, 0L));
         byte halen = (byte) HALEN.get(segment, 0L);
         if (halen > 0) {
             byte[] buffer = new byte[halen];
@@ -68,7 +68,7 @@ public class SocketaddrSll {
         PROTOCOL.set(segment, 0L, protocol != null ? protocol.getNetworkValue() : (short) 0);
         IFINDEX.set(segment, 0L, ifindex);
         HATYPE.set(segment, 0L, hatype != null ? (short) hatype.getValue() : (short) 0);
-        PKTTYPE.set(segment, 0L, pkttype);
+        PKTTYPE.set(segment, 0L, pkttype != null ? pkttype.getValue() : (byte) 0);
         if (addr != null) {
             byte[] buffer = addr.getBytes();
             HALEN.set(segment, 0L, (byte) buffer.length);
@@ -107,11 +107,11 @@ public class SocketaddrSll {
         this.hatype = hatype;
     }
 
-    public byte getPkttype() {
+    public SLL_PKTTYPE getPkttype() {
         return pkttype;
     }
 
-    public void setPkttype(byte pkttype) {
+    public void setPkttype(SLL_PKTTYPE pkttype) {
         this.pkttype = pkttype;
     }
 
