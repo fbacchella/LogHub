@@ -100,7 +100,8 @@ public enum SLL_PROTOCOL {
     ETH_P_IEEE802154(0x00F6),
     ETH_P_CAIF(0x00F7),
     ETH_P_XDSA(0x00F8),
-    ETH_P_MAP(0x00F9);
+    ETH_P_MAP(0x00F9),
+    UNKNOWN(-1);
 
     private static final Map<Integer, SLL_PROTOCOL> BY_VALUE;
     static {
@@ -123,7 +124,7 @@ public enum SLL_PROTOCOL {
     }
 
     public static SLL_PROTOCOL fromValue(int value) {
-        return BY_VALUE.get(value);
+        return BY_VALUE.getOrDefault(value, UNKNOWN);
     }
 
 }

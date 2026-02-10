@@ -74,7 +74,8 @@ public enum SLL_HATYPE {
     ARPHRD_6LOWPAN(825),
     ARPHRD_VSOCKMON(826),
     ARPHRD_VOID(0xFFFF),
-    ARPHRD_NONE(0xFFFE);
+    ARPHRD_NONE(0xFFFE),
+    UNKNOWN(-1);
 
     private static final Map<Integer, SLL_HATYPE> BY_VALUE;
     static {
@@ -93,6 +94,6 @@ public enum SLL_HATYPE {
     }
 
     public static SLL_HATYPE fromValue(int value) {
-        return BY_VALUE.get(value);
+        return BY_VALUE.getOrDefault(value, UNKNOWN);
     }
 }

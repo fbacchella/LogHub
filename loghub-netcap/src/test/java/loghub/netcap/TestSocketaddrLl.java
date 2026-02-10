@@ -81,4 +81,20 @@ public class TestSocketaddrLl {
         }
     }
 
+    @Test
+    public void testUnknownValues() {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment segment = arena.allocate(SocketaddrSll.SOCKADDR_LL_LAYOUT);
+            SocketaddrSll.FAMILY.set(segment, 0L, SocketaddrSll.AF_PACKET);
+            SocketaddrSll.PROTOCOL.set(segment, 0L, (short) 0x1234); // Unknown protocol
+            SocketaddrSll.HATYPE.set(segment, 0L, (short) 0x5678); // Unknown hatype
+            SocketaddrSll.PKTTYPE.set(segment, 0L, (byte) 0x99); // Unknown pkttype
+
+            SocketaddrSll sll = new SocketaddrSll(segment);
+            Assertions.assertEquals(SLL_PROTOCOL.UNKNOWN, sll.getProtocol());
+            Assertions.assertEquals(SLL_HATYPE.UNKNOWN, sll.getHatype());
+            Assertions.assertEquals(SLL_PKTTYPE.UNKNOWN, sll.getPkttype());
+        }
+    }
+
 }

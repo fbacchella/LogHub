@@ -15,7 +15,8 @@ public enum SLL_PKTTYPE {
     PACKET_OUTGOING(4),
     PACKET_LOOPBACK(5),
     PACKET_USER(6),
-    PACKET_KERNEL(7);
+    PACKET_KERNEL(7),
+    UNKNOWN(-1);
 
     private static final Map<Byte, SLL_PKTTYPE> BY_VALUE;
     static {
@@ -34,7 +35,7 @@ public enum SLL_PKTTYPE {
     }
 
     public static SLL_PKTTYPE fromValue(byte value) {
-        return BY_VALUE.get(value);
+        return BY_VALUE.getOrDefault(value, UNKNOWN);
     }
 
 }
