@@ -5,6 +5,7 @@ import java.util.Optional;
 import io.kaitai.struct.KaitaiStream;
 import io.kaitai.struct.KaitaiStruct;
 import loghub.kaitai.parsers.IcmpPacket;
+import loghub.kaitai.parsers.Igmp;
 import loghub.kaitai.parsers.Ipv4Packet;
 import loghub.kaitai.parsers.Ipv6Packet;
 import loghub.kaitai.parsers.ProtocolBody;
@@ -24,6 +25,8 @@ public class ProtocolBodyDecoderService extends KaitaiStreamDecoderService<Proto
                 version = (int)ipv6Packet.version();
             }
             return Optional.of(new Vrrp(stream, version));
+        case IGMP:
+            return Optional.of(new Igmp(stream, struct));
         default:
             return Optional.empty();
         }
