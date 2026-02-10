@@ -11,7 +11,8 @@ import loghub.types.MacAddress;
 
 import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 
-public class SocketaddrLl {
+public class SocketaddrSll {
+    public static final short AF_PACKET = 17;
     public static final StructLayout SOCKADDR_LL_LAYOUT = MemoryLayout.structLayout(
             ValueLayout.JAVA_SHORT.withName("sll_family"),
             ValueLayout.JAVA_SHORT.withName("sll_protocol"),
@@ -27,88 +28,102 @@ public class SocketaddrLl {
     public static final VarHandle HATYPE = SOCKADDR_LL_LAYOUT.varHandle(groupElement("sll_hatype"));
     public static final VarHandle PKTTYPE = SOCKADDR_LL_LAYOUT.varHandle(groupElement("sll_pkttype"));
     public static final VarHandle HALEN = SOCKADDR_LL_LAYOUT.varHandle(groupElement("sll_halen"));
-    private final long SLL_ADDR_OFFSET =
+    private static final long SLL_ADDR_OFFSET =
             SOCKADDR_LL_LAYOUT.byteOffset(
                     MemoryLayout.PathElement.groupElement("sll_addr")
             );
 
-    private final long SLL_ADDR_SIZE =
+    private static final long SLL_ADDR_SIZE =
             SOCKADDR_LL_LAYOUT.select(
                     MemoryLayout.PathElement.groupElement("sll_addr")
             ).byteSize();
 
-    private final MemorySegment segment;
+    private SLL_PROTOCOL protocol;
+    private int ifindex;
+    private SLL_HATYPE hatype;
+    private byte pkttype;
+    private MacAddress addr;
 
-    public SocketaddrLl(Arena arena) {
-        this.segment = arena.allocate(SocketaddrLl.SOCKADDR_LL_LAYOUT);
-        this.segment.fill((byte) 0);
+    public SocketaddrSll() {
     }
 
-    public MemorySegment getSegment() {
+    public SocketaddrSll(MemorySegment segment) {
+        short protocolValue = (short) PROTOCOL.get(segment, 0L);
+        this.protocol = SLL_PROTOCOL.fromValue(Short.toUnsignedInt(StdlibProvider.ntohs(protocolValue)));
+        this.ifindex = (int) IFINDEX.get(segment, 0L);
+        short hatypeValue = (short) HATYPE.get(segment, 0L);
+        this.hatype = SLL_HATYPE.fromValue(Short.toUnsignedInt(hatypeValue));
+        this.pkttype = (byte) PKTTYPE.get(segment, 0L);
+        byte halen = (byte) HALEN.get(segment, 0L);
+        if (halen > 0) {
+            byte[] buffer = new byte[halen];
+            MemorySegment.copy(segment, SLL_ADDR_OFFSET, MemorySegment.ofArray(buffer), 0, Math.min(halen, (int) SLL_ADDR_SIZE));
+            this.addr = new MacAddress(buffer);
+        }
+    }
+
+    public MemorySegment getSegment(Arena arena) {
+        MemorySegment segment = arena.allocate(SOCKADDR_LL_LAYOUT);
+        FAMILY.set(segment, 0L, AF_PACKET);
+        PROTOCOL.set(segment, 0L, protocol != null ? protocol.getNetworkValue() : (short) 0);
+        IFINDEX.set(segment, 0L, ifindex);
+        HATYPE.set(segment, 0L, hatype != null ? (short) hatype.getValue() : (short) 0);
+        PKTTYPE.set(segment, 0L, pkttype);
+        if (addr != null) {
+            byte[] buffer = addr.getBytes();
+            HALEN.set(segment, 0L, (byte) buffer.length);
+            MemorySegment.copy(MemorySegment.ofArray(buffer), 0, segment, SLL_ADDR_OFFSET, Math.min(buffer.length, SLL_ADDR_SIZE));
+        } else {
+            HALEN.set(segment, 0L, (byte) 0);
+        }
         return segment;
     }
 
     public short getFamily() {
-        return (short) FAMILY.get(segment, 0L);
-    }
-
-    public void setFamily(short family) {
-        FAMILY.set(segment, 0L, family);
+        return AF_PACKET;
     }
 
     public SLL_PROTOCOL getProtocol() {
-        short protocol = (short) PROTOCOL.get(segment, 0L);
-        return SLL_PROTOCOL.fromValue(Short.toUnsignedInt(StdlibProvider.ntohs(protocol)));
+        return protocol;
     }
 
     public void setProtocol(SLL_PROTOCOL protocol) {
-        PROTOCOL.set(segment, 0L, protocol.getNetworkValue());
+        this.protocol = protocol;
     }
 
     public int getIfindex() {
-        return (int) IFINDEX.get(segment, 0L);
+        return ifindex;
     }
 
     public void setIfindex(int ifindex) {
-        IFINDEX.set(segment, 0L, ifindex);
+        this.ifindex = ifindex;
     }
 
     public SLL_HATYPE getHatype() {
-        short hatype = (short) HATYPE.get(segment, 0L);
-        return SLL_HATYPE.fromValue(Short.toUnsignedInt(StdlibProvider.ntohs(hatype)));
+        return hatype;
     }
 
     public void setHatype(SLL_HATYPE hatype) {
-        HATYPE.set(segment, 0L, hatype.getValue());
+        this.hatype = hatype;
     }
 
     public byte getPkttype() {
-        return (byte) PKTTYPE.get(segment, 0L);
+        return pkttype;
     }
 
     public void setPkttype(byte pkttype) {
-        PKTTYPE.set(segment, 0L, pkttype);
+        this.pkttype = pkttype;
     }
 
     public MacAddress getAddr() {
-        MemorySegment subSegment = segment.asSlice(SLL_ADDR_OFFSET, SLL_ADDR_SIZE);
-        byte halen = (byte) HALEN.get(segment, 0L);
-        if (halen >= 6) {
-            byte[] addr = new byte[halen];
-            MemorySegment.copy(subSegment, 0, MemorySegment.ofArray(addr), 0, halen);
-            return new MacAddress(addr);
-        } else {
-            return new MacAddress("ff:ff:ff:ff:ff:ff");
-        }
+        return addr;
     }
 
     public void setAddr(MacAddress addr) {
-        byte[] buffer = addr.getBytes();
-        HALEN.set(segment, 0L, buffer.length);
-        MemorySegment.copy(MemorySegment.ofArray(buffer), 0, segment, SOCKADDR_LL_LAYOUT.byteOffset(groupElement("sll_addr")), buffer.length);
+        this.addr = addr;
     }
 
-    public void fill(byte b) {
+    public void fill(MemorySegment segment, byte b) {
         segment.fill(b);
     }
 }

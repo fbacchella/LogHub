@@ -20,7 +20,7 @@ import loghub.decoders.DecodeException;
 import loghub.events.EventsFactory;
 import loghub.netcap.PCAP_LINKTYPE;
 import loghub.netcap.SLL_PROTOCOL;
-import loghub.netcap.SocketaddrLl;
+import loghub.netcap.SocketaddrSll;
 import loghub.netcap.StdlibProvider;
 import loghub.netcap.BpfProgram;
 import loghub.netcap.PcapProvider;
@@ -30,9 +30,7 @@ import lombok.Setter;
 public class Netcap extends Receiver<Netcap, Netcap.Builder> {
 
     // Linux system constants
-    private static final int AF_PACKET = 17;
     private static final int SOCK_RAW = 3;
-    //private static final int ETH_P_ALL = 0x0003;
     private static final int SOL_SOCKET = 1;
     private static final int SO_ATTACH_FILTER = 26;
 
@@ -103,18 +101,17 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             BpfProgram bpfProgram = bpfCompiler.apply(arena);
             bpfCompiler = null;
             // Create AF_PACKET socket
-            sockfd = stdlib.socket(AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue() & 0xFFFF);
+            sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue() & 0xFFFF);
             stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
-            SocketaddrLl sockaddr = new SocketaddrLl(arena);
-            sockaddr.setFamily((short) AF_PACKET);
+            SocketaddrSll sockaddr = new SocketaddrSll();
             sockaddr.setProtocol(SLL_PROTOCOL.ETH_P_ALL);
             sockaddr.setIfindex(ifIndex);
-            stdlib.bind(sockfd, sockaddr.getSegment(), 20);
+            stdlib.bind(sockfd, sockaddr.getSegment(arena), 20);
             MemorySegment buffer = arena.allocate(snaplen);
             MemorySegment addrlen = arena.allocate(ValueLayout.JAVA_INT);
-            sockaddr.fill((byte) 0);
+            MemorySegment sockaddrSegment = arena.allocate(SocketaddrSll.SOCKADDR_LL_LAYOUT);
             while (! interrupted()) {
-                receptionIteration(sockfd, buffer, sockaddr.getSegment(), addrlen);
+                receptionIteration(sockfd, buffer, sockaddrSegment, addrlen);
             }
         } catch (IOException ex) {
             throw new RuntimeException(ex);
