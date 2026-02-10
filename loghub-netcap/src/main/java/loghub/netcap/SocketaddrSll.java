@@ -9,6 +9,7 @@ import java.lang.invoke.VarHandle;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import loghub.cloners.Immutable;
 import loghub.types.MacAddress;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -17,6 +18,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 
 @ToString
 @EqualsAndHashCode
+@Immutable
 public class SocketaddrSll<T> {
     public static final short AF_PACKET = 17;
     public static final StructLayout SOCKADDR_LL_LAYOUT = MemoryLayout.structLayout(

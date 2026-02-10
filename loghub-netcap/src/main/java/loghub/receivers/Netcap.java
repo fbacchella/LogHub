@@ -18,13 +18,13 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.decoders.DecodeException;
 import loghub.events.EventsFactory;
+import loghub.netcap.BpfProgram;
 import loghub.netcap.PCAP_LINKTYPE;
-import loghub.netcap.SLL_PKTTYPE;
+import loghub.netcap.PcapProvider;
 import loghub.netcap.SLL_PROTOCOL;
+import loghub.netcap.SllConnectionContext;
 import loghub.netcap.SocketaddrSll;
 import loghub.netcap.StdlibProvider;
-import loghub.netcap.BpfProgram;
-import loghub.netcap.PcapProvider;
 import lombok.Setter;
 
 @BuilderClass(Netcap.Builder.class)
@@ -104,14 +104,14 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             // Create AF_PACKET socket
             sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue());
             stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
-            SocketaddrSll sockaddr = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ALL, ifIndex);
-            stdlib.bind(sockfd, sockaddr.getSegment(arena), SocketaddrSll.SOCKADDR_LL_SIZE);
+            SocketaddrSll listenAddress = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ALL, ifIndex);
+            stdlib.bind(sockfd, listenAddress.getSegment(arena), SocketaddrSll.SOCKADDR_LL_SIZE);
             MemorySegment buffer = arena.allocate(snaplen);
             MemorySegment addrlen = arena.allocate(ValueLayout.JAVA_INT);
             addrlen.set(ValueLayout.JAVA_INT, 0, SocketaddrSll.SOCKADDR_LL_SIZE);
             MemorySegment sockaddrSegment = arena.allocate(SocketaddrSll.SOCKADDR_LL_LAYOUT);
             while (! interrupted()) {
-                receptionIteration(sockfd, buffer, sockaddrSegment, addrlen);
+                receptionIteration(sockfd, buffer, listenAddress, sockaddrSegment, addrlen);
             }
         } catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -130,12 +130,14 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         }
     }
 
-    private void receptionIteration(int sockfd, MemorySegment buffer, MemorySegment sockaddr, MemorySegment addrlen) {
+    private void receptionIteration(int sockfd, MemorySegment buffer, SocketaddrSll listenAddress, MemorySegment sockaddr, MemorySegment addrlen) {
         try {
             ByteBuffer packet = readFd(sockfd, buffer, sockaddr, addrlen);
             if (packet != null) {
-                for (Map<String, Object> m: decoder.decode(ConnectionContext.EMPTY, packet).toList()) {
-                    send(mapToEvent(ConnectionContext.EMPTY, m));
+                SocketaddrSll receivedAddress = new SocketaddrSll(sockaddr);
+                ConnectionContext ctx = new SllConnectionContext(receivedAddress);
+                for (Map<String, Object> m: decoder.decode(ctx, packet).toList()) {
+                    send(mapToEvent(ctx, m));
                 }
             }
         } catch (DecodeException ex) {
