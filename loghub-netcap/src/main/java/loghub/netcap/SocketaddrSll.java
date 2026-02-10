@@ -12,6 +12,7 @@ import java.net.UnknownHostException;
 import loghub.cloners.Immutable;
 import loghub.types.MacAddress;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
 
 import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
@@ -19,6 +20,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 @ToString
 @EqualsAndHashCode
 @Immutable
+@Getter
 public class SocketaddrSll<T> {
     public static final short AF_PACKET = 17;
     public static final StructLayout SOCKADDR_LL_LAYOUT = MemoryLayout.structLayout(
@@ -53,14 +55,6 @@ public class SocketaddrSll<T> {
     private final SLL_PKTTYPE pkttype;
     private final T addr;
 
-    public SocketaddrSll(SLL_PROTOCOL protocol, int ifindex, T address) {
-        this.protocol = protocol;
-        this.ifindex = ifindex;
-        this.addr = address;
-        this.hatype = null;
-        this.pkttype = null;
-    }
-
     public SocketaddrSll(SLL_PROTOCOL protocol, int ifindex) {
         this.protocol = protocol;
         this.ifindex = ifindex;
@@ -69,6 +63,7 @@ public class SocketaddrSll<T> {
         this.pkttype = null;
     }
 
+    @SuppressWarnings("unchecked")
     public SocketaddrSll(MemorySegment segment) {
         short family = (short) FAMILY.get(segment, 0L);
         if (family != SocketaddrSll.AF_PACKET) {
@@ -125,26 +120,6 @@ public class SocketaddrSll<T> {
 
     public short getFamily() {
         return AF_PACKET;
-    }
-
-    public SLL_PROTOCOL getProtocol() {
-        return protocol;
-    }
-
-    public int getIfindex() {
-        return ifindex;
-    }
-
-    public SLL_HATYPE getHatype() {
-        return hatype;
-    }
-
-    public SLL_PKTTYPE getPkttype() {
-        return pkttype;
-    }
-
-    public T getAddr() {
-        return addr;
     }
 
 }

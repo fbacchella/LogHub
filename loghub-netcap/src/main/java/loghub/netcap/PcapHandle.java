@@ -12,12 +12,12 @@ class PcapHandle implements AutoCloseable {
 
     private final PcapProvider pcap;
     @Getter
-    private final MemorySegment pcapHandle;
+    private final MemorySegment handle;
 
     PcapHandle(PcapProvider pcap, PCAP_LINKTYPE linktype, int snaplen) throws ExecutionException {
         this.pcap = pcap;
-        this.pcapHandle =  pcap.pcap_open_dead(linktype, snaplen);
-        if (pcapHandle.address() == 0) {
+        this.handle =  pcap.pcap_open_dead(linktype, snaplen);
+        if (handle.address() == 0) {
             throw new IllegalArgumentException("Failed to create pcap handle");
         }
     }
@@ -35,8 +35,7 @@ class PcapHandle implements AutoCloseable {
         MemorySegment filterStr = arena.allocateFrom(filterExpression);
 
         // Compile the filter
-        int result = pcap.pcap_compile(
-                pcapHandle,
+        int result = pcap.pcap_compile(handle,
                 bpfProgram,
                 filterStr,
                 1,  // optimize
@@ -44,9 +43,9 @@ class PcapHandle implements AutoCloseable {
         );
 
         if (result != 0) {
-            MemorySegment errorMsg = pcap.pcap_geterr(pcapHandle);
-            String error = errorMsg.reinterpret(1000).getString(0);
-            throw new RuntimeException("Failed to compile BPF filter: " + error);
+            MemorySegment errorMsg = pcap.pcap_geterr(handle);
+            String error = errorMsg.getString(0);
+            throw new IllegalArgumentException("Failed to compile BPF filter: " + error);
         }
 
         // Extract compiled program details
@@ -57,9 +56,9 @@ class PcapHandle implements AutoCloseable {
         Runnable closeProgram = () -> {
             try {
                 pcap.pcap_freecode(bpfProgram);
-                pcap.pcap_close(pcapHandle);
+                pcap.pcap_close(handle);
             } catch (ExecutionException e) {
-                throw new RuntimeException(e);
+                throw new IllegalStateException(e.getMessage(), e.getCause());
             }
         };
         return new BpfProgram(instructionCount, instructionsPtr, closeProgram);
@@ -68,9 +67,9 @@ class PcapHandle implements AutoCloseable {
     @Override
     public void close() {
         try {
-            pcap.pcap_close(pcapHandle);
+            pcap.pcap_close(handle);
         } catch (ExecutionException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e.getMessage(), e.getCause());
         }
     }
 }

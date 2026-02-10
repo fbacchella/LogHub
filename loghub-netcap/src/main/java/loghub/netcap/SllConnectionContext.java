@@ -10,15 +10,15 @@ import loghub.BuildableConnectionContext;
 import loghub.cloners.Immutable;
 import loghub.types.MacAddress;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 @Immutable
-@EqualsAndHashCode
-public class SllConnectionContext<T> extends BuildableConnectionContext<T> implements Cloneable {
+@EqualsAndHashCode(callSuper = false)
+public class SllConnectionContext<T> extends BuildableConnectionContext<T> {
 
     private final SocketaddrSll<T> packetAddress;
     private final T receivedInterfaceAddress;
 
+    @SuppressWarnings("unchecked")
     public SllConnectionContext(SocketaddrSll<T> packetAddress) {
         try {
             this.packetAddress = packetAddress;

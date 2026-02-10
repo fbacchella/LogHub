@@ -35,7 +35,6 @@ public class PcapProvider {
     private static final FunctionDescriptor PCAP_GETERR_DESC =
             FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.ADDRESS);
 
-    private final SymbolLookup libpcap;
     private final MethodHandle pcap_compile;
     private final MethodHandle pcap_open_dead;
     private final MethodHandle pcap_close;
@@ -43,7 +42,7 @@ public class PcapProvider {
     private final MethodHandle pcap_geterr;
 
     public PcapProvider(Linker linker) {
-        libpcap = SymbolLookup.libraryLookup("libpcap.so.1", Arena.global());
+        SymbolLookup libpcap = SymbolLookup.libraryLookup("libpcap.so.1", Arena.global());
         pcap_compile = linker.downcallHandle(
                 libpcap.findOrThrow("pcap_compile"),
                 PCAP_COMPILE_DESC
@@ -116,12 +115,13 @@ public class PcapProvider {
      *
      * @param arena            Memory arena for allocation
      * @param filterExpression tcpdump-style filter expression
-     * @param snaplen
+     * @param snaplen the span length of the capture
      * @return BpfProgram a BpfProgram
      */
     public BpfProgram compileBpfFilter(Arena arena, String filterExpression, PCAP_LINKTYPE linktype, int snaplen) throws ExecutionException {
-        PcapHandle handle = new PcapHandle(this, linktype, snaplen);
-        return handle.compile(arena, filterExpression);
+        try (PcapHandle handle = new PcapHandle(this, linktype, snaplen)) {
+            return handle.compile(arena, filterExpression);
+        }
     }
 
 }

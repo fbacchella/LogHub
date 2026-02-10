@@ -6,8 +6,6 @@ import java.util.Map;
 
 import lombok.Getter;
 
-import static loghub.netcap.StdlibProvider.htons;
-
 public enum SLL_HATYPE {
     ARPHRD_NETROM(0),
     ARPHRD_ETHER(1),
