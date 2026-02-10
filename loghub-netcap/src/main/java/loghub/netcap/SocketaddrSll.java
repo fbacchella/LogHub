@@ -8,9 +8,13 @@ import java.lang.foreign.ValueLayout;
 import java.lang.invoke.VarHandle;
 
 import loghub.types.MacAddress;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 
+@ToString
+@EqualsAndHashCode
 public class SocketaddrSll {
     public static final short AF_PACKET = 17;
     public static final StructLayout SOCKADDR_LL_LAYOUT = MemoryLayout.structLayout(
@@ -38,16 +42,33 @@ public class SocketaddrSll {
                     MemoryLayout.PathElement.groupElement("sll_addr")
             ).byteSize();
 
-    private SLL_PROTOCOL protocol;
-    private int ifindex;
-    private SLL_HATYPE hatype;
-    private SLL_PKTTYPE pkttype;
-    private MacAddress addr;
+    private final SLL_PROTOCOL protocol;
+    private final int ifindex;
+    private final SLL_HATYPE hatype;
+    private final SLL_PKTTYPE pkttype;
+    private final MacAddress addr;
 
-    public SocketaddrSll() {
+    public SocketaddrSll(SLL_PROTOCOL protocol, int ifindex, MacAddress address) {
+        this.protocol = protocol;
+        this.ifindex = ifindex;
+        this.addr = address;
+        this.hatype = null;
+        this.pkttype = null;
+    }
+
+    public SocketaddrSll(SLL_PROTOCOL protocol, int ifindex) {
+        this.protocol = protocol;
+        this.ifindex = ifindex;
+        this.addr = null;
+        this.hatype = null;
+        this.pkttype = null;
     }
 
     public SocketaddrSll(MemorySegment segment) {
+        short familly = (short) FAMILY.get(segment, 0L);
+        if (familly != SocketaddrSll.AF_PACKET) {
+            throw new IllegalArgumentException("Not an AF_PACKET");
+        }
         short protocolValue = (short) PROTOCOL.get(segment, 0L);
         this.protocol = SLL_PROTOCOL.fromValue(Short.toUnsignedInt(StdlibProvider.ntohs(protocolValue)));
         this.ifindex = (int) IFINDEX.get(segment, 0L);
@@ -55,10 +76,15 @@ public class SocketaddrSll {
         this.hatype = SLL_HATYPE.fromValue(Short.toUnsignedInt(hatypeValue));
         this.pkttype = SLL_PKTTYPE.fromValue((byte) PKTTYPE.get(segment, 0L));
         byte halen = (byte) HALEN.get(segment, 0L);
+        if (halen > 8) {
+            throw new IllegalArgumentException("Corrupted AF_PACKET");
+        }
         if (halen > 0) {
             byte[] buffer = new byte[halen];
             MemorySegment.copy(segment, SLL_ADDR_OFFSET, MemorySegment.ofArray(buffer), 0, Math.min(halen, (int) SLL_ADDR_SIZE));
             this.addr = new MacAddress(buffer);
+        } else {
+            this.addr = null;
         }
     }
 
@@ -87,43 +113,20 @@ public class SocketaddrSll {
         return protocol;
     }
 
-    public void setProtocol(SLL_PROTOCOL protocol) {
-        this.protocol = protocol;
-    }
-
     public int getIfindex() {
         return ifindex;
-    }
-
-    public void setIfindex(int ifindex) {
-        this.ifindex = ifindex;
     }
 
     public SLL_HATYPE getHatype() {
         return hatype;
     }
 
-    public void setHatype(SLL_HATYPE hatype) {
-        this.hatype = hatype;
-    }
-
     public SLL_PKTTYPE getPkttype() {
         return pkttype;
-    }
-
-    public void setPkttype(SLL_PKTTYPE pkttype) {
-        this.pkttype = pkttype;
     }
 
     public MacAddress getAddr() {
         return addr;
     }
 
-    public void setAddr(MacAddress addr) {
-        this.addr = addr;
-    }
-
-    public void fill(MemorySegment segment, byte b) {
-        segment.fill(b);
-    }
 }

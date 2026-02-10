@@ -12,11 +12,7 @@ public class TestSocketaddrLl {
 
     @Test
     public void testGetSegment() {
-        SocketaddrSll sll = new SocketaddrSll();
-        sll.setProtocol(SLL_PROTOCOL.ETH_P_IP);
-        sll.setIfindex(1);
-        sll.setHatype(SLL_HATYPE.ARPHRD_ETHER);
-        sll.setPkttype(SLL_PKTTYPE.PACKET_BROADCAST);
+        SocketaddrSll sll = new SocketaddrSll(SLL_PROTOCOL.ETH_P_IP, 1);
         MacAddress mac = new MacAddress("00:11:22:33:44:55");
         sll.setAddr(mac);
 
@@ -26,8 +22,8 @@ public class TestSocketaddrLl {
             Assertions.assertEquals((short) 17, (short) SocketaddrSll.FAMILY.get(segment, 0L));
             Assertions.assertEquals(SLL_PROTOCOL.ETH_P_IP.getNetworkValue(), (short) SocketaddrSll.PROTOCOL.get(segment, 0L));
             Assertions.assertEquals(1, (int) SocketaddrSll.IFINDEX.get(segment, 0L));
-            Assertions.assertEquals(SLL_HATYPE.ARPHRD_ETHER.getValue(), (short) SocketaddrSll.HATYPE.get(segment, 0L));
-            Assertions.assertEquals(SLL_PKTTYPE.PACKET_BROADCAST.getValue(), (byte) SocketaddrSll.PKTTYPE.get(segment, 0L));
+            Assertions.assertEquals(SLL_HATYPE.ARPHRD_NETROM.getValue(), (short) SocketaddrSll.HATYPE.get(segment, 0L));
+            Assertions.assertEquals(SLL_PKTTYPE.PACKET_HOST.getValue(), (byte) SocketaddrSll.PKTTYPE.get(segment, 0L));
             Assertions.assertEquals((byte) 6, (byte) SocketaddrSll.HALEN.get(segment, 0L));
 
             byte[] addr = new byte[6];
@@ -38,7 +34,7 @@ public class TestSocketaddrLl {
 
     @Test
     public void testGettersSetters() {
-        SocketaddrSll sll = new SocketaddrSll();
+        SocketaddrSll sll = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ARP, 123);
         Assertions.assertEquals(SocketaddrSll.AF_PACKET, sll.getFamily());
 
         sll.setProtocol(SLL_PROTOCOL.ETH_P_ARP);
@@ -95,6 +91,18 @@ public class TestSocketaddrLl {
             Assertions.assertEquals(SLL_HATYPE.UNKNOWN, sll.getHatype());
             Assertions.assertEquals(SLL_PKTTYPE.UNKNOWN, sll.getPkttype());
         }
+    }
+
+    @Test
+    public void testLombok() {
+        SocketaddrSll sll1 = new SocketaddrSll(SLL_PROTOCOL.ETH_P_IP, 1);
+
+        SocketaddrSll sll2 = new SocketaddrSll(SLL_PROTOCOL.ETH_P_IP, 1);
+
+        Assertions.assertEquals(sll1, sll2);
+        Assertions.assertEquals(sll1.hashCode(), sll2.hashCode());
+        Assertions.assertTrue(sll1.toString().contains("protocol=ETH_P_IP"));
+        Assertions.assertTrue(sll1.toString().contains("ifindex=1"));
     }
 
 }

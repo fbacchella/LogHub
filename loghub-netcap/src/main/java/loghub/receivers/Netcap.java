@@ -19,6 +19,7 @@ import loghub.ConnectionContext;
 import loghub.decoders.DecodeException;
 import loghub.events.EventsFactory;
 import loghub.netcap.PCAP_LINKTYPE;
+import loghub.netcap.SLL_PKTTYPE;
 import loghub.netcap.SLL_PROTOCOL;
 import loghub.netcap.SocketaddrSll;
 import loghub.netcap.StdlibProvider;
@@ -103,7 +104,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             // Create AF_PACKET socket
             sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue() & 0xFFFF);
             stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
-            SocketaddrSll sockaddr = new SocketaddrSll();
+            SocketaddrSll sockaddr = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ALL, ifIndex);
             sockaddr.setProtocol(SLL_PROTOCOL.ETH_P_ALL);
             sockaddr.setIfindex(ifIndex);
             stdlib.bind(sockfd, sockaddr.getSegment(arena), 20);
