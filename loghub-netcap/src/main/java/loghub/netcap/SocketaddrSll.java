@@ -28,6 +28,7 @@ public class SocketaddrSll<T> {
             ValueLayout.JAVA_BYTE.withName("sll_halen"),
             MemoryLayout.sequenceLayout(8, ValueLayout.JAVA_BYTE).withName("sll_addr")
     );
+    public static final int SOCKADDR_LL_SIZE = (int)SOCKADDR_LL_LAYOUT.byteSize();
     public static final VarHandle FAMILY = SOCKADDR_LL_LAYOUT.varHandle(groupElement("sll_family"));
     public static final VarHandle PROTOCOL = SOCKADDR_LL_LAYOUT.varHandle(groupElement("sll_protocol"));
     public static final VarHandle IFINDEX = SOCKADDR_LL_LAYOUT.varHandle(groupElement("sll_ifindex"));
@@ -67,9 +68,9 @@ public class SocketaddrSll<T> {
     }
 
     public SocketaddrSll(MemorySegment segment) {
-        short familly = (short) FAMILY.get(segment, 0L);
-        if (familly != SocketaddrSll.AF_PACKET) {
-            throw new IllegalArgumentException("Not an AF_PACKET");
+        short family = (short) FAMILY.get(segment, 0L);
+        if (family != SocketaddrSll.AF_PACKET) {
+            throw new IllegalArgumentException("Not an AF_PACKET: " + family);
         }
         short protocolValue = (short) PROTOCOL.get(segment, 0L);
         this.protocol = SLL_PROTOCOL.fromValue(Short.toUnsignedInt(StdlibProvider.ntohs(protocolValue)));

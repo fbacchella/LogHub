@@ -102,12 +102,13 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             BpfProgram bpfProgram = bpfCompiler.apply(arena);
             bpfCompiler = null;
             // Create AF_PACKET socket
-            sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue() & 0xFFFF);
+            sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue());
             stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
             SocketaddrSll sockaddr = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ALL, ifIndex);
-            stdlib.bind(sockfd, sockaddr.getSegment(arena), 20);
+            stdlib.bind(sockfd, sockaddr.getSegment(arena), SocketaddrSll.SOCKADDR_LL_SIZE);
             MemorySegment buffer = arena.allocate(snaplen);
             MemorySegment addrlen = arena.allocate(ValueLayout.JAVA_INT);
+            addrlen.set(ValueLayout.JAVA_INT, 0, SocketaddrSll.SOCKADDR_LL_SIZE);
             MemorySegment sockaddrSegment = arena.allocate(SocketaddrSll.SOCKADDR_LL_LAYOUT);
             while (! interrupted()) {
                 receptionIteration(sockfd, buffer, sockaddrSegment, addrlen);
@@ -132,8 +133,10 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
     private void receptionIteration(int sockfd, MemorySegment buffer, MemorySegment sockaddr, MemorySegment addrlen) {
         try {
             ByteBuffer packet = readFd(sockfd, buffer, sockaddr, addrlen);
-            for (Map<String, Object> m: decoder.decode(ConnectionContext.EMPTY, packet).toList()) {
-                send(mapToEvent(ConnectionContext.EMPTY, m));
+            if (packet != null) {
+                for (Map<String, Object> m: decoder.decode(ConnectionContext.EMPTY, packet).toList()) {
+                    send(mapToEvent(ConnectionContext.EMPTY, m));
+                }
             }
         } catch (DecodeException ex) {
             EventsFactory.deadEvent(ConnectionContext.EMPTY);
@@ -158,10 +161,15 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
                         sockaddr,
                         addrlen
                 );
-                int bytesRead = Math.toIntExact(bytesReadLong);
-                return buffer.asSlice(0L, bytesRead).asByteBuffer();
+                if (sockaddr.get(ValueLayout.JAVA_SHORT, 0) != SocketaddrSll.AF_PACKET) {
+                    logger.info("Spurious packet of type {} and length {} received, ignored", sockaddr.get(ValueLayout.JAVA_SHORT, 0), bytesReadLong);
+                    return null;
+                } else {
+                    int bytesRead = Math.toIntExact(bytesReadLong);
+                    return buffer.asSlice(0L, bytesRead).asByteBuffer();
+                }
             } else {
-                return ByteBuffer.allocate(0);
+                return null;
             }
         } catch (ArithmeticException e) {
             throw new RuntimeException(e);
