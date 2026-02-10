@@ -105,8 +105,6 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue() & 0xFFFF);
             stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
             SocketaddrSll sockaddr = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ALL, ifIndex);
-            sockaddr.setProtocol(SLL_PROTOCOL.ETH_P_ALL);
-            sockaddr.setIfindex(ifIndex);
             stdlib.bind(sockfd, sockaddr.getSegment(arena), 20);
             MemorySegment buffer = arena.allocate(snaplen);
             MemorySegment addrlen = arena.allocate(ValueLayout.JAVA_INT);

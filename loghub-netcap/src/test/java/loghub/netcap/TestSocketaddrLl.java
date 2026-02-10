@@ -8,13 +8,11 @@ import org.junit.jupiter.api.Test;
 
 import loghub.types.MacAddress;
 
-public class TestSocketaddrLl {
+class TestSocketaddrLl {
 
     @Test
-    public void testGetSegment() {
+    void testGetSegment() {
         SocketaddrSll sll = new SocketaddrSll(SLL_PROTOCOL.ETH_P_IP, 1);
-        MacAddress mac = new MacAddress("00:11:22:33:44:55");
-        sll.setAddr(mac);
 
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment segment = sll.getSegment(arena);
@@ -24,38 +22,12 @@ public class TestSocketaddrLl {
             Assertions.assertEquals(1, (int) SocketaddrSll.IFINDEX.get(segment, 0L));
             Assertions.assertEquals(SLL_HATYPE.ARPHRD_NETROM.getValue(), (short) SocketaddrSll.HATYPE.get(segment, 0L));
             Assertions.assertEquals(SLL_PKTTYPE.PACKET_HOST.getValue(), (byte) SocketaddrSll.PKTTYPE.get(segment, 0L));
-            Assertions.assertEquals((byte) 6, (byte) SocketaddrSll.HALEN.get(segment, 0L));
-
-            byte[] addr = new byte[6];
-            MemorySegment.copy(segment, SocketaddrSll.SOCKADDR_LL_LAYOUT.byteOffset(java.lang.foreign.MemoryLayout.PathElement.groupElement("sll_addr")), MemorySegment.ofArray(addr), 0, 6);
-            Assertions.assertArrayEquals(mac.getBytes(), addr);
+            Assertions.assertEquals((byte) 0, (byte) SocketaddrSll.HALEN.get(segment, 0L));
         }
     }
 
     @Test
-    public void testGettersSetters() {
-        SocketaddrSll sll = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ARP, 123);
-        Assertions.assertEquals(SocketaddrSll.AF_PACKET, sll.getFamily());
-
-        sll.setProtocol(SLL_PROTOCOL.ETH_P_ARP);
-        Assertions.assertEquals(SLL_PROTOCOL.ETH_P_ARP, sll.getProtocol());
-
-        sll.setIfindex(123);
-        Assertions.assertEquals(123, sll.getIfindex());
-
-        sll.setHatype(SLL_HATYPE.ARPHRD_IEEE802);
-        Assertions.assertEquals(SLL_HATYPE.ARPHRD_IEEE802, sll.getHatype());
-
-        sll.setPkttype(SLL_PKTTYPE.PACKET_MULTICAST);
-        Assertions.assertEquals(SLL_PKTTYPE.PACKET_MULTICAST, sll.getPkttype());
-
-        MacAddress mac = new MacAddress("aa:bb:cc:dd:ee:ff");
-        sll.setAddr(mac);
-        Assertions.assertEquals(mac, sll.getAddr());
-    }
-
-    @Test
-    public void testConstructorFromSegment() {
+    void testConstructorFromSegment() {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment segment = arena.allocate(SocketaddrSll.SOCKADDR_LL_LAYOUT);
             SocketaddrSll.FAMILY.set(segment, 0L, SocketaddrSll.AF_PACKET);
@@ -73,12 +45,12 @@ public class TestSocketaddrLl {
             Assertions.assertEquals(42, sll.getIfindex());
             Assertions.assertEquals(SLL_HATYPE.ARPHRD_ETHER, sll.getHatype());
             Assertions.assertEquals(SLL_PKTTYPE.PACKET_OTHERHOST, sll.getPkttype());
-            Assertions.assertArrayEquals(macBytes, sll.getAddr().getBytes());
+            Assertions.assertArrayEquals(macBytes, ((MacAddress)sll.getAddr()).getBytes());
         }
     }
 
     @Test
-    public void testUnknownValues() {
+    void testUnknownValues() {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment segment = arena.allocate(SocketaddrSll.SOCKADDR_LL_LAYOUT);
             SocketaddrSll.FAMILY.set(segment, 0L, SocketaddrSll.AF_PACKET);
@@ -94,7 +66,7 @@ public class TestSocketaddrLl {
     }
 
     @Test
-    public void testLombok() {
+    void testLombok() {
         SocketaddrSll sll1 = new SocketaddrSll(SLL_PROTOCOL.ETH_P_IP, 1);
 
         SocketaddrSll sll2 = new SocketaddrSll(SLL_PROTOCOL.ETH_P_IP, 1);

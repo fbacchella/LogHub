@@ -6,6 +6,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.VarHandle;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import loghub.types.MacAddress;
 import lombok.EqualsAndHashCode;
@@ -15,7 +17,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 
 @ToString
 @EqualsAndHashCode
-public class SocketaddrSll {
+public class SocketaddrSll<T> {
     public static final short AF_PACKET = 17;
     public static final StructLayout SOCKADDR_LL_LAYOUT = MemoryLayout.structLayout(
             ValueLayout.JAVA_SHORT.withName("sll_family"),
@@ -46,9 +48,9 @@ public class SocketaddrSll {
     private final int ifindex;
     private final SLL_HATYPE hatype;
     private final SLL_PKTTYPE pkttype;
-    private final MacAddress addr;
+    private final T addr;
 
-    public SocketaddrSll(SLL_PROTOCOL protocol, int ifindex, MacAddress address) {
+    public SocketaddrSll(SLL_PROTOCOL protocol, int ifindex, T address) {
         this.protocol = protocol;
         this.ifindex = ifindex;
         this.addr = address;
@@ -82,7 +84,15 @@ public class SocketaddrSll {
         if (halen > 0) {
             byte[] buffer = new byte[halen];
             MemorySegment.copy(segment, SLL_ADDR_OFFSET, MemorySegment.ofArray(buffer), 0, Math.min(halen, (int) SLL_ADDR_SIZE));
-            this.addr = new MacAddress(buffer);
+            if (hatype == SLL_HATYPE.ARPHRD_TUNNEL || hatype == SLL_HATYPE.ARPHRD_IPGRE) {
+                try {
+                    this.addr = (T) InetAddress.getByAddress(buffer);
+                } catch (UnknownHostException _) {
+                    throw new IllegalArgumentException("Corrupted AF_PACKET");
+                }
+            } else {
+                this.addr = (T) new MacAddress(buffer);
+            }
         } else {
             this.addr = null;
         }
@@ -96,7 +106,12 @@ public class SocketaddrSll {
         HATYPE.set(segment, 0L, hatype != null ? (short) hatype.getValue() : (short) 0);
         PKTTYPE.set(segment, 0L, pkttype != null ? pkttype.getValue() : (byte) 0);
         if (addr != null) {
-            byte[] buffer = addr.getBytes();
+            byte[] buffer;
+            if (hatype == SLL_HATYPE.ARPHRD_TUNNEL || hatype == SLL_HATYPE.ARPHRD_IPGRE) {
+                buffer = ((InetAddress)addr).getAddress();
+            } else {
+                buffer = ((MacAddress) addr).getBytes();
+            }
             HALEN.set(segment, 0L, (byte) buffer.length);
             MemorySegment.copy(MemorySegment.ofArray(buffer), 0, segment, SLL_ADDR_OFFSET, Math.min(buffer.length, SLL_ADDR_SIZE));
         } else {
@@ -125,7 +140,7 @@ public class SocketaddrSll {
         return pkttype;
     }
 
-    public MacAddress getAddr() {
+    public T getAddr() {
         return addr;
     }
 
