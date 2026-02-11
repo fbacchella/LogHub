@@ -2,7 +2,7 @@ version: 2.1
 jobs:
     checkout:
         docker:
-            - image: cimg/openjdk:24.0
+            - image: cimg/openjdk:25.0
         steps:
             - checkout:
                 method: full
@@ -29,7 +29,7 @@ jobs:
                     - usr/share/snmp/mibs/
     build:
         docker:
-            - image: cimg/openjdk:24.0
+            - image: cimg/openjdk:25.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -105,7 +105,7 @@ jobs:
             #don't persist_to_workspace, can't be done in parallel with testsj14
     publish:
         docker:
-            - image: cimg/openjdk:24.0
+            - image: cimg/openjdk:25.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -200,7 +200,7 @@ jobs:
                     - home/circleci/.sonar/cache
     savecache:
         docker:
-            - image: cimg/openjdk:24.0
+            - image: cimg/openjdk:25.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
