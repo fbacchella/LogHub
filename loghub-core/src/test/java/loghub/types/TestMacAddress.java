@@ -45,4 +45,15 @@ public class TestMacAddress {
         Assert.assertEquals('"' + STANDARDFORMAT48 + '"', serialized);
     }
 
+    @Test
+    public void testInfiniband() {
+        byte[] address = new byte[]{
+                (byte) 0xfe, (byte) 0x80, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+                (byte) 0x00, (byte) 0x02, (byte) 0xc9, (byte) 0x03, (byte) 0x00, (byte) 0x50, (byte) 0x6b, (byte) 0x4a,
+                (byte) 0x00, (byte) 0x12, (byte) 0x34, (byte) 0x56
+        };
+        Assert.assertEquals("<fe80:0:0:0:2:c903:50:6b4a, 0x123456>", new MacAddress(address).toString());
+        Assert.assertEquals("<fe80:0:0:0:2:c903:50:6b4a, 0x123456>", new MacAddress("IB GID: fe80::2:c903:50:6b4a, QPN: 0x123456").toString());
+    }
+
 }
