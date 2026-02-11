@@ -320,6 +320,7 @@
         <module>loghub-sflow</module>
         <module>loghub-netflow</module>
         <module>loghub-cbor</module>
+        <module>loghub-netcap</module>
     </modules>
 
     <profiles>
