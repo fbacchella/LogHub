@@ -13,8 +13,8 @@
     <name>LogHub :: Core</name>
 
     <properties>
-        <netty.version>4.2.8.Final</netty.version>
-        <jackson-msgpack.version>0.9.10</jackson-msgpack.version>
+        <netty.version>4.2.10.Final</netty.version>
+        <jackson-msgpack.version>0.9.11</jackson-msgpack.version>
     </properties>
 
     <dependencies>
@@ -246,12 +246,12 @@
         <dependency>
             <groupId>org.tukaani</groupId>
             <artifactId>xz</artifactId>
-            <version>1.10</version>
+            <version>1.11</version>
         </dependency>
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.5.7-6</version>
+            <version>1.5.7-7</version>
         </dependency>
         <dependency>
             <groupId>org.brotli</groupId>
@@ -281,7 +281,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.20.0</version>
+            <version>5.21.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -296,7 +296,7 @@
                 <!-- Because of  CVE-2025-48924 introduced by gok -->
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.19.0</version>
+                <version>3.20.0</version>
             </dependency>
             <!-- Because of https://issues.apache.org/jira/browse/CODEC-279, tests for JWT was failing -->
             <dependency>

@@ -13,7 +13,7 @@
     <name>LogHub :: Rate limit</name>
 
     <properties>
-        <bucket4j.version>8.15.0</bucket4j.version>
+        <bucket4j.version>8.16.1</bucket4j.version>
     </properties>
 
     <dependencies>

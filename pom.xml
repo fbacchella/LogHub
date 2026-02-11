@@ -11,20 +11,20 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
-        <log4j.version>2.25.2</log4j.version>
+        <log4j.version>2.25.3</log4j.version>
         <antlr>4.13.2</antlr>
-        <jackson.version>2.20.1</jackson.version>
-        <jackson.core.version>2.20</jackson.core.version>
-        <metrics>4.2.37</metrics>
+        <jackson.version>2.21.0</jackson.version>
+        <jackson.core.version>2.21</jackson.core.version>
+        <metrics>4.2.38</metrics>
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
         <jcommander.version>1.82</jcommander.version>
         <slf4j.version>2.0.17</slf4j.version>
         <lombok.version>1.18.42</lombok.version>
-        <bouncycastle.version>1.82</bouncycastle.version>
-        <commonscodec.version>1.20.0</commonscodec.version>
-        <junit.version>5.11.4</junit.version>
+        <bouncycastle.version>1.83</bouncycastle.version>
+        <commonscodec.version>1.21.0</commonscodec.version>
+        <junit.version>5.14.2</junit.version>
         <dependency.locations.enabled>true</dependency.locations.enabled>
         <!-- Indirection needed to keep optionnal jacoco settings and external argument lines-->
         <arg.line></arg.line>
