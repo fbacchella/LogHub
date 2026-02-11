@@ -5,9 +5,12 @@ import java.lang.foreign.MemorySegment;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnJre;
+import org.junit.jupiter.api.condition.JRE;
 
 import loghub.types.MacAddress;
 
+@EnabledOnJre(JRE.JAVA_25)
 class TestSocketaddrLl {
 
     @Test
