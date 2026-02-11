@@ -240,6 +240,7 @@ expression
     |   split = Split '(' (pattern | stringLiteral) ',' expression ')'
     |   gsub = 'gsub' '(' expression ',' pattern ',' stringLiteral ')'
     |   now = 'now'
+    |   hostname = 'hostname'
     |   isEmpty = 'isEmpty' '(' expression ')'
     |   isIp = 'isIP' '(' expression ')'
     |   collection=('set' | 'list') ('(' ')' | expressionsList)
@@ -316,7 +317,7 @@ identifier
     | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map' | 'plugins'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
-    | 'new' | 'instanceof' | 'now' | 'isEmpty' | 'isIP'
+    | 'new' | 'instanceof' | 'now' | 'hostname' |'isEmpty' | 'isIP'
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
     | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize' | 'lowercase' | 'uppercase' | 'split' | 'join' | 'gsub'
     | 'text' | 'blob'

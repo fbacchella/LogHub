@@ -970,6 +970,12 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testHostname() throws ProcessorException, UnknownHostException {
+        String hostname = InetAddress.getLocalHost().getHostName();
+        Assert.assertEquals(hostname, Tools.evalExpression("hostname"));
+    }
+
+    @Test
     public void testKeywordAsIdentifier() throws IOException {
         Pattern keywordidentifierPattern = Pattern.compile("'([a-zA-Z][a-zA-Z0-9$_]+)'=\\d+");
         Matcher m = keywordidentifierPattern.matcher("");

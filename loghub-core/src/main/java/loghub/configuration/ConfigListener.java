@@ -4,6 +4,8 @@ import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -1274,6 +1276,13 @@ class ConfigListener extends RouteBaseListener {
                     o -> Expression.gsub(o, pattern, substitution)).setDeepCopy(false);
         } else if (ctx.now != null) {
             expression = ExpressionBuilder.of(ed -> Instant.now()).setDeepCopy(false);
+        } else if (ctx.hostname != null) {
+            try {
+                String hostname = InetAddress.getLocalHost().getHostName();
+                expression = ExpressionBuilder.of(hostname);
+            } catch (UnknownHostException e) {
+                expression = ExpressionBuilder.of(NullOrMissingValue.MISSING).setDeepCopy(false);
+            }
         } else if (ctx.isEmpty != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             expression = ExpressionBuilder.of(subexpression, Expression::isEmpty).setDeepCopy(false);
