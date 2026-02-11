@@ -35,19 +35,48 @@ public class Igmp extends KaitaiStruct {
     public enum IgmpType {
         MEMBERSHIP_QUERY(17),
         MEMBERSHIP_REPORT_V1(18),
+        DVMRP(19),
+        PIM_V1(20),
+        CISCO_TRACE(21),
         MEMBERSHIP_REPORT_V2(22),
         LEAVE_GROUP(23),
-        MEMBERSHIP_REPORT_V3(34);
+        MTRACE_RESPONSE(30),
+        MTRACE_QUERY(31),
+        MEMBERSHIP_REPORT_V3(34),
+        MCAST_ROUTER_ADV(48),
+        MCAST_ROUTER_SOL(49),
+        MCAST_ROUTER_TERM(50),
+        RGMP_LEAVE(252),
+        RGMP_JOIN(253),
+        RGMP_BYE(254),
+        RGMP_HELLO(255);
 
         private final long id;
         IgmpType(long id) { this.id = id; }
         public long id() { return id; }
-        private static final Map<Long, IgmpType> byId = new HashMap<Long, IgmpType>(5);
+        private static final Map<Long, IgmpType> byId = new HashMap<Long, IgmpType>(17);
         static {
             for (IgmpType e : IgmpType.values())
                 byId.put(e.id(), e);
         }
         public static IgmpType byId(long id) { return byId.get(id); }
+    }
+
+    public enum RgmpCode {
+        LEAVE(1),
+        JOIN(2),
+        BYE(3),
+        HELLO(4);
+
+        private final long id;
+        RgmpCode(long id) { this.id = id; }
+        public long id() { return id; }
+        private static final Map<Long, RgmpCode> byId = new HashMap<Long, RgmpCode>(4);
+        static {
+            for (RgmpCode e : RgmpCode.values())
+                byId.put(e.id(), e);
+        }
+        public static RgmpCode byId(long id) { return byId.get(id); }
     }
 
     public enum RecordType {
@@ -109,6 +138,13 @@ public class Igmp extends KaitaiStruct {
                     this.body = new IgmpReportV3(this._io, this, _root);
                     break;
                 }
+                case RGMP_LEAVE:
+                case RGMP_JOIN:
+                case RGMP_BYE:
+                case RGMP_HELLO: {
+                    this.body = new Rgmp(this._io, this, _root);
+                    break;
+                }
                 }
             }
         }
@@ -137,6 +173,13 @@ public class Igmp extends KaitaiStruct {
                 }
                 case MEMBERSHIP_REPORT_V3: {
                     ((IgmpReportV3) (this.body))._fetchInstances();
+                    break;
+                }
+                case RGMP_LEAVE:
+                case RGMP_JOIN:
+                case RGMP_BYE:
+                case RGMP_HELLO: {
+                    ((Rgmp) (this.body))._fetchInstances();
                     break;
                 }
                 }
@@ -186,7 +229,6 @@ public class Igmp extends KaitaiStruct {
             if (auxDataLen() > 0) {
             }
         }
-        private String multicastAddressStr;
 
         private RecordType recordType;
         private int auxDataLen;
@@ -586,6 +628,62 @@ public class Igmp extends KaitaiStruct {
          * List of group records
          */
         public List<GroupRecord> groupRecords() { return groupRecords; }
+        public Igmp _root() { return _root; }
+        public Igmp _parent() { return _parent; }
+    }
+
+    /**
+     * Router-port Group Management Protocol (RGMP).
+     * Used to constrain multicast traffic to only those ports that have
+     * routers that have expressed an interest in the traffic.
+     */
+    public static class Rgmp extends KaitaiStruct {
+        public static Rgmp fromFile(String fileName) throws IOException {
+            return new Rgmp(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public Rgmp(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public Rgmp(KaitaiStream _io, Igmp _parent) {
+            this(_io, _parent, null);
+        }
+
+        public Rgmp(KaitaiStream _io, Igmp _parent, Igmp _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.code = Igmp.RgmpCode.byId(this._io.readU1());
+            this.checksum = this._io.readU2be();
+            this.groupAddress = Igmp.longToInet4Address(this._io.readU4be());
+        }
+
+        public void _fetchInstances() {
+        }
+        private RgmpCode code;
+        private int checksum;
+        private Inet4Address groupAddress;
+        private Igmp _root;
+        private Igmp _parent;
+
+        /**
+         * RGMP message type
+         */
+        public RgmpCode code() { return code; }
+
+        /**
+         * Checksum of the entire RGMP message
+         */
+        public int checksum() { return checksum; }
+
+        /**
+         * Multicast group address
+         */
+        public Inet4Address groupAddress() { return groupAddress; }
         public Igmp _root() { return _root; }
         public Igmp _parent() { return _parent; }
     }
