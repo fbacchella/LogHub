@@ -2,14 +2,18 @@
 
 package loghub.kaitai.parsers;
 
-import io.kaitai.struct.ByteBufferKaitaiStream;
-import io.kaitai.struct.KaitaiStruct;
-import io.kaitai.struct.KaitaiStream;
 import java.io.IOException;
-import java.util.Map;
-import java.util.HashMap;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import io.kaitai.struct.ByteBufferKaitaiStream;
+import io.kaitai.struct.KaitaiStream;
+import io.kaitai.struct.KaitaiStruct;
 
 
 /**
@@ -166,10 +170,10 @@ public class Igmp extends KaitaiStruct {
             this.recordType = Igmp.RecordType.byId(this._io.readU1());
             this.auxDataLen = this._io.readU1();
             this.numberOfSources = this._io.readU2be();
-            this.multicastAddress = this._io.readU4be();
-            this.sourceAddresses = new ArrayList<Long>();
+            this.multicastAddress = Igmp.longToInet4Address(this._io.readU4be());
+            this.sourceAddresses = new ArrayList<Inet4Address>();
             for (int i = 0; i < numberOfSources(); i++) {
-                this.sourceAddresses.add(this._io.readU4be());
+                this.sourceAddresses.add(Igmp.longToInet4Address(this._io.readU4be()));
             }
             if (auxDataLen() > 0) {
                 this.auxiliaryData = this._io.readBytes(auxDataLen() * 4);
@@ -184,20 +188,11 @@ public class Igmp extends KaitaiStruct {
         }
         private String multicastAddressStr;
 
-        /**
-         * Multicast address as dotted decimal string
-         */
-        public String multicastAddressStr() {
-            if (this.multicastAddressStr != null)
-                return this.multicastAddressStr;
-            this.multicastAddressStr = (((((Long.toString(multicastAddress() >> 24 & 255) + ".") + Long.toString(multicastAddress() >> 16 & 255)) + ".") + Long.toString(multicastAddress() >> 8 & 255)) + ".") + Long.toString(multicastAddress() & 255);
-            return this.multicastAddressStr;
-        }
         private RecordType recordType;
         private int auxDataLen;
         private int numberOfSources;
-        private long multicastAddress;
-        private List<Long> sourceAddresses;
+        private Inet4Address multicastAddress;
+        private List<Inet4Address> sourceAddresses;
         private byte[] auxiliaryData;
         private Igmp _root;
         private Igmp.IgmpReportV3 _parent;
@@ -220,12 +215,12 @@ public class Igmp extends KaitaiStruct {
         /**
          * Multicast group address
          */
-        public long multicastAddress() { return multicastAddress; }
+        public Inet4Address multicastAddress() { return multicastAddress; }
 
         /**
          * List of source addresses
          */
-        public List<Long> sourceAddresses() { return sourceAddresses; }
+        public List<Inet4Address> sourceAddresses() { return sourceAddresses; }
 
         /**
          * Auxiliary data (optional)
@@ -259,34 +254,24 @@ public class Igmp extends KaitaiStruct {
             _read();
         }
         private void _read() {
-            this.maxRespTime = this._io.readU1();
+            this.maxRespTime = Duration.ofMillis(this._io.readU1() * 100);
             this.checksum = this._io.readU2be();
-            this.groupAddress = this._io.readU4be();
+            this.groupAddress = Igmp.longToInet4Address(this._io.readU4be());
         }
 
         public void _fetchInstances() {
         }
-        private String groupAddressStr;
 
-        /**
-         * Group address as dotted decimal string
-         */
-        public String groupAddressStr() {
-            if (this.groupAddressStr != null)
-                return this.groupAddressStr;
-            this.groupAddressStr = (((((Long.toString(groupAddress() >> 24 & 255) + ".") + Long.toString(groupAddress() >> 16 & 255)) + ".") + Long.toString(groupAddress() >> 8 & 255)) + ".") + Long.toString(groupAddress() & 255);
-            return this.groupAddressStr;
-        }
-        private int maxRespTime;
+        private Duration maxRespTime;
         private int checksum;
-        private long groupAddress;
+        private Inet4Address groupAddress;
         private Igmp _root;
         private Igmp _parent;
 
         /**
          * Must be 0 for leave messages
          */
-        public int maxRespTime() { return maxRespTime; }
+        public Duration maxRespTime() { return maxRespTime; }
 
         /**
          * Checksum of the entire IGMP message
@@ -296,7 +281,7 @@ public class Igmp extends KaitaiStruct {
         /**
          * Multicast group address being left
          */
-        public long groupAddress() { return groupAddress; }
+        public Inet4Address groupAddress() { return groupAddress; }
         public Igmp _root() { return _root; }
         public Igmp _parent() { return _parent; }
     }
@@ -325,9 +310,9 @@ public class Igmp extends KaitaiStruct {
             _read();
         }
         private void _read() {
-            this.maxRespTime = this._io.readU1();
+            this.maxRespTime = Igmp.durationFromIgmp(this._io, 100);
             this.checksum = this._io.readU2be();
-            this.groupAddress = this._io.readU4be();
+            this.groupAddress = Igmp.longToInet4Address(this._io.readU4be());
             if (_io().size() > 8) {
                 this.additionalData = new IgmpQueryV3Additional(this._io, this, _root);
             }
@@ -338,17 +323,7 @@ public class Igmp extends KaitaiStruct {
                 this.additionalData._fetchInstances();
             }
         }
-        private String groupAddressStr;
 
-        /**
-         * Group address as dotted decimal string
-         */
-        public String groupAddressStr() {
-            if (this.groupAddressStr != null)
-                return this.groupAddressStr;
-            this.groupAddressStr = (((((Long.toString(groupAddress() >> 24 & 255) + ".") + Long.toString(groupAddress() >> 16 & 255)) + ".") + Long.toString(groupAddress() >> 8 & 255)) + ".") + Long.toString(groupAddress() & 255);
-            return this.groupAddressStr;
-        }
         private Boolean isGeneralQuery;
 
         /**
@@ -357,23 +332,12 @@ public class Igmp extends KaitaiStruct {
         public Boolean isGeneralQuery() {
             if (this.isGeneralQuery != null)
                 return this.isGeneralQuery;
-            this.isGeneralQuery = groupAddress() == 0;
+            this.isGeneralQuery = groupAddress().equals(longToInet4Address(0));
             return this.isGeneralQuery;
         }
-        private Double maxRespTimeSeconds;
-
-        /**
-         * Maximum response time in seconds
-         */
-        public Double maxRespTimeSeconds() {
-            if (this.maxRespTimeSeconds != null)
-                return this.maxRespTimeSeconds;
-            this.maxRespTimeSeconds = ((Number) ((maxRespTime() < 128 ? maxRespTime() / 10.0 : ((maxRespTime() & 15 | 16) << (maxRespTime() >> 4 & 7) + 3) / 10.0))).doubleValue();
-            return this.maxRespTimeSeconds;
-        }
-        private int maxRespTime;
+        private Duration maxRespTime;
         private int checksum;
-        private long groupAddress;
+        private Inet4Address groupAddress;
         private IgmpQueryV3Additional additionalData;
         private Igmp _root;
         private Igmp _parent;
@@ -382,7 +346,7 @@ public class Igmp extends KaitaiStruct {
          * Maximum response time in tenths of a second (IGMPv2+).
          * Must be 0 for IGMPv1.
          */
-        public int maxRespTime() { return maxRespTime; }
+        public Duration maxRespTime() { return maxRespTime; }
 
         /**
          * Checksum of the entire IGMP message
@@ -394,7 +358,7 @@ public class Igmp extends KaitaiStruct {
          * 0.0.0.0 for a general query (all groups).
          * Specific group address for group-specific query (IGMPv2+).
          */
-        public long groupAddress() { return groupAddress; }
+        public Inet4Address groupAddress() { return groupAddress; }
 
         /**
          * Additional data for IGMPv3 queries
@@ -428,11 +392,11 @@ public class Igmp extends KaitaiStruct {
         }
         private void _read() {
             this.resvSQrv = this._io.readU1();
-            this.qqic = this._io.readU1();
+            this.qqic = Igmp.durationFromIgmp(this._io, 1000);
             this.numberOfSources = this._io.readU2be();
-            this.sourceAddresses = new ArrayList<Long>();
+            this.sourceAddresses = new ArrayList<Inet4Address>();
             for (int i = 0; i < numberOfSources(); i++) {
-                this.sourceAddresses.add(this._io.readU4be());
+                this.sourceAddresses.add(Igmp.longToInet4Address(this._io.readU4be()));
             }
         }
 
@@ -451,17 +415,7 @@ public class Igmp extends KaitaiStruct {
             this.querierRobustnessVariable = ((Number) (resvSQrv() & 7)).intValue();
             return this.querierRobustnessVariable;
         }
-        private Integer queryIntervalSeconds;
 
-        /**
-         * Query interval in seconds
-         */
-        public Integer queryIntervalSeconds() {
-            if (this.queryIntervalSeconds != null)
-                return this.queryIntervalSeconds;
-            this.queryIntervalSeconds = ((Number) ((qqic() < 128 ? qqic() : (qqic() & 15 | 16) << (qqic() >> 4 & 7) + 3))).intValue();
-            return this.queryIntervalSeconds;
-        }
         private Boolean suppressRouterSideProcessing;
 
         /**
@@ -474,9 +428,9 @@ public class Igmp extends KaitaiStruct {
             return this.suppressRouterSideProcessing;
         }
         private int resvSQrv;
-        private int qqic;
+        private Duration qqic;
         private int numberOfSources;
-        private List<Long> sourceAddresses;
+        private List<Inet4Address> sourceAddresses;
         private Igmp _root;
         private Igmp.IgmpQuery _parent;
 
@@ -490,7 +444,7 @@ public class Igmp extends KaitaiStruct {
         /**
          * Querier's Query Interval Code
          */
-        public int qqic() { return qqic; }
+        public Duration qqic() { return qqic; }
 
         /**
          * Number of source addresses in this query
@@ -500,7 +454,7 @@ public class Igmp extends KaitaiStruct {
         /**
          * List of source addresses
          */
-        public List<Long> sourceAddresses() { return sourceAddresses; }
+        public List<Inet4Address> sourceAddresses() { return sourceAddresses; }
         public Igmp _root() { return _root; }
         public Igmp.IgmpQuery _parent() { return _parent; }
     }
@@ -529,34 +483,24 @@ public class Igmp extends KaitaiStruct {
             _read();
         }
         private void _read() {
-            this.maxRespTime = this._io.readU1();
+            this.maxRespTime = Duration.ofMillis(this._io.readU1() * 100);
             this.checksum = this._io.readU2be();
-            this.groupAddress = this._io.readU4be();
+            this.groupAddress = Igmp.longToInet4Address(this._io.readU4be());
         }
 
         public void _fetchInstances() {
         }
-        private String groupAddressStr;
 
-        /**
-         * Group address as dotted decimal string
-         */
-        public String groupAddressStr() {
-            if (this.groupAddressStr != null)
-                return this.groupAddressStr;
-            this.groupAddressStr = (((((Long.toString(groupAddress() >> 24 & 255) + ".") + Long.toString(groupAddress() >> 16 & 255)) + ".") + Long.toString(groupAddress() >> 8 & 255)) + ".") + Long.toString(groupAddress() & 255);
-            return this.groupAddressStr;
-        }
-        private int maxRespTime;
+        private Duration maxRespTime;
         private int checksum;
-        private long groupAddress;
+        private Inet4Address groupAddress;
         private Igmp _root;
         private Igmp _parent;
 
         /**
          * Must be 0 for reports
          */
-        public int maxRespTime() { return maxRespTime; }
+        public Duration maxRespTime() { return maxRespTime; }
 
         /**
          * Checksum of the entire IGMP message
@@ -566,7 +510,7 @@ public class Igmp extends KaitaiStruct {
         /**
          * Multicast group address being reported
          */
-        public long groupAddress() { return groupAddress; }
+        public Inet4Address groupAddress() { return groupAddress; }
         public Igmp _root() { return _root; }
         public Igmp _parent() { return _parent; }
     }
@@ -657,4 +601,29 @@ public class Igmp extends KaitaiStruct {
     public KaitaiStruct body() { return body; }
     public Igmp _root() { return _root; }
     public KaitaiStruct _parent() { return _parent; }
+
+    private static Duration durationFromIgmp(KaitaiStream stream, int multiplier) {
+        int rawDuration = stream.readU1();
+        if (stream.size() == 8 && multiplier == 100) {
+            // Max Response Time in IGMPv2
+            return Duration.ofMillis(rawDuration * multiplier);
+        } else {
+            int durationMilli = (rawDuration < 128 ? rawDuration : (((rawDuration & 0x0f) | 0x10) << (((rawDuration >> 4) & 0x07) + 3)));
+            return Duration.ofMillis(durationMilli * multiplier);
+        }
+    }
+
+    private static Inet4Address longToInet4Address(long ip) {
+        byte[] bytes = new byte[] {
+            (byte) ((ip >> 24) & 0xFF),
+            (byte) ((ip >> 16) & 0xFF),
+            (byte) ((ip >> 8) & 0xFF),
+            (byte) (ip & 0xFF)
+        };
+        try {
+            return (Inet4Address) InetAddress.getByAddress(bytes);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
