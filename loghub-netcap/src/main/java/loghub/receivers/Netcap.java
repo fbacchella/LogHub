@@ -91,7 +91,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         try {
             return pcap.compileBpfFilter(arena, bpfFilter, linktype, snaplen);
         } catch (ExecutionException e) {
-            throw new RuntimeException(e);
+            throw new IllegalArgumentException(e.getMessage(), e.getCause());
         }
     }
 
@@ -111,7 +111,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             addrlen.set(ValueLayout.JAVA_INT, 0, SocketaddrSll.SOCKADDR_LL_SIZE);
             MemorySegment sockaddrSegment = arena.allocate(SocketaddrSll.SOCKADDR_LL_LAYOUT);
             while (! interrupted()) {
-                receptionIteration(sockfd, buffer, listenAddress, sockaddrSegment, addrlen);
+                receptionIteration(sockfd, buffer, sockaddrSegment, addrlen);
             }
         } catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -130,7 +130,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         }
     }
 
-    private void receptionIteration(int sockfd, MemorySegment buffer, SocketaddrSll listenAddress, MemorySegment sockaddr, MemorySegment addrlen) {
+    private void receptionIteration(int sockfd, MemorySegment buffer, MemorySegment sockaddr, MemorySegment addrlen) {
         try {
             ByteBuffer packet = readFd(sockfd, buffer, sockaddr, addrlen);
             if (packet != null) {
@@ -173,8 +173,6 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             } else {
                 return null;
             }
-        } catch (ArithmeticException e) {
-            throw new RuntimeException(e);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
