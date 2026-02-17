@@ -57,7 +57,7 @@ class TestGatherer {
     }
 
     @Test
-    void testGatherWithPadding() throws ProcessorException {
+    void testGatherWithDifferentSize() throws ProcessorException {
         Gatherer.Builder builder = new Gatherer.Builder();
         Gatherer gatherer = builder.build();
 
@@ -67,7 +67,6 @@ class TestGatherer {
         value.put("b", List.of(3));
 
         Object result = gatherer.fieldFunction(ev, value);
-
         Assertions.assertInstanceOf(List.class, result);
         List<?> resultList = (List<?>) result;
         Assertions.assertEquals(2, resultList.size());

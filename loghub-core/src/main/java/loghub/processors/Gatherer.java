@@ -46,8 +46,6 @@ import lombok.Setter;
  *   <li>Each value in the Map is converted to a {@link java.util.List}. Supported types include
  *       {@link java.util.Collection}, arrays, {@link java.lang.Iterable}, and {@link java.util.Iterator}.</li>
  *   <li>Single values (non-iterable or null) are treated as single-element lists.</li>
- *   <li>If lists have unequal lengths, missing values are padded with {@link loghub.NullOrMissingValue#NULL}
- *       to ensure all resulting Maps have the same keys.</li>
  * </ul>
  * </p>
  */
@@ -79,10 +77,8 @@ public class Gatherer extends FieldsProcessor {
                 Map<Object, Object> newMap = HashMap.newHashMap(map.size());
                 for (Map.Entry<Object, List<Object>> entry : listsMap.entrySet()) {
                     List<Object> list = entry.getValue();
-                    if (i < list.size()) {
+                    if (i < list.size() && list.get(i) != NullOrMissingValue.NULL) {
                         newMap.put(entry.getKey(), list.get(i));
-                    } else {
-                        newMap.put(entry.getKey(), NullOrMissingValue.NULL);
                     }
                 }
                 result.add(newMap);
