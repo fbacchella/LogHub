@@ -85,7 +85,7 @@ public class Gatherer extends FieldsProcessor {
             }
             return result;
         } else {
-            return RUNSTATUS.NOSTORE;
+            return value;
         }
     }
 
