@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
@@ -114,7 +116,7 @@ class TestHttp {
         }
     }
 
-    private void doRequest(URI destination, String method, HttpRequest.BodyPublisher bodyPublisher, Consumer<HttpRequest.Builder> prepare, int expected) throws IOException, InterruptedException {
+    private void doRequest(URI destination, String method, HttpRequest.BodyPublisher bodyPublisher, Consumer<HttpRequest.Builder> prepare, int expected, HttpClient.Version version) throws IOException, InterruptedException {
         HttpClient.Builder clientBuilder = HttpClient.newBuilder();
         if ("https".equals(destination.getScheme())) {
             Map<String, Object> properties = new HashMap<>();
@@ -123,6 +125,7 @@ class TestHttp {
             SSLContext cssctx = SslContextBuilder.getBuilder(null, properties).build();
             clientBuilder.sslContext(cssctx);
         }
+        clientBuilder.version(version);
         try (HttpClient client = clientBuilder.build()) {
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(destination)
@@ -133,15 +136,17 @@ class TestHttp {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpPostJson() throws IOException, URISyntaxException, InterruptedException {
+    void testHttpPostJson(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
         try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
             doRequest(new URI("http", null, hostname, port, "/", null, null),
                       "PUT",
                       HttpRequest.BodyPublishers.ofString("{\"a\": 1}"),
                       i -> i.header("Content-Type", "application/json"),
-                      200);
+                      200,
+                      version);
             Event e = queue.poll();
             Assertions.assertNotNull(e);
             Integer a = (Integer) e.get("a");
@@ -149,14 +154,15 @@ class TestHttp {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpGet() throws IOException, InterruptedException, URISyntaxException {
+    void testHttpGet(HttpClient.Version version) throws IOException, InterruptedException, URISyntaxException {
         try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
-                    i -> { }, 200);
+                    i -> { }, 200, version);
 
             Event e = queue.take();
             String a = (String) e.get("a");
@@ -169,9 +175,10 @@ class TestHttp {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(value = HttpClient.Version.class, names = "HTTP_1_1")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpsGet() throws IOException, URISyntaxException, InterruptedException {
+    void testHttpsGet(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
         SSLContext sslctx = SslContextBuilder.getBuilder(getClass().getClassLoader(), new HashMap<>(Map.of("trusts", p12File))).build();
         try (Http ignored = makeReceiver(i -> {
             i.setSslContext(sslctx);
@@ -182,7 +189,7 @@ class TestHttp {
             doRequest(uri,
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
-                    i -> { }, 200);
+                    i -> { }, 200, version);
 
             Event e = queue.poll();
             Assertions.assertNotNull(e);
@@ -197,19 +204,20 @@ class TestHttp {
             doRequest(uri,
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
-                    i -> { }, 200);
+                    i -> { }, 200, version);
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpPostForm() throws IOException, URISyntaxException, InterruptedException {
+    void testHttpPostForm(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
         try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
             doRequest(new URI("http", null, hostname, port, "/", null, null),
                     "POST",
                     HttpRequest.BodyPublishers.ofString("a=1&b=c%20d"),
                     i -> i.header("Content-Type", "application/x-www-form-urlencoded"),
-                    200);
+                    200, version);
             Event e = queue.poll();
             Assertions.assertNotNull(e);
             Assertions.assertEquals("1", e.get("a"));
@@ -218,20 +226,22 @@ class TestHttp {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testFailedAuthentication1() throws IOException, InterruptedException, URISyntaxException {
+    void testFailedAuthentication1(HttpClient.Version version) throws IOException, InterruptedException, URISyntaxException {
         try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                       "GET",
                       HttpRequest.BodyPublishers.noBody(),
-                      i -> { }, 401);
+                      i -> { }, 401, version);
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testFailedAuthentication2() throws URISyntaxException, IOException, InterruptedException {
+    void testFailedAuthentication2(HttpClient.Version version) throws URISyntaxException, IOException, InterruptedException {
         try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                       "GET",
@@ -239,13 +249,14 @@ class TestHttp {
                       i -> {
                           String authStr = Base64.getEncoder().encodeToString("user:badpassword".getBytes());
                           i.header("Authorization", "Basic " + authStr);
-                      }, 401);
+                      }, 401, version);
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testGoodPasswordAuthentication() throws IOException, URISyntaxException, InterruptedException {
+    void testGoodPasswordAuthentication(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
         try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                     "GET",
@@ -253,7 +264,7 @@ class TestHttp {
                     i -> {
                         String authStr = Base64.getEncoder().encodeToString("user:password".getBytes());
                         i.header("Authorization", "Basic " + authStr);
-                    }, 200);
+                    }, 200, version);
             Event e = queue.poll();
             Assertions.assertNotNull(e);
             Assertions.assertEquals("1", e.get("a"));
@@ -262,9 +273,10 @@ class TestHttp {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testGoodJwtAuthentication() throws IOException, URISyntaxException, InterruptedException {
+    void testGoodJwtAuthentication(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
         Map<String, Object> props = new HashMap<>();
         props.put("jwt.alg", "HMAC256");
         String secret = UUID.randomUUID().toString();
@@ -276,7 +288,7 @@ class TestHttp {
             doRequest(dest,
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
-                    i -> i.header("Authorization", "Bearer " + jwtToken), 200);
+                    i -> i.header("Authorization", "Bearer " + jwtToken), 200, version);
             Event e = queue.poll();
             Assertions.assertNotNull(e);
             Assertions.assertEquals("1", e.get("a"));
@@ -285,9 +297,10 @@ class TestHttp {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testGoodJwtAuthenticationAsPassword() throws IOException, URISyntaxException, InterruptedException {
+    void testGoodJwtAuthenticationAsPassword(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
         Map<String, Object> props = new HashMap<>();
         props.put("jwt.alg", "HMAC256");
         String secret = UUID.randomUUID().toString();
@@ -302,7 +315,7 @@ class TestHttp {
                     i -> {
                         String authStr = Base64.getEncoder().encodeToString((":" + jwtToken).getBytes());
                         i.header("Authorization", "Basic " + authStr);
-                    }, 200);
+                    }, 200, version);
             Event e = queue.poll();
             Assertions.assertNotNull(e);
             Assertions.assertEquals("1", e.get("a"));
@@ -353,14 +366,15 @@ class TestHttp {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testFailedEncoder() throws IOException, URISyntaxException, InterruptedException {
+    void testFailedEncoder(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
         try (Http ignored = makeReceiver(i -> i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder())), Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
-                    i -> { }, 200
+                    i -> { }, 200, version
             );
 
             Event e = queue.poll();

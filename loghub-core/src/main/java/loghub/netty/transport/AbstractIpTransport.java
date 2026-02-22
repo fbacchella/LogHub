@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
 
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLContext;
@@ -26,9 +27,12 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import loghub.cloners.DeepCloner;
+import loghub.cloners.NotClonableException;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,6 +42,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
 
     public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
     public static final AttributeKey<SSLEngine> SSLSENGINATTRIBUTE = AttributeKey.newInstance(SSLEngine.class.getName());
+    public static final AttributeKey<String> ALPNPROTOCOL = AttributeKey.newInstance("alpnProtocol");
     public static final int DEFINEDSSLALIAS = -2;
 
     public abstract static class Builder<M, T extends AbstractIpTransport<M, T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends NettyTransport.Builder<InetSocketAddress, M, T, B> {
@@ -57,6 +62,8 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         protected String sslKeyAlias;
         @Setter
         protected ClientAuthentication sslClientAuthentication;
+        @Setter
+        protected BiFunction<SSLEngine, List<String>, String> alpnSelector;
         protected final List<String> applicationProtocols = new ArrayList<>(0);
         public void addApplicationProtocol(String protocol) {
             applicationProtocols.add(protocol);
@@ -71,6 +78,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
     protected final SSLParameters sslParams;
     protected final String sslKeyAlias;
     protected final ClientAuthentication sslClientAuthentication;
+    protected final BiFunction<SSLEngine, List<String>, String> alpnSelector;
 
     protected AbstractIpTransport(B builder) {
         super(builder);
@@ -79,15 +87,28 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         this.sndBuf = builder.sndBuf;
         this.withSsl = builder.withSsl;
         this.sslContext = Optional.ofNullable(builder.sslContext).orElseGet(this::getDefaultSslContext);
-        this.sslParams = Optional.ofNullable(builder.sslParams).orElseGet(sslContext::getDefaultSSLParameters);
+        this.sslParams = cloneSslParameters(builder.sslParams, sslContext);
         this.sslKeyAlias = builder.sslKeyAlias;
         this.sslClientAuthentication = builder.sslClientAuthentication;
+        this.alpnSelector = builder.alpnSelector;
         sslParams.setUseCipherSuitesOrder(true);
         if (endpoint != null) {
             sslParams.setServerNames(Collections.singletonList(new SNIHostName(endpoint)));
         }
         if (! builder.applicationProtocols.isEmpty()) {
             sslParams.setApplicationProtocols(builder.applicationProtocols.toArray(String[]::new));
+        }
+    }
+
+    private SSLParameters cloneSslParameters(SSLParameters source, SSLContext sslContext) {
+        if (source == null) {
+            source = sslContext.getDefaultSSLParameters();
+        }
+        try {
+            return DeepCloner.clone(source);
+        } catch (NotClonableException e) {
+            // Should not happen
+            return source;
         }
     }
 
@@ -158,6 +179,9 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         logger.debug("Adding an SSL handler on {}", pipeline::channel);
         SSLEngine engine = getEngine();
         engine.setUseClientMode(false);
+        if (alpnSelector != null) {
+            engine.setHandshakeApplicationProtocolSelector(alpnSelector);
+        }
         SslHandler sslHandler = new SslHandler(engine);
         pipeline.addFirst("ssl", sslHandler);
         Future<Channel> future = sslHandler.handshakeFuture();
@@ -171,6 +195,8 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
             }
             f.get().attr(SSLSESSIONATTRIBUTE).set(sess);
             f.get().attr(SSLSENGINATTRIBUTE).set(engine);
+            f.get().attr(ALPNPROTOCOL).set(sslHandler.engine().getApplicationProtocol());
+            f.get().pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
         });
     }
 

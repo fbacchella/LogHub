@@ -1,6 +1,5 @@
 package loghub.netty;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.ssl.ApplicationProtocolNames;
@@ -32,8 +31,11 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
     @Override
     protected void tweakNettyBuilder(B builder, NettyTransport.Builder<?, HttpMessage, ?, ?> nettyTransportBuilder) {
         super.tweakNettyBuilder(builder, nettyTransportBuilder);
-        if (isWithSSL() && nettyTransportBuilder instanceof AbstractIpTransport.Builder) {
-            ((AbstractIpTransport.Builder<?, ?, ?>) nettyTransportBuilder).addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
+        if (isWithSSL() && nettyTransportBuilder instanceof AbstractIpTransport.Builder<?, ?, ?> ipTransportBuilder) {
+            ipTransportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
+            ipTransportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
+            HttpChannelConsumer consumer = (HttpChannelConsumer) getConsumer();
+            ipTransportBuilder.setAlpnSelector(consumer.getAlpnSelector());
         }
     }
 
@@ -62,11 +64,6 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
     @Override
     public void registerCustomStats() {
         Stats.registerHttpService(this);
-    }
-
-    @Override
-    public ByteBuf getContent(HttpMessage message) {
-        throw new UnsupportedOperationException();
     }
 
 }
