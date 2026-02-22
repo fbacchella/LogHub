@@ -1,39 +1,37 @@
 package loghub.receivers;
 
 import java.beans.IntrospectionException;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringReader;
-import java.io.UncheckedIOException;
-import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import javax.management.remote.JMXPrincipal;
-import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
@@ -55,14 +53,14 @@ import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
 import loghub.types.MimeType;
 
-public class TestHttp {
+class TestHttp {
 
     private static Logger logger;
     private static String p12File;
     private final EventsFactory factory = new EventsFactory();
 
-    @BeforeClass
-    public static void configure() throws IOException {
+    @BeforeAll
+    static void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
@@ -102,181 +100,171 @@ public class TestHttp {
         receiver = httpbuilder.build();
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
-        Assert.assertTrue(receiver.configure(props));
+        Assertions.assertTrue(receiver.configure(props));
         Stats.registerReceiver(receiver);
         receiver.start();
         return receiver;
     }
 
-    @After
-    public void clean() {
+    @AfterEach
+    void clean() {
         if (receiver != null) {
             receiver.stopReceiving();
             receiver.close();
         }
     }
 
-    private void doRequest(URL destination, byte[] postDataBytes, Consumer<HttpURLConnection> prepare, int expected) throws IOException {
-        HttpURLConnection conn = (HttpURLConnection) destination.openConnection();
-        if (conn instanceof HttpsURLConnection) {
-            HttpsURLConnection cnx = (HttpsURLConnection) conn;
-            cnx.setHostnameVerifier((h, s) -> {
-                logger.trace("Verifying {} with sessions {}", h, s);
-                return true;
-            });
+    private void doRequest(URI destination, String method, HttpRequest.BodyPublisher bodyPublisher, Consumer<HttpRequest.Builder> prepare, int expected) throws IOException, InterruptedException {
+        HttpClient.Builder clientBuilder = HttpClient.newBuilder();
+        if ("https".equals(destination.getScheme())) {
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", p12File);
-            properties.put("issuers", new String[] {"CN=loghub CA"});
+            properties.put("issuers", new String[]{"CN=loghub CA"});
             SSLContext cssctx = SslContextBuilder.getBuilder(null, properties).build();
-            cnx.setSSLSocketFactory(cssctx.getSocketFactory());
+            clientBuilder.sslContext(cssctx);
         }
-        prepare.accept(conn);
-        if (postDataBytes.length > 0) {
-            conn.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
-            conn.setDoOutput(true);
-            conn.getOutputStream().write(postDataBytes);
+        try (HttpClient client = clientBuilder.build()) {
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(destination)
+                    .method(method, bodyPublisher);
+            prepare.accept(requestBuilder);
+            HttpResponse<String> response = client.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+            Assertions.assertEquals(expected, response.statusCode());
         }
-        new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)).lines().toArray(String[]::new);
-        Assert.assertEquals(expected, conn.getResponseCode());
-        conn.disconnect();
     }
 
-    @Test(timeout = 5000)
-    public void testHttpPostJson() throws IOException, URISyntaxException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testHttpPostJson() throws IOException, URISyntaxException, InterruptedException {
         try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
-            doRequest(new URI("http", null, hostname, port, "/", null, null).toURL(),
-                      "{\"a\": 1}".getBytes(StandardCharsets.UTF_8),
-                      i -> {
-                          try {
-                              i.setRequestMethod("PUT");
-                              i.setRequestProperty("Content-Type", "application/json");
-                          } catch (ProtocolException e1) {
-                              throw new UncheckedIOException(e1);
-                          }
-                      }, 200);
+            doRequest(new URI("http", null, hostname, port, "/", null, null),
+                      "PUT",
+                      HttpRequest.BodyPublishers.ofString("{\"a\": 1}"),
+                      i -> i.header("Content-Type", "application/json"),
+                      200);
             Event e = queue.poll();
-            assert e != null;
+            Assertions.assertNotNull(e);
             Integer a = (Integer) e.get("a");
-            Assert.assertEquals(1, a.intValue());
+            Assertions.assertEquals(1, a.intValue());
         }
     }
 
-    @Test(timeout = 5000)
-    public void testHttpGet() throws IOException, InterruptedException, URISyntaxException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testHttpGet() throws IOException, InterruptedException, URISyntaxException {
         try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
-            doRequest(testURL,
-                    new byte[]{},
+            doRequest(testURL.toURI(),
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
                     i -> { }, 200);
 
             Event e = queue.take();
             String a = (String) e.get("a");
-            Assert.assertEquals("1", a);
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertEquals("1", a);
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
-            Assert.assertNotNull(ectxt);
-            Assert.assertNotNull(ectxt.getLocalAddress());
-            Assert.assertNotNull(ectxt.getRemoteAddress());
+            Assertions.assertNotNull(ectxt);
+            Assertions.assertNotNull(ectxt.getLocalAddress());
+            Assertions.assertNotNull(ectxt.getRemoteAddress());
         }
     }
 
-    @Test(timeout = 5000)
-    public void testHttpsGet() throws IOException, URISyntaxException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testHttpsGet() throws IOException, URISyntaxException, InterruptedException {
         SSLContext sslctx = SslContextBuilder.getBuilder(getClass().getClassLoader(), new HashMap<>(Map.of("trusts", p12File))).build();
         try (Http ignored = makeReceiver(i -> {
             i.setSslContext(sslctx);
             i.setWithSSL(true);
             i.setSSLClientAuthentication(ClientAuthentication.WANTED);
         }, Collections.emptyMap())) {
-            URL url = new URI("https", null, hostname, port, "/", "a=1", null).toURL();
-            doRequest(url,
-                    new byte[]{},
+            URI uri = new URI("https", null, hostname, port, "/", "a=1", null);
+            doRequest(uri,
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
                     i -> { }, 200);
 
             Event e = queue.poll();
-            assert e != null;
+            Assertions.assertNotNull(e);
             String a = (String) e.get("a");
-            Assert.assertEquals("1", a);
-            Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertEquals("1", a);
+            Assertions.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
-            Assert.assertNotNull(ectxt.getLocalAddress());
-            Assert.assertNotNull(ectxt.getRemoteAddress());
+            Assertions.assertNotNull(ectxt.getLocalAddress());
+            Assertions.assertNotNull(ectxt.getRemoteAddress());
             // Test that ssl state is still good
-            doRequest(url,
-                    new byte[]{},
+            doRequest(uri,
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
                     i -> { }, 200);
         }
     }
 
-    @Test(timeout = 5000)
-    public void testHttpPostForm() throws IOException, URISyntaxException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testHttpPostForm() throws IOException, URISyntaxException, InterruptedException {
         try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
-            doRequest(new URI("http", null, hostname, port, "/", null, null).toURL(),
-                    "a=1&b=c%20d".getBytes(StandardCharsets.UTF_8),
-                    i -> {
-                        try {
-                            i.setRequestMethod("POST");
-                            i.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                        } catch (ProtocolException e1) {
-                            throw new UncheckedIOException(e1);
-                        }
-                    }, 200);
+            doRequest(new URI("http", null, hostname, port, "/", null, null),
+                    "POST",
+                    HttpRequest.BodyPublishers.ofString("a=1&b=c%20d"),
+                    i -> i.header("Content-Type", "application/x-www-form-urlencoded"),
+                    200);
             Event e = queue.poll();
-            assert e != null;
-            Assert.assertEquals("1", e.get("a"));
-            Assert.assertEquals("c d", e.get("b"));
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertNotNull(e);
+            Assertions.assertEquals("1", e.get("a"));
+            Assertions.assertEquals("c d", e.get("b"));
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
         }
     }
 
-    @Test(timeout = 5000)
-    public void testFailedAuthentication1() {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testFailedAuthentication1() throws IOException, InterruptedException, URISyntaxException {
         try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
-            doRequest(testURL,
-                      new byte[]{},
+            doRequest(testURL.toURI(),
+                      "GET",
+                      HttpRequest.BodyPublishers.noBody(),
                       i -> { }, 401);
-        } catch (IOException | URISyntaxException e) {
-            Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://" + hostname + ":" + receiver.getPort() + "/?a=1", e.getMessage());
-            return;
         }
-        Assert.fail();
     }
 
-    @Test(timeout = 5000)
-    public void testFailedAuthentication2() throws URISyntaxException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testFailedAuthentication2() throws URISyntaxException, IOException, InterruptedException {
         try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
-            doRequest(testURL,
-                      new byte[]{},
+            doRequest(testURL.toURI(),
+                      "GET",
+                      HttpRequest.BodyPublishers.noBody(),
                       i -> {
                           String authStr = Base64.getEncoder().encodeToString("user:badpassword".getBytes());
-                          i.setRequestProperty("Authorization", "Basic " + authStr);
+                          i.header("Authorization", "Basic " + authStr);
                       }, 401);
-        } catch (IOException e) {
-            Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://" + hostname + ":" + receiver.getPort() + "/?a=1", e.getMessage());
-            return;
         }
-        Assert.fail();
     }
 
-    @Test(timeout = 5000)
-    public void testGoodPasswordAuthentication() throws IOException, URISyntaxException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testGoodPasswordAuthentication() throws IOException, URISyntaxException, InterruptedException {
         try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
-            doRequest(testURL,
-                    new byte[]{},
+            doRequest(testURL.toURI(),
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
                     i -> {
                         String authStr = Base64.getEncoder().encodeToString("user:password".getBytes());
-                        i.setRequestProperty("Authorization", "Basic " + authStr);
+                        i.header("Authorization", "Basic " + authStr);
                     }, 200);
             Event e = queue.poll();
-            assert e != null;
-            Assert.assertEquals("1", e.get("a"));
-            Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertNotNull(e);
+            Assertions.assertEquals("1", e.get("a"));
+            Assertions.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
         }
     }
 
-    @Test(timeout = 5000)
-    public void testGoodJwtAuthentication() throws IOException, URISyntaxException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testGoodJwtAuthentication() throws IOException, URISyntaxException, InterruptedException {
         Map<String, Object> props = new HashMap<>();
         props.put("jwt.alg", "HMAC256");
         String secret = UUID.randomUUID().toString();
@@ -284,20 +272,22 @@ public class TestHttp {
         JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
         String jwtToken = handler.getToken(new JMXPrincipal("user"));
         try (Http ignored = makeReceiver(i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props)) {
-            URL dest = new URI("http", null, hostname, port, "/", "a=1", null).toURL();
+            URI dest = new URI("http", null, hostname, port, "/", "a=1", null);
             doRequest(dest,
-                    new byte[]{},
-                    i -> i.setRequestProperty("Authorization", "Bearer " + jwtToken), 200);
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
+                    i -> i.header("Authorization", "Bearer " + jwtToken), 200);
             Event e = queue.poll();
-            assert e != null;
-            Assert.assertEquals("1", e.get("a"));
-            Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertNotNull(e);
+            Assertions.assertEquals("1", e.get("a"));
+            Assertions.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
         }
     }
 
-    @Test(timeout = 5000)
-    public void testGoodJwtAuthenticationAsPassword() throws IOException, URISyntaxException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testGoodJwtAuthenticationAsPassword() throws IOException, URISyntaxException, InterruptedException {
         Map<String, Object> props = new HashMap<>();
         props.put("jwt.alg", "HMAC256");
         String secret = UUID.randomUUID().toString();
@@ -305,23 +295,25 @@ public class TestHttp {
         JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
         String jwtToken = handler.getToken(new JMXPrincipal("user"));
         try (Http ignored = makeReceiver(i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props)) {
-            URL dest = new URI("http", null, hostname, port, "/", "a=1", null).toURL();
+            URI dest = new URI("http", null, hostname, port, "/", "a=1", null);
             doRequest(dest,
-                    new byte[]{},
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
                     i -> {
                         String authStr = Base64.getEncoder().encodeToString((":" + jwtToken).getBytes());
-                        i.setRequestProperty("Authorization", "Basic " + authStr);
+                        i.header("Authorization", "Basic " + authStr);
                     }, 200);
             Event e = queue.poll();
-            assert e != null;
-            Assert.assertEquals("1", e.get("a"));
-            Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertNotNull(e);
+            Assertions.assertEquals("1", e.get("a"));
+            Assertions.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
         }
     }
 
-    @Test(timeout = 5000)
-    public void manyDecoders() throws ConfigException, IOException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void manyDecoders() throws ConfigException, IOException {
         String confile = "input {" +
                         "    loghub.receivers.Http {" +
                         "        port: 1502," +
@@ -338,12 +330,13 @@ public class TestHttp {
         Properties conf = Tools.loadConf(new StringReader(confile));
         Http http = (Http) conf.receivers.toArray(new Receiver[1])[0];
         Map<MimeType, Decoder> decs = http.getDecoders();
-        Assert.assertTrue(decs.containsKey(MimeType.of("application/csv")));
-        Assert.assertTrue(decs.containsKey(MimeType.of("application/msgpack")));
+        Assertions.assertTrue(decs.containsKey(MimeType.of("application/csv")));
+        Assertions.assertTrue(decs.containsKey(MimeType.of("application/msgpack")));
     }
 
-    @Test(timeout = 5000)
-    public void noExplicitDecoder() throws ConfigException, IOException {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void noExplicitDecoder() throws ConfigException, IOException {
         String confile = "input {" +
                         "    loghub.receivers.Http {" +
                         "        decoder: loghub.decoders.Msgpack {" +
@@ -355,33 +348,35 @@ public class TestHttp {
             @SuppressWarnings("unused")
             Properties conf = Tools.loadConf(new StringReader(confile));
         } catch (ConfigException ex) {
-            Assert.assertEquals("Decoder loghub.decoders.Msgpack will be ignored, this receiver handle decoding", ex.getMessage());
-            Assert.assertEquals("file <unknown>, line 1:11", ex.getLocation());
-        }
-    }
-
-    @Test(timeout = 5000)
-    public void testFailedEncoder() throws IOException, URISyntaxException {
-        try (Http ignored = makeReceiver(i -> i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder())), Collections.emptyMap())) {
-            doRequest(testURL,
-                    new byte[]{},
-                    i -> { }, 200
-            );
-
-            Event e = queue.poll();
-            assert e != null;
-            String a = (String) e.get("a");
-            Assert.assertEquals("1", a);
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-            ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
-            Assert.assertNotNull(ectxt);
-            Assert.assertNotNull(ectxt.getLocalAddress());
-            Assert.assertNotNull(ectxt.getRemoteAddress());
+            Assertions.assertEquals("Decoder loghub.decoders.Msgpack will be ignored, this receiver handle decoding", ex.getMessage());
+            Assertions.assertEquals("file <unknown>, line 1:11", ex.getLocation());
         }
     }
 
     @Test
-    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testFailedEncoder() throws IOException, URISyntaxException, InterruptedException {
+        try (Http ignored = makeReceiver(i -> i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder())), Collections.emptyMap())) {
+            doRequest(testURL.toURI(),
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
+                    i -> { }, 200
+            );
+
+            Event e = queue.poll();
+            Assertions.assertNotNull(e);
+            String a = (String) e.get("a");
+            Assertions.assertEquals("1", a);
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
+            Assertions.assertNotNull(ectxt);
+            Assertions.assertNotNull(ectxt.getLocalAddress());
+            Assertions.assertNotNull(ectxt.getRemoteAddress());
+        }
+    }
+
+    @Test
+    void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Http"
                               , BeanInfo.build("decoders", Map.class)
                               , BeanInfo.build("useJwt", Boolean.TYPE)
