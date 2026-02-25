@@ -37,6 +37,7 @@ import loghub.netty.http.FatalErrorHandler;
 import loghub.netty.http.HstsData;
 import loghub.netty.http.NotFound;
 import loghub.netty.transport.AbstractIpTransport;
+import loghub.netty.transport.NettyTransport;
 import loghub.security.AuthenticationHandler;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -140,11 +141,27 @@ public class HttpChannelConsumer implements ChannelConsumer {
             @Override
             protected void initChannel(Channel ch) {
                 ChannelPipeline cp = ch.pipeline();
+                Channel parentChannel = ch.parent();
+                for (AttributeKey<?> key : List.of(
+                        NettyTransport.PRINCIPALATTRIBUTE,
+                        AbstractIpTransport.SSLSENGINATTRIBUTE, AbstractIpTransport.SSLSESSIONATTRIBUTE, AbstractIpTransport.ALPNPROTOCOL,
+                        HttpChannelConsumer.HOLDERATTRIBUTE, HttpChannelConsumer.STARTTIMEATTRIBUTE
+                        )
+                ) {
+                    copyAttribue(key, parentChannel, ch);
+                }
                 cp.addLast(new Http2StreamFrameToHttpObjectCodec(true, false));
                 finishPipelineSetup(cp);
             }
         });
         p.addLast(multiplexHandler);
+    }
+
+    private <T> void copyAttribue(AttributeKey<T> key, Channel from, Channel to) {
+        if (from.hasAttr(key)) {
+            T value = from.attr(key).get();
+            to.attr(key).set(value);
+        }
     }
 
     private void finishPipelineSetup(ChannelPipeline p) {

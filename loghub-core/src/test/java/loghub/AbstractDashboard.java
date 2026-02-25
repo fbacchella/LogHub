@@ -1,20 +1,5 @@
 package loghub;
 
-import javax.net.ssl.SSLContext;
-
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -25,6 +10,25 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import javax.net.ssl.SSLContext;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 import loghub.configuration.Properties;
 import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.ContentType;
@@ -32,7 +36,6 @@ import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
 import loghub.httpclient.JavaHttpClientService;
 import loghub.metrics.JmxService;
-import loghub.metrics.Stats;
 import loghub.security.ssl.SslContextBuilder;
 import lombok.Getter;
 
@@ -62,17 +65,17 @@ public abstract class AbstractDashboard {
     @Getter
     HttpClient client;
 
-    @AfterClass
+    @AfterAll
     public static void stopJmx() {
         JmxService.stop();
     }
 
-    @AfterClass
+    @AfterAll
     public static void cleanState() {
         System.clearProperty("java.util.logging.manager");
     }
 
-    @Before
+    @BeforeEach
     public void startDashBoard() throws IllegalArgumentException, InterruptedException {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "TLSv1.3");
@@ -87,7 +90,7 @@ public abstract class AbstractDashboard {
                              .setListen("localhost")
                              .build();
         dashboard.start();
-        port = ((InetSocketAddress) dashboard.getTransport().getChannels().findFirst().get().localAddress()).getPort();
+        port = ((InetSocketAddress) dashboard.getTransport().getChannels().findFirst().orElseThrow().localAddress()).getPort();
         scheme = getDashboardScheme();
         client = HttpClient.newBuilder()
                            .sslContext(sslContext)
@@ -99,74 +102,85 @@ public abstract class AbstractDashboard {
 
     protected abstract String getDashboardScheme();
 
-    @After
+    @AfterEach
     public void stopDashboard() {
         Optional.ofNullable(dashboard).ifPresent(Dashboard::stop);
     }
 
-    @Test
-    public void getIndex() throws IllegalArgumentException, IOException, InterruptedException {
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
+    @Timeout(5)
+    public void getIndex(HttpClient.Version version) throws IllegalArgumentException, IOException, InterruptedException {
         URI theurl = URI.create(String.format("%s://localhost:%d/static/index.html", scheme, port));
         java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                                                     .uri(theurl)
+                                                    .version(version)
                                                     .build();
         java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
-        Assert.assertEquals(200, response.statusCode());
-        Assert.assertTrue(response.body().startsWith("<!DOCTYPE html>"));
+        Assertions.assertEquals(200, response.statusCode());
+        Assertions.assertTrue(response.body().startsWith("<!DOCTYPE html>"));
     }
 
     @Test
+    @Timeout(5)
     public void getIndexWithClient() throws IllegalArgumentException, IOException {
         JavaHttpClientService.Builder builder = JavaHttpClientService.getBuilder();
         builder.setSslContext(sslContext);
-        AbstractHttpClientService client = builder.build();
-        HttpRequest<Object> req = client.getRequest();
+        AbstractHttpClientService httpClient = builder.build();
+        HttpRequest<Object> req = httpClient.getRequest();
         req.setUri(URI.create(String.format("%s://localhost:%d/static/index.html", scheme, port)));
         req.setConsumeText(r -> {
             try (BufferedReader reader = new BufferedReader(r)) {
                 StringBuilder buf = new StringBuilder();
                 reader.lines().forEach(buf::append);
-                Assert.assertTrue(buf.toString().startsWith("<!DOCTYPE html>"));
+                Assertions.assertTrue(buf.toString().startsWith("<!DOCTYPE html>"));
                 return null;
             }
         });
-        try (HttpResponse<Object> rep = client.doRequest(req)) {
-            Assert.assertEquals(200, rep.getStatus());
-            Assert.assertEquals(ContentType.TEXT_HTML, rep.getMimeType());
+        try (HttpResponse<Object> rep = httpClient.doRequest(req)) {
+            Assertions.assertEquals(200, rep.getStatus());
+            Assertions.assertEquals(ContentType.TEXT_HTML, rep.getMimeType());
         }
     }
 
-    @Test
-    public void getFailure1() throws IOException, InterruptedException {
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
+    @Timeout(5)
+    public void getFailure1(HttpClient.Version version) throws IOException, InterruptedException {
         URI theurl = URI.create(String.format("%s://localhost:%d/metric/1", scheme, port));
         java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                                                     .uri(theurl)
+                                                    .version(version)
                                                     .build();
         java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
-        Assert.assertEquals(400, response.statusCode());
-        Assert.assertEquals("Unsupported metric name: 1", response.body().trim());
+        Assertions.assertEquals(400, response.statusCode());
+        Assertions.assertEquals("Unsupported metric name: 1", response.body().trim());
     }
 
-    @Test
-    public void getFailure2() throws IOException, InterruptedException {
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
+    @Timeout(5)
+    public void getFailure2(HttpClient.Version version) throws IOException, InterruptedException {
         URI theurl = URI.create(String.format("%s://localhost:%d/metric/stranges", scheme, port));
         java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                                                     .uri(theurl)
+                                                    .version(version)
                                                     .build();
         java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
-        Assert.assertEquals(400, response.statusCode());
-        Assert.assertEquals("Unsupported metric name: stranges", response.body().trim());
+        Assertions.assertEquals(400, response.statusCode());
+        Assertions.assertEquals("Unsupported metric name: stranges", response.body().trim());
     }
 
     @Test
+    @Timeout(5)
     public void jolokia() throws IOException {
         JavaHttpClientService.Builder builder = JavaHttpClientService.getBuilder();
         builder.setTimeout(10000000);
         builder.setSslContext(sslContext);
-        AbstractHttpClientService client = builder.build();
+        AbstractHttpClientService httpClient = builder.build();
 
-        try (HttpResponse<Map<String, ?>> rep = runRequest(client, "GET", "/version", null)) {
-            Assert.assertEquals(404, rep.getStatus());
+        try (HttpResponse<Map<String, ?>> rep = runRequest(httpClient, "GET", "/version", null)) {
+            Assertions.assertEquals(404, rep.getStatus());
         }
     }
 

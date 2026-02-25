@@ -139,11 +139,12 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
 
     @Override
     protected void initChannel(Channel ch, boolean client) {
-        super.initChannel(ch, client);
         if (withSsl && client) {
             addSslClientHandler(ch.pipeline());
         } else if (withSsl) {
             addSslHandler(ch.pipeline());
+        } else {
+            super.initChannel(ch, client);
         }
         /* From linux man page:
             SO_RCVBUF
@@ -197,6 +198,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
             f.get().attr(SSLSENGINATTRIBUTE).set(engine);
             f.get().attr(ALPNPROTOCOL).set(sslHandler.engine().getApplicationProtocol());
             f.get().pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
+            super.initChannel(f.get(), false);
         });
     }
 
@@ -204,7 +206,18 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         logger.debug("Adding an SSL client handler on {}", pipeline::channel);
         SSLEngine engine = getEngine();
         engine.setUseClientMode(true);
-        pipeline.addLast("ssl", new SslHandler(engine));
+        SslHandler sslHandler = new SslHandler(engine);
+        pipeline.addLast("ssl", sslHandler);
+        Future<Channel> future = sslHandler.handshakeFuture();
+        future.addListener((GenericFutureListener<Future<Channel>>) f -> {
+            SSLSession sess = sslHandler.engine().getSession();
+            logger.trace("SSL started with {}", () -> sess);
+            f.get().attr(SSLSESSIONATTRIBUTE).set(sess);
+            f.get().attr(SSLSENGINATTRIBUTE).set(engine);
+            f.get().attr(ALPNPROTOCOL).set(sslHandler.engine().getApplicationProtocol());
+            f.get().pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
+            super.initChannel(f.get(), true);
+        });
     }
 
     private SSLEngine getEngine() {

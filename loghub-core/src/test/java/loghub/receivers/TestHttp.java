@@ -176,7 +176,7 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(value = HttpClient.Version.class, names = "HTTP_1_1")
+    @EnumSource(value = HttpClient.Version.class)
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testHttpsGet(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
         SSLContext sslctx = SslContextBuilder.getBuilder(getClass().getClassLoader(), new HashMap<>(Map.of("trusts", p12File))).build();
