@@ -276,7 +276,9 @@ public final class Stats {
 
     private static String getMetricName(Object key, String name) {
         StringBuilder buffer = new StringBuilder();
-        if (key instanceof Receiver<?, ?> r) {
+        if (key instanceof Supplier<?> getName){
+            buffer.append(getName.get()).append(".");
+        } else if (key instanceof Receiver<?, ?> r) {
             buffer.append("Receivers.");
             buffer.append(r.getReceiverName());
             buffer.append(".");
