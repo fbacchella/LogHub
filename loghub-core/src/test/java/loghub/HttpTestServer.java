@@ -6,6 +6,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,6 +17,7 @@ import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.HttpHandler;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.TcpTransport;
+import lombok.Getter;
 
 public class HttpTestServer extends ExternalResource {
 
@@ -23,6 +25,8 @@ public class HttpTestServer extends ExternalResource {
 
     private TcpTransport transport = null;
     private HttpHandler[] modelHandlers = new HttpHandler[] {};
+    @Getter
+    private final Supplier<String> holder = () -> "HttpTestServer";
 
     public final void setModelHandlers(HttpHandler... handlers) {
         this.modelHandlers = Arrays.copyOf(handlers, handlers.length);
@@ -32,7 +36,7 @@ public class HttpTestServer extends ExternalResource {
         HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
                                                .setModelSetup(this::addModelHandlers)
                                                .setLogger(logger)
-                                               .setHolder(this)
+                                               .setHolder(holder)
                                                .build();
         config.setConsumer(consumer);
         config.setEndpoint("localhost");
@@ -56,7 +60,7 @@ public class HttpTestServer extends ExternalResource {
     }
 
     @Override
-    protected void after() {
+    public void after() {
         Optional.ofNullable(transport).ifPresent(NettyTransport::close);
     }
 
