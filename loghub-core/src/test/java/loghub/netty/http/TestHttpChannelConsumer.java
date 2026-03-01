@@ -49,7 +49,7 @@ import loghub.netty.transport.TcpTransport;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
 
-class TestHttpSsl {
+class TestHttpChannelConsumer {
 
     @ContentType("text/plain")
     @RequestAccept(path = "/")
@@ -155,6 +155,7 @@ class TestHttpSsl {
     void testSimple(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
         URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertEquals(version, r.version());
             Assertions.assertEquals("Request received\r\n", r.body());
             Assertions.assertEquals(200, r.statusCode());
             checkTlsPeer(r, "CN=localhost");
@@ -168,6 +169,7 @@ class TestHttpSsl {
     void test503(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
         URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertEquals(version, r.version());
             Assertions.assertEquals("Critical internal server error\r\n", r.body());
             Assertions.assertEquals(503, r.statusCode());
             Assertions.assertEquals("text/plain; charset=UTF-8", r.headers().firstValue("Content-Type").orElseThrow());
@@ -195,10 +197,9 @@ class TestHttpSsl {
         URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         URI requestUri = new URI(scheme, null, theURL.getHost(), theURL.getPort(), "/static/index.html", null, null);
         Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertEquals(version, r.version());
             Assertions.assertEquals(200, r.statusCode());
-            Assertions.assertEquals("Critical internal server error\r\n", r.body());
-            Assertions.assertEquals(503, r.statusCode());
-            Assertions.assertEquals("text/plain; charset=UTF-8", r.headers().firstValue("Content-Type").orElseThrow());
+            Assertions.assertEquals("text/html", r.headers().firstValue("Content-Type").orElseThrow());
             checkTlsPeer(r, "CN=localhost");
         };
         runRequest(version, requestUri, HttpResponse.BodyHandlers.ofString(), processResponse, new ResourceFiles());
@@ -210,6 +211,7 @@ class TestHttpSsl {
     void test404(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
         URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertEquals(version, r.version());
             Assertions.assertNotNull(r.body());
             Assertions.assertEquals(404, r.statusCode());
             checkTlsPeer(r, "CN=localhost");
@@ -223,6 +225,7 @@ class TestHttpSsl {
     void testRootRedirect(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
         URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertEquals(version, r.version());
             Assertions.assertNotNull(r.body());
             Assertions.assertEquals(301, r.statusCode());
             Assertions.assertEquals("/static/index.html", r.headers().firstValue("location").orElseThrow());
