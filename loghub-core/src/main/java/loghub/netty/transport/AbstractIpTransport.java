@@ -27,12 +27,12 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import loghub.cloners.DeepCloner;
 import loghub.cloners.NotClonableException;
+import loghub.netty.AlpnResolver;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.Getter;
 import lombok.Setter;
@@ -79,6 +79,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
     protected final String sslKeyAlias;
     protected final ClientAuthentication sslClientAuthentication;
     protected final BiFunction<SSLEngine, List<String>, String> alpnSelector;
+    private final boolean hasAlpn;
 
     protected AbstractIpTransport(B builder) {
         super(builder);
@@ -90,13 +91,17 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         this.sslParams = cloneSslParameters(builder.sslParams, sslContext);
         this.sslKeyAlias = builder.sslKeyAlias;
         this.sslClientAuthentication = builder.sslClientAuthentication;
-        this.alpnSelector = builder.alpnSelector;
         sslParams.setUseCipherSuitesOrder(true);
         if (endpoint != null) {
             sslParams.setServerNames(Collections.singletonList(new SNIHostName(endpoint)));
         }
-        if (! builder.applicationProtocols.isEmpty()) {
+        if (builder.consumer instanceof AlpnResolver && ! builder.applicationProtocols.isEmpty()) {
             sslParams.setApplicationProtocols(builder.applicationProtocols.toArray(String[]::new));
+            this.alpnSelector = builder.alpnSelector;
+            this.hasAlpn = true;
+        } else {
+            this.alpnSelector = null;
+            this.hasAlpn = false;
         }
     }
 
@@ -139,12 +144,14 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
 
     @Override
     protected void initChannel(Channel ch, boolean client) {
+        super.initChannel(ch, client);
+        if (consumer instanceof AlpnResolver ar) {
+            ch.pipeline().addFirst(AlpnResolver.RESOLVERNAME, new AlpnResolver.AplNProcessing(ar));
+        }
         if (withSsl && client) {
             addSslClientHandler(ch.pipeline());
         } else if (withSsl) {
             addSslHandler(ch.pipeline());
-        } else {
-            super.initChannel(ch, client);
         }
         /* From linux man page:
             SO_RCVBUF
@@ -180,9 +187,6 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         logger.debug("Adding an SSL handler on {}", pipeline::channel);
         SSLEngine engine = getEngine();
         engine.setUseClientMode(false);
-        if (alpnSelector != null) {
-            engine.setHandshakeApplicationProtocolSelector(alpnSelector);
-        }
         SslHandler sslHandler = new SslHandler(engine);
         pipeline.addFirst("ssl", sslHandler);
         Future<Channel> future = sslHandler.handshakeFuture();
@@ -197,8 +201,6 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
             f.get().attr(SSLSESSIONATTRIBUTE).set(sess);
             f.get().attr(SSLSENGINATTRIBUTE).set(engine);
             f.get().attr(ALPNPROTOCOL).set(sslHandler.engine().getApplicationProtocol());
-            f.get().pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
-            super.initChannel(f.get(), false);
         });
     }
 
@@ -206,18 +208,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         logger.debug("Adding an SSL client handler on {}", pipeline::channel);
         SSLEngine engine = getEngine();
         engine.setUseClientMode(true);
-        SslHandler sslHandler = new SslHandler(engine);
-        pipeline.addLast("ssl", sslHandler);
-        Future<Channel> future = sslHandler.handshakeFuture();
-        future.addListener((GenericFutureListener<Future<Channel>>) f -> {
-            SSLSession sess = sslHandler.engine().getSession();
-            logger.trace("SSL started with {}", () -> sess);
-            f.get().attr(SSLSESSIONATTRIBUTE).set(sess);
-            f.get().attr(SSLSENGINATTRIBUTE).set(engine);
-            f.get().attr(ALPNPROTOCOL).set(sslHandler.engine().getApplicationProtocol());
-            f.get().pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
-            super.initChannel(f.get(), true);
-        });
+        pipeline.addLast("ssl", new SslHandler(engine));
     }
 
     private SSLEngine getEngine() {
