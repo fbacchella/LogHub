@@ -13,7 +13,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <log4j.version>2.25.3</log4j.version>
         <antlr>4.13.2</antlr>
-        <jackson.version>2.21.0</jackson.version>
+        <jackson.version>2.21.1</jackson.version>
         <jackson.core.version>2.21</jackson.core.version>
         <metrics>4.2.38</metrics>
         <cache2k>2.6.1.Final</cache2k>
@@ -91,7 +91,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-report-plugin</artifactId>
-                    <version>3.5.4</version>
+                    <version>3.5.5</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
