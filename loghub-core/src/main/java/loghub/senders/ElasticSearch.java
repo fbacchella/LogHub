@@ -74,6 +74,7 @@ public class ElasticSearch extends AbstractHttpSender {
         private TYPEHANDLING typeHandling = TYPEHANDLING.USING;
         private boolean ilm = false;
         private String pipeline = null;
+        private boolean statusCheck = true;
 
         public Builder() {
             this.setPort(9200);
@@ -109,6 +110,7 @@ public class ElasticSearch extends AbstractHttpSender {
     private final TYPEHANDLING typeHandling;
     private final boolean ilm;
     private final String pipeline;
+    private final boolean statusCheck;
 
     private final ThreadLocal<DateFormat> esIndexFormat;
 
@@ -146,6 +148,7 @@ public class ElasticSearch extends AbstractHttpSender {
         typeHandling = builder.typeHandling;
         ilm = builder.ilm;
         pipeline = builder.pipeline;
+        statusCheck = builder.statusCheck;
     }
 
     @Override
@@ -192,18 +195,14 @@ public class ElasticSearch extends AbstractHttpSender {
         // This list contains the event futures that will be effectively sent to ES
         List<EventFuture> tosend = new ArrayList<>(documents.size());
 
-        // First pass to check that all needed indices will be present and usable
-        Set<String> indices = documents.stream().map(ef -> {
-            try {
-                return eventIndex(ef.getEvent());
-            } catch (ProcessorException ex) {
-                // Ignore, will be handled latter
-                return null;
-            }
-        })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        checkIndices(indices);
+        if (statusCheck) {
+            // First pass to check that all necessary indices will be present and usable
+            Set<String> indices = documents.stream()
+                                           .map(this::mappingEvent)
+                                           .filter(Objects::nonNull)
+                                           .collect(Collectors.toSet());
+            checkIndices(indices);
+        }
 
         // We can go on with the documents creations
         request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> putContent(documents, tosend, os));
@@ -215,7 +214,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 throw new UncheckedIOException(e);
             }
         };
-        String bulkArgs = "/_bulk" + (pipeline != null ? "?pipeline=" + pipeline : "");
+        String bulkArgs = "_bulk" + (pipeline != null ? "?pipeline=" + pipeline : "");
         Map<String, ?> response = doquery(request, bulkArgs, reader, Collections.emptyMap(), null);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
@@ -244,6 +243,15 @@ public class ElasticSearch extends AbstractHttpSender {
             documents.forEach(i -> i.complete(true));
         } else {
             documents.forEach(i -> i.complete(false));
+        }
+    }
+
+    private String mappingEvent(EventFuture ef) {
+        try {
+            return eventIndex(ef.getEvent());
+        } catch (ProcessorException ex) {
+            // Ignore, will be handled latter
+            return null;
         }
     }
 
@@ -326,7 +334,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 return -1;
             }
         };
-        return doquery(null, "/", transform, Collections.emptyMap(), -1);
+        return doquery(null, "", transform, Collections.emptyMap(), -1);
     }
 
     public void checkIndices(Set<String> indices) throws SendException {
@@ -396,7 +404,6 @@ public class ElasticSearch extends AbstractHttpSender {
         // Creating the missing indices
         for (String i : missing) {
             filePart.setLength(0);
-            filePart.append("/");
             filePart.append(i);
             filePart.append("-000001");
 
@@ -428,7 +435,7 @@ public class ElasticSearch extends AbstractHttpSender {
         } else {
             missing.clear();
             readonly.clear();
-            String filePart = "/" + String.join(",", indices)
+            String filePart = String.join(",", indices)
                                       + "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true";
             Map<String, String> aliases = getAliases(indices);
             Function<JsonNode, Boolean> transform = node -> {
@@ -529,7 +536,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 throw new UncheckedIOException(e);
             }
         };
-        Boolean needsrefresh = doquery(null, "/_template/" + templateName + includeTypeName(), checkTemplate, Collections.singletonMap(404, node -> true), null);
+        Boolean needsrefresh = doquery(null, "_template/" + templateName + includeTypeName(), checkTemplate, Collections.singletonMap(404, node -> true), null);
         if (needsrefresh == null) {
             return false;
         } else if (needsrefresh) {
@@ -543,7 +550,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 logger.catching(Level.DEBUG, e);
                 return false;
             }
-            return doquery(puttemplate, "/_template/" + templateName + includeTypeName(), node -> true, Collections.emptyMap(), false);
+            return doquery(puttemplate, "_template/" + templateName + includeTypeName(), node -> true, Collections.emptyMap(), false);
         } else {
             return true;
         }
@@ -563,8 +570,7 @@ public class ElasticSearch extends AbstractHttpSender {
         Helpers.shuffleArray(localendPoints);
         for (URI endPoint : localendPoints) {
             URI newEndPoint;
-            // The resolve("/") is needed for Java 11
-            newEndPoint = endPoint.resolve("/").resolve(filePart);
+            newEndPoint = endPoint.resolve(filePart);
             request.setUri(newEndPoint);
             logger.trace("{} {}", request.getVerb(), request.getUri());
             try (HttpResponse<JsonNode> response = httpClient.doRequest(request)) {
