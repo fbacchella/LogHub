@@ -35,7 +35,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.ssl.ApplicationProtocolNames;
@@ -57,7 +56,8 @@ class TestHttpChannelConsumer {
 
         @Override
         protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) {
-            ByteBuf content = Unpooled.copiedBuffer("Request received\r\n", CharsetUtil.UTF_8);
+            ByteBuf content = ctx.alloc().buffer();
+            content.writeCharSequence("Request received\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
         }
 
@@ -67,7 +67,7 @@ class TestHttpChannelConsumer {
     static void configure() throws IOException {
         Tools.configure();
         Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer", "loghub.netty");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer", "loghub.netty", "io.netty");
         Configurator.setLevel("org", Level.WARN);
         JmxService.start(JmxService.configuration());
     }
@@ -141,7 +141,7 @@ class TestHttpChannelConsumer {
     private void checkTlsPeer(HttpResponse<?> response, String expected) {
         try {
             if ("https".equals(response.uri().getScheme())) {
-                Assertions.assertEquals(expected, response.sslSession().get().getPeerPrincipal().getName());
+                Assertions.assertEquals(expected, response.sslSession().orElseThrow().getPeerPrincipal().getName());
             }
         } catch (SSLPeerUnverifiedException e) {
             throw new RuntimeException(e);
@@ -217,6 +217,21 @@ class TestHttpChannelConsumer {
             checkTlsPeer(r, "CN=localhost");
         };
         runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse);
+    }
+
+    @ParameterizedTest
+    @MethodSource("protocolArguments")
+    //@Timeout(5)
+    void testMetrics(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+        URI requestUri = theURL.resolve("/metric/global");
+        Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertEquals(version, r.version());
+            Assertions.assertNotNull(r.body());
+            Assertions.assertEquals(200, r.statusCode());
+            checkTlsPeer(r, "CN=localhost");
+        };
+        runRequest(version, requestUri, HttpResponse.BodyHandlers.ofString(), processResponse, new GetMetric());
     }
 
     @ParameterizedTest

@@ -53,7 +53,7 @@ public class TestBeats {
     public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Beats", "org.logstash.beats");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Beats", "org.logstash.beats", "loghub.netty");
     }
 
     private final ObjectWriter writer;

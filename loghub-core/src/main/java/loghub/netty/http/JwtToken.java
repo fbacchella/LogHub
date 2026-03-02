@@ -31,7 +31,9 @@ public class JwtToken extends HttpRequestProcessing {
         Principal p = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
         try {
             String token = alg.getToken(p);
-            ByteBuf content = Unpooled.copiedBuffer(token + "\r\n", CharsetUtil.UTF_8);
+            ByteBuf content = ctx.alloc().buffer(token.length() + 2);
+            content.writeCharSequence(token, CharsetUtil.UTF_8);
+            content.writeCharSequence("\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
         } catch (JWTCreationException exception) {
             throw new HttpRequestFailure(HttpResponseStatus.SERVICE_UNAVAILABLE, "JWT creation failed", Collections.emptyMap());

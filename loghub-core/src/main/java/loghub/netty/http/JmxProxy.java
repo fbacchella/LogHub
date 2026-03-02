@@ -71,7 +71,9 @@ public class JmxProxy extends HttpRequestProcessing {
             Arrays.stream(attrInfo).map(i -> resolveAttributeValue(found, i))
                                    .forEach(i -> mbeanmap.put(i.getKey(), i.getValue()));
             String serialized = writer.writeValueAsString(mbeanmap);
-            ByteBuf content = Unpooled.copiedBuffer(serialized + "\r\n", CharsetUtil.UTF_8);
+            ByteBuf content = ctx.alloc().buffer(serialized.length() + 2);
+            content.writeCharSequence(serialized, CharsetUtil.UTF_8);
+            content.writeCharSequence("\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
         } catch (IllegalStateException e) {
             String message = String.format("Failure reading attribute %s from %s: %s}", e.getMessage(), name, e.getCause().getMessage());

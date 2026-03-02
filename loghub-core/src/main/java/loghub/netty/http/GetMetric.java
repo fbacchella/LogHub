@@ -81,10 +81,6 @@ public class GetMetric extends HttpRequestProcessing implements ChannelInboundHa
         } catch (JsonProcessingException e) {
             logger.error("Unable to handle json response", e);
             throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, String.format("Unable to handle json response: %s", Helpers.resolveThrowableException(e)));
-        } finally {
-            if (content.refCnt() > 0) {
-                content.release(content.refCnt());
-            }
         }
     }
 

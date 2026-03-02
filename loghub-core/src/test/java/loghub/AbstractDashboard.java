@@ -46,7 +46,7 @@ public abstract class AbstractDashboard {
         System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
         Tools.configure();
         Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty", "io.netty");
     }
 
     private static final JsonFactory factory = new JsonFactory();
