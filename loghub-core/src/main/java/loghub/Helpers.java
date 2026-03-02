@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.JarURLConnection;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -483,26 +482,38 @@ public final class Helpers {
         return builder.toString();
     }
 
-    public static URI[] stringsToUri(String[] destinations, int port, String protocol, Logger logger) {
+    public static URI[] stringsToUri(String[] destinations, int port, String scheme, Logger logger) {
+        return stringsToUri(destinations, "localhost", port, scheme, "/", logger);
+    }
+
+    public static URI[] stringsToUri(String[] destinations, String host, int port, String scheme, String path, Logger logger) {
         // Uses URI parsing to read destination given by the user.
         URI[] endPoints = new URI[destinations.length];
         for (int i = 0; i < destinations.length; i++) {
-            String temp = destinations[i];
-            if (!temp.contains("//")) {
-                temp = protocol + "://" + temp;
-            }
             try {
-                URL newEndPoint = URI.create(temp).toURL();
+                String temp = destinations[i];
+                if (!temp.contains("://")) {
+                    temp = scheme + "://" + temp;
+                }
+                URI newEndPoint = URI.create(temp);
+                String resolvedPath = newEndPoint.getPath();
+                // URI.create resolve a single string as a path, it's a host in this usage
+                if (newEndPoint.getHost() == null && resolvedPath != null && ! resolvedPath.contains("/")) {
+                    newEndPoint = new URI(scheme, null, resolvedPath, port, path, null, null);
+                    resolvedPath = newEndPoint.getPath();
+                } else if (resolvedPath == null || resolvedPath.isBlank()) {
+                    resolvedPath = path;
+                }
                 endPoints[i] = new URI(
-                                       (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
+                                       (newEndPoint.getScheme() != null ? newEndPoint.getScheme() : scheme),
                                        null,
-                                       (newEndPoint.getHost() != null ? newEndPoint.getHost() : "localhost"),
+                                       (newEndPoint.getHost() != null ? newEndPoint.getHost() : host),
                                        (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : port),
-                                       (newEndPoint.getPath() != null ? newEndPoint.getPath() : ""),
+                                       resolvedPath,
                                        null,
                                        null
                                 );
-            } catch (MalformedURLException | URISyntaxException e) {
+            } catch (URISyntaxException e) {
                 logger.error("invalid destination {}: {}", destinations[i], e.getMessage());
             }
         }

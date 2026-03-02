@@ -31,8 +31,8 @@ public class TestStringsToUrl {
         Assert.assertEquals(8080, endPoints[1].getPort());
         Arrays.toString(endPoints);
 
-        Assert.assertEquals("http://onehost:80", endPoints[0].toString());
-        Assert.assertEquals("http://otherhost:8080", endPoints[1].toString());
+        Assert.assertEquals("http://onehost:80/", endPoints[0].toString());
+        Assert.assertEquals("http://otherhost:8080/", endPoints[1].toString());
     }
 
     @Test
@@ -44,8 +44,24 @@ public class TestStringsToUrl {
         Assert.assertEquals(-1, endPoints[0].getPort());
         Assert.assertEquals(8080, endPoints[1].getPort());
 
-        Assert.assertEquals("https://onehost", endPoints[0].toString());
-        Assert.assertEquals("http://otherhost:8080", endPoints[1].toString());
+        Assert.assertEquals("https://onehost/", endPoints[0].toString());
+        Assert.assertEquals("http://otherhost:8080/", endPoints[1].toString());
+    }
+
+    @Test
+    public void testWithPath() {
+        URI[] endPoints = Helpers.stringsToUri(new String[] {"onehost", "http://otherhost:8080", "http://otherhost:8080/", "/", "/sub"}, "otherhost", -1, "https", "/loghub", logger);
+        Assert.assertEquals("onehost", endPoints[0].getHost());
+        Assert.assertEquals("otherhost", endPoints[1].getHost());
+
+        Assert.assertEquals(-1, endPoints[0].getPort());
+        Assert.assertEquals(8080, endPoints[1].getPort());
+
+        Assert.assertEquals("https://onehost/loghub", endPoints[0].toString());
+        Assert.assertEquals("http://otherhost:8080/loghub", endPoints[1].toString());
+        Assert.assertEquals("http://otherhost:8080/", endPoints[2].toString());
+        Assert.assertEquals("https://otherhost/", endPoints[3].toString());
+        Assert.assertEquals("https://otherhost/sub", endPoints[4].toString());
     }
 
 }
