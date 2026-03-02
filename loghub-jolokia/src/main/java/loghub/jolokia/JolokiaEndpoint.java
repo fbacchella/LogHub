@@ -9,17 +9,18 @@ import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jolokia.core.api.LogHandler;
 import org.jolokia.json.JSONStructure;
 import org.jolokia.jvmagent.JvmAgentConfig;
 import org.jolokia.jvmagent.ParsedUri;
 import org.jolokia.server.core.config.Configuration;
 import org.jolokia.server.core.http.HttpRequestHandler;
+import org.jolokia.server.core.request.BadRequestException;
 import org.jolokia.server.core.request.EmptyResponseException;
 import org.jolokia.server.core.restrictor.RestrictorFactory;
 import org.jolokia.server.core.service.JolokiaServiceManagerFactory;
 import org.jolokia.server.core.service.api.JolokiaContext;
 import org.jolokia.server.core.service.api.JolokiaServiceManager;
-import org.jolokia.server.core.service.api.LogHandler;
 import org.jolokia.server.core.service.api.Restrictor;
 import org.jolokia.server.core.service.impl.ClasspathServiceCreator;
 
@@ -135,7 +136,7 @@ public class JolokiaEndpoint extends HttpRequestProcessing {
             ByteBuf content = Unpooled.copiedBuffer(serialized + "\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
 
-        } catch (EmptyResponseException e) {
+        } catch (EmptyResponseException| BadRequestException e) {
             throw new HttpRequestFailure(
                     HttpResponseStatus.BAD_REQUEST, String.format("malformed object name '%s': %s", "name", e.getMessage()));
         } catch (IOException e) {
@@ -145,7 +146,8 @@ public class JolokiaEndpoint extends HttpRequestProcessing {
         }
     }
 
-    private JSONStructure handlePost(FullHttpRequest request) throws IOException, EmptyResponseException {
+    private JSONStructure handlePost(FullHttpRequest request)
+            throws IOException, EmptyResponseException, BadRequestException {
         ParsedUri parsedUri = parseUri(request);
         String encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8").toString();
         try (InputStream is = new ByteBufInputStream(request.content())) {
@@ -153,7 +155,7 @@ public class JolokiaEndpoint extends HttpRequestProcessing {
         }
     }
 
-    private JSONStructure handleGet(FullHttpRequest request) throws EmptyResponseException {
+    private JSONStructure handleGet(FullHttpRequest request) throws EmptyResponseException, BadRequestException {
         ParsedUri parsedUri = parseUri(request);
         return requestHandler.handleGetRequest(parsedUri.getUri().toString(), parsedUri.getPathInfo(), parsedUri.getParameterMap());
     }

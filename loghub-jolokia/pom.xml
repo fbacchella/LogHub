@@ -14,6 +14,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jolokia.version>2.5.1</jolokia.version>
     </properties>
 
     <dependencies>
@@ -25,7 +26,7 @@
         <dependency>
             <groupId>org.jolokia</groupId>
             <artifactId>jolokia-agent-jvm</artifactId>
-            <version>2.4.2</version>
+            <version>${jolokia.version}</version>
             <classifier>javaagent</classifier>
         </dependency>
         <dependency>
@@ -38,7 +39,7 @@
         <dependency>
             <groupId>org.jolokia</groupId>
             <artifactId>jolokia-client-jmx-adapter</artifactId>
-            <version>2.4.1</version>
+            <version>${jolokia.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
