@@ -187,6 +187,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
                     copyAttribue(key, parentChannel, ch);
                 }
                 cp.addLast(new Http2StreamFrameToHttpObjectCodec(true, true));
+                cp.addLast(new ChunkedWriteHandler());
                 finishPipelineSetup(cp);
              }
         });
