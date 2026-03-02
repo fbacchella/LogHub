@@ -273,7 +273,9 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             ctx.writeAndFlush(response);
             doStatusMetric(ctx, failure.status);
         } else {
-            logger.error("Internal server error: {}", () -> Helpers.resolveThrowableException(cause));
+            logger.atError()
+                  .withThrowable(cause)
+                  .log("Internal server error: {}", () -> Helpers.resolveThrowableException(cause));
             logger.catching(Level.ERROR, cause);
             FullHttpResponse response = new DefaultFullHttpResponse(
                                                                     HTTP_1_1, SERVICE_UNAVAILABLE, Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8));

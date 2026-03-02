@@ -1,9 +1,7 @@
 package loghub;
 
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -32,7 +30,7 @@ public class HttpTestServer extends ExternalResource {
         this.modelHandlers = Arrays.copyOf(handlers, handlers.length);
     }
 
-    public URL startServer(TcpTransport.Builder config) {
+    public URI startServer(TcpTransport.Builder config) {
         HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
                                                .setModelSetup(this::addModelHandlers)
                                                .setLogger(logger)
@@ -41,13 +39,14 @@ public class HttpTestServer extends ExternalResource {
         config.setConsumer(consumer);
         config.setEndpoint("localhost");
         config.setPort(Tools.tryGetPort());
+        config.setAlpnSelector(consumer.getAlpnSelector());
         transport = config.build();
         try {
             transport.bind();
             String listen = transport.getEndpoint();
             boolean ssl = transport.isWithSsl();
-            return new URI(String.format("%s://%s:%d/", ssl ? "https" : "http", listen, transport.getPort())).toURL();
-        } catch (URISyntaxException | MalformedURLException ex) {
+            return new URI(String.format("%s://%s:%d/", ssl ? "https" : "http", listen, transport.getPort()));
+        } catch (URISyntaxException ex) {
             throw new IllegalStateException(ex);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

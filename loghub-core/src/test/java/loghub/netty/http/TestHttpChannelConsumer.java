@@ -104,7 +104,7 @@ class TestHttpChannelConsumer {
         );
     }
 
-    private URL startHttpServer(String scheme, Map<String, Object> sslprops, Consumer<TcpTransport.Builder> postconfig) {
+    private URI startHttpServer(String scheme, Map<String, Object> sslprops, Consumer<TcpTransport.Builder> postconfig) {
         TcpTransport.Builder config = TcpTransport.getBuilder();
         config.setEndpoint("localhost");
         if ("https".equals(scheme)) {
@@ -152,22 +152,22 @@ class TestHttpChannelConsumer {
     @ParameterizedTest
     @MethodSource("protocolArguments")
     @Timeout(5)
-    void testSimple(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
-        URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+    void testSimple(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertEquals(version, r.version());
             Assertions.assertEquals("Request received\r\n", r.body());
             Assertions.assertEquals(200, r.statusCode());
             checkTlsPeer(r, "CN=localhost");
         };
-        runRequest(version, theURL.toURI(), HttpResponse.BodyHandlers.ofString(), processResponse, new SimpleHandler());
+        runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse, new SimpleHandler());
     }
 
     @ParameterizedTest
     @MethodSource("protocolArguments")
     @Timeout(5)
-    void test503(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
-        URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+    void test503(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertEquals(version, r.version());
             Assertions.assertEquals("Critical internal server error\r\n", r.body());
@@ -187,14 +187,14 @@ class TestHttpChannelConsumer {
                 throw new RuntimeException();
             }
         };
-        runRequest(version, theURL.toURI(), HttpResponse.BodyHandlers.ofString(), processResponse, processing);
+        runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse, processing);
     }
 
     @ParameterizedTest
     @MethodSource("protocolArguments")
     @Timeout(5)
     void testRessourceFile(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
-        URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         URI requestUri = new URI(scheme, null, theURL.getHost(), theURL.getPort(), "/static/index.html", null, null);
         Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertEquals(version, r.version());
@@ -208,22 +208,22 @@ class TestHttpChannelConsumer {
     @ParameterizedTest
     @MethodSource("protocolArguments")
     @Timeout(5)
-    void test404(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
-        URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+    void test404(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertEquals(version, r.version());
             Assertions.assertNotNull(r.body());
             Assertions.assertEquals(404, r.statusCode());
             checkTlsPeer(r, "CN=localhost");
         };
-        runRequest(version, theURL.toURI(), HttpResponse.BodyHandlers.ofString(), processResponse);
+        runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse);
     }
 
     @ParameterizedTest
     @MethodSource("protocolArguments")
     @Timeout(5)
-    void testRootRedirect(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
-        URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+    void testRootRedirect(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertEquals(version, r.version());
             Assertions.assertNotNull(r.body());
@@ -231,7 +231,7 @@ class TestHttpChannelConsumer {
             Assertions.assertEquals("/static/index.html", r.headers().firstValue("location").orElseThrow());
             checkTlsPeer(r, "CN=localhost");
         };
-        runRequest(version, theURL.toURI(), HttpResponse.BodyHandlers.ofString(), processResponse, new RootRedirect());
+        runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse, new RootRedirect());
     }
 
     @ParameterizedTest
@@ -254,29 +254,28 @@ class TestHttpChannelConsumer {
     @MethodSource("protocolArguments")
     @Timeout(5)
     void testClientAuthentication(HttpClient.Version version, String scheme)
-            throws IOException, InterruptedException, URISyntaxException {
-        URL theURL = startHttpServer(scheme, Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
+            throws IOException, InterruptedException {
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
         Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertNotNull(r.body());
             Assertions.assertEquals(200, r.statusCode());
             checkTlsPeer(r, "CN=localhost");
         };
-        runRequest(version, theURL.toURI(), HttpResponse.BodyHandlers.ofString(), processResponse, new SimpleHandler());
+        runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse, new SimpleHandler());
     }
 
     @ParameterizedTest
     @EnumSource(HttpClient.Version.class)
     @Timeout(5)
-    void testClientAuthenticationFailed(HttpClient.Version version)
-            throws URISyntaxException {
-        URL theURL = startHttpServer("https", Collections.emptyMap(), i -> {
+    void testClientAuthenticationFailed(HttpClient.Version version) {
+        URI theURL = startHttpServer("https", Collections.emptyMap(), i -> {
             i.setSslContext(getContext.apply(Map.of("issuers", new String[] {"cn=notlocalhost"})));
             i.setSslClientAuthentication(ClientAuthentication.WANTED);
         });
         HttpClient.Builder clientBuilder = HttpClient.newBuilder().version(version);
         try (HttpClient client = clientBuilder.build()) {
             HttpRequest request = HttpRequest.newBuilder()
-                                          .uri(theURL.toURI())
+                                          .uri(theURL)
                                           .GET()
                                           .build();
             IOException ex = Assertions.assertThrows(IOException.class, () -> client.send(request, HttpResponse.BodyHandlers.ofString()));
@@ -287,14 +286,13 @@ class TestHttpChannelConsumer {
     @ParameterizedTest
     @EnumSource(HttpClient.Version.class)
     @Timeout(5)
-    void testChangedAlias(HttpClient.Version version)
-            throws URISyntaxException {
-        URL theURL = startHttpServer("https", Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
+    void testChangedAlias(HttpClient.Version version) {
+        URI theURL = startHttpServer("https", Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         HttpClient.Builder clientBuilder = HttpClient.newBuilder().version(version);
         clientBuilder.sslContext(getContext.apply(Collections.emptyMap()));
         try (HttpClient client = clientBuilder.build()) {
             HttpRequest request = HttpRequest.newBuilder()
-                                          .uri(theURL.toURI())
+                                          .uri(theURL)
                                           .GET()
                                           .build();
             Assertions.assertThrows(IOException.class, () -> client.send(request, HttpResponse.BodyHandlers.ofString()));
@@ -306,8 +304,8 @@ class TestHttpChannelConsumer {
     @Timeout(5)
     void testNoSsl(HttpClient.Version version) throws URISyntaxException {
         // Start an SSL server but connect via http
-        URL theURL = startHttpServer("https", Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
-        URI nohttpsurl = new URI("http", null, theURL.getHost(), theURL.getPort(), theURL.getFile(), null, null);
+        URI theURL = startHttpServer("https", Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
+        URI nohttpsurl = new URI("http", null, theURL.getHost(), theURL.getPort(), theURL.getPath(), null, null);
         HttpClient.Builder clientBuilder = HttpClient.newBuilder().version(version);
         try (HttpClient client = clientBuilder.build()) {
             HttpRequest request = HttpRequest.newBuilder()

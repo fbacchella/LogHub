@@ -39,9 +39,9 @@ public class TestHttpJwt {
 
     @Rule
     public final HttpTestServer resource = new HttpTestServer();
-    public final URL resourceUrl = getHttpServer(resource);
+    public final URI resourceUrl = getHttpServer(resource);
 
-    private URL getHttpServer(HttpTestServer server) {
+    private URI getHttpServer(HttpTestServer server) {
         String secret = UUID.randomUUID().toString();
         JWTHandler jwtHandler = JWTHandler.getBuilder().setAlg("HMAC256").secret(secret).build();
         AuthenticationHandler auhtHandler = AuthenticationHandler.getBuilder()
@@ -56,7 +56,7 @@ public class TestHttpJwt {
 
     @Test
     public void testSimple401() throws IOException {
-        HttpURLConnection cnx = (HttpURLConnection) resourceUrl.openConnection();
+        HttpURLConnection cnx = (HttpURLConnection) resourceUrl.toURL().openConnection();
         cnx.connect();
         Assert.assertEquals(401, cnx.getResponseCode());
     }
@@ -79,7 +79,7 @@ public class TestHttpJwt {
         }
         Assert.assertNotNull(token);
         try {
-            cnx = (HttpURLConnection) resourceUrl.openConnection();
+            cnx = (HttpURLConnection) resourceUrl.toURL().openConnection();
             // Extra space to ensure that parsing is resilient
             cnx.setRequestProperty("Authorization", "Bearer  " + token);
             cnx.connect();
