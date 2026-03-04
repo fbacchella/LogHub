@@ -23,7 +23,10 @@ import java.util.stream.Collectors;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SNIMatcher;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
@@ -34,6 +37,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
+import loghub.cloners.DeepCloner;
+import loghub.cloners.NotClonableException;
 import loghub.configuration.BeansPostProcess;
 import loghub.configuration.ConfigException;
 import lombok.Getter;
@@ -41,6 +46,37 @@ import lombok.Setter;
 
 @BeansPostProcess(SslContextBuilder.BeansProcessor.class)
 public class SslContextBuilder {
+
+    static {
+        DeepCloner.registerImmutable(SNIServerName.class);
+        DeepCloner.registerImmutable(SNIMatcher.class);
+        DeepCloner.register(SSLParameters.class, SslContextBuilder::cloneSslParameters);
+    }
+
+    private static SSLParameters cloneSslParameters(SSLParameters src) throws NotClonableException {
+        Objects.requireNonNull(src, "Source SSLParameters must not be null");
+
+        SSLParameters dst = new SSLParameters();
+
+        dst.setProtocols(src.getProtocols());
+        dst.setCipherSuites(src.getCipherSuites());
+
+        dst.setNeedClientAuth(src.getNeedClientAuth());
+        dst.setWantClientAuth(src.getWantClientAuth());
+        dst.setEndpointIdentificationAlgorithm(src.getEndpointIdentificationAlgorithm());
+        dst.setUseCipherSuitesOrder(src.getUseCipherSuitesOrder());
+        dst.setAlgorithmConstraints(src.getAlgorithmConstraints());
+        dst.setServerNames(DeepCloner.clone(src.getServerNames()));
+        dst.setApplicationProtocols(src.getApplicationProtocols());
+        dst.setSNIMatchers(DeepCloner.clone(src.getSNIMatchers()));
+        dst.setSignatureSchemes(src.getSignatureSchemes());
+
+        int maxPacketSize = src.getMaximumPacketSize();
+        if (maxPacketSize > 0) {
+            dst.setMaximumPacketSize(maxPacketSize);
+        }
+        return dst;
+    }
 
     public static class BeansProcessor extends BeansPostProcess.Processor {
         @Override
