@@ -26,7 +26,10 @@ public class PrometheusDecoder extends BinaryCodec {
     }
 
     public PrometheusDecoder() throws Descriptors.DescriptorValidationException, IOException {
-        super(PrometheusDecoder.class.getClassLoader().getResourceAsStream("prometheus.binpb"));
+        super(List.of(
+                PrometheusDecoder.class.getClassLoader().getResourceAsStream("prometheus/remote.binpb"),
+                PrometheusDecoder.class.getClassLoader().getResourceAsStream("prometheus/types.binpb")
+        ));
     }
 
     @Override

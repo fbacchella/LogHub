@@ -3,15 +3,24 @@ package loghub.protobuf;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.CodedInputStream;
@@ -43,6 +52,13 @@ public class BinaryCodec {
     public BinaryCodec(URI source) throws Descriptors.DescriptorValidationException, IOException {
         try (InputStream is = source.toURL().openStream()) {
             analyseProto(is);
+        }
+        initFastPath();
+    }
+
+    public BinaryCodec(List<InputStream> sources) throws Descriptors.DescriptorValidationException, IOException {
+        for (InputStream source : sources) {
+            analyseProto(source);
         }
         initFastPath();
     }
@@ -270,8 +286,7 @@ public class BinaryCodec {
         case 2:
             int len = stream.readRawVarint32();
             return stream.readRawBytes(len);
-        case 3:
-        case 4:
+        case 3, 4:
             throw new UnsupportedOperationException("group not handled");
         case 5:
             return stream.readRawBytes(4);
@@ -307,4 +322,48 @@ public class BinaryCodec {
         return builder.build();
     }
 
+    public static List<InputStream> listResources(String basePath) {
+        List<Path> result = new ArrayList<>();
+        Predicate<Path> isBinp = p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".binpb");
+        try {
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+            Enumeration<URL> roots = classLoader.getResources(basePath);
+
+            while (roots.hasMoreElements()) {
+                URL url = roots.nextElement();
+                try {
+                    URI uri = url.toURI();
+
+                    if (uri.getScheme().equals("file")) {
+                        Path root = Path.of(uri);
+                        try (Stream<Path> walk = Files.walk(root)) {
+                            walk.filter(isBinp).forEach(result::add);
+                        }
+                    } else if (uri.getScheme().equals("jar")) {
+                        try (FileSystem fs = FileSystems.newFileSystem(uri, Map.of())) {
+                            Path root = fs.getPath(basePath);
+                            try (Stream<Path> walk = Files.walk(root)) {
+                                walk.filter(isBinp).forEach(result::add);
+                            }
+                        }
+                    }
+                } catch (URISyntaxException e) {
+                    // pass
+                }
+            }
+        } catch (IOException e) {
+            return List.of();
+        }
+        Function<Path, InputStream> openPath = p -> {
+            try {
+                return Files.newInputStream(p);
+            } catch (IOException e) {
+                return null;
+            }
+        };
+        return result.stream()
+                     .map(openPath)
+                     .filter(Objects::nonNull)
+                     .toList();
+    }
 }

@@ -16,7 +16,7 @@ import com.google.protobuf.Descriptors;
 public class OpentelemetryDecoder extends BinaryCodec {
 
     public OpentelemetryDecoder() throws Descriptors.DescriptorValidationException, IOException {
-        super(PrometheusDecoder.class.getClassLoader().getResourceAsStream("opentelemetry.binpb"));
+        super(BinaryCodec.listResources("opentelemetry"));
     }
 
     @Override

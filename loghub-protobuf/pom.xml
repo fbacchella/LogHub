@@ -13,7 +13,8 @@
     <name>LogHub :: Protobuf decoder</name>
 
     <properties>
-        <protbuf.version>4.29.6</protbuf.version>
+        <protobuf.version>4.34.0</protobuf.version>
+        <grpc.version>1.79.0</grpc.version>
     </properties>
 
     <dependencies>
@@ -37,17 +38,77 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>${protbuf.version}</version>
+            <version>${protobuf.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java-util</artifactId>
-            <version>${protbuf.version}</version>
+            <version>${protobuf.version}</version>
         </dependency>
     </dependencies>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.1</version>
+            </extension>
+        </extensions>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-protobuf-includes</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifact>com.google.protobuf:protobuf-java:${protobuf.version}</artifact>
+                            <includes>google/protobuf/*.proto</includes>
+                            <outputDirectory>${project.build.directory}/protoc/includes</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>copy-protoc</id>
+                        <phase>initialize</phase>
+                        <goals><goal>copy</goal></goals>
+                        <configuration>
+                            <artifact>
+                                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+                            </artifact>
+                            <outputDirectory>${project.build.directory}/protoc</outputDirectory>
+                            <stripVersion>true</stripVersion>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-descriptor</id>
+                        <phase>generate-test-sources</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <environmentVariables>
+                                <PROTO_SRC_DIR>${project.basedir}/src/main/protobuf</PROTO_SRC_DIR>
+                                <DESCRIPTOR_OUT_DIR>${project.build.directory}/classes</DESCRIPTOR_OUT_DIR>
+                                <PROTOC_BIN>${project.build.directory}/protoc/protoc-${os.detected.classifier}.exe</PROTOC_BIN>
+                                <PROTOC_INCLUDES>${project.build.directory}/protoc/includes</PROTOC_INCLUDES>
+                            </environmentVariables>
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>${project.basedir}/src/main/protobuild.sh</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
