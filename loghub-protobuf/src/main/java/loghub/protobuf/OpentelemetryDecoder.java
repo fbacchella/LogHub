@@ -11,12 +11,10 @@ import java.util.Map;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors;
 
-// Generate with the commands
-// $PROTOC_HOME/bin/protoc $(find loghub-protobuf/src/main/protobuf/opentelemetry -name '*.proto') --descriptor_set_out=loghub-protobuf/src/main/resources/opentelemetry.binpb -Iloghub-protobuf/src/main/protobuf -I$PROTOC_HOME/include
 public class OpentelemetryDecoder extends BinaryCodec {
 
     public OpentelemetryDecoder() throws Descriptors.DescriptorValidationException, IOException {
-        super(BinaryCodec.listResources("opentelemetry"));
+        super(OpentelemetryDecoder.class.getClassLoader().getResourceAsStream("opentelemetry.binpb"));
     }
 
     @Override

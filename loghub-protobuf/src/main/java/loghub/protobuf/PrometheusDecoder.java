@@ -14,9 +14,6 @@ import com.google.protobuf.Descriptors;
 
 import lombok.Data;
 
-// Generate with the commands
-// $PROTOC_HOME/bin/protoc loghub-protobuf/src/main/protobuf/prometheus/*.proto --descriptor_set_out=loghub-protobuf/src/main/resources/prometheus.binpb -Iloghub-protobuf/src/main/protobuf -I$PROTOC_HOME/include
-// $PROTOC_HOME/bin/protoc loghub-protobuf/src/main/protobuf/prometheus/* loghub-protobuf/src/main/protobuf/gogoproto/gogo.proto --java_out=loghub-protobuf/src/test/java/ -Iloghub-protobuf/src/main/protobuf -Iloghub-protobuf/src/main/protobuf -I$PROTOC_HOME/include
 public class PrometheusDecoder extends BinaryCodec {
 
     @Data
@@ -26,10 +23,7 @@ public class PrometheusDecoder extends BinaryCodec {
     }
 
     public PrometheusDecoder() throws Descriptors.DescriptorValidationException, IOException {
-        super(List.of(
-                PrometheusDecoder.class.getClassLoader().getResourceAsStream("prometheus/remote.binpb"),
-                PrometheusDecoder.class.getClassLoader().getResourceAsStream("prometheus/types.binpb")
-        ));
+        super(PrometheusDecoder.class.getClassLoader().getResourceAsStream("prometheus.binpb"));
     }
 
     @Override
