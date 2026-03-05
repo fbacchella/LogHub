@@ -11,13 +11,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Duration;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
@@ -28,6 +30,7 @@ public class BinaryCodec {
 
     private final Map<String, MessageFastPathFunction<?>> messageFastPath = new HashMap<>();
     private final Map<String, FieldFastPathFunction<?>> fieldFastPath = new HashMap<>();
+    private final Map<String, MethodFastPathFunction<?, ?>> methodFastPath = new HashMap<>();
     private final Map<String, Descriptors.Descriptor> messages = new HashMap<>();
     private final Map<String, Descriptors.MethodDescriptor> methods = new HashMap<>();
 
@@ -39,6 +42,19 @@ public class BinaryCodec {
     @FunctionalInterface
     public interface FieldFastPathFunction<T> {
         T resolve(CodedInputStream stream, Descriptors.FieldDescriptor descriptor, List<UnknownField> unknownFields) throws IOException;
+    }
+
+    @FunctionalInterface
+    private interface MethodFastPathFunction<I, O> {
+        O process(I input);
+    }
+
+    public interface MethodBytesFastPathFunction<I> extends MethodFastPathFunction<I, byte[]>{
+        byte[] process(I input);
+    }
+
+    public interface MethodMapFastPathFunction<I> extends MethodFastPathFunction<I, Map<String, Object>>{
+        Map<String, Object> process(I input);
     }
 
     public BinaryCodec(URI source) throws Descriptors.DescriptorValidationException, IOException {
@@ -136,6 +152,22 @@ public class BinaryCodec {
         }
     }
 
+    public <I> void addFastPath(String methodFullName, MethodBytesFastPathFunction<I> fastPath) {
+        if (fastPath == null) {
+            methodFastPath.remove(methodFullName);
+        } else {
+            methodFastPath.put(methodFullName, fastPath);
+        }
+    }
+
+    public <I> void addFastPath(String methodFullName, MethodMapFastPathFunction<I> fastPath) {
+        if (fastPath == null) {
+            methodFastPath.remove(methodFullName);
+        } else {
+            methodFastPath.put(methodFullName, fastPath);
+        }
+    }
+
     @Data
     public static class UnknownField {
         private final String message;
@@ -144,8 +176,38 @@ public class BinaryCodec {
         private final Object value;
     }
 
-    public Map<String, Object> decode(CodedInputStream stream, String messageName, List<UnknownField> unknownFields) throws IOException {
+    public <I> I decode(CodedInputStream stream, String messageName, List<UnknownField> unknownFields) throws IOException {
         return parseMessage(stream, messages.get(messageName), unknownFields);
+    }
+
+    public <I> I decode(CodedInputStream stream, Descriptor message, List<UnknownField> unknownFields) throws IOException {
+        return parseMessage(stream, message, unknownFields);
+    }
+
+    public <I, O> byte[] process(String method, I input) {
+        if (methodFastPath.containsKey(method)) {
+            @SuppressWarnings("unchecked")
+            MethodFastPathFunction<I, O> fastMethod = (MethodFastPathFunction<I, O>) methodFastPath.get(method);
+            switch (fastMethod) {
+            case MethodBytesFastPathFunction mb -> {
+                return mb.process(input);
+            }
+            case MethodMapFastPathFunction mm -> {
+                Map<String, Object> values = mm.process(input);
+                String outMessageName = methods.get(method).getOutputType().getFullName();
+                return encode(outMessageName, values);
+            }
+            default -> {
+                throw new IllegalArgumentException(
+                        "Method " + method + " returned unexpected type: " + fastMethod.getClass().getName());
+            }
+            }
+        } else if (input instanceof Map m) {
+            String outMessage = methods.get(method).getOutputType().getFullName();
+            return encode(outMessage, m);
+        } else {
+            throw new IllegalArgumentException("Input must be a Map or a supported method result type");
+        }
     }
 
     public byte[] encode(String messageName, Map<String, Object> values) {
@@ -297,8 +359,12 @@ public class BinaryCodec {
         return messages.get(name);
     }
 
-    public Descriptors.MethodDescriptor getMethodDescriptor(String name) {
-        return methods.get(name);
+    public Descriptors.MethodDescriptor getMethodDescriptor(String method) {
+        return methods.get(method);
+    }
+
+    public Set<Entry<String, MethodDescriptor>> getMethods() {
+        return methods.entrySet();
     }
 
     private DynamicMessage encode(Descriptors.Descriptor descriptor, Map<String, Object> values) {
