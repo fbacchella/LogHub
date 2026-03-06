@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package com.centreon.broker;
+
+/* io::storage, storage::de_remove_graph_message, 4 */
+message RemoveGraphMessage {
+  repeated uint64 index_ids = 1;
+  repeated uint64 metric_ids = 2;
+}

@@ -1,0 +1,171 @@
+/**
+ * Copyright 2022-2024 Centreon
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For more information : contact@centreon.com
+ */
+
+syntax = "proto3";
+
+import "com/centreon/broker/header.proto";
+
+package com.centreon.broker;
+
+enum State {
+  OK = 0;
+  WARNING = 1;
+  CRITICAL = 2;
+  UNKNOWN = 3;
+}
+
+/* io::bam, bam::de_pb_inherited_downtime, 31 */
+message InheritedDowntime {
+  BBDOHeader header = 1;
+  uint32 ba_id = 2;
+  bool in_downtime = 3;
+}
+
+/* io::bam, bam::de_pb_ba_status, 32 */
+message BaStatus {
+  uint32 ba_id = 1;
+  bool in_downtime = 2;
+  uint64 last_state_change = 3;
+  double level_acknowledgement = 4;
+  double level_downtime = 5;
+  double level_nominal = 6;
+  State state = 7;
+  bool state_changed = 8;
+  string output = 9;
+}
+
+/* io::bam, bam::de_pb_ba_event, 33 */
+message BaEvent {
+  uint32 ba_id = 1;
+  double first_level = 2;
+  uint64 end_time = 3;
+  bool in_downtime = 4;
+  uint64 start_time = 5;
+  State status = 6;
+}
+
+/* io::bam, bam::de_pb_kpi_event, 34 */
+message KpiEvent {
+  uint32 ba_id = 1;
+  uint64 start_time = 2;
+  int64 end_time = 3;
+  uint32 kpi_id = 4;
+  int32 impact_level = 5;
+  bool in_downtime = 6;
+  string output = 7;
+  string perfdata = 8;
+  State status = 9;
+}
+
+/* io::bam, bam::de_pb_dimension_bv_event, 35 */
+message DimensionBvEvent {
+  uint32 bv_id = 1;
+  string bv_name = 2;
+  string bv_description = 3;
+}
+
+/* io::bam, bam::de_pb_dimension_ba_bv_relation_event, 36 */
+message DimensionBaBvRelationEvent {
+  uint32 ba_id = 1;
+  uint32 bv_id = 2;
+}
+
+/* io::bam, bam::de_pb_dimension_timeperiod, 37 */
+message DimensionTimeperiod {
+  uint32 id = 1;
+  string name = 2;
+  string monday = 3;
+  string tuesday = 4;
+  string wednesday = 5;
+  string thursday = 6;
+  string friday = 7;
+  string saturday = 8;
+  string sunday = 9;
+}
+
+/* io::bam, bam::de_pb_dimension_ba_event, 38 */
+message DimensionBaEvent {
+  uint32 ba_id = 1;
+  string ba_name = 2;
+  string ba_description = 3;
+  double sla_month_percent_crit = 4;
+  double sla_month_percent_warn = 5;
+  uint32 sla_duration_crit = 6;
+  uint32 sla_duration_warn = 7;
+}
+
+/* io::bam, bam::de_pb_dimension_kpi_event, 39 */
+message DimensionKpiEvent {
+  uint32 kpi_id = 1;
+  uint32 ba_id = 2;
+  string ba_name = 3;
+  uint32 host_id = 4;
+  string host_name = 5;
+  uint32 service_id = 6;
+  string service_description = 7;
+  uint32 kpi_ba_id = 8;
+  string kpi_ba_name = 9;
+  uint32 meta_service_id = 10;
+  string meta_service_name = 11;
+  uint32 boolean_id = 12;
+  string boolean_name = 13;
+  double impact_warning = 14;
+  double impact_critical = 15;
+  double impact_unknown = 16;
+}
+
+/* io::bam, bam::de_pb_kpi_status, 40 */
+message KpiStatus {
+  uint32 kpi_id = 1;
+  bool in_downtime = 2;
+  double level_acknowledgement_hard = 3;
+  double level_acknowledgement_soft = 4;
+  double level_downtime_hard = 5;
+  double level_downtime_soft = 6;
+  double level_nominal_hard = 7;
+  double level_nominal_soft = 8;
+  State state_hard = 9;
+  State state_soft = 10;
+  int64 last_state_change = 11;
+  double last_impact = 12;
+  bool valid = 13;
+}
+
+/* io::bam, bam::de_pb_ba_duration_event, 41 */
+message BaDurationEvent {
+  uint32 ba_id = 1;
+  int64 real_start_time = 2;
+  int64 end_time = 3;
+  int64 start_time = 4;
+  uint32 duration = 5;
+  uint32 sla_duration = 6;
+  uint32 timeperiod_id = 7;
+  bool timeperiod_is_default = 8;
+}
+
+/* io::bam, bam::de_pb_dimension_ba_timeperiod_relation, 42 */
+message DimensionBaTimeperiodRelation {
+  uint32 ba_id = 1;
+  uint32 timeperiod_id = 2;
+  bool is_default = 3;
+}
+
+/* io::bam, bam::de_pb_dimension_truncate_table_signal, 43 */
+message DimensionTruncateTableSignal {
+  bool update_started = 1;
+}

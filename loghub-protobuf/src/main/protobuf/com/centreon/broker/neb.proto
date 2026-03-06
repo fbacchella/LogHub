@@ -1,0 +1,854 @@
+/**
+ * Copyright 2022-2024 Centreon
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For more information : contact@centreon.com
+ */
+
+syntax = "proto3";
+
+import "com/centreon/broker/header.proto";
+
+package com.centreon.broker;
+
+/**
+ * @brief There is no 1, I know. ServiceType becomes ResourceType in the
+ * database. And a resource is represented also by a host. 1 is reserved for
+ * hosts.
+ */
+enum ServiceType {
+  SERVICE = 0;
+  METASERVICE = 2;
+  BA = 3;
+  ANOMALY_DETECTION = 4;
+}
+
+enum AckType {
+  NONE = 0;
+  NORMAL = 1;
+  STICKY = 2;
+}
+
+/* io::neb, neb::de_pb_service, 5 */
+message Service {
+  uint64 host_id = 1;
+  uint64 service_id = 2;
+
+  bool acknowledged = 3;
+  AckType acknowledgement_type = 4;
+
+  bool active_checks = 5;
+  bool enabled = 6;
+  int32 scheduled_downtime_depth = 7;
+  string check_command = 8;
+  uint32 check_interval = 9;
+  string check_period = 10;
+
+  enum CheckType {
+    ACTIVE = 0;
+    PASSIVE = 1;
+  }
+  CheckType check_type = 11;
+  int32 check_attempt = 12;
+  enum State {
+    OK = 0;
+    WARNING = 1;
+    CRITICAL = 2;
+    UNKNOWN = 3;
+    PENDING = 4;
+  }
+  State state = 13;
+  bool event_handler_enabled = 14;
+  string event_handler = 15;
+  double execution_time = 16;
+  bool flap_detection = 17;
+  bool checked = 18;
+  bool flapping = 19;
+  int64 last_check = 20;
+  State last_hard_state = 21;
+  int64 last_hard_state_change = 22;
+  int64 last_notification = 23;
+  int32 notification_number = 24;
+  int64 last_state_change = 25;
+  int64 last_time_ok = 26;
+  int64 last_time_warning = 27;
+  int64 last_time_critical = 28;
+  int64 last_time_unknown = 29;
+  int64 last_update = 30;
+  double latency = 31;
+  uint32 max_check_attempts = 32;
+  int64 next_check = 33;
+  int64 next_notification = 34;
+  bool no_more_notifications = 35;
+  bool notify = 36;
+  string output = 37;
+  string long_output = 38;
+  bool passive_checks = 39;
+  double percent_state_change = 40;
+  string perfdata = 41;
+  double retry_interval = 42;
+  string host_name = 43;
+  string description = 44;
+  bool should_be_scheduled = 45;
+  bool obsess_over_service = 46;
+
+  enum StateType {
+    SOFT = 0;
+    HARD = 1;
+  }
+
+  StateType state_type = 47;
+  string action_url = 48;
+  bool check_freshness = 49;
+  bool default_active_checks = 50;
+  bool default_event_handler_enabled = 51;
+  bool default_flap_detection = 52;
+  bool default_notify = 53;
+  bool default_passive_checks = 54;
+  string display_name = 55;
+  double first_notification_delay = 56;
+  bool flap_detection_on_critical = 57;
+  bool flap_detection_on_ok = 58;
+  bool flap_detection_on_unknown = 59;
+  bool flap_detection_on_warning = 60;
+  double freshness_threshold = 61;
+  double high_flap_threshold = 62;
+  string icon_image = 63;
+  string icon_image_alt = 64;
+  bool is_volatile = 65;
+  double low_flap_threshold = 66;
+  string notes = 67;
+  string notes_url = 68;
+  double notification_interval = 69;
+  string notification_period = 70;
+  bool notify_on_critical = 71;
+  bool notify_on_downtime = 72;
+  bool notify_on_flapping = 73;
+  bool notify_on_recovery = 74;
+  bool notify_on_unknown = 75;
+  bool notify_on_warning = 76;
+  bool stalk_on_critical = 77;
+  bool stalk_on_ok = 78;
+  bool stalk_on_unknown = 79;
+  bool stalk_on_warning = 80;
+  bool retain_nonstatus_information = 81;
+  bool retain_status_information = 82;
+  uint64 severity_id = 83;
+  repeated TagInfo tags = 84;
+
+  ServiceType type = 85;
+
+  /* In case of metaservice and ba, they also have an internal id. We keep it
+   * here. */
+  uint64 internal_id = 86;
+  uint64 icon_id = 87;
+}
+
+/**
+ * @brief Message sent in BBDO 3.0.0 to update a service status partially
+ * changed. For example, it is convenient for downtime changed.
+ */
+/* io::neb, neb::de_pb_adaptive_service_status, 53 */
+message AdaptiveServiceStatus {
+  uint64 host_id = 1;
+  uint64 service_id = 2;
+  ServiceType type = 3;
+  uint64 internal_id = 4;
+  optional int32 scheduled_downtime_depth = 5;
+  optional AckType acknowledgement_type = 6;
+  optional int32 notification_number = 7;
+  optional int64 next_check = 8;
+  optional bool should_be_scheduled = 9;
+}
+
+/**
+ * @brief Message sent in BBDO 3.0.0 instead of neb::service_status
+ */
+/* io::neb, neb::de_pb_service_status, 6 */
+message ServiceStatus {
+  uint64 host_id = 1;
+  uint64 service_id = 2;
+
+  bool checked = 3;
+  enum CheckType {
+    ACTIVE = 0;
+    PASSIVE = 1;
+  }
+  CheckType check_type = 4;
+
+  enum State {
+    OK = 0;
+    WARNING = 1;
+    CRITICAL = 2;
+    UNKNOWN = 3;
+    PENDING = 4;
+  }
+  State state = 5;
+  enum StateType {
+    SOFT = 0;
+    HARD = 1;
+  }
+  StateType state_type = 6;
+  int64 last_state_change = 7;
+  State last_hard_state = 8;
+  int64 last_hard_state_change = 9;
+  int64 last_time_ok = 10;
+  int64 last_time_warning = 11;
+  int64 last_time_critical = 12;
+  int64 last_time_unknown = 13;
+
+  string output = 14;
+  string long_output = 15;
+  string perfdata = 16;
+
+  bool flapping = 17;
+  double percent_state_change = 18;
+  double latency = 19;
+  double execution_time = 20;
+  int64 last_check = 21;
+  int64 next_check = 22;
+  bool should_be_scheduled = 23;
+  int32 check_attempt = 24;
+
+  int32 notification_number = 25;
+  bool no_more_notifications = 26;
+  int64 last_notification = 27;
+  int64 next_notification = 28;
+
+  AckType acknowledgement_type = 29;
+  int32 scheduled_downtime_depth = 30;
+
+  ServiceType type = 31;
+
+  /* In case of metaservice and ba, they also have an internal id. We keep it
+   * here. */
+  uint64 internal_id = 32;
+}
+
+/**
+ * @brief Message used to send adaptive service configuration. When only one
+ * or two configuration items change, this event is used.
+ *
+ * Only used with BBDO 3.0
+ */
+/* io::neb, neb::de_pb_adaptive_service, 7 */
+message AdaptiveService {
+  uint64 host_id = 1;
+  uint64 service_id = 2;
+
+  optional bool notify = 3;
+  optional bool active_checks = 4;
+  optional bool should_be_scheduled = 5;
+  optional bool passive_checks = 6;
+  optional bool event_handler_enabled = 7;
+  optional bool flap_detection_enabled = 8;
+  optional bool obsess_over_service = 9;
+  optional string event_handler = 10;
+  optional string check_command = 11;
+  optional uint32 check_interval = 12;
+  optional uint32 retry_interval = 13;
+  optional uint32 max_check_attempts = 14;
+  optional bool check_freshness = 15;
+  optional string check_period = 16;
+  optional string notification_period = 17;
+}
+
+/* io::neb, neb::de_pb_host, 8 */
+message Host {
+  uint64 host_id = 1;
+
+  bool acknowledged = 2;
+  AckType acknowledgement_type = 3;
+
+  bool active_checks = 4;
+  bool enabled = 5;
+  int32 scheduled_downtime_depth = 6;
+  string check_command = 7;
+  int32 check_interval = 8;
+  string check_period = 9;
+
+  enum CheckType {
+    ACTIVE = 0;
+    PASSIVE = 1;
+  }
+  CheckType check_type = 10;
+  int32 check_attempt = 11;
+  enum State {
+    UP = 0;
+    DOWN = 1;
+    UNREACHABLE = 2;
+  }
+  State state = 12;
+  bool event_handler_enabled = 13;
+  string event_handler = 14;
+  double execution_time = 15;
+  bool flap_detection = 16;
+  bool checked = 17;
+  bool flapping = 18;
+  int64 last_check = 19;
+  State last_hard_state = 20;
+  int64 last_hard_state_change = 21;
+  int64 last_notification = 22;
+  int32 notification_number = 23;
+  int64 last_state_change = 24;
+  int64 last_time_down = 25;
+  int64 last_time_unreachable = 26;
+  int64 last_time_up = 27;
+  int64 last_update = 28;
+  double latency = 29;
+  int32 max_check_attempts = 30;
+  int64 next_check = 31;
+  int64 next_host_notification = 32;
+  bool no_more_notifications = 33;
+  bool notify = 34;
+  string output = 35;
+  bool passive_checks = 36;
+  double percent_state_change = 37;
+  string perfdata = 38;
+  double retry_interval = 39;
+  bool should_be_scheduled = 40;
+  bool obsess_over_host = 41;
+
+  enum StateType {
+    SOFT = 0;
+    HARD = 1;
+  }
+
+  StateType state_type = 42;
+  string action_url = 43;
+  string address = 44;
+  string alias = 45;
+  bool check_freshness = 46;
+  bool default_active_checks = 47;
+  bool default_event_handler_enabled = 48;
+  bool default_flap_detection = 49;
+  bool default_notify = 50;
+  bool default_passive_checks = 51;
+  string display_name = 52;
+  double first_notification_delay = 53;
+  bool flap_detection_on_down = 54;
+  bool flap_detection_on_unreachable = 55;
+  bool flap_detection_on_up = 56;
+  double freshness_threshold = 57;
+  double high_flap_threshold = 58;
+  string name = 59;
+  string icon_image = 60;
+  string icon_image_alt = 61;
+  int32 instance_id = 62;
+  double low_flap_threshold = 63;
+  string notes = 64;
+  string notes_url = 65;
+  double notification_interval = 66;
+  string notification_period = 67;
+  bool notify_on_down = 68;
+  bool notify_on_downtime = 69;
+  bool notify_on_flapping = 70;
+  bool notify_on_recovery = 71;
+  bool notify_on_unreachable = 72;
+  bool stalk_on_down = 73;
+  bool stalk_on_unreachable = 74;
+  bool stalk_on_up = 75;
+  string statusmap_image = 76;
+  bool retain_nonstatus_information = 77;
+  bool retain_status_information = 78;
+  string timezone = 79;
+  uint64 severity_id = 80;
+  repeated TagInfo tags = 81;
+  uint64 icon_id = 82;
+}
+
+/**
+ * @brief Message sent in BBDO 3.0.0 instead of neb::service_status
+ */
+/* io::neb, neb::de_pb_host_status, 9 */
+message HostStatus {
+  uint64 host_id = 1;
+
+  bool checked = 2;
+  enum CheckType {
+    ACTIVE = 0;
+    PASSIVE = 1;
+  }
+  CheckType check_type = 3;
+
+  enum State {
+    UP = 0;
+    DOWN = 1;
+    UNREACHABLE = 2;
+  }
+  State state = 4;
+  enum StateType {
+    SOFT = 0;
+    HARD = 1;
+  }
+  StateType state_type = 5;
+  int64 last_state_change = 6;
+  State last_hard_state = 7;
+  int64 last_hard_state_change = 8;
+  int64 last_time_up = 9;
+  int64 last_time_down = 10;
+  int64 last_time_unreachable = 11;
+
+  string output = 12;
+  string long_output = 13;
+  string perfdata = 14;
+
+  bool flapping = 15;
+  double percent_state_change = 16;
+  double latency = 17;
+  double execution_time = 18;
+  int64 last_check = 19;
+  int64 next_check = 20;
+  bool should_be_scheduled = 21;
+  int32 check_attempt = 22;
+
+  int32 notification_number = 23;
+  bool no_more_notifications = 24;
+  int64 last_notification = 25;
+  int64 next_host_notification = 26;
+
+  AckType acknowledgement_type = 27;
+  int32 scheduled_downtime_depth = 28;
+}
+
+/**
+ * @brief Message sent in BBDO 3.0.0 to update a host status partially
+ * changed. For example, it is convenient for downtime changed.
+ */
+/* io::neb, neb::de_pb_adaptive_host_status, 54 */
+message AdaptiveHostStatus {
+  uint64 host_id = 1;
+  optional int32 scheduled_downtime_depth = 2;
+  optional AckType acknowledgement_type = 3;
+  optional int32 notification_number = 4;
+  optional int64 next_check = 5;
+  optional bool should_be_scheduled = 6;
+}
+/**
+ * @brief Message used to send adaptive host configuration. When only one
+ * or two configuration items change, this event is used.
+ *
+ * Only used with BBDO 3.0
+ */
+/* io::neb, neb::de_pb_adaptive_host, 10 */
+message AdaptiveHost {
+  uint64 host_id = 1;
+
+  optional bool notify = 2;
+  optional bool active_checks = 3;
+  optional bool should_be_scheduled = 4;
+  optional bool passive_checks = 5;
+  optional bool event_handler_enabled = 6;
+  optional bool flap_detection = 7;
+  optional bool obsess_over_host = 8;
+  optional string event_handler = 9;
+  optional string check_command = 10;
+  optional uint32 check_interval = 11;
+  optional uint32 retry_interval = 12;
+  optional uint32 max_check_attempts = 13;
+  optional bool check_freshness = 14;
+  optional string check_period = 15;
+  optional string notification_period = 16;
+}
+
+/* io::neb, neb::de_pb_comment, 11 */
+message Comment {
+  BBDOHeader header = 1;
+
+  enum Src {
+    INTERNAL = 0;
+    EXTERNAL = 1;
+  }
+
+  enum Type {
+    NO_TYPE = 0;
+    HOST = 1;
+    SERVICE = 2;
+  }
+
+  enum EntryType {
+    NO_ENTRY_TYPE = 0;
+    USER = 1;
+    DOWNTIME = 2;
+    FLAPPING = 3;
+    ACKNOWLEDGMENT = 4;
+  }
+
+  string author = 2;
+  Type type = 3;
+  string data = 4;
+  uint64 deletion_time = 5;
+  uint64 entry_time = 6;
+  EntryType entry_type = 7;
+  uint64 expire_time = 8;
+  bool expires = 9;
+  uint64 host_id = 10;
+  uint64 internal_id = 11;
+  bool persistent = 12;
+  uint64 instance_id = 13;
+  uint64 service_id = 14;
+  Src source = 15;
+}
+
+/**
+ * @brief A downtime is applied on a resource when we don't want notifications
+ * concerning bad states on this resource.
+ */
+/* io::neb, neb::de_pb_downtime, 12 */
+message Downtime {
+  enum DowntimeType {
+    NOT_USED = 0;
+    SERVICE = 1;
+    HOST = 2;
+    ANY = 3;
+  };
+  uint64 id = 1;
+  uint64 instance_id = 2;
+  uint64 host_id = 3;
+  uint64 service_id = 4;
+  string author = 5;
+  string comment_data = 6;
+  DowntimeType type = 7;
+  uint32 duration = 8;
+  uint64 triggered_by = 9;
+  int64 entry_time = 10;
+  uint64 actual_start_time = 11;
+  uint64 actual_end_time = 12;
+  uint64 start_time = 13;
+  uint64 deletion_time = 14;
+  uint64 end_time = 15;
+  bool started = 16;
+  bool cancelled = 17;
+  bool fixed = 18;
+}
+
+/* io::neb, neb::de_pb_custom_variable, 13 */
+message CustomVariable {
+  enum VarType {
+    HOST = 0;
+    SERVICE = 1;
+  }
+
+  BBDOHeader header = 1;
+  uint64 host_id = 2;
+  uint64 service_id = 3;
+  bool modified = 4;
+  string name = 5;
+  uint64 update_time = 6;
+  string value = 7;
+  string default_value = 8;
+  bool enabled = 9;
+  bool password = 10;
+  VarType type = 11;
+}
+
+enum CheckType {
+  CheckActive = 0;
+  CheckPassive = 1;
+}
+
+/* io::neb, neb::de_pb_host_check, 14 */
+message HostCheck {
+  BBDOHeader header = 1;
+
+  bool active_checks_enabled = 2;
+  CheckType check_type = 3;
+  string command_line = 4;
+  uint64 host_id = 5;
+  uint64 next_check = 6;
+}
+
+/* io::neb, neb::de_pb_service_check, 15 */
+message ServiceCheck {
+  BBDOHeader header = 1;
+
+  bool active_checks_enabled = 2;
+  CheckType check_type = 3;
+  string command_line = 4;
+  uint64 host_id = 5;
+  uint64 next_check = 6;
+  uint64 service_id = 7;
+}
+
+/* io::neb, neb::de_pb_log_entry, 16 */
+message LogEntry {
+  enum LogType {
+    SOFT = 0;
+    HARD = 1;
+  }
+  enum MsgType {
+    SERVICE_ALERT = 0;
+    HOST_ALERT = 1;
+    SERVICE_NOTIFICATION = 2;
+    HOST_NOTIFICATION = 3;
+    WARNING = 4;
+    OTHER = 5;
+    SERVICE_INITIAL_STATE = 8;
+    HOST_INITIAL_STATE = 9;
+    SERVICE_ACKNOWLEDGE_PROBLEM = 10;
+    HOST_ACKNOWLEDGE_PROBLEM = 11;
+    SERVICE_EVENT_HANDLER = 12;
+    HOST_EVENT_HANDLER = 13;
+    GLOBAL_SERVICE_EVENT_HANDLER = 14;
+    GLOBAL_HOST_EVENT_HANDLER = 15;
+  }
+
+  uint64 ctime = 1;
+  string instance_name = 2;
+  string output = 3;
+  uint64 host_id = 4;
+  uint64 service_id = 5;
+  string host_name = 6;
+  string service_description = 7;
+  string notification_contact = 8;
+  string notification_cmd = 9;
+  LogType type = 10;
+  MsgType msg_type = 11;
+  int32 status = 12;
+  int32 retry = 13;
+}
+
+/* io::neb, neb::de_pb_instance_status, 17 */
+message InstanceStatus {
+  BBDOHeader header = 1;
+
+  bool event_handlers = 2;
+  bool flap_detection = 3;
+  bool notifications = 4;
+  bool active_host_checks = 5;
+  bool active_service_checks = 6;
+  bool check_hosts_freshness = 7;
+  bool check_services_freshness = 8;
+  string global_host_event_handler = 9;
+  string global_service_event_handler = 10;
+  uint64 last_alive = 11;
+  int64 last_command_check = 12;
+  bool obsess_over_hosts = 13;
+  bool obsess_over_services = 14;
+  bool passive_host_checks = 15;
+  bool passive_service_checks = 16;
+  uint64 instance_id = 17;
+}
+
+/* io::neb, neb::de_pb_instance, 18 */
+message Instance {
+  BBDOHeader header = 1;
+
+  string engine = 2;
+  bool running = 3;
+  string name = 4;
+  int64 pid = 5;
+  uint64 instance_id = 6;
+  int64 end_time = 7;
+  int64 start_time = 8;
+  string version = 9;
+  string engine_config_version = 10;
+  bool is_encryption_ready = 11;
+  string cma_cert_sha = 12;
+  string cma_cert_cn = 13;
+  uint64 cma_cert_peremption = 14; 
+}
+
+/* io::neb, neb::de_pb_responsive_instance, 19 */
+message ResponsiveInstance {
+  BBDOHeader header = 1;
+
+  uint64 poller_id = 2;
+  bool responsive = 3;
+}
+
+/* io::neb, neb::de_pb_acknowledgement, 20 */
+message Acknowledgement {
+  uint64 host_id = 1;
+  uint64 service_id = 2;
+  uint64 instance_id = 3;
+  enum ResourceType {
+    HOST = 0;
+    SERVICE = 1;
+  }
+  ResourceType type = 4;
+  string author = 5;
+  string comment_data = 6;
+  bool sticky = 7;
+  bool notify_contacts = 8;
+  uint64 entry_time = 9;
+  uint64 deletion_time = 10;
+  bool persistent_comment = 11;
+  uint32 state = 12;
+}
+
+/* io::neb, neb::de_pb_host_group, 23 */
+message HostGroup {
+  BBDOHeader header = 1;
+
+  bool enabled = 2;
+  uint64 hostgroup_id = 3;
+  string name = 4;
+  uint64 poller_id = 5;
+  string alias = 6;
+}
+
+/* io::neb, neb::de_pb_service_group, 24 */
+message ServiceGroup {
+  BBDOHeader header = 1;
+
+  bool enabled = 2;
+  uint64 servicegroup_id = 3;
+  string name = 4;
+  uint64 poller_id = 5;
+}
+
+/* io::neb, neb::de_pb_host_group_member, 25 */
+message HostGroupMember {
+  BBDOHeader header = 1;
+
+  bool enabled = 2;
+  uint64 hostgroup_id = 3;
+  string name = 4;
+  uint64 host_id = 5;
+  uint64 poller_id = 6;
+}
+
+/* io::neb, neb::de_pb_service_group_member, 26 */
+message ServiceGroupMember {
+  BBDOHeader header = 1;
+
+  bool enabled = 2;
+  uint64 servicegroup_id = 3;
+  string name = 4;
+  uint64 host_id = 5;
+  uint64 poller_id = 6;
+  uint64 service_id = 7;
+}
+
+/* io::neb, neb::de_pb_host_parent, 27 */
+message HostParent {
+  BBDOHeader header = 1;
+
+  bool enabled = 2;
+  uint64 child_id = 3;
+  uint64 parent_id = 4;
+}
+
+/* io::neb, neb::de_pb_instance_configuration, 28 */
+message InstanceConfiguration {
+  BBDOHeader header = 1;
+  bool loaded = 2;
+  uint64 poller_id = 3;
+}
+
+/**
+ * @brief A severity is a way to give some importance to a resource. It has a
+ * level that is an integer from 1. 1 is more important than 2, than 3...
+ * It also has an id, a level, an icon_id and a name.
+ *
+ * Because a severity can be sent from several poller, and by moment a poller
+ * can say it does not need it anymore, broker needs to know from which poller
+ * the severity event comes from, so we have a poller_id in the message.
+ *
+ * For example, two pollers use a severity named 'foo'. Then the first one sends
+ * a Severity message with the action DELETE. This means this poller does not
+ * need it anymore but we don't know about the other poller. Then we can remove
+ * relations between resources of our poller and this severity. And only if the
+ * severity is no more used at all, we can remove it.
+ */
+/* io::neb, neb::de_pb_severity, 29 */
+message Severity {
+  uint64 id = 1;
+  enum Action {
+    ADD = 0;
+    DELETE = 1;
+    MODIFY = 2;
+  }
+  Action action = 2;
+  uint32 level = 3;
+  uint64 icon_id = 4;
+  string name = 5;
+  enum Type {
+    SERVICE = 0;
+    HOST = 1;
+  }
+  Type type = 6;
+  uint64 poller_id = 7;
+}
+
+/**
+ * @brief A tag is a generalization of a host group or a service group. It
+ * is a way to group resources. It has an id, a type and a name.
+ *
+ * Because a tag can be sent from several poller, and by moment a poller can
+ * say it does not need it anymore, broker needs to know from which poller the
+ * tag event comes from, so we have a poller_id in the message.
+ *
+ * For example, two pollers use a tag named 'foo'. Then the first one sends a
+ * Tag message with the action DELETE. This means this poller does not need it
+ * anymore but we don't know about the other poller. Then we can remove
+ * relations between resources of our poller and this tag. And only if the tag
+ * is no more used at all, we can remove it.
+ */
+enum TagType {
+  SERVICEGROUP = 0;
+  HOSTGROUP = 1;
+  SERVICECATEGORY = 2;
+  HOSTCATEGORY = 3;
+}
+
+/* io::neb, neb::de_pb_tag, 30 */
+message Tag {
+  uint64 id = 1;
+  enum Action {
+    ADD = 0;
+    DELETE = 1;
+    MODIFY = 2;
+  }
+
+  Action action = 2;
+  TagType type = 3;
+  string name = 4;
+  int64 poller_id = 5;
+}
+/* Ignore */
+message TagInfo {
+  uint64 id = 1;
+  TagType type = 2;
+}
+
+/* Ignore */
+message AgentInfo {
+  uint32 major = 1;
+  uint32 minor = 2;
+  uint32 patch = 3;
+  bool reverse = 4;
+  string os = 5;
+  string os_version = 6;
+  uint32 nb_agent = 7;
+}
+
+/* io::neb, neb::de_pb_agent_stats, 57 */
+message AgentStats {
+  int64 poller_id = 1;
+  repeated AgentInfo stats = 2;
+}
+
+/* This message is sent to broker when a cma connect to engine with an unknown hostname */
+/* io::neb, neb::de_pb_unknown_host, 58 */
+message UnknownHost {
+  int64 poller_id = 1;
+  string host_name = 2;
+  string host_template = 3;
+  string os = 4;
+  string os_version = 5;
+  repeated string ips = 6; /*ips of host interfaces*/
+  string incoming_ip = 7; /*ip of cma host seen from engine */
+}

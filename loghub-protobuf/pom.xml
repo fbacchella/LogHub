@@ -62,7 +62,7 @@
                 <executions>
                     <execution>
                         <id>unpack-protobuf-includes</id>
-                        <phase>generate-test-sources</phase>
+                        <phase>generate-sources</phase>
                         <goals>
                             <goal>unpack</goal>
                         </goals>
@@ -92,8 +92,10 @@
                 <executions>
                     <execution>
                         <id>generate-descriptor</id>
-                        <phase>generate-test-sources</phase>
-                        <goals><goal>exec</goal></goals>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
                         <configuration>
                             <environmentVariables>
                                 <PROTO_SRC_DIR>${project.basedir}/src/main/protobuf</PROTO_SRC_DIR>
@@ -107,6 +109,27 @@
                             </arguments>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>generate-descriptor-test</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <environmentVariables>
+                                <PROTO_SRC_DIR>${project.basedir}/src/test/protobuf</PROTO_SRC_DIR>
+                                <DESCRIPTOR_OUT_DIR>${project.build.directory}/test-classes</DESCRIPTOR_OUT_DIR>
+                                <PROTOC_BIN>${project.build.directory}/protoc/protoc-${os.detected.classifier}.exe</PROTOC_BIN>
+                                <PROTOC_INCLUDES>${project.build.directory}/protoc/includes</PROTOC_INCLUDES>
+                            </environmentVariables>
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>${project.basedir}/src/main/protobuild.sh</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
                 </executions>
             </plugin>
             <plugin>

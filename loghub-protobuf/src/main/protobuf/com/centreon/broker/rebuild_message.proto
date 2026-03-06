@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package com.centreon.broker;
+/* Ignore */
+message Point {
+  int64 ctime = 1;
+  double value = 2;
+  uint32 status = 3;
+}
+/* Ignore */
+message Timeserie {
+  repeated Point pts = 1;
+  int32 data_source_type = 2;
+  uint32 check_interval = 3;
+  uint32 rrd_retention = 4;
+}
+
+/* io::storage, storage::de_rebuild_message, 2 */
+message RebuildMessage {
+  enum State {
+    START = 0;
+    DATA = 1;
+    END = 2;
+  }
+  State state = 1;
+  /* Only used on DATA state */
+  map<uint64, Timeserie> timeserie = 2;
+
+  /* Only used on START/END state */
+  repeated uint64 metric_id = 3;  /* old version */
+  map<uint64, uint64> metric_to_index_id = 4;
+}

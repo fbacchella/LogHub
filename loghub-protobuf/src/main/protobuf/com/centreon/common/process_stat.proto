@@ -1,0 +1,71 @@
+/**
+* Copyright 2022 Centreon
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+* For more information : contact@centreon.com
+*/
+
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+package com.centreon.common;
+
+message pb_process_stat {
+    uint64 pid = 1;
+    string cmdline = 2;
+    uint32 nb_thread = 3;
+    google.protobuf.Timestamp start_time = 4;
+    /**
+   * The number of bytes which this task has caused to
+   * be read from storage.  This is simply the sum of
+   * bytes which this process passed to read(2) and
+   * similar system calls.  It includes things such as
+   * terminal I/O and is unaffected by whether or not
+   * actual physical disk I/O was required (the read
+   * might have been satisfied from pagecache). *
+   */
+    uint64 query_read_bytes = 5;
+    /**
+   * The number of bytes which this task has caused, or
+   * shall cause to be written to disk.  Similar caveats
+   * apply here as with rchar.
+   */
+    uint64 query_write_bytes = 6;
+  /**
+   * The number of bytes which this
+   * process really did cause to be fetched from the
+   * storage layer.  This is accurate for block-backed
+   * filesystems.
+   */
+   uint64 real_read_bytes = 7;
+   /**
+   * The number of bytes which this
+   * process caused to be sent to the storage layer.
+   */
+    uint64 real_write_bytes = 8;
+    //time consumed by process in user space
+    google.protobuf.Duration user_time = 9;
+    //time consumed by process in kernel space
+    google.protobuf.Duration kernel_time = 10;
+
+    //total memory size
+    uint64 vm_size = 11;
+
+    //resident memory size
+    uint64 res_size = 12;
+
+    uint64 shared_size = 13;
+}

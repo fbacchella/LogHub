@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package ping;
+
+option java_package = "loghub.proto.ping";
+option java_outer_classname = "PingProto";
+option java_multiple_files = true;
+
+message PingRequest {
+  string message = 1;
+}
+
+message PingResponse {
+  string message   = 1;
+  int64  timestamp = 2;
+}
+
+service PingService {
+  rpc Ping (PingRequest) returns (PingResponse);
+}

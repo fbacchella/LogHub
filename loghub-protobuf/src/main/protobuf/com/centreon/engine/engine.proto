@@ -1,0 +1,1005 @@
+/*
+ * Copyright 2020 Centreon (https://www.centreon.com/)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For more information : contact@centreon.com
+ *
+ */
+
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "com/centreon/common/process_stat.proto";
+
+package com.centreon.engine;
+
+service Engine {
+  rpc GetProcessStats(google.protobuf.Empty)
+      returns (com.centreon.common.pb_process_stat) {}
+  rpc GetVersion(google.protobuf.Empty) returns (Version) {}
+  rpc GetStats(GenericString) returns (Stats) {}
+  rpc GetHost(NameOrIdIdentifier) returns (EngineHost) {}
+  rpc GetContact(NameIdentifier) returns (EngineContact) {}
+  rpc GetService(ServiceIdentifier) returns (EngineService) {}
+  rpc GetHostGroup(NameIdentifier) returns (EngineHostGroup) {}
+  rpc GetServiceGroup(NameIdentifier) returns (EngineServiceGroup) {}
+  rpc GetContactGroup(NameIdentifier) returns (EngineContactGroup) {}
+  rpc GetTag(IdOrTypeIdentifier) returns (EngineTag) {}
+  rpc GetSeverity(IdOrTypeIdentifier) returns (EngineSeverity) {}
+  rpc GetCommand(NameIdentifier) returns (EngineCommand) {}
+  rpc GetConnector(NameIdentifier) returns (EngineConnector) {}
+  rpc GetHostEscalation(NameIdentifier) returns (EngineHostEscalation) {}
+  rpc GetServiceEscalation(PairNamesIdentifier) returns (EngineServiceEscalation) {}
+  rpc GetHostsCount(google.protobuf.Empty) returns (GenericValue) {}
+  rpc GetContactsCount(google.protobuf.Empty) returns (GenericValue) {}
+  rpc GetServicesCount(google.protobuf.Empty) returns (GenericValue) {}
+  rpc GetServiceGroupsCount(google.protobuf.Empty) returns (GenericValue) {}
+  rpc GetContactGroupsCount(google.protobuf.Empty) returns (GenericValue) {}
+  rpc GetHostGroupsCount(google.protobuf.Empty) returns (GenericValue) {}
+  rpc GetServiceDependenciesCount(google.protobuf.Empty)
+      returns (GenericValue) {}
+  rpc GetHostDependenciesCount(google.protobuf.Empty) returns (GenericValue) {}
+  rpc ProcessServiceCheckResult(Check) returns (CommandSuccess) {}
+  rpc ProcessHostCheckResult(Check) returns (CommandSuccess) {}
+  rpc NewThresholdsFile(ThresholdsFile) returns (CommandSuccess) {}
+  rpc AddHostComment(EngineComment) returns (CommandSuccess) {}
+  rpc AddServiceComment(EngineComment) returns (CommandSuccess) {}
+  rpc DeleteComment(GenericValue) returns (CommandSuccess) {}
+  rpc DeleteAllHostComments(NameOrIdIdentifier) returns (CommandSuccess) {}
+  rpc DeleteAllServiceComments(ServiceIdentifier) returns (CommandSuccess) {}
+  rpc RemoveHostAcknowledgement(NameOrIdIdentifier) returns (CommandSuccess) {}
+  rpc RemoveServiceAcknowledgement(ServiceIdentifier) returns (CommandSuccess) {
+  }
+  rpc AcknowledgementHostProblem(EngineAcknowledgement)
+      returns (CommandSuccess) {}
+  rpc AcknowledgementServiceProblem(EngineAcknowledgement)
+      returns (CommandSuccess) {}
+  rpc DeleteDowntime(GenericValue) returns (CommandSuccess) {}
+  rpc DeleteHostDowntimeFull(DowntimeCriterias) returns (CommandSuccess) {}
+  rpc DeleteServiceDowntimeFull(DowntimeCriterias) returns (CommandSuccess) {}
+  rpc DeleteDowntimeByHostName(DowntimeHostIdentifier)
+      returns (CommandSuccess) {}
+  rpc DeleteDowntimeByHostGroupName(DowntimeHostGroupIdentifier)
+      returns (CommandSuccess) {}
+  rpc DeleteDowntimeByStartTimeComment(DowntimeStartTimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc DelayHostNotification(HostDelayIdentifier) returns (CommandSuccess) {}
+  rpc DelayServiceNotification(ServiceDelayIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleHostDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleServiceDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleHostServicesDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleHostGroupHostsDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleHostGroupServicesDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleServiceGroupHostsDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleServiceGroupServicesDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleAndPropagateHostDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleAndPropagateTriggeredHostDowntime(ScheduleDowntimeIdentifier)
+      returns (CommandSuccess) {}
+  rpc ScheduleHostCheck(HostCheckIdentifier) returns (CommandSuccess) {}
+  rpc ScheduleHostServiceCheck(HostCheckIdentifier) returns (CommandSuccess) {}
+  rpc ScheduleServiceCheck(ServiceCheckIdentifier) returns (CommandSuccess) {}
+  rpc SignalProcess(EngineSignalProcess) returns (CommandSuccess) {}
+  rpc ChangeHostObjectIntVar(ChangeObjectInt) returns (CommandSuccess) {}
+  rpc ChangeServiceObjectIntVar(ChangeObjectInt) returns (CommandSuccess) {}
+  rpc ChangeContactObjectIntVar(ChangeContactObjectInt)
+      returns (CommandSuccess) {}
+  rpc ChangeHostObjectCharVar(ChangeObjectChar) returns (CommandSuccess) {}
+  rpc ChangeServiceObjectCharVar(ChangeObjectChar) returns (CommandSuccess) {}
+  rpc ChangeContactObjectCharVar(ChangeContactObjectChar)
+      returns (CommandSuccess) {}
+  rpc ChangeHostObjectCustomVar(ChangeObjectCustomVar)
+      returns (CommandSuccess) {}
+  rpc ChangeServiceObjectCustomVar(ChangeObjectCustomVar)
+      returns (CommandSuccess) {}
+  rpc ChangeContactObjectCustomVar(ChangeObjectCustomVar)
+      returns (CommandSuccess) {}
+  rpc ShutdownProgram(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc EnableHostAndChildNotifications(NameOrIdIdentifier) returns (CommandSuccess) {
+  }
+  rpc DisableHostAndChildNotifications(NameOrIdIdentifier)
+      returns (CommandSuccess) {}
+  rpc DisableHostNotifications(NameOrIdIdentifier) returns (CommandSuccess) {}
+  rpc EnableHostNotifications(NameOrIdIdentifier) returns (CommandSuccess) {}
+  rpc DisableNotifications(google.protobuf.Empty) returns (CommandSuccess) {}
+  rpc EnableNotifications(google.protobuf.Empty) returns (CommandSuccess) {}
+  rpc DisableServiceNotifications(ServiceIdentifier) returns (CommandSuccess) {}
+  rpc EnableServiceNotifications(ServiceIdentifier) returns (CommandSuccess) {}
+  rpc ChangeAnomalyDetectionSensitivity(ChangeServiceNumber)
+      returns (CommandSuccess) {}
+
+  rpc GetLogInfo(google.protobuf.Empty) returns (LogInfo) {}
+  /**
+   * @brief Set level of a logger.
+   *
+   * @param A message with a logger and a level as strings.
+   *
+   * @return nothing.
+   */
+  rpc SetLogLevel(LogLevel) returns (google.protobuf.Empty) {}
+
+  /**
+   * @brief Set log flush period of all loggers.
+   *
+   * @param period in second, 0 means flush all the times
+   *
+   * @return nothing.
+   */
+  rpc SetLogFlushPeriod(LogFlushPeriod) returns (google.protobuf.Empty) {}
+
+  /**
+   * @brief Send a Bench Message.
+   *
+   * @param an arbitrary id and the time when the message was send (optional)
+   *
+   * @return nothing.
+   */
+  rpc SendBench(BenchParam) returns (google.protobuf.Empty) {}
+}
+
+message GenericString {
+  string str_arg = 1;
+}
+
+message GenericValue {
+  int32 value = 1;
+}
+
+message CommandSuccess {
+  bool value = 1;
+}
+
+message Check {
+  google.protobuf.Timestamp check_time = 1;
+  string host_name = 2;
+  string svc_desc = 3;
+  string output = 4;
+  uint32 code = 5;
+}
+
+message Version {
+  int32 major = 1;
+  int32 minor = 2;
+  int32 patch = 3;
+}
+
+message ServiceTypeStats {
+  double min_latency = 1;
+  double max_latency = 2;
+  double average_latency = 3;
+  double min_execution_time = 4;
+  double max_execution_time = 5;
+  double average_execution_time = 6;
+  double min_state_change = 7;
+  double max_state_change = 8;
+  double average_state_change = 9;
+  uint32 checks_last_1min = 10;
+  uint32 checks_last_5min = 11;
+  uint32 checks_last_15min = 12;
+  uint32 checks_last_1hour = 13;
+}
+
+message RestartStats {
+  google.protobuf.Timestamp apply_start = 1;
+  google.protobuf.Duration objects_expansion = 2;
+  google.protobuf.Duration objects_difference = 3;
+  google.protobuf.Duration apply_config = 4;
+  google.protobuf.Duration apply_timeperiods = 5;
+  google.protobuf.Duration apply_connectors = 6;
+  google.protobuf.Duration apply_commands = 7;
+  google.protobuf.Duration apply_contacts = 8;
+  google.protobuf.Duration apply_hosts = 9;
+  google.protobuf.Duration apply_services = 10;
+  google.protobuf.Duration resolve_hosts = 11;
+  google.protobuf.Duration resolve_services = 12;
+  google.protobuf.Duration apply_host_dependencies = 13;
+  google.protobuf.Duration resolve_host_dependencies = 14;
+  google.protobuf.Duration apply_service_dependencies = 15;
+  google.protobuf.Duration resolve_service_dependencies = 16;
+  google.protobuf.Duration apply_host_escalations = 17;
+  google.protobuf.Duration resolve_host_escalations = 18;
+  google.protobuf.Duration apply_service_escalations = 19;
+  google.protobuf.Duration resolve_service_escalations = 20;
+  google.protobuf.Duration apply_new_config = 21;
+  google.protobuf.Duration apply_scheduler = 22;
+  google.protobuf.Duration check_circular_paths = 23;
+  google.protobuf.Duration reload_modules = 24;
+  google.protobuf.Timestamp apply_end = 25;
+}
+
+message ServicesStats {
+  uint32 services_count = 1;
+  uint32 checked_services = 2;
+  uint32 scheduled_services = 3;
+  uint32 actively_checked = 4;
+  uint32 passively_checked = 5;
+  double min_state_change = 6;
+  double max_state_change = 7;
+  double average_state_change = 8;
+  ServiceTypeStats active_services = 9;
+  ServiceTypeStats passive_services = 10;
+  uint32 ok = 11;
+  uint32 warning = 12;
+  uint32 critical = 13;
+  uint32 unknown = 14;
+  uint32 flapping = 15;
+  uint32 downtime = 16;
+}
+
+message HostTypeStats {
+  double min_latency = 1;
+  double max_latency = 2;
+  double average_latency = 3;
+  double min_execution_time = 4;
+  double max_execution_time = 5;
+  double average_execution_time = 6;
+  double min_state_change = 7;
+  double max_state_change = 8;
+  double average_state_change = 9;
+  uint32 checks_last_1min = 10;
+  uint32 checks_last_5min = 11;
+  uint32 checks_last_15min = 12;
+  uint32 checks_last_1hour = 13;
+}
+
+message HostsStats {
+  uint32 hosts_count = 1;
+  uint32 checked_hosts = 2;
+  uint32 scheduled_hosts = 3;
+  uint32 actively_checked = 4;
+  uint32 passively_checked = 5;
+  double min_state_change = 6;
+  double max_state_change = 7;
+  double average_state_change = 8;
+  HostTypeStats active_hosts = 9;
+  HostTypeStats passive_hosts = 10;
+  uint32 up = 11;
+  uint32 down = 12;
+  uint32 unreachable = 13;
+  uint32 flapping = 14;
+  uint32 downtime = 15;
+}
+
+message ProgramConfiguration {
+  uint32 hosts_count = 1;
+}
+
+message ProgramStatus {
+  uint32 modified_host_attributes = 1;
+  uint32 modified_service_attributes = 2;
+  uint32 pid = 3;
+  google.protobuf.Timestamp program_start = 4;
+  google.protobuf.Timestamp last_command_check = 5;
+  google.protobuf.Timestamp last_log_rotation = 6;
+  bool enable_notifications = 7;
+  bool active_service_checks_enabled = 8;
+  bool passive_service_checks_enabled = 9;
+  bool active_host_checks_enabled = 10;
+  bool passive_host_checks_enabled = 11;
+  bool enable_event_handlers = 12;
+  bool obsess_over_services = 13;
+  bool obsess_over_hosts = 14;
+  bool check_service_freshness = 15;
+  bool check_host_freshness = 16;
+  bool enable_flap_detection = 17;
+  bool process_performance_data = 18;
+  string global_host_event_handler = 19;
+  string global_service_event_handler = 20;
+  uint64 next_comment_id = 21;
+  uint64 next_event_id = 22;
+  uint64 next_problem_id = 23;
+  uint64 next_notification_id = 24;
+  uint32 total_external_command_buffer_slots = 25;
+  uint32 used_external_command_buffer_slots = 26;
+  uint32 high_external_command_buffer_slots = 27;
+  repeated uint32 active_scheduled_host_check_stats = 28;
+  repeated uint32 active_ondemand_host_check_stats = 29;
+  repeated uint32 passive_host_check_stats = 30;
+  repeated uint32 active_scheduled_service_check_stats = 31;
+  repeated uint32 active_ondemand_service_check_stats = 32;
+  repeated uint32 passive_service_check_stats = 33;
+  repeated uint32 cached_host_check_stats = 34;
+  repeated uint32 cached_service_check_stats = 35;
+  repeated uint32 external_command_stats = 36;
+  repeated uint32 parallel_host_check_stats = 37;
+  repeated uint32 serial_host_check_stats = 38;
+}
+
+message ExtCmdBuffer {
+  uint32 used = 1;
+  uint32 high = 2;
+  uint32 total = 3;
+}
+
+message Stats {
+  ProgramConfiguration program_configuration = 1;
+  ProgramStatus program_status = 2;
+  ServicesStats services_stats = 3;
+  HostsStats hosts_stats = 4;
+  ExtCmdBuffer buffer = 5;
+  RestartStats restart_status = 6;
+}
+
+message ThresholdsFile {
+  string filename = 1;
+}
+
+message NameOrIdIdentifier {
+  oneof identifier {
+    string name = 1;
+    uint32 id = 2;
+  }
+}
+
+message HostDependency {
+  uint32 dependency_type = 1;
+  string hostname = 2;
+}
+
+message EngineHost {
+  string name = 1;
+  string alias = 2;
+  string address = 3;
+  string check_period = 4;
+  uint32 id = 5;
+  enum State {
+    UP = 0;
+    DOWN = 1;
+    UNREACHABLE = 2;
+  }
+  State current_state = 6;
+  string display_name = 7;
+  repeated string parent_hosts = 8;
+  repeated string child_hosts = 9;
+  repeated string services = 10;
+  string check_command = 11;
+  State initial_state = 12;
+  uint32 check_interval = 13;
+  double retry_interval = 14;
+  int32 max_attempts = 15;
+  string event_handler = 16;
+  repeated string contactgroups = 17;
+  repeated string contacts = 18;
+  uint32 notification_interval = 19;
+  uint32 first_notification_delay = 20;
+  uint32 recovery_notification_delay = 21;
+  bool notify_up = 22;
+  bool notify_down = 23;
+  bool notify_unreachable = 24;
+  bool notify_on_flappingstart = 25;
+  bool notify_on_flappingstop = 26;
+  bool notify_on_flappingdisabled = 27;
+  bool notify_downtime = 28;
+  string notification_period = 29;
+  bool flap_detection_enabled = 30;
+  double low_flap_threshold = 31;
+  double high_flap_threshold = 32;
+  bool flap_detection_on_up = 33;
+  bool flap_detection_on_down = 34;
+  bool flap_detection_on_unreachable = 35;
+  bool stalk_on_up = 36;
+  bool stalk_on_down = 37;
+  bool stalk_on_unreachable = 38;
+  bool check_freshness = 39;
+  int32 freshness_threshold = 40;
+  bool process_performance_data = 41;
+  bool checks_enabled = 42;
+  bool accept_passive_checks = 43;
+  bool event_handler_enabled = 44;
+  int32 retain_status_information = 45;
+  bool retain_nonstatus_information = 46;
+  bool obsess_over_host = 47;
+  string notes = 48;
+  string notes_url = 49;
+  string action_url = 50;
+  string icon_image = 51;
+  string icon_image_alt = 52;
+  string vrml_image = 53;
+  string statusmap_image = 54;
+  bool have_2d_coords = 55;
+  double x_2d = 56;
+  double y_2d = 57;
+  bool have_3d_coords = 58;
+  double x_3d = 59;
+  double y_3d = 60;
+  double z_3d = 61;
+  int32 should_be_drawn = 62;
+  enum AckType { 
+    NONE = 0; 
+    NORMAL = 1; 
+    STICKY = 2;
+  }
+  AckType acknowledgement = 63;
+  enum CheckType {
+    CHECK_ACTIVE = 0;
+    CHECK_PASSIVE = 1; 
+  }
+  CheckType check_type = 64;
+  State last_state = 65;
+  State last_hard_state = 66;
+  string plugin_output = 67;
+  string long_plugin_output = 68;
+  string perf_data = 69;
+  State state_type = 70;
+  int32 current_attempt = 71;
+  uint64 current_event_id = 72;
+  uint64 last_event_id = 73;
+  uint64 current_problem_id = 74;
+  uint64 last_problem_id = 75;
+  double latency = 76;
+  double execution_time = 77;
+  bool is_executing = 78;
+  int32 check_options = 79;
+  bool notifications_enabled = 80;
+  string last_notification = 81;
+  string next_notification = 82;
+  string next_check = 83;
+  bool should_be_scheduled = 84;
+  string last_check = 85;
+  string last_state_change = 86;
+  string last_hard_state_change = 87;
+  string last_time_up = 88;
+  string last_time_down = 89;
+  string last_time_unreachable = 90;
+  bool has_been_checked = 91;
+  bool is_being_freshened = 92;
+  bool notified_on_down = 93;
+  bool notified_on_unreachable = 94;
+  bool no_more_notifications = 95;
+  uint64 current_notification_id = 96;
+  int32 scheduled_downtime_depth = 97;
+  int32 pending_flex_downtime = 98;
+  string state_history = 99;
+  uint32 state_history_index = 100;
+  string last_state_history_update = 101;
+  bool is_flapping = 102;
+  uint64 flapping_comment_id = 103;
+  double percent_state_change = 104;
+  int32 total_services = 105;
+  uint64 total_service_check_interval = 106;
+  uint32 modified_attributes = 107;
+  int32 circular_path_checked = 108;
+  bool contains_circular_path = 109;
+  string timezone = 110;
+  uint64 icon_id = 111;
+  repeated string group_name = 112;
+  int32 acknowledgement_timeout = 113;
+  uint32 severity_level = 114;
+  uint64 severity_id = 115;
+  repeated string tag = 116;
+  repeated string custom_variables = 117;
+  repeated HostDependency dependencies = 118;
+}
+
+message NameIdentifier {
+  string name = 1;
+}
+
+message EngineContact {
+  string name = 1;
+  string alias = 2;
+  string email = 3;
+  repeated string contact_groups = 4;
+  string pager = 5;
+  string host_notification_period = 6;
+  repeated string host_notification_commands = 7;
+  string service_notification_period = 8;
+  repeated string service_notification_commands = 9;
+  bool host_notification_on_up = 10;
+  bool host_notification_on_down = 11;
+  bool host_notification_on_unreachable = 12;
+  bool host_notification_on_flappingstart = 13;
+  bool host_notification_on_flappingstop = 14;
+  bool host_notification_on_flappingdisabled = 15;
+  bool host_notification_on_downtime = 16;
+  bool service_notification_on_ok = 17;
+  bool service_notification_on_warning = 18;
+  bool service_notification_on_critical = 19;
+  bool service_notification_on_unknown = 20;
+  bool service_notification_on_flappingstart = 21;
+  bool service_notification_on_flappingstop = 22;
+  bool service_notification_on_flappingdisabled = 23;
+  bool service_notification_on_downtime = 24;
+  bool host_notifications_enabled = 25;
+  bool service_notifications_enabled = 26;
+  bool can_submit_commands = 27;
+  bool retain_status_information = 28;
+  bool retain_nonstatus_information = 29;
+  string timezone = 30;
+  repeated string addresses = 31;
+  repeated string custom_variables = 32;
+}
+
+message PairNamesIdentifier {
+  string host_name = 1;
+  string service_name = 2;
+}
+
+message PairIdsIdentifier {
+  uint32 host_id = 1;
+  uint32 service_id = 2;
+}
+
+message ServiceIdentifier {
+  oneof identifier {
+    PairNamesIdentifier names = 1;
+    PairIdsIdentifier ids = 2;
+  }
+}
+
+message ServiceDependency {
+  uint32 dependency_type = 1;
+  string hostname = 2;
+  string description = 3;
+}
+
+message EngineService {
+  uint32 host_id = 1;
+  uint32 service_id = 2;
+  string host_name = 3;
+  string description = 4;
+  string check_period = 5;
+  enum State {
+    OK = 0;
+    WARNING = 1;
+    CRITICAL = 2;
+    UNKNOWN = 3;
+  }
+  State current_state = 6;
+  string display_name = 7;
+  string check_command = 8;
+  string event_handler = 9;
+  State initial_state = 10;
+  uint32 check_interval = 11;
+  double retry_interval = 12;
+  int32 max_check_attempts = 13;
+  repeated string contactgroups = 14;
+  repeated string contacts = 15;
+  uint32 notification_interval = 16;
+  uint32 first_notification_delay = 17 ;
+  uint32 recovery_notification_delay = 18 ;
+  bool notify_on_unknown = 19 ;
+  bool notify_on_warning = 20 ;
+  bool notify_on_critical = 21 ;
+  bool notify_on_ok = 22 ;
+  bool notify_on_flappingstart = 23 ;
+  bool notify_on_flappingstop = 24 ;
+  bool notify_on_flappingdisabled = 25 ;
+  bool notify_on_downtime = 26 ;
+  bool stalk_on_ok = 27 ;
+  bool stalk_on_unknown = 28 ;
+  bool stalk_on_warning = 29 ;
+  bool stalk_on_critical = 30 ;
+  bool is_volatile = 31 ;
+  string notification_period = 32 ;
+  bool flap_detection_enabled = 33;
+  double low_flap_threshold = 34;
+  double high_flap_threshold = 35;
+  bool flap_detection_on_ok = 36;
+  bool flap_detection_on_warning = 37;
+  bool flap_detection_on_unknown = 38;
+  bool flap_detection_on_critical = 39;
+  int32 process_performance_data = 40;
+  bool check_freshness_enabled = 41;
+  int32 freshness_threshold = 42;
+  bool passive_checks_enabled = 43;
+  bool event_handler_enabled = 44;
+  bool active_checks_enabled = 45;
+  int32 retain_status_information = 46;
+  bool retain_nonstatus_information = 47;
+  bool notifications_enabled = 48;
+  bool obsess_over = 49;
+  string notes = 50;
+  string notes_url = 51;
+  string action_url = 52;
+  string icon_image = 53;
+  string icon_image_alt = 54;
+  enum AckType { 
+    NONE = 0; 
+    NORMAL = 1; 
+    STICKY = 2;
+  }
+  AckType acknowledgement = 55;
+  bool host_problem_at_last_check = 56;
+  enum CheckType {
+    CHECK_ACTIVE = 0;
+    CHECK_PASSIVE = 1; 
+  }
+  CheckType check_type = 57;
+  State last_state = 58;
+  State last_hard_state = 59;
+  string plugin_output = 60;
+  string long_plugin_output = 61;
+  string perf_data = 62;
+  State state_type = 63;
+  string next_check = 65;
+  bool should_be_scheduled = 66;
+  string last_check = 67;
+  int32 current_attempt = 68;
+  uint64 current_event_id = 69;
+  uint64 last_event_id = 70;
+  uint64 current_problem_id = 71;
+  uint64 last_problem_id = 72;
+  string last_notification = 73;
+  string next_notification = 74;
+  bool no_more_notifications = 75;
+  string last_state_change = 76;
+  string last_hard_state_change = 77;
+  string last_time_ok = 78;
+  string last_time_warning = 79;
+  string last_time_unknown = 80;
+  string last_time_critical = 81;
+  bool has_been_checked = 82;
+  bool is_being_freshened = 83;
+  bool notified_on_unknown = 84;
+  bool notified_on_warning = 85;
+  bool notified_on_critical = 86;
+  int32 notification_number = 87;
+  uint64 current_notification_id = 88;
+  double latency = 89;
+  double execution_time = 90;
+  bool is_executing = 91;
+  int32 check_options = 92;
+  int32 scheduled_downtime_depth = 93;
+  int32 pending_flex_downtime = 94;
+  string state_history = 95;
+  uint32 state_history_index = 96;
+  bool is_flapping = 97;
+  uint64 flapping_comment_id = 98;
+  double percent_state_change = 99;
+  uint32 modified_attributes = 100;
+  string host_ptr = 101;
+  string event_handler_args = 102;
+  string check_command_args = 103;
+  repeated string custom_variables = 104;
+  int32 acknowledgement_timeout = 105;
+  repeated string servicegroups = 106;
+  uint32 severity_level = 107;
+  uint64 severity_id = 108;
+  repeated string tag = 109;
+  string timezone = 110;
+  uint64 icon_id = 111;
+  uint64 internal_id = 112;
+  string metric_name = 113;
+  string thresholds_file = 114;
+  double sensitivity = 115;
+  uint64 dependent_service_id = 116;
+  enum ServiceType {
+    NONE_TYPE = 0;
+    SERVICE = 1;
+    METASERVICE = 3;
+    BA = 4;
+    ANOMALY_DETECTION = 5;
+  }
+  ServiceType service_type = 117;
+  repeated ServiceDependency dependencies = 118;
+}
+
+message EngineHostGroup {
+  uint32 id = 1;
+  string name = 2;
+  string alias = 3;
+  repeated string members = 4;
+  string notes = 5;
+  string notes_url = 6;
+  string action_url = 7;
+}
+
+message EngineServiceGroup {
+  uint64 id = 1;
+  string name = 2;
+  string alias = 3;
+  string notes = 4;
+  string notes_url = 5;
+  string action_url = 6;
+  repeated string members = 7;
+}
+
+message EngineContactGroup {
+  string name = 1;
+  string alias = 2;
+  repeated string members = 3;
+}
+
+message IdOrTypeIdentifier {
+  uint64 id = 1;
+  uint32 type = 2;
+}
+
+message EngineTag {
+  enum TagType {
+    SERVICEGROUP = 0;
+    HOSTGROUP = 1;
+    SERVICECATEGORY = 2;
+    HOSTCATEGORY = 3;
+  }
+  uint64 id = 1;
+  TagType type = 2;
+  string name = 3;
+}
+
+message EngineSeverity {
+  enum SeverityType {
+    NONE = 0;
+    SERVICE = 1;
+    HOST = 2;
+  }
+  uint64 id = 1;
+  uint32 level = 2;
+  uint64 icon_id = 3;
+  string name = 4;
+  SeverityType type = 5;
+}
+
+message EngineCommand {
+  string command_line = 1;
+  string command_name = 2;
+  enum CmdType {
+    EXEC = 0;
+    FORWARD = 1;
+    RAW = 2;
+    CONNECTOR = 3;
+    OTEL = 4;
+  }
+  CmdType type = 3;
+  string connector = 4;
+}
+
+message EngineConnector {
+  string connector_line = 1;
+  string connector_name = 2;
+}
+
+message EngineHostEscalation {
+  string host_name = 1;
+  repeated string contact_group = 2;
+  string escalation_option = 3;
+  string escalation_period = 4;
+  uint32 first_notification = 5;
+  uint32 last_notification = 6;
+  uint32 notification_interval = 7;
+}
+
+message EngineServiceEscalation {
+  string host = 1;
+  string service_description = 2;
+  string service_group = 3;
+  string host_group = 4;
+  repeated string contact_group = 5;
+  string escalation_option = 6;
+  string escalation_period = 7;
+  uint32 first_notification = 8;
+  uint32 last_notification = 9;
+  uint32 notification_interval = 10;
+}
+
+message EngineComment {
+  string host_name = 1;
+  string svc_desc = 2;
+  string user = 3;
+  string comment_data = 4;
+  bool persistent = 5;
+  uint32 entry_time = 6;
+}
+
+message HostDelayIdentifier {
+  oneof identifier {
+    string name = 1;
+    uint32 id = 2;
+  }
+  uint32 delay_time = 3;
+}
+
+message ServiceDelayIdentifier {
+  oneof identifier {
+    PairNamesIdentifier names = 1;
+    PairIdsIdentifier ids = 2;
+  }
+  uint32 delay_time = 3;
+}
+
+message DowntimeCriterias {
+  string host_name = 1;
+  string service_desc = 2;
+  google.protobuf.Int64Value start = 3;
+  google.protobuf.Int64Value end = 4;
+  google.protobuf.BoolValue fixed = 5;
+  google.protobuf.UInt32Value triggered_by = 6;
+  google.protobuf.Int32Value duration = 7;
+  string author = 8;
+  string comment_data = 9;
+}
+
+message DowntimeHostIdentifier {
+  string host_name = 1;
+  string service_desc = 2;
+  google.protobuf.UInt32Value start = 3;
+  string comment_data = 4;
+}
+
+message DowntimeStartTimeIdentifier {
+  google.protobuf.UInt32Value start = 1;
+  string comment_data = 2;
+}
+
+message DowntimeHostGroupIdentifier {
+  string host_group_name = 1;
+  string host_name = 2;
+  string service_desc = 3;
+  string comment_data = 4;
+  google.protobuf.UInt32Value start = 5;
+}
+
+message ScheduleDowntimeIdentifier {
+  string host_name = 1;
+  string host_group_name = 2;
+  string service_group_name = 3;
+  string service_desc = 4;
+  uint64 start = 5;
+  uint64 end = 6;
+  bool fixed = 7;
+  uint32 triggered_by = 8;
+  uint32 duration = 9;
+  string author = 10;
+  string comment_data = 11;
+  uint32 entry_time = 12;
+}
+
+message HostCheckIdentifier {
+  string host_name = 1;
+  uint32 delay_time = 2;
+  bool force = 3;
+}
+
+message ServiceCheckIdentifier {
+  string host_name = 1;
+  string service_desc = 2;
+  uint32 delay_time = 3;
+  bool force = 4;
+}
+
+message EngineSignalProcess {
+  enum Process {
+    RESTART = 0;
+    SHUTDOWN = 1;
+  }
+  Process process = 1;
+  uint32 scheduled_time = 2;
+}
+
+message EngineAcknowledgement {
+  string host_name = 1;
+  string service_desc = 2;
+  string ack_author = 3;
+  string ack_data = 4;
+  enum Type {
+    NORMAL = 0;
+    STICKY = 1;
+  }
+  Type type = 5;
+  bool notify = 6;
+  bool persistent = 7;
+}
+
+/* used for a host or a service */
+message ChangeObjectInt {
+  string host_name = 1;
+  string service_desc = 2;
+  enum Mode {
+    NORMAL_CHECK_INTERVAL = 0;
+    RETRY_CHECK_INTERVAL = 1;
+    MAX_ATTEMPTS = 2;
+    MODATTR = 3;
+  }
+  Mode mode = 3;
+  uint32 intval = 4;
+  double dval = 5;
+}
+
+/* used for a host or a service */
+message ChangeServiceNumber {
+  ServiceIdentifier serv = 1;
+  oneof value {
+    uint32 intval = 2;
+    double dval = 3;
+  }
+}
+
+/* used for a contact */
+message ChangeContactObjectInt {
+  string contact_name = 1;
+  enum Mode {
+    MODATTR = 0;
+    MODHATTR = 1;
+    MODSATTR = 2;
+  }
+  Mode mode = 2;
+  uint32 intval = 3;
+  double dval = 4;
+}
+
+/* used for a host or a service */
+message ChangeObjectChar {
+  string host_name = 1;
+  string service_desc = 2;
+  enum Mode {
+    CHANGE_GLOBAL_EVENT_HANDLER = 0;
+    CHANGE_EVENT_HANDLER = 1;
+    CHANGE_CHECK_COMMAND = 2;
+    CHANGE_CHECK_TIMEPERIOD = 3;
+    CHANGE_NOTIFICATION_TIMEPERIOD = 4;
+  }
+  Mode mode = 3;
+  string charval = 4;
+}
+
+/* used for a contact */
+message ChangeContactObjectChar {
+  string contact = 1;
+  enum Mode {
+    CHANGE_CONTACT_HOST_NOTIFICATION_TIMEPERIOD = 0;
+    CHANGE_CONTACT_SVC_NOTIFICATION_TIMEPERIOD = 1;
+  }
+  Mode mode = 2;
+  string charval = 3;
+}
+
+message ChangeObjectCustomVar {
+  string host_name = 1;
+  string service_desc = 2;
+  string contact = 3;
+  string varname = 4;
+  string varvalue = 5;
+}
+
+message LogInfo {
+  string log_name = 1;
+  string log_file = 2;
+  uint32 log_flush_period = 3;
+  map<string, string> level = 4;
+}
+
+message LogFlushPeriod {
+  uint32 period = 1;
+}
+
+message LogLevel {
+  string logger = 1;
+  enum LogLevelEnum {
+    TRACE = 0;
+    DEBUG = 1;
+    INFO = 2;
+    WARNING = 3;
+    ERROR = 4;
+    CRITICAL = 5;
+    OFF = 6;
+  }
+  LogLevelEnum level = 2;
+}
+
+message BenchParam {
+  uint32 id = 1;
+  google.protobuf.Timestamp ts = 2;
+}

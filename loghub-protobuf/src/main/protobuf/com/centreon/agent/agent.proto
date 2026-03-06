@@ -1,0 +1,114 @@
+/*
+ * Copyright 2024 Centreon (https://www.centreon.com/)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For more information : contact@centreon.com
+ *
+ */
+
+syntax = "proto3";
+
+import "opentelemetry/proto/collector/metrics/v1/metrics_service.proto";
+
+package com.centreon.agent;
+
+// Agent connects to engine
+service AgentService {
+  rpc Export(stream MessageFromAgent) returns (stream MessageToAgent) {}
+}
+
+// Engine connects to agent (reversed connection)
+service ReversedAgentService {
+  rpc Import(stream MessageToAgent) returns (stream MessageFromAgent) {}
+}
+
+// Message sent to agent reversed connection or not
+message MessageToAgent {
+  oneof content {
+    AgentConfiguration config = 1;
+    opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse
+        otel_response = 2;
+    ForceCheck force_check = 3;
+  }
+}
+
+// Message sent to Engine reversed connection or not
+message MessageFromAgent {
+  oneof content {
+    AgentInfo init = 1;
+    opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest
+        otel_request = 2;
+  }
+}
+
+// Binary version Engine or Agent
+message Version {
+  uint32 major = 1;
+  uint32 minor = 2;
+  uint32 patch = 3;
+}
+
+// First message sent to engine
+message AgentInfo {
+  // host name of the computer of the agent
+  string host = 1;
+  Version centreon_version = 2;
+  string os = 3;  // can be alma, windows, etc
+  string os_version = 4;
+  bool encryption_ready = 5;  // true if agent is able to receive encrypted commands
+  string host_template = 6; // type of host such windows sql server, web server .....
+  repeated string ips = 7;  //ips of the host
+}
+
+// Agent configuration sent by Engine
+message AgentConfiguration {
+  Version centreon_version = 1;
+  // delay between 2 checks of one service, so we will do all check in that
+  // period (in seconds) uint32 check_interval = 2; //removed but we keep it for
+  // backward compatibility (no reused of this field index) limit the number of
+  // active checks in order to limit charge
+  uint32 max_concurrent_checks = 3;
+  // period of metric exports (in seconds)
+  uint32 export_period = 4;
+  // after this timeout, process is killed (in seconds)
+  uint32 check_timeout = 5;
+  // if true we store nagios other metrics (min max warn crit in Exemplar otel
+  // objects)
+  bool use_exemplar = 6;
+  // list of services with their commands
+  repeated Service services = 7;
+  uint32 unused = 8; // unused slot
+  // encryption keys to decrypt and crypt commands
+  string key = 9;
+  string salt = 10;
+}
+
+// Service (poller configuration definition)
+message Service {
+  // empty if host check
+  string service_description = 1;
+  string command_name = 2;
+  string command_line = 3;
+  uint32 check_interval = 4;
+  uint64 host_id = 5;
+  uint64 service_id = 6;
+  uint32 retry_interval = 7;
+  uint64 max_attempts = 8;
+}
+
+// message used by engine to make agent do a force check
+message ForceCheck {
+  uint64 host_id = 1;
+  uint64 serv_id = 2;
+}

@@ -1,0 +1,47 @@
+/**
+ * Copyright 2024 Centreon
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For more information : contact@centreon.com
+ */
+
+syntax = "proto3";
+
+import "com/centreon/broker/bam.proto";
+
+package com.centreon.broker;
+
+/**
+ * @brief Stores needed information for bool_service or kpi_service. Very useful
+ *        when broker is stopped to save the BA's states.
+ */
+/* Ignore */
+message ServiceState {
+  uint64 host_id = 1;
+  uint64 service_id = 2;
+  State current_state = 3;
+  State last_hard_state = 4;
+  uint64 last_check = 5;
+  bool state_type = 6;
+  bool acknowledged = 7;
+}
+
+/**
+ * @brief This message contains the living informations of the current BA's.
+ *        Thanks to them we can recompute their states when Broker is restarted.
+ */
+/* io::bam, bam::de_pb_services_book_state, 48 */
+message ServicesBookState {
+  repeated ServiceState service = 1;
+}

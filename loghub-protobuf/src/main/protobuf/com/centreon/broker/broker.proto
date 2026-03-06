@@ -1,0 +1,307 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "com/centreon/common/process_stat.proto";
+import "com/centreon/common/common.proto";
+
+package com.centreon.broker;
+
+service Broker {
+  rpc GetVersion(google.protobuf.Empty) returns (Version) {}
+
+  // stats
+  rpc GetProcessStats(google.protobuf.Empty)
+      returns (com.centreon.common.pb_process_stat) {}
+  rpc GetGenericStats(google.protobuf.Empty) returns (GenericString) {}
+  rpc SetSqlManagerStats(SqlManagerStatsOptions)
+      returns (google.protobuf.Empty) {}
+  rpc GetSqlManagerStats(SqlConnection) returns (SqlManagerStats) {}
+  rpc GetConflictManagerStats(google.protobuf.Empty)
+      returns (ConflictManagerStats) {}
+  rpc GetMuxerStats(GenericString) returns (MuxerStats) {}
+
+  rpc GetNumModules(google.protobuf.Empty) returns (GenericSize) {}
+  rpc GetModulesStats(GenericNameOrIndex) returns (GenericString) {}
+
+  rpc GetNumEndpoint(google.protobuf.Empty) returns (GenericSize) {}
+  rpc GetEndpointStats(GenericNameOrIndex) returns (GenericString) {}
+
+  rpc GetProcessingStats(google.protobuf.Empty) returns (ProcessingStats) {}
+
+  /**
+   * @brief Rebuild RRD metric from data in the SQL database.
+   *
+   * @param IndexIds Message containing a vector of metric ids.
+   *
+   * @return An Empty object.
+   */
+  rpc RebuildRRDGraphs(IndexIds) returns (google.protobuf.Empty) {}
+
+  /**
+   * @brief Build a file with the BA content and relations.
+   *
+   * @param BaInfo Message containing the BA ID and the output file to fill
+   * (currently this file is a *.dot file)
+   *
+   * @return An Empty object.
+   */
+  rpc GetBa(BaInfo) returns (google.protobuf.Empty) {}
+
+  /**
+   * @brief Remove RRD files from index IDs.
+   *
+   * @param ToRemove Message containing a vector of metric ids and index ids.
+   *
+   * @return An Empty object.
+   */
+  rpc RemoveGraphs(ToRemove) returns (google.protobuf.Empty) {}
+
+  /**
+   * @brief Remove a poller configuration from Broker and real time database.
+   *
+   * @param GenericNameOrIndex Message containing the poller name or its id.
+   *
+   * @return An Empty object.
+   */
+  rpc RemovePoller(GenericNameOrIndex) returns (google.protobuf.Empty) {}
+
+  /**
+   * @brief Retrieve some informations about loggers. If a name is specified,
+   * Informations are concentrated on the logger of that name.
+   *
+   * @param A logger name.
+   *
+   * @return A LogInfo message.
+   */
+  rpc GetLogInfo(GenericString) returns (LogInfo) {}
+
+  /**
+   * @brief Set level of a logger.
+   *
+   * @param A message with a logger and a level as strings.
+   *
+   * @return nothing.
+   */
+  rpc SetLogLevel(LogLevel) returns (google.protobuf.Empty) {}
+
+  /**
+   * @brief Set log flush period of all loggers.
+   *
+   * @param period in second, 0 means flush all the times
+   *
+   * @return nothing.
+   */
+  rpc SetLogFlushPeriod(LogFlushPeriod) returns (google.protobuf.Empty) {}
+  rpc Aes256Encrypt(AesMessage) returns (GenericString) {}
+  rpc Aes256Decrypt(AesMessage) returns (GenericString) {}
+
+  rpc GetPeers(google.protobuf.Empty) returns (PeerList) {}
+}
+
+message PeerList {
+  repeated Peer peers = 1;
+}
+
+message Peer {
+  uint32 id = 1;
+  string poller_name = 2;
+  string broker_name = 3;
+  google.protobuf.Timestamp connected_since = 4;
+  common.PeerType type = 5;
+}
+
+message AesMessage {
+  string app_secret = 1;
+  string salt = 2;
+  string content = 3;
+}
+
+message Version {
+  int32 major = 1;
+  int32 minor = 2;
+  int32 patch = 3;
+}
+
+message LogInfo {
+  string log_name = 1;
+  string log_file = 2;
+  uint32 log_flush_period = 3;
+  map<string, string> level = 4;
+}
+
+message LogLevel {
+  string logger = 1;
+  enum LogLevelEnum {
+    TRACE = 0;
+    DEBUG = 1;
+    INFO = 2;
+    WARNING = 3;
+    ERROR = 4;
+    CRITICAL = 5;
+    OFF = 6;
+  }
+  LogLevelEnum level = 2;
+}
+
+message LogFlushPeriod {
+  uint32 period = 1;
+}
+
+message GenericString {
+  string str_arg = 1;
+}
+
+message GenericInt {
+  uint32 value = 1;
+}
+
+message GenericSize {
+  uint32 size = 1;
+}
+
+// 1 => access by name
+// 2 => access by index
+// not set => all elems
+message GenericNameOrIndex {
+  oneof nameOrIndex {
+    string str = 1;
+    uint64 idx = 2;
+  }
+}
+
+message GenericResponse {
+  bool ok = 1;
+  string err_msg = 2;
+}
+
+/**
+ * @brief This is the message given to the GetSqlManagerStats. It is possible
+ * to specify an index representing which connection to display. If no value
+ * is given all the connections are returned.
+ */
+message SqlConnection {
+  optional uint32 id = 1;
+}
+
+message SqlConnectionStats {
+  int32 waiting_tasks = 1;
+  oneof last_switch {
+    int64 up_since = 2;
+    int64 down_since = 3;
+  };
+  float average_loop_duration = 4;
+  uint32 average_tasks_count = 5;
+  float activity_percent = 6;
+  float average_query_duration = 7;
+  float average_statement_duration = 8;
+
+  message QueryStats {
+    uint32 length = 1;
+    float duration = 2;
+    int64 start_time = 3;
+    string query = 4;
+  };
+  message StatementStats {
+    float rows_count = 1;
+    float duration = 2;
+    int64 start_time = 3;
+    uint32 statement_id = 4;
+    string statement_query = 5;
+  };
+
+  repeated QueryStats slowest_queries = 9;
+  repeated StatementStats slowest_statements = 10;
+}
+
+message SqlManagerStatsOptions {
+  optional uint32 slowest_statements_count = 1;
+  optional uint32 slowest_queries_count = 2;
+}
+
+message SqlManagerStats {
+  repeated SqlConnectionStats connections = 1;
+}
+
+message ConflictManagerStats {
+  int32 events_handled = 1;
+  int32 waiting_events = 2;
+  int32 max_pending_events = 3;
+  int32 sql = 4;
+  int32 storage = 5;
+  uint32 max_perfdata_events = 6;
+  uint32 loop_timeout = 7;
+  double speed = 8;
+}
+
+message ModuleStats {
+  string name = 1;
+  string size = 2;
+  string state = 3;
+}
+
+message ThreadPool {
+  float latency = 1;
+  uint32 size = 2;
+}
+
+message EngineStats {
+  enum Mode {
+    NOT_STARTED = 0;
+    RUNNING = 1;
+    STOPPED = 2;
+  }
+  Mode mode = 1;
+  uint32 processed_events = 2;
+  uint64 queue_size = 3;
+  uint64 available = 4;
+}
+
+message QueueFileStats {
+  string name = 1;
+  uint32 max_file_size = 2;
+  uint32 file_write_path = 3;
+  uint32 file_write_offset = 4;
+  uint32 file_read_path = 5;
+  uint32 file_read_offset = 6;
+  double file_percent_processed = 7;
+  int64 file_expected_terminated_at = 8;
+  string file_expected_terminated_in = 9;
+}
+
+message MuxerStats {
+  uint32 total_events = 1;
+  uint32 unacknowledged_events = 2;
+  QueueFileStats queue_file = 3;
+}
+
+message ProcessingStats {
+  EngineStats engine = 1;
+  map<string, MuxerStats> muxers = 2;
+}
+
+message BrokerStats {
+  string asio_version = 1;
+  string version = 2;
+  uint32 pid = 3;
+  int64 now = 4;
+  ThreadPool pool_stats = 5;
+  repeated ModuleStats modules = 6;
+  SqlManagerStats sql_manager = 7;
+  ConflictManagerStats conflict_manager = 8;
+  ProcessingStats processing = 9;
+}
+
+message IndexIds {
+  repeated uint64 index_ids = 1;
+}
+
+message BaInfo {
+  uint64 id = 1;
+  string output_file = 2;
+}
+
+message ToRemove {
+  repeated uint64 index_ids = 1;
+  repeated uint64 metric_ids = 2;
+}
