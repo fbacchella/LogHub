@@ -33,11 +33,16 @@ public class GrpcStatus {
         this.status = status;
         this.message = message;
     }
+
     public Http2Headers getHeaders() {
-        return new DefaultHttp2Headers()
-                .add("grpc-status",  Integer.toString(status))
-                .add("grpc-message", message);
+        DefaultHttp2Headers headers = (DefaultHttp2Headers) new DefaultHttp2Headers()
+                                              .add("grpc-status",  Integer.toString(status));
+        if (status != 0) {
+            headers.add("grpc-message", message);
+        }
+        return headers;
     }
+
     public GrpcStatus withMessage(String message) {
         return new GrpcStatus(status, message);
     }

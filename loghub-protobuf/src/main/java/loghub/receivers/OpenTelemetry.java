@@ -145,9 +145,9 @@ public class OpenTelemetry extends AbstractHttpReceiver<OpenTelemetry, OpenTelem
         return Unpooled.wrappedBuffer(outBuffer);
     }
 
-    private Map<String, Object> metricsExport(ChannelHandlerContext ctx, Map<String, Object> metrics) {
-        Principal p = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
-        BuildableConnectionContext<InetSocketAddress> cctx = OpenTelemetry.this.getConnectionContext(ctx);
+    private Map<String, Object> metricsExport(GrpcStreamHandler handler, Map<String, Object> metrics) {
+        Principal p = handler.getCurrentContext().channel().attr(PRINCIPALATTRIBUTE).get();
+        BuildableConnectionContext<InetSocketAddress> cctx = OpenTelemetry.this.getConnectionContext(handler.getCurrentContext());
         if (p != null) {
             cctx.setPrincipal(p);
         }
