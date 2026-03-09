@@ -22,11 +22,13 @@ import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.events.Event;
 import loghub.netty.AbstractHttpReceiver;
+import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.RequestAccept;
 import loghub.netty.transport.TRANSPORT;
+import loghub.protobuf.GrpcStreamHandler;
 import loghub.protobuf.OpentelemetryDecoder;
 import lombok.Setter;
 
@@ -85,12 +87,16 @@ public class OpenTelemetry extends AbstractHttpReceiver<OpenTelemetry, OpenTelem
     }
 
     private final OpenTelemetryWriteRequestHandler bodyHandler;
-    private final OpentelemetryDecoder decoder;
+    private final OpentelemetryDecoder<ChannelHandlerContext> decoder;
+    private final GrpcStreamHandler.Factory factory;
     public OpenTelemetry(Builder builder) {
         super(builder);
         try {
             bodyHandler = new OpenTelemetryWriteRequestHandler();
-            decoder = new OpentelemetryDecoder();
+            decoder = new OpentelemetryDecoder<>();
+            factory = new GrpcStreamHandler.Factory(new OpentelemetryDecoder<>());
+            factory.register("opentelemetry.proto.collector.metrics.v1.MetricsService.Export", (m, c) -> metricsExport(c,
+                    (Map<String, Object>) m));
         } catch (IOException | Descriptors.DescriptorValidationException ex) {
             throw new IllegalArgumentException(ex);
         }
@@ -99,6 +105,15 @@ public class OpenTelemetry extends AbstractHttpReceiver<OpenTelemetry, OpenTelem
     @Override
     protected void modelSetup(ChannelPipeline pipeline) {
         pipeline.addLast(bodyHandler);
+    }
+
+    @Override
+    protected void configureConsumer(HttpChannelConsumer.Builder builder) {
+        super.configureConsumer(builder);
+        builder.setHttp2handler(ch ->ch.pipeline().addLast(
+                    "OpenTelemetryHandler", factory.get()
+                )
+        );
     }
 
     @Override
@@ -128,6 +143,17 @@ public class OpenTelemetry extends AbstractHttpReceiver<OpenTelemetry, OpenTelem
         Map<String, Object> response = Map.of("partial_success", Map.of("rejected_data_points", 0L, "error_message", ""));
         byte[] outBuffer = decoder.encode(outMessage, response);
         return Unpooled.wrappedBuffer(outBuffer);
+    }
+
+    private Map<String, Object> metricsExport(ChannelHandlerContext ctx, Map<String, Object> metrics) {
+        Principal p = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
+        BuildableConnectionContext<InetSocketAddress> cctx = OpenTelemetry.this.getConnectionContext(ctx);
+        if (p != null) {
+            cctx.setPrincipal(p);
+        }
+        Event ev = mapToEvent(cctx, metrics);
+        send(ev);
+        return Map.of("partial_success", Map.of("rejected_data_points", 0L, "error_message", ""));
     }
 
 }

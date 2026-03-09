@@ -7,11 +7,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors;
 
-public class OpentelemetryDecoder extends BinaryCodec {
+public class OpentelemetryDecoder<C> extends BinaryCodec<C> {
 
     public OpentelemetryDecoder() throws Descriptors.DescriptorValidationException, IOException {
         super(OpentelemetryDecoder.class.getClassLoader().getResourceAsStream("opentelemetry.binpb"));
@@ -26,6 +27,7 @@ public class OpentelemetryDecoder extends BinaryCodec {
         addFastPath("opentelemetry.proto.metrics.v1.NumberDataPoint", this::decodeDataPoints);
         addFastPath("opentelemetry.proto.metrics.v1.ResourceMetrics.schema_url", this::decodeUrl);
         addFastPath("opentelemetry.proto.metrics.v1.ScopeMetrics.schema_url", this::decodeUrl);
+        addFastPath("opentelemetry.proto.collector.metrics.v1.MetricsService.Export", this::metricsExport);
     }
 
     private Object decodeResource(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields)
@@ -52,24 +54,18 @@ public class OpentelemetryDecoder extends BinaryCodec {
         while (!stream.isAtEnd()) {
             Descriptors.FieldDescriptor gd = resolveField(stream, descriptor);
             switch (gd.getName()) {
-            case "start_time_unix_nano":
-            case "time_unix_nano": {
+            case "start_time_unix_nano", "time_unix_nano" -> {
                 long timestampNanos = stream.readFixed64();
                 long seconds = timestampNanos / 1_000_000_000; // Partie entière des secondes
                 int nanos = (int) (timestampNanos % 1_000_000_000); // Reste en nanosecondes
                 Instant instant = Instant.ofEpochSecond(seconds, nanos);
                 content.put(gd.getName(), instant);
-                break;
             }
-            case "as_double": {
+            case "as_double" ->
                 content.put("value", stream.readDouble());
-                break;
-            }
-            case "as_int": {
+            case "as_int" ->
                 content.put("value", stream.readSFixed64());
-                break;
-            }
-            default:
+            default ->
                 content.put(gd.getName(), resolveFieldValue(stream, gd, unknownFields));
             }
         }
@@ -98,16 +94,19 @@ public class OpentelemetryDecoder extends BinaryCodec {
     private Object decodeAnyValue(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException {
         if (!stream.isAtEnd()) {
             Descriptors.FieldDescriptor gd = resolveField(stream, descriptor);
-            switch (gd.getName()) {
-                case "string_value": return stream.readString();
-                case "bool_value": return stream.readBool();
-                case "int_value": return stream.readInt64();
-            default:
-                return readMessageField(stream, gd, unknownFields);
-            }
+            return switch (gd.getName()) {
+                case "string_value" -> stream.readString();
+                case "bool_value" -> stream.readBool();
+                case "int_value" -> stream.readInt64();
+                default -> readMessageField(stream, gd, unknownFields);
+            };
         } else {
             return null;
         }
+    }
+
+    private Map<String, Object> metricsExport(Map<String, Object> metrics, C context, BiFunction<Map<String, Object>, C, Map<String, Object>> transformer) {
+        return transformer.apply(metrics, context);
     }
 
     public Map<String, Object> parseWriteRequest(String messageType, ByteBuffer buffer) throws IOException {

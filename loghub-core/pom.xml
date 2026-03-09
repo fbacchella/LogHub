@@ -284,6 +284,13 @@
             <version>5.22.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative-boringssl-static</artifactId>
+            <version>2.0.75.Final</version>
+            <classifier>osx-aarch_64</classifier>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -393,6 +400,8 @@
                                 <include>loghub/BeanChecks*.class</include>
                                 <include>loghub/MockHttpClient*.class</include>
                                 <include>loghub/events/Mocker*.class</include>
+                                <include>loghub/HttpTestServer.class</include>
+                                <include>loghub.p12</include>
                             </includes>
                         </configuration>
                     </execution>

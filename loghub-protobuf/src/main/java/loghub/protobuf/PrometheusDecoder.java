@@ -7,14 +7,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors;
 
 import lombok.Data;
 
-public class PrometheusDecoder extends BinaryCodec {
+public class PrometheusDecoder<C> extends BinaryCodec<C> {
 
     @Data
     private static class Sample {
@@ -67,7 +66,7 @@ public class PrometheusDecoder extends BinaryCodec {
             List<?> samplesMap = samples.stream()
                                          .filter(s -> ! Double.isNaN(s.value))
                                          .map(s -> Map.of("timestamp", s.timestamp, "value", s.value))
-                                         .collect(Collectors.toList());
+                                         .toList();
             if (! samplesMap.isEmpty()) {
                 values.put("sample", samplesMap);
             }

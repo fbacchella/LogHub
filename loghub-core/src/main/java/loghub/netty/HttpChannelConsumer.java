@@ -30,7 +30,9 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
 import io.netty.handler.codec.http2.Http2Frame;
 import io.netty.handler.codec.http2.Http2FrameCodecBuilder;
+import io.netty.handler.codec.http2.Http2GoAwayFrame;
 import io.netty.handler.codec.http2.Http2MultiplexHandler;
+import io.netty.handler.codec.http2.Http2PingFrame;
 import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.handler.codec.http2.Http2SettingsAckFrame;
 import io.netty.handler.codec.http2.Http2SettingsFrame;
@@ -38,6 +40,7 @@ import io.netty.handler.codec.http2.Http2StreamFrameToHttpObjectCodec;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.AttributeKey;
+import io.netty.util.CharsetUtil;
 import loghub.Helpers;
 import loghub.netty.http.AccessControl;
 import loghub.netty.http.FatalErrorHandler;
@@ -73,6 +76,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         private Logger logger;
         private HstsData hsts;
         private Object holder;
+        private Consumer<Channel> http2handler = null;
         private Builder() {
 
         }
@@ -91,6 +95,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
     private final Logger logger;
     private final HstsData hsts;
     private final Object holder;
+    private final Consumer<Channel> http2handler;
 
     protected HttpChannelConsumer(Builder builder) {
         this.aggregatorSupplier = Optional.ofNullable(builder.aggregatorSupplier).orElse(() -> new HttpObjectAggregator(builder.maxContentLength));
@@ -100,6 +105,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         this.logger = Optional.ofNullable(builder.logger).orElseGet(this::getDefaultLogger);
         this.hsts = builder.hsts;
         this.holder = builder.holder;
+        this.http2handler = builder.http2handler == null ? this::http2tohttp1codec : builder.http2handler;
     }
 
     private Logger getDefaultLogger() {
@@ -157,12 +163,11 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         p.addLast("HttpContentDeCompressor", new HttpContentDecompressor());
         p.addLast("httpKeepAlive", new HttpServerKeepAliveHandler());
         p.addLast("HttpContentCompressor", new HttpContentCompressor());
-        p.addLast("ChunkedWriteHandler", new ChunkedWriteHandler());
         finishPipelineSetup(p);
     }
 
     private void addHttp2Handlers(ChannelPipeline p) {
-        p.addLast("Http2FrameCodec", Http2FrameCodecBuilder.forServer().initialSettings(Http2Settings.defaultSettings()).build());
+        p.addLast("Http2FrameCodec", Http2FrameCodecBuilder.forServer().initialSettings(Http2Settings.defaultSettings()).autoAckPingFrame(true).build());
         ChannelInboundHandlerAdapter frameHandler = new ChannelInboundHandlerAdapter() {
             @Override
             public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -176,7 +181,6 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         Http2MultiplexHandler multiplexHandler = new Http2MultiplexHandler(new ChannelInitializer<>() {
             @Override
             protected void initChannel(Channel ch) {
-                ChannelPipeline cp = ch.pipeline();
                 Channel parentChannel = ch.parent();
                 for (AttributeKey<?> key : List.of(
                         NettyTransport.PRINCIPALATTRIBUTE,
@@ -186,12 +190,16 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
                 ) {
                     copyAttribue(key, parentChannel, ch);
                 }
-                cp.addLast(new Http2StreamFrameToHttpObjectCodec(true, true));
-                cp.addLast(new ChunkedWriteHandler());
-                finishPipelineSetup(cp);
+                http2handler.accept(ch);
              }
         });
         p.addLast("Http2MultiplexHandler", multiplexHandler);
+    }
+
+    private void http2tohttp1codec(Channel ch) {
+        ChannelPipeline cp = ch.pipeline();
+        cp.addLast(new Http2StreamFrameToHttpObjectCodec(true, true));
+        finishPipelineSetup(cp);
     }
 
     private Optional<Object> http2FrameHandling(ChannelHandlerContext ctx, Object msg) {
@@ -202,6 +210,20 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         }
         case Http2SettingsAckFrame hf -> {
             logger.trace("Intercepted HTTP/2 frame {}", hf::name);
+            return Optional.empty();
+        }
+        case Http2PingFrame ping -> {
+            logger.trace("Intercepted HTTP/2 PING frame: ack={}", ping::ack);
+            if (!ping.ack()) {
+                return Optional.empty();
+            } else {
+                return Optional.of(msg);
+            }
+        }
+        case Http2GoAwayFrame goaway -> {
+            logger.trace("Intercepted HTTP/2 GOAWAY frame: lastStreamId={}, errorCode={}, debugData={}",
+                    goaway::lastStreamId, goaway::errorCode, () -> goaway.content().toString(CharsetUtil.UTF_8));
+            ctx.close();
             return Optional.empty();
         }
         case Http2Frame hf -> {
@@ -223,6 +245,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
     }
 
     private void finishPipelineSetup(ChannelPipeline p) {
+        p.addLast(new ChunkedWriteHandler());
         p.addLast(HTTP_OBJECT_AGGREGATOR, aggregatorSupplier.get());
         if (authHandler != null) {
             p.addLast("Authentication", new AccessControl(authHandler));

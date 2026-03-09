@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.CodedInputStream;
@@ -24,13 +25,11 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
 
-import lombok.Data;
-
-public class BinaryCodec {
+public class BinaryCodec<C> {
 
     private final Map<String, MessageFastPathFunction<?>> messageFastPath = new HashMap<>();
     private final Map<String, FieldFastPathFunction<?>> fieldFastPath = new HashMap<>();
-    private final Map<String, MethodFastPathFunction<?, ?>> methodFastPath = new HashMap<>();
+    private final Map<String, MethodFastPathFunction> methodFastPath = new HashMap<>();
     private final Map<String, Descriptors.Descriptor> messages = new HashMap<>();
     private final Map<String, Descriptors.MethodDescriptor> methods = new HashMap<>();
 
@@ -44,17 +43,15 @@ public class BinaryCodec {
         T resolve(CodedInputStream stream, Descriptors.FieldDescriptor descriptor, List<UnknownField> unknownFields) throws IOException;
     }
 
-    @FunctionalInterface
-    private interface MethodFastPathFunction<I, O> {
-        O process(I input);
+    private interface MethodFastPathFunction {
     }
 
-    public interface MethodBytesFastPathFunction<I> extends MethodFastPathFunction<I, byte[]>{
-        byte[] process(I input);
+    public interface MethodBytesFastPathFunction<I, C, T, O> extends MethodFastPathFunction {
+        byte[] process(I input, C context, BiFunction<T, C, O> operator);
     }
 
-    public interface MethodMapFastPathFunction<I> extends MethodFastPathFunction<I, Map<String, Object>>{
-        Map<String, Object> process(I input);
+    public interface MethodMapFastPathFunction<I, C, T, O> extends MethodFastPathFunction {
+        Map<String, Object> process(I input, C context, BiFunction<T, C, O> operator);
     }
 
     public BinaryCodec(URI source) throws Descriptors.DescriptorValidationException, IOException {
@@ -152,7 +149,7 @@ public class BinaryCodec {
         }
     }
 
-    public <I> void addFastPath(String methodFullName, MethodBytesFastPathFunction<I> fastPath) {
+    public <I, T, O> void addFastPath(String methodFullName, MethodBytesFastPathFunction<I, C, T, O> fastPath) {
         if (fastPath == null) {
             methodFastPath.remove(methodFullName);
         } else {
@@ -160,7 +157,7 @@ public class BinaryCodec {
         }
     }
 
-    public <I> void addFastPath(String methodFullName, MethodMapFastPathFunction<I> fastPath) {
+    public <I, T, O> void addFastPath(String methodFullName, MethodMapFastPathFunction<I, C, T, O> fastPath) {
         if (fastPath == null) {
             methodFastPath.remove(methodFullName);
         } else {
@@ -168,12 +165,7 @@ public class BinaryCodec {
         }
     }
 
-    @Data
-    public static class UnknownField {
-        private final String message;
-        private final int fieldNumber;
-        private final int fieldWireType;
-        private final Object value;
+    public record UnknownField(String message, int fieldNumber, int fieldWireType, Object value) {
     }
 
     public <I> I decode(CodedInputStream stream, String messageName, List<UnknownField> unknownFields) throws IOException {
@@ -184,23 +176,21 @@ public class BinaryCodec {
         return parseMessage(stream, message, unknownFields);
     }
 
-    public <I, O> byte[] process(String method, I input) {
+    public <I, T, O> byte[] process(String method, C context, I input, BiFunction<T, C, O> consumer) {
         if (methodFastPath.containsKey(method)) {
-            @SuppressWarnings("unchecked")
-            MethodFastPathFunction<I, O> fastMethod = (MethodFastPathFunction<I, O>) methodFastPath.get(method);
+            MethodFastPathFunction fastMethod = methodFastPath.get(method);
             switch (fastMethod) {
             case MethodBytesFastPathFunction mb -> {
-                return mb.process(input);
+                return mb.process(input, context, consumer);
             }
             case MethodMapFastPathFunction mm -> {
-                Map<String, Object> values = mm.process(input);
+                Map<String, Object> values = mm.process(input, context, consumer);
                 String outMessageName = methods.get(method).getOutputType().getFullName();
                 return encode(outMessageName, values);
             }
-            default -> {
+            default ->
                 throw new IllegalArgumentException(
                         "Method " + method + " returned unexpected type: " + fastMethod.getClass().getName());
-            }
             }
         } else if (input instanceof Map m) {
             String outMessage = methods.get(method).getOutputType().getFullName();
@@ -231,7 +221,7 @@ public class BinaryCodec {
                 expected.remove(desc);
                 if (desc != null) {
                     if (desc.isRepeated()) {
-                        List<?> content = (List) values.computeIfAbsent(desc.getName(), k -> new ArrayList<>());
+                        List<Object> content = (List<Object>) values.computeIfAbsent(desc.getName(), k -> new ArrayList<>());
                         content.add(resolveFieldValue(stream, desc, unknownFields));
                     } else {
                         values.put(desc.getName(), resolveFieldValue(stream, desc, unknownFields));
@@ -269,44 +259,26 @@ public class BinaryCodec {
             // If it's a message, fast path will be resolved in readMessageField
             return (T) fieldFastPath.get(dfd.getFullName()).resolve(stream, dfd, unknownFields);
         } else {
-            switch (dfd.getType()) {
-            case DOUBLE:
-                return (T) Double.valueOf(stream.readDouble());
-            case FLOAT:
-                return (T) Float.valueOf(stream.readFloat());
-            case INT32:
-                return (T) Integer.valueOf(stream.readInt32());
-            case INT64:
-                return (T) Long.valueOf(stream.readInt64());
-            case UINT32:
-                return (T) Integer.valueOf(stream.readUInt32());
-            case UINT64:
-                return (T) Long.valueOf(stream.readUInt64());
-            case SINT32:
-                return (T) Integer.valueOf(stream.readSInt32());
-            case SINT64:
-                return (T) Long.valueOf(stream.readSInt64());
-            case FIXED32:
-                return (T) Integer.valueOf(stream.readFixed32());
-            case FIXED64:
-                return (T) Long.valueOf(stream.readFixed64());
-            case SFIXED32:
-                return (T) Integer.valueOf(stream.readSFixed32());
-            case SFIXED64:
-                return (T) Long.valueOf(stream.readSFixed64());
-            case BOOL:
-                return (T) Boolean.valueOf(stream.readBool());
-            case STRING:
-                return (T) stream.readString();
-            case BYTES:
-                return (T) stream.readByteArray();
-            case MESSAGE:
-                return readMessageField(stream, dfd, unknownFields);
-            case ENUM:
-                return (T) resolveEnum(dfd, stream.readEnum());
-            default:
-                throw new IllegalStateException(dfd.getType().name());
-            }
+            return switch (dfd.getType()) {
+                case DOUBLE -> (T) Double.valueOf(stream.readDouble());
+                case FLOAT -> (T) Float.valueOf(stream.readFloat());
+                case INT32 -> (T) Integer.valueOf(stream.readInt32());
+                case INT64 -> (T) Long.valueOf(stream.readInt64());
+                case UINT32 -> (T) Integer.valueOf(stream.readUInt32());
+                case UINT64 -> (T) Long.valueOf(stream.readUInt64());
+                case SINT32 -> (T) Integer.valueOf(stream.readSInt32());
+                case SINT64 -> (T) Long.valueOf(stream.readSInt64());
+                case FIXED32 -> (T) Integer.valueOf(stream.readFixed32());
+                case FIXED64 -> (T) Long.valueOf(stream.readFixed64());
+                case SFIXED32 -> (T) Integer.valueOf(stream.readSFixed32());
+                case SFIXED64 -> (T) Long.valueOf(stream.readSFixed64());
+                case BOOL -> (T) Boolean.valueOf(stream.readBool());
+                case STRING -> (T) stream.readString();
+                case BYTES -> (T) stream.readByteArray();
+                case MESSAGE -> readMessageField(stream, dfd, unknownFields);
+                case ENUM -> (T) resolveEnum(dfd, stream.readEnum());
+                default -> throw new IllegalStateException(dfd.getType().name());
+            };
         }
     }
 
@@ -332,21 +304,17 @@ public class BinaryCodec {
     }
 
     private Object resolveUnknownField(CodedInputStream stream, int wireType) throws IOException {
-        switch (wireType) {
-        case 0:
-            return stream.readRawVarint64();
-        case 1:
-            return stream.readRawBytes(8);
-        case 2:
-            int len = stream.readRawVarint32();
-            return stream.readRawBytes(len);
-        case 3, 4:
-            throw new UnsupportedOperationException("group not handled");
-        case 5:
-            return stream.readRawBytes(4);
-        default:
-            return null;
-        }
+        return switch (wireType) {
+            case 0 -> stream.readRawVarint64();
+            case 1 -> stream.readRawBytes(8);
+            case 2 -> {
+                int len = stream.readRawVarint32();
+                yield stream.readRawBytes(len);
+            }
+            case 3, 4 -> throw new UnsupportedOperationException("group not handled");
+            case 5 -> stream.readRawBytes(4);
+            default -> null;
+        };
     }
 
     public Descriptors.FieldDescriptor resolveField(CodedInputStream codedInputStream, Descriptors.Descriptor descriptor)
@@ -371,8 +339,8 @@ public class BinaryCodec {
         DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
         for (Map.Entry<String, Object> e: values.entrySet()) {
             Descriptors.FieldDescriptor fd = descriptor.findFieldByName(e.getKey());
-            if (fd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE && e.getValue() instanceof Map) {
-                builder.setField(fd, encode(fd.getMessageType(), (Map<String, Object>) e.getValue()));
+            if (fd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE && e.getValue() instanceof Map m) {
+                builder.setField(fd, encode(fd.getMessageType(), m));
             } else {
                 builder.setField(fd, e.getValue());
             }

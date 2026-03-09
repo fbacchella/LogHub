@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.function.BiFunction;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,16 +30,28 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
     private static final Logger logger = LogManager.getLogger();
 
     public static class Factory {
-        private final Map<String, BinaryCodec> servicesByPath;
-        public Factory(BinaryCodec... services) {
-            Map<String, BinaryCodec> tmpMap = new HashMap<>();
-            for (BinaryCodec bc: services) {
+        private final Map<String, BinaryCodec<ChannelHandlerContext>> servicesByPath;
+        private Map<String, BiFunction<?, ChannelHandlerContext, ?>> transformers = new HashMap<>();
+        @SafeVarargs
+        public Factory(BinaryCodec<ChannelHandlerContext>... services) {
+            Map<String, BinaryCodec<ChannelHandlerContext>> tmpMap = new HashMap<>();
+            for (BinaryCodec<ChannelHandlerContext> bc: services) {
                 bc.getMethods().forEach(e -> tmpMap.put(e.getKey(), bc));
             }
             servicesByPath = Map.copyOf(tmpMap);
         }
-        public GrpcStreamHandler get() {
-            return new GrpcStreamHandler(servicesByPath);
+        public void register(String methodQualifiedName, BiFunction<?, ChannelHandlerContext, ?> transformer) {
+            if (transformer != null) {
+                transformers.put(methodQualifiedName, transformer);
+            } else {
+                transformers.remove(methodQualifiedName);
+            }
+        }
+        public synchronized GrpcStreamHandler get() {
+            // Lock the transformers. The map is immutable after this point.
+            // The current implementation resute the inpput if it's alread an immutable map
+            transformers = Map.copyOf(transformers);
+            return new GrpcStreamHandler(servicesByPath, transformers);
         }
     }
 
@@ -49,13 +62,15 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
     private static final AsciiString GRPC_CONTENT_TYPE = AsciiString.of("application/grpc");
     private static final AsciiString POST = AsciiString.of("POST");
 
-    private final Map<String, BinaryCodec> servicesByPath;
+    private final Map<String, BinaryCodec<ChannelHandlerContext>> servicesByPath;
+    private final Map<String, BiFunction<?, ChannelHandlerContext, ?>> transformers;
 
     private String qualifiedMethodName;
-    private BinaryCodec codec;
+    private BinaryCodec<ChannelHandlerContext> codec;
 
-    private GrpcStreamHandler(Map<String, BinaryCodec> servicesByPath) {
+    private GrpcStreamHandler(Map<String, BinaryCodec<ChannelHandlerContext>> servicesByPath, Map<String, BiFunction<?, ChannelHandlerContext, ?>> transformers) {
         this.servicesByPath = servicesByPath;
+        this.transformers = transformers;
     }
 
     @Override
@@ -139,7 +154,8 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
                 return;
             }
             Object request = codec.decode(CodedInputStream.newInstance(buf.nioBuffer()), md.getInputType(), unknownFields);
-            byte[] response = codec.process(qualifiedMethodName, request);
+            BiFunction<?, ChannelHandlerContext, ?> methodConsumer = transformers.get(qualifiedMethodName);
+            byte[] response = codec.process(qualifiedMethodName, ctx, request, methodConsumer);
             writeGrpcDataFrame(ctx, response, false);
             sendTrailers(ctx, GrpcStatus.OK);
         } catch (IOException e) {
@@ -163,24 +179,23 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void sendTrailers(ChannelHandlerContext ctx, GrpcStatus status) {
-        if (status.isOk()) {
-            logger.debug("Processing gRPC frame for method {}", qualifiedMethodName);
-        } else {
-            logger.warn("Processing gRPC frame for method {} with error status: {}", qualifiedMethodName, status);
-        }
-        ctx.writeAndFlush(new DefaultHttp2HeadersFrame(status.getHeaders(), true));
+        trailersSend(ctx, status, status.getHeaders());
     }
 
     private void sendTrailersOnly(ChannelHandlerContext ctx, GrpcStatus status) {
+        Http2Headers trailersOnly = status.getHeaders()
+                                          .status("200")
+                                          .add(HEADER_CONTENT_TYPE, GRPC_CONTENT_TYPE);
+        trailersSend(ctx, status, trailersOnly);
+    }
+
+    private void trailersSend(ChannelHandlerContext ctx, GrpcStatus status, Http2Headers headers) {
         if (status.isOk()) {
             logger.debug("Processing gRPC frame for method {}", qualifiedMethodName);
         } else {
             logger.warn("Processing gRPC frame for method {} with error status: {}", qualifiedMethodName, status);
         }
-        Http2Headers trailersOnly = status.getHeaders()
-                                          .status("200")
-                                          .add(HEADER_CONTENT_TYPE, GRPC_CONTENT_TYPE);
-        ctx.writeAndFlush(new DefaultHttp2HeadersFrame(trailersOnly, true));
+        ctx.writeAndFlush(new DefaultHttp2HeadersFrame(headers, true));
     }
 
 }

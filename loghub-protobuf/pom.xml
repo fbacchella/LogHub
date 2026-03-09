@@ -45,6 +45,24 @@
             <artifactId>protobuf-java-util</artifactId>
             <version>${protobuf.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${grpc.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${grpc.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+            <version>${grpc.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -130,6 +148,46 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>io.github.ascopes</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>5.0.1</version>
+                <configuration>
+                    <protoc>${protobuf.version}</protoc>
+                    <plugins>
+                        <!-- Vanilla protoc plugins - these are platform specific executables
+                             just like protoc is. -->
+                        <plugin kind="binary-maven">
+                            <groupId>io.grpc</groupId>
+                            <artifactId>protoc-gen-grpc-java</artifactId>
+                            <version>${grpc.version}</version>
+                        </plugin>
+                    </plugins>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-sources</id>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>generate-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <configuration>
+                            <sourceDirectories>
+                                <sourceDirectory>${project.basedir}/src/main/protobuf</sourceDirectory>
+                                <sourceDirectory>${project.basedir}/src/test/protobuf</sourceDirectory>
+                            </sourceDirectories>
+                        </configuration>
+                        <goals>
+                            <goal>generate-test</goal>
+                        </goals>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
