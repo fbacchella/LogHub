@@ -1,12 +1,15 @@
 package loghub;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -22,6 +25,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 
@@ -52,14 +56,27 @@ import loghub.security.ssl.SslContextBuilder;
 
 class TestGrpcPingServer {
 
-    private static final SSLContext sslctx = SslContextBuilder.getBuilder(Map.of("context", "TLSv1.3", "trusts", Tools.getDefaultKeyStore())).build();
-    private static final SslContext nettyCtx = getNettyCtx();
-    private static final HttpClient client = HttpClient.newBuilder().sslContext(sslctx).build();
+    @TempDir
+    static Path tempDir;
+
+    private static SSLContext sslctx;
+    private static SslContext nettyCtx;
+    private static HttpClient client;
 
     private static final HttpTestServer resource = new HttpTestServer();
 
     private static GrpcStreamHandler.Factory factory;
     private static URI listenUri;
+
+    private static SSLContext generateSslContext() {
+        Path tempP12File = tempDir.resolve("loghub.p12");
+        try (InputStream is = TestGrpcPingServer.class.getResourceAsStream("/loghub.p12")) {
+            Files.copy(is, tempP12File, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            return SslContextBuilder.getBuilder(Map.of("context", "TLSv1.3", "trusts", tempP12File.toString())).build();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private static SslContext getNettyCtx() {
         ApplicationProtocolConfig apn = new ApplicationProtocolConfig(Protocol.ALPN, SelectorFailureBehavior.FATAL_ALERT, SelectedListenerFailureBehavior.FATAL_ALERT, "h2");
@@ -72,6 +89,9 @@ class TestGrpcPingServer {
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer", "loghub.netty", "loghub.protobuf");
         Configurator.setLevel("org", Level.WARN);
+        sslctx = generateSslContext();
+        nettyCtx = getNettyCtx();
+        client = HttpClient.newBuilder().sslContext(sslctx).build();
         JmxService.start(JmxService.configuration());
         BinaryCodec<GrpcStreamHandler> ping = new Ping<>();
         factory = new GrpcStreamHandler.Factory(ping);
