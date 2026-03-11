@@ -2,13 +2,9 @@ package loghub.netty.http2;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -34,7 +30,6 @@ import loghub.netty.http.HttpCommon;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.NotSharable;
-import loghub.netty.http.RequestAccept;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpResponseStatus.SERVICE_UNAVAILABLE;
@@ -64,22 +59,9 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
     protected Http2Handler(boolean release) {
         super(release);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
-        RequestAccept mask = getClass().getAnnotation(RequestAccept.class);
-        if (mask != null) {
-            String filter = mask.filter();
-            String path = mask.path();
-            if (filter != null && ! filter.isEmpty()) {
-                this.urlFilter = Pattern.compile(filter).asPredicate();
-            } else if (path != null && ! path.isEmpty()) {
-                this.urlFilter = path::equals;
-            } else {
-                this.urlFilter = i -> true;
-            }
-            this.methods = Arrays.stream(mask.methods()).map(i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
-        } else {
-            this.urlFilter = i -> true;
-            this.methods = Collections.emptySet();
-        }
+        RequestFilter filter = HttpCommon.RequestFilter.of(this);
+        this.methods = filter.methods();
+        this.urlFilter = filter.urlFilter();
     }
 
     @Override
@@ -89,7 +71,6 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Http2HeadersFrame frame) {
-        Http2Headers headers = frame.headers();
         try {
             subProcessing(frame, ctx);
         } catch (HttpRequestFailure e) {
@@ -99,17 +80,17 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
 
     @Override
     public final boolean acceptInboundMessage(Object msg) throws Exception {
-        if (super.acceptInboundMessage(msg)) {
-            Http2HeadersFrame frame = (Http2HeadersFrame) msg;
-            return acceptRequest(frame.headers());
+        if (super.acceptInboundMessage(msg) && msg instanceof Http2HeadersFrame frame) {
+            return acceptRequest(frame);
         } else {
             return false;
         }
     }
 
-    public boolean acceptRequest(Http2Headers headers) {
-        CharSequence method = headers.method();
-        CharSequence path = headers.path();
+    @Override
+    public boolean acceptRequest(Http2HeadersFrame headers) {
+        CharSequence method = headers.headers().method();
+        CharSequence path = headers.headers().path();
         return method != null && methods.contains(HttpMethod.valueOf(method.toString().toUpperCase()))
                 && path != null && urlFilter.test(path.toString());
     }
@@ -183,15 +164,6 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
     }
 
     @Override
-    public Instant getContentDateInstant(Http2HeadersFrame requestFrame, Http2Headers responseHeaders) {
-        return getContentDateInstantImpl(requestFrame, responseHeaders);
-    }
-
-    protected Instant getContentDateInstantImpl(Http2HeadersFrame requestFrame, Http2Headers responseHeaders) {
-        return Instant.now();
-    }
-
-    @Override
     public void addContentDateCommon(Http2HeadersFrame requestFrame, Http2Headers responseHeaders) {
         addContentDate(requestFrame, responseHeaders);
     }
@@ -204,11 +176,7 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
     }
 
     @Override
-    public String getContentTypeCommon(Http2HeadersFrame requestFrame, Http2Headers responseHeaders) {
-        return getContentType(requestFrame, responseHeaders);
-    }
-
-    protected String getContentType(Http2HeadersFrame requestFrame, Http2Headers responseHeaders) {
+    public String getContentType(Http2HeadersFrame requestFrame, Http2Headers responseHeaders, ChannelHandlerContext ctx) {
         ContentType ct = getClass().getAnnotation(ContentType.class);
         if (ct != null) {
             return ct.value();

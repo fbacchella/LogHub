@@ -3,18 +3,14 @@ package loghub.netty.http;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
@@ -24,7 +20,6 @@ import org.apache.logging.log4j.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -40,12 +35,10 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http2.Http2HeadersFrame;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
-import loghub.datetime.DatetimeProcessor;
-import loghub.metrics.Stats;
-import loghub.netty.HttpChannelConsumer;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -63,22 +56,9 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     protected HttpHandler(boolean release) {
         super(release);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
-        RequestAccept mask = getClass().getAnnotation(RequestAccept.class);
-        if (mask != null) {
-            String filter = mask.filter();
-            String path = mask.path();
-            if (filter != null && ! filter.isEmpty()) {
-                this.urlFilter = Pattern.compile(filter).asPredicate();
-            } else if (path != null && ! path.isEmpty()) {
-                this.urlFilter = path::equals;
-            } else {
-                this.urlFilter = i -> true;
-            }
-            this.methods = Arrays.stream(mask.methods()).map(i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
-        } else {
-            this.urlFilter = i -> true;
-            this.methods = Collections.emptySet();
-        }
+        RequestFilter filter = HttpCommon.RequestFilter.of(this);
+        this.methods = filter.methods();
+        this.urlFilter = filter.urlFilter();
     }
 
     protected HttpHandler(boolean release, Predicate<String> urlFilter, String... methods) {
@@ -118,9 +98,14 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     @Override
     public final boolean acceptInboundMessage(Object msg) throws Exception {
-        return super.acceptInboundMessage(msg) && acceptRequest((HttpRequest) msg);
+        if (super.acceptInboundMessage(msg) && msg instanceof HttpRequest request) {
+            return acceptRequest(request);
+        } else {
+            return false;
+        }
     }
 
+    @Override
     public boolean acceptRequest(HttpRequest request) {
         return methods.contains(request.method()) && urlFilter.test(request.uri());
     }
@@ -202,7 +187,8 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
     }
 
-    protected String getContentType(HttpRequest request, HttpResponse response) {
+    @Override
+    public String getContentType(HttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
         ContentType ct = getClass().getAnnotation(ContentType.class);
         if (ct != null) {
             return ct.value();
