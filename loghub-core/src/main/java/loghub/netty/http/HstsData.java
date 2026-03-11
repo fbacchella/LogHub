@@ -34,9 +34,14 @@ public class HstsData {
                 }
                 case Http2HeadersFrame frame -> {
                     Http2Headers headers = frame.headers();
-                    headers.set(HstsData.HEADER_NAME, HstsData.this.getHeader());
+                    // Detect if it's the initial headers frame, not a trailer one
+                    if (headers.status() != null) {
+                        headers.set(HstsData.HEADER_NAME, HstsData.this.getHeader());
+                    }
                 }
-                default -> { }
+                default -> {
+                    // Nothing to do
+                }
             }
             super.write(ctx, msg, promise);
         }
