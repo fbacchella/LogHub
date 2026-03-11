@@ -53,17 +53,12 @@ import static io.netty.handler.codec.http.HttpResponseStatus.SERVICE_UNAVAILABLE
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 @Sharable
-public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
-
-    private static final String TEXT_CONTENT_TYPE = "text/plain; charset=UTF-8";
+public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRequest> implements HttpCommon<HttpRequest, HttpResponse> {
 
     protected final Logger logger;
     private final Predicate<String> urlFilter;
     private final Set<HttpMethod> methods;
 
-    private static final DatetimeProcessor DATE_FORMATTER = DatetimeProcessor.of("EEE, dd MMM yyyy HH:mm:ss 'GMT'")
-                                                                             .withLocale(Locale.US)
-                                                                             .withDefaultZone(ZoneOffset.UTC);
 
     protected HttpHandler(boolean release) {
         super(release);
@@ -93,8 +88,14 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         this.methods = Arrays.stream(methods).map(i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
     }
 
-    protected HttpHandler(boolean release, Predicate<String> urlFilter) {
-        this(release, urlFilter, "GET");
+    @Override
+    public Logger getLogger() {
+        return logger;
+    }
+
+    @Override
+    public void setResponseHeader(HttpResponse response, CharSequence name, Object value) {
+        response.headers().set(name, value);
     }
 
     @Override
@@ -164,45 +165,13 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         doStatusMetric(ctx, response.status());
     }
 
-    private void addNoCacheHeaders(HttpResponse response) {
-        response.headers().add(HttpHeaderNames.CACHE_CONTROL, "private, max-age=0");
-        response.headers().add(HttpHeaderNames.EXPIRES, "-1");
-    }
 
-    /**
-     * Used to log a status line when transfer is finished
-     * @param sendFuture
-     * @param method
-     * @param uri
-     * @param status
-     * @param message
-     */
-    protected void addLogger(ChannelFuture sendFuture, String method, String uri, int status, String message) {
-        sendFuture.addListener(
-                (ChannelFutureListener) future -> logger.info("{} {}: {} {}", method, uri, status, message));
-    }
-
-    /**
-     * Can be used to add custom handlers to a response, call by {@link #writeResponse(ChannelHandlerContext, FullHttpRequest, ByteBuf, int)}.
-     * So if processRequest don't call it, no handlers will be added
-     *
-     * @param request
-     * @param response
-     * @param ctx
-     */
-    protected void addCustomHeaders(HttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
+    @Override
+    public void addCustomHeadersCommon(HttpRequest request, HttpResponse response) {
         addCustomHeaders(request, response);
     }
 
-    /**
-     * Can be used to add custom handlers to a response, call by {@link #writeResponse(ChannelHandlerContext, FullHttpRequest, ByteBuf, int)}.
-     * So if processRequest don't call it, no handlers will be added
-     *
-     * @param request
-     * @param response
-     */
     protected void addCustomHeaders(HttpRequest request, HttpResponse response) {
-
     }
 
     /**
@@ -212,30 +181,25 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
      */
     @Deprecated
     protected Date getContentDate(io.netty.handler.codec.http.HttpRequest request, io.netty.handler.codec.http.HttpResponse response) {
-        return Date.from(getContentDateInstant(request, response));
+        Instant i = getContentDateInstant(request, response);
+        return i != null ? Date.from(i) : null;
     }
 
-    /**
-     * Return the origin date of the content
-     * @return the content date
-     */
-    protected Instant getContentDateInstant(io.netty.handler.codec.http.HttpRequest request, io.netty.handler.codec.http.HttpResponse response) {
+    @Override
+    public Instant getContentDateInstant(HttpRequest request, HttpResponse response) {
         return Instant.now();
     }
 
-    protected void addContentDate(FullHttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
+    @Override
+    public void addContentDateCommon(HttpRequest request, HttpResponse response) {
         addContentDate(request, response);
     }
 
     protected void addContentDate(HttpRequest request, HttpResponse response) {
         Instant contentDate = getContentDateInstant(request, response);
         if (contentDate != null) {
-            response.headers().set(HttpHeaderNames.LAST_MODIFIED, DATE_FORMATTER.print(contentDate));
+            response.headers().set(HttpHeaderNames.LAST_MODIFIED, HttpCommon.DATE_FORMATTER.print(contentDate));
         }
-    }
-
-    protected String getContentType(HttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
-        return getContentType(request, response);
     }
 
     protected String getContentType(HttpRequest request, HttpResponse response) {
@@ -247,12 +211,6 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
     }
 
-    private void addContentType(HttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
-        String contentType = getContentType(request, response, ctx);
-        if (contentType != null) {
-            response.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType);
-        }
-    }
 
     private void failure(ChannelHandlerContext ctx, HttpRequest request, HttpResponseStatus status, String message, Map<AsciiString, Object> additionHeaders) {
         logger.warn("{} {}: {} transfer complete: {}", request::method, request::uri, status::code, () -> message);
@@ -292,12 +250,6 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             ctx.writeAndFlush(response);
             doStatusMetric(ctx, SERVICE_UNAVAILABLE);
         }
-    }
-
-    private void doStatusMetric(ChannelHandlerContext ctx, HttpResponseStatus status) {
-        Object holder = ctx.channel().attr(HttpChannelConsumer.HOLDERATTRIBUTE).get();
-        long startTime = ctx.channel().attr(HttpChannelConsumer.STARTTIMEATTRIBUTE).get();
-        Stats.getWebMetric(holder, status.code()).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     }
 
 }

@@ -72,7 +72,7 @@ class PrometheusExporter extends HttpRequestProcessing {
      * @param ctx
      */
     @Override
-    protected void addCustomHeaders(HttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
+    public void addCustomHeaders(HttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
         NettyPrometheusHttpExchange exchange = ctx.channel().attr(EXCHANGE_KEY).get();
         exchange.copyHeader(response.headers());
     }
