@@ -33,7 +33,6 @@ import loghub.Tools;
 import loghub.metrics.JmxService;
 import loghub.netty.http2.Http2Handler;
 import loghub.netty.http2.Http2RequestProcessing;
-import loghub.netty.http2.NotFound;
 import loghub.netty.transport.TcpTransport;
 import loghub.security.ssl.SslContextBuilder;
 

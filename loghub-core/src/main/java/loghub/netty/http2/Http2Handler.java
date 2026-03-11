@@ -175,14 +175,4 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
         }
     }
 
-    @Override
-    public String getContentType(Http2HeadersFrame requestFrame, Http2Headers responseHeaders, ChannelHandlerContext ctx) {
-        ContentType ct = getClass().getAnnotation(ContentType.class);
-        if (ct != null) {
-            return ct.value();
-        } else {
-            return null;
-        }
-    }
-
 }

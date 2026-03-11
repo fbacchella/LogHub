@@ -24,7 +24,7 @@ public class RootRedirect extends HttpRequestProcessing implements ChannelInboun
     }
 
     @Override
-    protected String getContentType(HttpRequest request, HttpResponse response) {
+    public String getContentType(HttpRequest request, HttpResponse response) {
         return null;
     }
 

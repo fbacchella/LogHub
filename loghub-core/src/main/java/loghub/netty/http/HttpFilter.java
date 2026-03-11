@@ -30,7 +30,7 @@ public abstract class HttpFilter extends HttpHandler {
     protected abstract void filter(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure;
 
     @Override
-    protected String getContentType(HttpRequest request, HttpResponse response) {
+    public String getContentType(HttpRequest request, HttpResponse response) {
         return null;
     }
 

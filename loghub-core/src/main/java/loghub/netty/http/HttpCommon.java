@@ -66,11 +66,7 @@ public interface HttpCommon<R, H> extends ChannelInboundHandler {
         }
     }
 
-    default String getContentType(R request, H responseHeaders, ChannelHandlerContext ctx) {
-        return getContentTypeCommon(request, responseHeaders);
-    }
-
-    default String getContentTypeCommon(R request, H responseHeaders) {
+    default String getContentType(R request, H responseHeaders) {
         ContentType ct = getClass().getAnnotation(ContentType.class);
         if (ct != null) {
             return ct.value();
@@ -80,7 +76,7 @@ public interface HttpCommon<R, H> extends ChannelInboundHandler {
     }
 
     default void addContentType(R request, H responseHeaders, ChannelHandlerContext ctx) {
-        String contentType = getContentType(request, responseHeaders, ctx);
+        String contentType = getContentType(request, responseHeaders);
         if (contentType != null) {
             setResponseHeader(responseHeaders, HttpHeaderNames.CONTENT_TYPE, contentType);
         }

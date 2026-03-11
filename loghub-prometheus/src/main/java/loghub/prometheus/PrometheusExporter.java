@@ -57,7 +57,7 @@ class PrometheusExporter extends HttpRequestProcessing {
     }
 
     @Override
-    protected String getContentType(HttpRequest request, HttpResponse response) {
+    public String getContentType(HttpRequest request, HttpResponse response) {
         String acceptHeader = request.headers().get("Accept");
         ExpositionFormatWriter writer = expositionFormats.findWriter(acceptHeader);
         return writer.getContentType();

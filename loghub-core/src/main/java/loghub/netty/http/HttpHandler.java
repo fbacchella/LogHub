@@ -187,17 +187,6 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
     }
 
-    @Override
-    public String getContentType(HttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
-        ContentType ct = getClass().getAnnotation(ContentType.class);
-        if (ct != null) {
-            return ct.value();
-        } else {
-            return null;
-        }
-    }
-
-
     private void failure(ChannelHandlerContext ctx, HttpRequest request, HttpResponseStatus status, String message, Map<AsciiString, Object> additionHeaders) {
         logger.warn("{} {}: {} transfer complete: {}", request::method, request::uri, status::code, () -> message);
         FullHttpResponse response = new DefaultFullHttpResponse(

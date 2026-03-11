@@ -18,7 +18,7 @@ public class FatalErrorHandler extends HttpRequestProcessing {
         throw new HttpRequestFailure(HttpResponseStatus.SERVICE_UNAVAILABLE, "Unable to process request because of invalid configuration");
     }
     @Override
-    protected String getContentType(HttpRequest request, HttpResponse response) {
+    public String getContentType(HttpRequest request, HttpResponse response) {
         return null;
     }
 }
