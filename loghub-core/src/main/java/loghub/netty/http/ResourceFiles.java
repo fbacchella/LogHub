@@ -71,7 +71,7 @@ public class ResourceFiles extends HttpRequestProcessing {
     }
 
     @Override
-    protected String getContentType(HttpRequest request, HttpResponse response) {
+    public String getContentType(HttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
         return Helpers.getMimeType(internalPath);
     }
 
