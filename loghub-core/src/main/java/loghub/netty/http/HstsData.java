@@ -1,30 +1,42 @@
 package loghub.netty.http;
 
 import java.time.Duration;
+import java.util.Map;
 
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelHandlerAdapter;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http2.Http2Headers;
+import io.netty.handler.codec.http2.Http2HeadersFrame;
+import loghub.VarFormatter;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-@Data @Builder @Accessors(fluent = true)
+@Data
+@Accessors(fluent = true)
 public class HstsData {
 
     public static final  String HEADER_NAME = "Strict-Transport-Security";
     private static final Duration ONE_YEAR = Duration.ofDays(365);
+    private static final VarFormatter FORMATTER = new VarFormatter("max-age=${max-age}${includeSubDomains}${preload}");
 
-    private class HSTSHandler extends ChannelDuplexHandler {
+    private class HSTSHandler extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof HttpResponse) {
-                HttpResponse response = (HttpResponse) msg;
-                HttpHeaders headers = response.headers();
-                headers.set(HstsData.HEADER_NAME, HstsData.this.getHeader());
+            switch (msg) {
+                case HttpResponse response -> {
+                    HttpHeaders headers = response.headers();
+                    headers.set(HstsData.HEADER_NAME, HstsData.this.getHeader());
+                }
+                case Http2HeadersFrame frame -> {
+                    Http2Headers headers = frame.headers();
+                    headers.set(HstsData.HEADER_NAME, HstsData.this.getHeader());
+                }
+                default -> { }
             }
             super.write(ctx, msg, promise);
         }
@@ -34,6 +46,7 @@ public class HstsData {
     private final boolean includeSubDomains;
     private final boolean preload;
 
+    @Builder
     private HstsData(Duration maxAge, boolean includeSubDomains, boolean preload) {
         if (preload && maxAge.compareTo(ONE_YEAR) < 0) {
             throw new IllegalArgumentException("Duration must be more that one year with preload");
@@ -44,13 +57,12 @@ public class HstsData {
     }
 
     public String getHeader() {
-        return String.format("max-age=%s%s%s",
-                maxAge.getSeconds(),
-                includeSubDomains ? "; includeSubDomains" : "",
-                preload ? "; preload" : "");
+        return FORMATTER.format(Map.of("max-age", maxAge.getSeconds(),
+                                       "includeSubDomains", includeSubDomains ? "; includeSubDomains" : "",
+                                       "preload", preload ? "; preload" : ""));
     }
 
-    public ChannelHandlerAdapter getChannelHandler() {
+    public ChannelHandler getChannelHandler() {
         return new HSTSHandler();
     }
 
