@@ -1,6 +1,5 @@
 package loghub.netty.http;
 
-import java.util.Date;
 import java.util.function.Predicate;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -32,11 +31,6 @@ public abstract class HttpFilter extends HttpHandler {
 
     @Override
     protected String getContentType(HttpRequest request, HttpResponse response) {
-        return null;
-    }
-
-    @Override
-    protected Date getContentDate(HttpRequest request, HttpResponse response) {
         return null;
     }
 

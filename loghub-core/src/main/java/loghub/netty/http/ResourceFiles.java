@@ -8,7 +8,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Date;
+import java.time.Instant;
 import java.util.jar.JarEntry;
 
 import io.netty.buffer.ByteBuf;
@@ -26,7 +26,7 @@ import loghub.Helpers;
 public class ResourceFiles extends HttpRequestProcessing {
 
     private String internalPath;
-    private Date internalDate;
+    private Instant internalDate;
 
     @Override
     public boolean acceptRequest(HttpRequest request) {
@@ -49,13 +49,13 @@ public class ResourceFiles extends HttpRequestProcessing {
                 }
                 int length = jarConnection.getContentLength();
                 internalPath = entry.getName();
-                internalDate = new Date(entry.getLastModifiedTime().toMillis());
+                internalDate = entry.getLastModifiedTime().toInstant();
                 ChunkedInput<ByteBuf> content = new ChunkedStream(jarConnection.getInputStream());
                 writeResponse(ctx, request, content, length);
             } else {
                 Path ressource = Paths.get(resourceUrl.toURI());
                 internalPath = ressource.toString();
-                internalDate = new Date(Files.getLastModifiedTime(ressource).toInstant().toEpochMilli());
+                internalDate = Files.getLastModifiedTime(ressource).toInstant();
                 ChunkedNioFile content = new ChunkedNioFile(ressource.toFile());
                 writeResponse(ctx, request, content, (int) Files.size(ressource));
             }
@@ -76,7 +76,7 @@ public class ResourceFiles extends HttpRequestProcessing {
     }
 
     @Override
-    public Date getContentDate(HttpRequest request, HttpResponse response) {
+    public Instant getContentDateInstant(HttpRequest request, HttpResponse response) {
         return internalDate;
     }
 

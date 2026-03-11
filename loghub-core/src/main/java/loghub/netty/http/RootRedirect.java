@@ -1,7 +1,5 @@
 package loghub.netty.http;
 
-import java.util.Date;
-
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
@@ -27,11 +25,6 @@ public class RootRedirect extends HttpRequestProcessing implements ChannelInboun
 
     @Override
     protected String getContentType(HttpRequest request, HttpResponse response) {
-        return null;
-    }
-
-    @Override
-    protected Date getContentDate(HttpRequest request, HttpResponse response) {
         return null;
     }
 

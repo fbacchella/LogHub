@@ -2,7 +2,8 @@ package loghub.netty.http;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -10,7 +11,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -43,6 +43,7 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
+import loghub.datetime.DatetimeProcessor;
 import loghub.metrics.Stats;
 import loghub.netty.HttpChannelConsumer;
 
@@ -60,11 +61,9 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     private final Predicate<String> urlFilter;
     private final Set<HttpMethod> methods;
 
-    private static final ThreadLocal<SimpleDateFormat> dateFormatter = ThreadLocal.withInitial(() -> {
-        SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US);
-        sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
-        return sdf;
-    });
+    private static final DatetimeProcessor DATE_FORMATTER = DatetimeProcessor.of("EEE, dd MMM yyyy HH:mm:ss 'GMT'")
+                                                                             .withLocale(Locale.US)
+                                                                             .withDefaultZone(ZoneOffset.UTC);
 
     protected HttpHandler(boolean release) {
         super(release);
@@ -153,7 +152,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         addContentDate(request, response, ctx);
         addContentType(request, response, ctx);
         if (getClass().getAnnotation(NoCache.class) != null) {
-            addNoCacheHeaders(request, response);
+            addNoCacheHeaders(response);
         }
         if (length >= 0) {
             HttpUtil.setContentLength(response, length);
@@ -165,7 +164,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         doStatusMetric(ctx, response.status());
     }
 
-    private void addNoCacheHeaders(HttpRequest request, HttpResponse response) {
+    private void addNoCacheHeaders(HttpResponse response) {
         response.headers().add(HttpHeaderNames.CACHE_CONTROL, "private, max-age=0");
         response.headers().add(HttpHeaderNames.EXPIRES, "-1");
     }
@@ -209,9 +208,19 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     /**
      * Return the origin date of the content, or null if irrelevant
      * @return the content date
+     * @deprecated use {@link #getContentDateInstant(io.netty.handler.codec.http.HttpRequest, io.netty.handler.codec.http.HttpResponse)} instead.
      */
+    @Deprecated
     protected Date getContentDate(io.netty.handler.codec.http.HttpRequest request, io.netty.handler.codec.http.HttpResponse response) {
-        return new Date();
+        return Date.from(getContentDateInstant(request, response));
+    }
+
+    /**
+     * Return the origin date of the content
+     * @return the content date
+     */
+    protected Instant getContentDateInstant(io.netty.handler.codec.http.HttpRequest request, io.netty.handler.codec.http.HttpResponse response) {
+        return Instant.now();
     }
 
     protected void addContentDate(FullHttpRequest request, HttpResponse response, ChannelHandlerContext ctx) {
@@ -219,9 +228,9 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     protected void addContentDate(HttpRequest request, HttpResponse response) {
-        Date contentDate = getContentDate(request, response);
+        Instant contentDate = getContentDateInstant(request, response);
         if (contentDate != null) {
-            response.headers().set(HttpHeaderNames.LAST_MODIFIED, dateFormatter.get().format(contentDate));
+            response.headers().set(HttpHeaderNames.LAST_MODIFIED, DATE_FORMATTER.print(contentDate));
         }
     }
 
@@ -262,8 +271,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         // Forward non HTTP error
         if (cause instanceof IOException || cause.getCause() instanceof IOException) {
             ctx.fireExceptionCaught(cause);
-        } else if (Optional.ofNullable(cause.getCause()).orElse(cause) instanceof HttpRequestFailure) {
-            HttpRequestFailure failure = (HttpRequestFailure) Optional.ofNullable(cause.getCause()).orElse(cause);
+        } else if (Optional.ofNullable(cause.getCause()).orElse(cause) instanceof HttpRequestFailure failure) {
             FullHttpResponse response = new DefaultFullHttpResponse(
                                                                     HTTP_1_1, failure.status,
                                                                     Unpooled.copiedBuffer(failure.message + "\r\n", StandardCharsets.UTF_8));
