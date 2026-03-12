@@ -1,6 +1,8 @@
 package loghub.netty.http;
 
 import java.io.IOException;
+import java.net.Authenticator;
+import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -45,6 +47,7 @@ import loghub.Tools;
 import loghub.metrics.JmxService;
 import loghub.metrics.Stats;
 import loghub.netty.transport.TcpTransport;
+import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.SslContextBuilder;
 
@@ -125,6 +128,22 @@ class TestHttpChannelConsumer {
         String scheme = url.getScheme();
         resource.setModelHandlers(handlers);
         HttpClient.Builder clientBuilder = HttpClient.newBuilder().version(version);
+        if ("https".equals(scheme)) {
+            clientBuilder.sslContext(getContext.apply(Collections.emptyMap()));
+        }
+        try (HttpClient client = clientBuilder.build()) {
+            HttpRequest request = HttpRequest.newBuilder()
+                                          .uri(url)
+                                          .GET()
+                                          .build();
+            HttpResponse<T> response = client.send(request, handler);
+            processResponse.accept(response);
+        }
+    }
+
+    private <T> void runRequest(HttpClient.Builder clientBuilder, URI url, BodyHandler<T> handler, Consumer<HttpResponse<T>> processResponse)
+            throws IOException, InterruptedException {
+        String scheme = url.getScheme();
         if ("https".equals(scheme)) {
             clientBuilder.sslContext(getContext.apply(Collections.emptyMap()));
         }
@@ -221,7 +240,7 @@ class TestHttpChannelConsumer {
 
     @ParameterizedTest
     @MethodSource("protocolArguments")
-    //@Timeout(5)
+    @Timeout(5)
     void testMetrics(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
         URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
         URI requestUri = theURL.resolve("/metric/global");
@@ -277,6 +296,58 @@ class TestHttpChannelConsumer {
             checkTlsPeer(r, "CN=localhost");
         };
         runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse, new SimpleHandler());
+    }
+
+    @ParameterizedTest
+    @MethodSource("protocolArguments")
+    @Timeout(5)
+    void testPasswordAuthenticationFailed(HttpClient.Version version, String scheme)
+            throws IOException, InterruptedException {
+        AuthenticationHandler auhtHandler = AuthenticationHandler.getBuilder()
+                                                    .setLogin("user").setPassword("password".toCharArray())
+                                                    .build();
+        resource.setAuthHandler(auhtHandler);
+        resource.setVersionedModelSetup((v, p) -> {
+
+        });
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.NONE));
+        Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertNotNull(r.body());
+            Assertions.assertEquals(401, r.statusCode());
+        };
+        runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse);
+    }
+
+    @ParameterizedTest
+    @MethodSource("protocolArguments")
+    @Timeout(5)
+    void testPasswordAuthenticationSuccess(HttpClient.Version version, String scheme)
+            throws IOException, InterruptedException {
+        AuthenticationHandler auhtHandler = AuthenticationHandler.getBuilder()
+                                                    .setLogin("user").setPassword("password".toCharArray())
+                                                    .build();
+        resource.setAuthHandler(auhtHandler);
+        resource.setVersionedModelSetup((v, p) -> {
+
+        });
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.NONE));
+        Authenticator authenticator = new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(
+                        "user",
+                        "password".toCharArray()
+                );
+            }
+        };
+        HttpClient.Builder clientBuilder = HttpClient.newBuilder()
+                                                     .version(version)
+                                                     .authenticator(authenticator);
+        Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertNotNull(r.body());
+            Assertions.assertEquals(404, r.statusCode());
+        };
+        runRequest(clientBuilder, theURL, HttpResponse.BodyHandlers.ofString(), processResponse);
     }
 
     @ParameterizedTest

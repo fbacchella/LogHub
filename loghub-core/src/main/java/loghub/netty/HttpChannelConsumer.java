@@ -309,6 +309,10 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
             p.addLast("HstsHandler", hsts.getChannelHandler());
             logger.debug("Added HSTS header");
         }
+        if (authHandler != null) {
+            p.addLast("Authentication", new loghub.netty.http2.AccessControl(authHandler));
+            logger.debug("Added authentication");
+        }
         try {
             modelSetup.accept(HttpProtocolVersion.HTTP_2, p);
         } catch (RuntimeException e) {

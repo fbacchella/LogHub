@@ -2,6 +2,7 @@ package loghub.netty.http2;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -24,6 +25,7 @@ import io.netty.handler.codec.http2.DefaultHttp2Headers;
 import io.netty.handler.codec.http2.DefaultHttp2HeadersFrame;
 import io.netty.handler.codec.http2.Http2Headers;
 import io.netty.handler.codec.http2.Http2HeadersFrame;
+import io.netty.util.AsciiString;
 import loghub.Helpers;
 import loghub.netty.http.HttpCommon;
 import loghub.netty.http.HttpRequestFailure;
@@ -73,7 +75,7 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
         try {
             subProcessing(frame, ctx);
         } catch (HttpRequestFailure e) {
-            failure(ctx, frame, e.status, e.message);
+            failure(ctx, frame, e.status, e.message, e.additionHeaders);
         }
     }
 
@@ -121,13 +123,14 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
     }
 
 
-    private void failure(ChannelHandlerContext ctx, Http2HeadersFrame requestFrame, HttpResponseStatus status, String message) {
+    private void failure(ChannelHandlerContext ctx, Http2HeadersFrame requestFrame, HttpResponseStatus status, String message, Map<AsciiString, Object> additionHeaders) {
         Http2Headers headers = requestFrame.headers();
         logger.warn("{} {}: {} transfer complete: {}", headers::method, headers::path, status::code, () -> message);
         Http2Headers responseHeaders = new DefaultHttp2Headers().status(status.codeAsText());
         responseHeaders.set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
         ByteBuf content = Unpooled.copiedBuffer(message + "\r\n", StandardCharsets.UTF_8);
         responseHeaders.setInt(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
+        additionHeaders.forEach((key, value) -> responseHeaders.add(key, value.toString()));
         ctx.write(new DefaultHttp2HeadersFrame(responseHeaders, false));
         ctx.writeAndFlush(new DefaultHttp2DataFrame(content, true));
         doStatusMetric(ctx, status);
