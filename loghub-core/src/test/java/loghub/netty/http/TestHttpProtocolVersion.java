@@ -1,17 +1,20 @@
 package loghub.netty.http;
 
-import io.netty.handler.codec.http.HttpVersion;
 import java.net.http.HttpClient;
+
+import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+
+import io.netty.handler.codec.http.HttpVersion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class TestHttpProtocolVersion {
+class TestHttpProtocolVersion {
 
     @Test
-    public void testFromAlpnId() {
+    void testFromAlpnId() {
         assertEquals(HttpProtocolVersion.HTTP_1_1, HttpProtocolVersion.fromAlpnId("http/1.1").orElse(null));
         assertEquals(HttpProtocolVersion.HTTP_2, HttpProtocolVersion.fromAlpnId("h2").orElse(null));
         assertEquals(HttpProtocolVersion.HTTP_3, HttpProtocolVersion.fromAlpnId("h3").orElse(null));
@@ -20,35 +23,37 @@ public class TestHttpProtocolVersion {
     }
 
     @Test
-    public void testFromJdkVersion() {
-        assertEquals(HttpProtocolVersion.HTTP_1_1, HttpProtocolVersion.fromJdkVersion(HttpClient.Version.HTTP_1_1));
-        assertEquals(HttpProtocolVersion.HTTP_2, HttpProtocolVersion.fromJdkVersion(HttpClient.Version.HTTP_2));
+    void testFromJdkVersion() {
+        assertEquals(HttpProtocolVersion.HTTP_1_1, HttpProtocolVersion.fromJdkVersion(HttpClient.Version.HTTP_1_1).orElseThrow());
+        assertEquals(HttpProtocolVersion.HTTP_2, HttpProtocolVersion.fromJdkVersion(HttpClient.Version.HTTP_2).orElseThrow());
         // HTTP_3 might be null on older JDKs, but the map should still work if it's not null
         HttpClient.Version h3 = getHttp3Version();
         if (h3 != null) {
-            assertEquals(HttpProtocolVersion.HTTP_3, HttpProtocolVersion.fromJdkVersion(h3));
+            assertEquals(HttpProtocolVersion.HTTP_3, HttpProtocolVersion.fromJdkVersion(h3).orElseThrow());
         }
     }
 
     @Test
-    public void testFromJdkVersionNull() {
-        assertThrows(IllegalArgumentException.class, () -> HttpProtocolVersion.fromJdkVersion(null));
+    void testFromJdkVersionNull() {
+        assertTrue(HttpProtocolVersion.fromJdkVersion(null).isEmpty());
     }
 
     @Test
-    public void testFromNettyVersion() {
-        assertEquals(HttpProtocolVersion.HTTP_1_0, HttpProtocolVersion.fromNettyVersion(HttpVersion.HTTP_1_0));
-        assertEquals(HttpProtocolVersion.HTTP_1_1, HttpProtocolVersion.fromNettyVersion(HttpVersion.HTTP_1_1));
+    void testFromNettyVersion() {
+        assertEquals(HttpProtocolVersion.HTTP_1_0, HttpProtocolVersion.fromNettyVersion(HttpVersion.HTTP_1_0).orElseThrow());
+        assertEquals(HttpProtocolVersion.HTTP_1_1, HttpProtocolVersion.fromNettyVersion(HttpVersion.HTTP_1_1).orElseThrow());
+        assertEquals(HttpProtocolVersion.HTTP_2, HttpProtocolVersion.fromNettyVersion(new HttpVersion("HTTP/2.0", true)).orElseThrow());
+        assertEquals(HttpProtocolVersion.HTTP_3, HttpProtocolVersion.fromNettyVersion(new HttpVersion("HTTP/3.0", true)).orElseThrow());
     }
 
     @Test
-    public void testFromNettyVersionNull() {
-        assertThrows(IllegalArgumentException.class, () -> HttpProtocolVersion.fromNettyVersion(null));
+    void testFromNettyVersionNull() {
+        assertTrue(HttpProtocolVersion.fromNettyVersion(null).isEmpty());
     }
 
     @Test
-    public void testFromNettyVersionUnknown() {
-        assertThrows(IllegalArgumentException.class, () -> HttpProtocolVersion.fromNettyVersion(new HttpVersion("HTTP/2.0", true)));
+    void testFromNettyVersionUnknown() {
+        Assert.assertTrue(HttpProtocolVersion.fromNettyVersion(new HttpVersion("HTTP/4.0", true)).isEmpty());
     }
 
     private HttpClient.Version getHttp3Version() {

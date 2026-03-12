@@ -57,10 +57,6 @@ public enum HttpProtocolVersion {
      * <p>The JDK constant ({@code HttpClient.Version.HTTP_3}) is available since JDK 26 (JEP 517).
      * Netty HTTP/3 support lives in {@code netty-incubator-codec-http3} and is not represented
      * by {@link io.netty.handler.codec.http.HttpVersion}.
-     *
-     * <p>Calling {@link #toNettyVersion()} on this constant always throws
-     * {@link UnsupportedOperationException}. Calling {@link #toJdkVersion()} throws
-     * {@link UnsupportedOperationException} when running on JDK &lt; 26.
      */
     HTTP_3(
             "h3",
@@ -72,20 +68,20 @@ public enum HttpProtocolVersion {
      * ALPN identifier as registered with IANA.
      * {@code null} for HTTP/1.0, which predates ALPN and has no registered entry.
      */
-    private final String alpnId;
+    public final String alpnId;
 
     /**
      * Corresponding {@link java.net.http.HttpClient.Version} constant.
      * {@code null} when the JDK does not model this protocol version
      * (HTTP/1.0, or HTTP/3 on JDK &lt; 26).
      */
-    private final HttpClient.Version jdkVersion;
+    public final HttpClient.Version jdkVersion;
 
     /**
      * Corresponding {@link io.netty.handler.codec.http.HttpVersion} constant.
      * {@code null} for HTTP/2 and HTTP/3, which are not represented by that Netty class.
      */
-    private final HttpVersion nettyVersion;
+    public final HttpVersion nettyVersion;
 
     private static final Map<String, HttpProtocolVersion> BY_ALPN_ID;
     private static final Map<HttpClient.Version, HttpProtocolVersion> BY_JDK_VERSION;
@@ -114,58 +110,6 @@ public enum HttpProtocolVersion {
     }
 
     /**
-     * Returns the ALPN identifier for this version, or {@link Optional#empty()}
-     * if no official identifier exists (HTTP/1.0).
-     */
-    public Optional<String> alpnId() {
-        return Optional.ofNullable(alpnId);
-    }
-
-    /**
-     * Returns the corresponding {@link HttpClient.Version} constant.
-     *
-     * @return the JDK version constant
-     * @throws UnsupportedOperationException if this version has no JDK mapping
-     *         (HTTP/1.0, or HTTP/3 on JDK &lt; 26)
-     */
-    public HttpClient.Version toJdkVersion() {
-        if (jdkVersion == null) {
-            throw new UnsupportedOperationException(
-                    "No JDK HttpClient.Version mapping for " + this
-                            + (this == HTTP_3 ? " — requires JDK 26+ (JEP 517)" : ""));
-        }
-        return jdkVersion;
-    }
-
-    /**
-     * Returns the corresponding Netty {@link HttpVersion} constant.
-     *
-     * <p>The comparison uses {@code ==} because Netty guarantees reference
-     * interning for {@code HTTP_1_0} and {@code HTTP_1_1}.
-     *
-     * @return the Netty version constant
-     * @throws UnsupportedOperationException if this version has no Netty {@link HttpVersion}
-     *         mapping (HTTP/2 and HTTP/3 — handled by separate Netty codec modules)
-     */
-    public HttpVersion toNettyVersion() {
-        if (nettyVersion == null) {
-            throw new UnsupportedOperationException(
-                    "No Netty HttpVersion mapping for " + this
-                            + switch (this) {
-                        case HTTP_2 -> " — use netty-codec-http2 (io.netty.handler.codec.http2)";
-                        case HTTP_3 -> " — use netty-incubator-codec-http3";
-                        default     -> "";
-                    });
-        } else {
-            return nettyVersion;
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Resolution
-    // -------------------------------------------------------------------------
-
-    /**
      * Resolves from an ALPN identifier.
      *
      * @param alpnId ALPN identifier (e.g. {@code "h2"}, {@code "http/1.1"})
@@ -178,20 +122,11 @@ public enum HttpProtocolVersion {
     /**
      * Resolves from a JDK {@link HttpClient.Version} constant.
      *
-     * @param version JDK constant, must not be null
-     * @return the matching version
-     * @throws IllegalArgumentException if the JDK constant is not recognised
+     * @param version JDK constant
+     * @return the matching version, or {@link Optional#empty()} if null or not recognised
      */
-    public static HttpProtocolVersion fromJdkVersion(HttpClient.Version version) {
-        if (version == null) {
-            throw new IllegalArgumentException("JDK version must not be null");
-        }
-        HttpProtocolVersion resolved = BY_JDK_VERSION.get(version);
-        if (resolved != null) {
-            return resolved;
-        } else {
-            throw new IllegalArgumentException("Unrecognised JDK version: " + version);
-        }
+    public static Optional<HttpProtocolVersion> fromJdkVersion(HttpClient.Version version) {
+        return version == null ? Optional.empty() : Optional.ofNullable(BY_JDK_VERSION.get(version));
     }
 
     /**
@@ -203,19 +138,21 @@ public enum HttpProtocolVersion {
      * match any entry; this is intentional.
      *
      * @param version Netty constant, must not be null
-     * @return the matching version
-     * @throws IllegalArgumentException if the Netty constant is not recognised
+     * @return the matching version, or {@link Optional#empty()} if null or not recognised
      */
-    public static HttpProtocolVersion fromNettyVersion(HttpVersion version) {
-        if (version == null) {
-            throw new IllegalArgumentException("Netty version must not be null");
-        }
-        HttpProtocolVersion resolved = BY_NETTY_VERSION.get(version);
-        if (resolved != null) {
-            return resolved;
-        } else {
-            throw new IllegalArgumentException("Unrecognised Netty version: " + version);
-        }
+    public static Optional<HttpProtocolVersion> fromNettyVersion(HttpVersion version) {
+        return Optional.ofNullable(version)
+                .map(v -> BY_NETTY_VERSION.get(v))
+                .or(() -> {
+                    switch (version == null ? -1 : version.majorVersion()) {
+                        case 2:
+                            return Optional.of(HttpProtocolVersion.HTTP_2);
+                        case 3:
+                            return Optional.of(HttpProtocolVersion.HTTP_3);
+                        default:
+                            return Optional.empty();
+                    }
+                });
     }
 
     /**

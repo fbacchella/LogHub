@@ -11,8 +11,9 @@ import loghub.netty.transport.TRANSPORT;
 import loghub.receivers.Blocking;
 
 @Blocking
-public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>, B
-                extends AbstractHttpReceiver.Builder<R, B>> extends NettyReceiver<R, HttpMessage, B>
+public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
+                                           B extends AbstractHttpReceiver.Builder<R, B>>
+        extends NettyReceiver<R, HttpMessage, B>
                 implements ConsumerProvider, CustomStats {
 
     public abstract static class Builder<R extends AbstractHttpReceiver<R, B>, B extends AbstractHttpReceiver.Builder<R, B>> extends NettyReceiver.Builder<R, HttpMessage, B> {

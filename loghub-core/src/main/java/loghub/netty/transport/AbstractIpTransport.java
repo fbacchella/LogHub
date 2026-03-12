@@ -200,7 +200,10 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
             }
             f.get().attr(SSLSESSIONATTRIBUTE).set(sess);
             f.get().attr(SSLSENGINATTRIBUTE).set(engine);
-            f.get().attr(ALPNPROTOCOL).set(sslHandler.engine().getApplicationProtocol());
+            String protocol = sslHandler.engine().getApplicationProtocol();
+            if (protocol != null && ! protocol.isEmpty()) {
+                f.get().attr(ALPNPROTOCOL).set(protocol);
+            }
         });
     }
 
@@ -217,6 +220,9 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
             engine = sslContext.createSSLEngine(sslKeyAlias, DEFINEDSSLALIAS);
         } else {
             engine = sslContext.createSSLEngine();
+        }
+        if (hasAlpn) {
+            engine.setHandshakeApplicationProtocolSelector(alpnSelector);
         }
         engine.setSSLParameters(sslParams);
 

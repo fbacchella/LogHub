@@ -35,7 +35,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.codec.http2.Http2HeadersFrame;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
@@ -189,11 +188,13 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     private void failure(ChannelHandlerContext ctx, HttpRequest request, HttpResponseStatus status, String message, Map<AsciiString, Object> additionHeaders) {
         logger.warn("{} {}: {} transfer complete: {}", request::method, request::uri, status::code, () -> message);
+        ByteBuf content = Unpooled.copiedBuffer(message + "\r\n", StandardCharsets.UTF_8);
         FullHttpResponse response = new DefaultFullHttpResponse(
-                                                                HTTP_1_1, status,
-                                                                Unpooled.copiedBuffer(message + "\r\n", StandardCharsets.UTF_8));
+                                                                request.protocolVersion(), status,
+                                                                content);
         HttpUtil.setKeepAlive(response, status.code() < 500);
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
+        response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
         additionHeaders.forEach((key, value) -> response.headers().add(key, value));
         ctx.writeAndFlush(response);
         doStatusMetric(ctx, status);
@@ -205,11 +206,13 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         if (cause instanceof IOException || cause.getCause() instanceof IOException) {
             ctx.fireExceptionCaught(cause);
         } else if (Optional.ofNullable(cause.getCause()).orElse(cause) instanceof HttpRequestFailure failure) {
+            ByteBuf content = Unpooled.copiedBuffer(failure.message + "\r\n", StandardCharsets.UTF_8);
             FullHttpResponse response = new DefaultFullHttpResponse(
                                                                     HTTP_1_1, failure.status,
-                                                                    Unpooled.copiedBuffer(failure.message + "\r\n", StandardCharsets.UTF_8));
+                                                                    content);
             HttpUtil.setKeepAlive(response, failure.status.code() < 500);
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
+            response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
             failure.additionHeaders.forEach((key, value) -> response.headers().add(key, value));
             ctx.writeAndFlush(response);
             doStatusMetric(ctx, failure.status);
@@ -218,10 +221,12 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
                   .withThrowable(cause)
                   .log("Internal server error: {}", () -> Helpers.resolveThrowableException(cause));
             logger.catching(Level.ERROR, cause);
+            ByteBuf content = Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8);
             FullHttpResponse response = new DefaultFullHttpResponse(
-                                                                    HTTP_1_1, SERVICE_UNAVAILABLE, Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8));
+                                                                    HTTP_1_1, SERVICE_UNAVAILABLE, content);
             HttpUtil.setKeepAlive(response, false);
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
+            response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
             ctx.writeAndFlush(response);
             doStatusMetric(ctx, SERVICE_UNAVAILABLE);
         }

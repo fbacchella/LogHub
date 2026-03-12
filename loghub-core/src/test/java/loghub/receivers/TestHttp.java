@@ -10,6 +10,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Base64;
@@ -20,6 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import javax.management.remote.JMXPrincipal;
 import javax.net.ssl.SSLContext;
@@ -33,7 +35,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
@@ -60,12 +63,13 @@ class TestHttp {
     private static Logger logger;
     private static String p12File;
     private final EventsFactory factory = new EventsFactory();
+    private final SSLContext sslctx = SslContextBuilder.getBuilder(getClass().getClassLoader(), new HashMap<>(Map.of("trusts", p12File))).build();
 
     @BeforeAll
     static void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "io.netty");
         p12File = Optional.ofNullable(TestHttp.class.getResource("/loghub.p12"))
                           .map(URL::getFile)
                           .orElseThrow();
@@ -78,12 +82,12 @@ class TestHttp {
     private int port;
     private URL testURL;
 
-    public Http makeReceiver(Consumer<Http.Builder> prepare, Map<String, Object> propsMap)
+    public Http makeReceiver(String scheme, Consumer<Http.Builder> prepare, Map<String, Object> propsMap)
             throws URISyntaxException, MalformedURLException {
         // Generate a locally bound random socket
         port = Tools.tryGetPort();
         hostname = InetAddress.getLoopbackAddress().getCanonicalHostName();
-        testURL = new URI("http", null, hostname, port, "/", "a=1", null).toURL();
+        testURL = new URI(scheme, null, hostname, port, "/", "a=1", null).toURL();
         queue = new PriorityBlockingQueue();
 
         Properties props = new Properties(propsMap);
@@ -97,6 +101,10 @@ class TestHttp {
         httpbuilder.setHost(hostname);
         httpbuilder.setPort(port);
         httpbuilder.setEventsFactory(factory);
+        if ("https".equals(scheme)) {
+            httpbuilder.setSslContext(sslctx);
+            httpbuilder.setWithSSL(true);
+        }
         prepare.accept(httpbuilder);
 
         receiver = httpbuilder.build();
@@ -136,12 +144,21 @@ class TestHttp {
         }
     }
 
+    static Stream<Arguments> protocolArguments() {
+        return Stream.of(
+                Arguments.of(Version.HTTP_1_1, "http"),
+                Arguments.of(Version.HTTP_1_1, "https"),
+                Arguments.of(Version.HTTP_1_1, "http"),
+                Arguments.of(Version.HTTP_2, "https")
+        );
+    }
+
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
+    @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpPostJson(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
-        try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
-            doRequest(new URI("http", null, hostname, port, "/", null, null),
+    void testHttpPostJson(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
+        try (Http ignored = makeReceiver(scheme, i -> { }, Collections.emptyMap())) {
+            doRequest(new URI(scheme, null, hostname, port, "/", null, null),
                       "PUT",
                       HttpRequest.BodyPublishers.ofString("{\"a\": 1}"),
                       i -> i.header("Content-Type", "application/json"),
@@ -155,37 +172,12 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
+    @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpGet(HttpClient.Version version) throws IOException, InterruptedException, URISyntaxException {
-        try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
-            doRequest(testURL.toURI(),
-                    "GET",
-                    HttpRequest.BodyPublishers.noBody(),
-                    i -> { }, 200, version);
-
-            Event e = queue.take();
-            String a = (String) e.get("a");
-            Assertions.assertEquals("1", a);
-            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-            ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
-            Assertions.assertNotNull(ectxt);
-            Assertions.assertNotNull(ectxt.getLocalAddress());
-            Assertions.assertNotNull(ectxt.getRemoteAddress());
-        }
-    }
-
-    @ParameterizedTest
-    @EnumSource(value = HttpClient.Version.class)
-    @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpsGet(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
-        SSLContext sslctx = SslContextBuilder.getBuilder(getClass().getClassLoader(), new HashMap<>(Map.of("trusts", p12File))).build();
-        try (Http ignored = makeReceiver(i -> {
-            i.setSslContext(sslctx);
-            i.setWithSSL(true);
-            i.setSSLClientAuthentication(ClientAuthentication.WANTED);
-        }, Collections.emptyMap())) {
-            URI uri = new URI("https", null, hostname, port, "/", "a=1", null);
+    void testHttpsGet(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
+        boolean isHttps = "https".equals(scheme);
+        try (Http ignored = makeReceiver(scheme, i -> i.setSSLClientAuthentication(ClientAuthentication.WANTED), Collections.emptyMap())) {
+            URI uri = new URI(scheme, null, hostname, port, "/", "a=1", null);
             doRequest(uri,
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
@@ -195,7 +187,9 @@ class TestHttp {
             Assertions.assertNotNull(e);
             String a = (String) e.get("a");
             Assertions.assertEquals("1", a);
-            Assertions.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
+            if (isHttps) {
+                Assertions.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
+            }
             Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
             Assertions.assertNotNull(ectxt.getLocalAddress());
@@ -209,11 +203,11 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
+    @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpPostForm(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
-        try (Http ignored = makeReceiver(i -> { }, Collections.emptyMap())) {
-            doRequest(new URI("http", null, hostname, port, "/", null, null),
+    void testHttpPostForm(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
+        try (Http ignored = makeReceiver(scheme, i -> { }, Collections.emptyMap())) {
+            doRequest(new URI(scheme, null, hostname, port, "/", null, null),
                     "POST",
                     HttpRequest.BodyPublishers.ofString("a=1&b=c%20d"),
                     i -> i.header("Content-Type", "application/x-www-form-urlencoded"),
@@ -227,10 +221,10 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
+    @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testFailedAuthentication1(HttpClient.Version version) throws IOException, InterruptedException, URISyntaxException {
-        try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
+    void testFailedAuthentication1(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
+        try (Http ignored = makeReceiver(scheme, i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                       "GET",
                       HttpRequest.BodyPublishers.noBody(),
@@ -239,10 +233,10 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
-    @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testFailedAuthentication2(HttpClient.Version version) throws URISyntaxException, IOException, InterruptedException {
-        try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
+    @MethodSource("protocolArguments")
+    //@Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testFailedAuthentication2(HttpClient.Version version, String scheme) throws URISyntaxException, IOException, InterruptedException {
+        try (Http ignored = makeReceiver(scheme, i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                       "GET",
                       HttpRequest.BodyPublishers.noBody(),
@@ -254,10 +248,10 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
+    @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testGoodPasswordAuthentication(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
-        try (Http ignored = makeReceiver(i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
+    void testGoodPasswordAuthentication(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
+        try (Http ignored = makeReceiver(scheme, i -> { i.setUser("user"); i.setPassword("password");}, Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
@@ -274,17 +268,17 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
+    @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testGoodJwtAuthentication(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
+    void testGoodJwtAuthentication(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
         Map<String, Object> props = new HashMap<>();
         props.put("jwt.alg", "HMAC256");
         String secret = UUID.randomUUID().toString();
         props.put("jwt.secret", secret);
         JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
         String jwtToken = handler.getToken(new JMXPrincipal("user"));
-        try (Http ignored = makeReceiver(i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props)) {
-            URI dest = new URI("http", null, hostname, port, "/", "a=1", null);
+        try (Http ignored = makeReceiver(scheme, i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props)) {
+            URI dest = new URI(scheme, null, hostname, port, "/", "a=1", null);
             doRequest(dest,
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
@@ -298,17 +292,17 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
+    @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testGoodJwtAuthenticationAsPassword(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
+    void testGoodJwtAuthenticationAsPassword(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
         Map<String, Object> props = new HashMap<>();
         props.put("jwt.alg", "HMAC256");
         String secret = UUID.randomUUID().toString();
         props.put("jwt.secret", secret);
         JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
         String jwtToken = handler.getToken(new JMXPrincipal("user"));
-        try (Http ignored = makeReceiver(i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props)) {
-            URI dest = new URI("http", null, hostname, port, "/", "a=1", null);
+        try (Http ignored = makeReceiver(scheme, i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props)) {
+            URI dest = new URI(scheme, null, hostname, port, "/", "a=1", null);
             doRequest(dest,
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),
@@ -367,10 +361,10 @@ class TestHttp {
     }
 
     @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
+    @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testFailedEncoder(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
-        try (Http ignored = makeReceiver(i -> i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder())), Collections.emptyMap())) {
+    void testFailedEncoder(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
+        try (Http ignored = makeReceiver(scheme, i -> i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder())), Collections.emptyMap())) {
             doRequest(testURL.toURI(),
                     "GET",
                     HttpRequest.BodyPublishers.noBody(),

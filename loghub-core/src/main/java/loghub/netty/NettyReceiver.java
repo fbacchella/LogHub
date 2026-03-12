@@ -33,7 +33,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
 
     public static final String POLLER_PROPERTY_NAME = "poller";
 
-    protected static final AttributeKey<BuildableConnectionContext<? extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
+    public static final AttributeKey<BuildableConnectionContext<? extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
     @Setter
     public abstract static class Builder<R extends NettyReceiver<R, M, B>, M, B extends NettyReceiver.Builder<R, M, B>> extends Receiver.Builder<R, B> {

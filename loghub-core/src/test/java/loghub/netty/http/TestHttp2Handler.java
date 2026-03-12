@@ -33,6 +33,7 @@ import loghub.Tools;
 import loghub.metrics.JmxService;
 import loghub.netty.http2.Http2Handler;
 import loghub.netty.http2.Http2RequestProcessing;
+import loghub.netty.http2.NotFound;
 import loghub.netty.transport.TcpTransport;
 import loghub.security.ssl.SslContextBuilder;
 
@@ -178,6 +179,34 @@ class TestHttp2Handler {
 
         Assertions.assertEquals(503, response.statusCode());
         Assertions.assertEquals("Critical internal server error\r\n", response.body());
+    }
+
+    @Test
+    @Timeout(10)
+    void testHttp2NotFound() throws IOException, InterruptedException {
+        TcpTransport.Builder builder = TcpTransport.getBuilder();
+        builder.setWithSsl(true);
+        builder.setSslContext(sslContext);
+        builder.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
+
+        NotFound handler = new NotFound();
+        resource.setHttp2handler(ch -> ch.pipeline().addLast(handler));
+        URI uri = resource.startServer(builder);
+
+        HttpClient client = HttpClient.newBuilder()
+                                      .sslContext(sslContext)
+                                      .version(HttpClient.Version.HTTP_2)
+                                      .build();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                                         .uri(uri.resolve("/notfound"))
+                                         .GET()
+                                         .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        Assertions.assertEquals(404, response.statusCode());
+        Assertions.assertEquals("/notfound not found\r\n", response.body());
     }
 
 }

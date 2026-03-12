@@ -25,7 +25,6 @@ import io.netty.handler.codec.http2.DefaultHttp2HeadersFrame;
 import io.netty.handler.codec.http2.Http2Headers;
 import io.netty.handler.codec.http2.Http2HeadersFrame;
 import loghub.Helpers;
-import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpCommon;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.NoCache;
@@ -127,8 +126,10 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
         logger.warn("{} {}: {} transfer complete: {}", headers::method, headers::path, status::code, () -> message);
         Http2Headers responseHeaders = new DefaultHttp2Headers().status(status.codeAsText());
         responseHeaders.set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
+        ByteBuf content = Unpooled.copiedBuffer(message + "\r\n", StandardCharsets.UTF_8);
+        responseHeaders.setInt(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
         ctx.write(new DefaultHttp2HeadersFrame(responseHeaders, false));
-        ctx.writeAndFlush(new DefaultHttp2DataFrame(Unpooled.copiedBuffer(message + "\r\n", StandardCharsets.UTF_8), true));
+        ctx.writeAndFlush(new DefaultHttp2DataFrame(content, true));
         doStatusMetric(ctx, status);
     }
 
@@ -137,9 +138,11 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
         if (Optional.ofNullable(cause.getCause()).orElse(cause) instanceof HttpRequestFailure failure) {
             Http2Headers responseHeaders = new DefaultHttp2Headers().status(failure.status.codeAsText());
             responseHeaders.set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
+            ByteBuf content = Unpooled.copiedBuffer(failure.message + "\r\n", StandardCharsets.UTF_8);
+            responseHeaders.setInt(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
             failure.additionHeaders.forEach((key, value) -> responseHeaders.add(key.toString(), value.toString()));
             ctx.write(new DefaultHttp2HeadersFrame(responseHeaders, false));
-            ctx.writeAndFlush(new DefaultHttp2DataFrame(Unpooled.copiedBuffer(failure.message + "\r\n", StandardCharsets.UTF_8), true));
+            ctx.writeAndFlush(new DefaultHttp2DataFrame(content, true));
             doStatusMetric(ctx, failure.status);
         } else {
             logger.atError()
@@ -148,8 +151,10 @@ public abstract class Http2Handler extends SimpleChannelInboundHandler<Http2Head
             logger.catching(Level.ERROR, cause);
             Http2Headers responseHeaders = new DefaultHttp2Headers().status(SERVICE_UNAVAILABLE.codeAsText());
             responseHeaders.set(HttpHeaderNames.CONTENT_TYPE, TEXT_CONTENT_TYPE);
+            ByteBuf content = Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8);
+            responseHeaders.setInt(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
             ctx.write(new DefaultHttp2HeadersFrame(responseHeaders, false));
-            ctx.writeAndFlush(new DefaultHttp2DataFrame(Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8), true));
+            ctx.writeAndFlush(new DefaultHttp2DataFrame(content, true));
             doStatusMetric(ctx, SERVICE_UNAVAILABLE);
         }
     }

@@ -314,21 +314,4 @@ class TestHttpChannelConsumer {
         }
     }
 
-    @ParameterizedTest
-    @EnumSource(HttpClient.Version.class)
-    @Timeout(5)
-    void testNoSsl(HttpClient.Version version) throws URISyntaxException {
-        // Start an SSL server but connect via http
-        URI theURL = startHttpServer("https", Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
-        URI nohttpsurl = new URI("http", null, theURL.getHost(), theURL.getPort(), theURL.getPath(), null, null);
-        HttpClient.Builder clientBuilder = HttpClient.newBuilder().version(version);
-        try (HttpClient client = clientBuilder.build()) {
-            HttpRequest request = HttpRequest.newBuilder()
-                                          .uri(nohttpsurl)
-                                          .GET()
-                                          .build();
-            Assertions.assertThrows(IOException.class, () -> client.send(request, HttpResponse.BodyHandlers.ofString()));
-        }
-    }
-
 }

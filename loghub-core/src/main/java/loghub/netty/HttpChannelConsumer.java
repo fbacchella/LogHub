@@ -2,8 +2,8 @@ package loghub.netty;
 
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -31,6 +31,7 @@ import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
 import io.netty.handler.codec.http2.Http2Frame;
 import io.netty.handler.codec.http2.Http2FrameCodecBuilder;
 import io.netty.handler.codec.http2.Http2GoAwayFrame;
+import io.netty.handler.codec.http2.Http2HeadersFrame;
 import io.netty.handler.codec.http2.Http2MultiplexHandler;
 import io.netty.handler.codec.http2.Http2PingFrame;
 import io.netty.handler.codec.http2.Http2Settings;
@@ -45,6 +46,7 @@ import loghub.Helpers;
 import loghub.netty.http.AccessControl;
 import loghub.netty.http.FatalErrorHandler;
 import loghub.netty.http.HstsData;
+import loghub.netty.http.HttpProtocolVersion;
 import loghub.netty.http.NotFound;
 import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
@@ -57,7 +59,8 @@ import static loghub.netty.transport.NettyTransport.ERROR_HANDLER_NAME;
 
 public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
 
-    private static final SimpleChannelInboundHandler<FullHttpRequest> NOT_FOUND = new NotFound();
+    private static final SimpleChannelInboundHandler<FullHttpRequest> NOT_FOUND_HTTP_1_1 = new NotFound();
+    private static final SimpleChannelInboundHandler<Http2HeadersFrame> NOT_FOUND_HTTP_2 = new loghub.netty.http2.NotFound();
     private static final SimpleChannelInboundHandler<FullHttpRequest> FATAL_ERROR = new FatalErrorHandler();
     private static final String HTTP_OBJECT_AGGREGATOR = "HttpObjectAggregator";
     public static final AttributeKey<Object> HOLDERATTRIBUTE = AttributeKey.newInstance("holder");
@@ -71,12 +74,22 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         private Supplier<HttpObjectAggregator> aggregatorSupplier;
         private Supplier<HttpServerCodec> serverCodecSupplier;
         private Consumer<ChannelPipeline> modelSetup;
+        private Consumer<Channel> http2handler;
+        private BiConsumer<HttpProtocolVersion, ChannelPipeline> versionedModelSetup;
         private AuthenticationHandler authHandler;
         private int maxContentLength = 1048576;
         private Logger logger;
         private HstsData hsts;
         private Object holder;
-        private Consumer<Channel> http2handler = null;
+        private boolean http1only = false;
+
+        public Builder setVersionedModelSetup(BiConsumer<HttpProtocolVersion, ChannelPipeline> versionedModelSetup) {
+            this.versionedModelSetup = versionedModelSetup;
+            this.modelSetup = null;
+            this.http2handler = null;
+            return this;
+        }
+
         private Builder() {
 
         }
@@ -90,22 +103,53 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
 
     private final Supplier<HttpObjectAggregator> aggregatorSupplier;
     private final Supplier<HttpServerCodec> serverCodecSupplier;
-    private final Consumer<ChannelPipeline> modelSetup;
+    private final BiConsumer<HttpProtocolVersion, ChannelPipeline> modelSetup;
     private final AuthenticationHandler authHandler;
     private final Logger logger;
     private final HstsData hsts;
     private final Object holder;
-    private final Consumer<Channel> http2handler;
+    private final boolean http1only;
 
     protected HttpChannelConsumer(Builder builder) {
         this.aggregatorSupplier = Optional.ofNullable(builder.aggregatorSupplier).orElse(() -> new HttpObjectAggregator(builder.maxContentLength));
         this.serverCodecSupplier = Optional.ofNullable(builder.serverCodecSupplier).orElse(HttpServerCodec::new);
-        this.modelSetup = builder.modelSetup;
+        if (builder.versionedModelSetup != null) {
+            this.modelSetup = builder.versionedModelSetup;
+            this.http1only = builder.http1only;
+        } else if (builder.modelSetup != null && builder.http2handler != null) {
+            this.modelSetup = (v, p) -> {
+                switch (v) {
+                case HttpProtocolVersion.HTTP_1_1 -> builder.modelSetup.accept(p);
+                case HttpProtocolVersion.HTTP_2 -> builder.http2handler.accept(p.channel());
+                default -> throw new IllegalStateException("Unexpected value: " + v);
+                }
+            };
+            this.http1only = false;
+        } else if (builder.modelSetup != null) {
+            this.modelSetup = (v, c) -> {
+                if (v != HttpProtocolVersion.HTTP_1_1) {
+                    throw new IllegalArgumentException("HTTP/1.1 model setup requires HTTP/1.1 protocol");
+                } else {
+                    builder.modelSetup.accept(c);
+                }
+            };
+            this.http1only = true;
+        } else if (builder.http2handler != null){
+            this.modelSetup = (v, c) -> {
+                if (v != HttpProtocolVersion.HTTP_2) {
+                    throw new IllegalArgumentException("HTTP/2 model setup requires HTTP/2 protocol");
+                } else {
+                    builder.http2handler.accept(c.channel());
+                }
+            };
+            this.http1only = false;
+        } else {
+            throw new IllegalArgumentException("No model setup handling provided");
+        }
         this.authHandler = builder.authHandler;
         this.logger = Optional.ofNullable(builder.logger).orElseGet(this::getDefaultLogger);
         this.hsts = builder.hsts;
         this.holder = builder.holder;
-        this.http2handler = builder.http2handler == null ? this::http2tohttp1codec : builder.http2handler;
     }
 
     private Logger getDefaultLogger() {
@@ -115,10 +159,8 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
     public BiFunction<SSLEngine, List<String>, String> getAlpnSelector() {
         return (e, l) -> {
             for (String p: l) {
-                if (ApplicationProtocolNames.HTTP_2.equals(p)) {
-                    return ApplicationProtocolNames.HTTP_2;
-                } else if (ApplicationProtocolNames.HTTP_1_1.equals(p)) {
-                    return ApplicationProtocolNames.HTTP_1_1;
+                if (HttpProtocolVersion.fromAlpnId(p).isPresent()) {
+                    return p;
                 }
             }
             return ApplicationProtocolNames.HTTP_1_1;
@@ -129,9 +171,8 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
     public void addHandlers(ChannelPipeline p) {
         p.channel().attr(HOLDERATTRIBUTE).set(holder);
         p.channel().attr(STARTTIMEATTRIBUTE).set(System.nanoTime());
-        p.channel().attr(ALPNPROTOCOL).set(ApplicationProtocolNames.HTTP_1_1);
+        p.channel().attr(ALPNPROTOCOL).set(HttpProtocolVersion.HTTP_1_1.alpnId);
     }
-
 
     @Override
     public void insertAlpnPipeline(ChannelHandlerContext ctx) {
@@ -140,19 +181,19 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         // Don't use .names(), it returns context, not handlers
         List<String> names = List.copyOf(p.toMap().keySet());
         int alpnIndex = names.indexOf(RESOLVERNAME);
-        if (alpnIndex == -1) {
-            throw new NoSuchElementException("Aucun handler nommé 'ALPN' trouvé dans le pipeline.");
-        }
-        List<String> toRemove = names.subList(alpnIndex + 1, names.size());
-        for (String name : toRemove) {
-            ChannelHandler handler = p.remove(name);
-            removed.put(name, handler);
+        if (alpnIndex >= 0) {
+            List<String> toRemove = names.subList(alpnIndex + 1, names.size());
+            for (String name : toRemove) {
+                ChannelHandler handler = p.remove(name);
+                removed.put(name, handler);
+            }
         }
         String protocol = ctx.channel().attr(ALPNPROTOCOL).get();
-        if (ApplicationProtocolNames.HTTP_2.equals(protocol)) {
-            addHttp2Handlers(p);
-        } else {
-            addHttp1Handlers(p);
+        logger.debug("Negotiated ALPN protocol {}", protocol);
+        switch (HttpProtocolVersion.fromAlpnId(protocol).orElse(null)) {
+            case HttpProtocolVersion.HTTP_1_1 -> addHttp1Handlers(p);
+            case HttpProtocolVersion.HTTP_2 -> addHttp2Handlers(p);
+            default -> throw new IllegalStateException("Unexpected value: " + HttpProtocolVersion.fromAlpnId(protocol));
         }
         p.remove(RESOLVERNAME);
         removed.forEach(p::addLast);
@@ -163,7 +204,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         p.addLast("HttpContentDeCompressor", new HttpContentDecompressor());
         p.addLast("httpKeepAlive", new HttpServerKeepAliveHandler());
         p.addLast("HttpContentCompressor", new HttpContentCompressor());
-        finishPipelineSetup(p);
+        finishHttp1PipelineSetup(p);
     }
 
     private void addHttp2Handlers(ChannelPipeline p) {
@@ -183,23 +224,22 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
             protected void initChannel(Channel ch) {
                 Channel parentChannel = ch.parent();
                 for (AttributeKey<?> key : List.of(
-                        NettyTransport.PRINCIPALATTRIBUTE,
+                        NettyTransport.PRINCIPALATTRIBUTE, NettyReceiver.CONNECTIONCONTEXTATTRIBUTE,
                         AbstractIpTransport.SSLSENGINATTRIBUTE, AbstractIpTransport.SSLSESSIONATTRIBUTE, ALPNPROTOCOL,
                         HttpChannelConsumer.HOLDERATTRIBUTE, HttpChannelConsumer.STARTTIMEATTRIBUTE
                     )
                 ) {
                     copyAttribue(key, parentChannel, ch);
                 }
-                http2handler.accept(ch);
-             }
+                if (http1only) {
+                    ch.pipeline().addLast(new Http2StreamFrameToHttpObjectCodec(true, true));
+                    finishHttp1PipelineSetup(ch.pipeline());
+                } else {
+                    finishHttp2PipelineSetup(ch.pipeline());
+                }
+            }
         });
         p.addLast("Http2MultiplexHandler", multiplexHandler);
-    }
-
-    private void http2tohttp1codec(Channel ch) {
-        ChannelPipeline cp = ch.pipeline();
-        cp.addLast(new Http2StreamFrameToHttpObjectCodec(true, true));
-        finishPipelineSetup(cp);
     }
 
     private Optional<Object> http2FrameHandling(ChannelHandlerContext ctx, Object msg) {
@@ -244,7 +284,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         }
     }
 
-    private void finishPipelineSetup(ChannelPipeline p) {
+    private void finishHttp1PipelineSetup(ChannelPipeline p) {
         p.addLast(new ChunkedWriteHandler());
         p.addLast(HTTP_OBJECT_AGGREGATOR, aggregatorSupplier.get());
         if (authHandler != null) {
@@ -256,12 +296,26 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
             logger.debug("Added HSTS header");
         }
         try {
-            modelSetup.accept(p);
+            modelSetup.accept(HttpProtocolVersion.HTTP_1_1, p);
         } catch (RuntimeException e) {
             logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Invalid pipeline configuration: {}", e::getMessage);
             p.addAfter(HTTP_OBJECT_AGGREGATOR, "BrokenConfigHandler", FATAL_ERROR);
         }
-        p.addLast("NotFound404", NOT_FOUND);
+        p.addLast("NotFound404", NOT_FOUND_HTTP_1_1);
+    }
+
+    private void finishHttp2PipelineSetup(ChannelPipeline p) {
+        if (hsts != null) {
+            p.addLast("HstsHandler", hsts.getChannelHandler());
+            logger.debug("Added HSTS header");
+        }
+        try {
+            modelSetup.accept(HttpProtocolVersion.HTTP_2, p);
+        } catch (RuntimeException e) {
+            logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Invalid pipeline configuration: {}", e::getMessage);
+            p.addAfter(HTTP_OBJECT_AGGREGATOR, "BrokenConfigHandler", FATAL_ERROR);
+        }
+        p.addLast("NotFound404", NOT_FOUND_HTTP_2);
     }
 
     @Override
