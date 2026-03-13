@@ -39,6 +39,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http2.Http2HeadersFrame;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.util.CharsetUtil;
 import loghub.HttpTestServer;
@@ -46,6 +47,7 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.metrics.JmxService;
 import loghub.metrics.Stats;
+import loghub.netty.http2.Http2RequestProcessing;
 import loghub.netty.transport.TcpTransport;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
@@ -61,6 +63,19 @@ class TestHttpChannelConsumer {
         protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) {
             ByteBuf content = ctx.alloc().buffer();
             content.writeCharSequence("Request received\r\n", CharsetUtil.UTF_8);
+            writeResponse(ctx, request, content, content.readableBytes());
+        }
+
+    }
+
+    @ContentType("text/plain")
+    @RequestAccept(path = "/")
+    static class SimpleHttp2Handler extends Http2RequestProcessing {
+
+        @Override
+        protected void processRequest(Http2HeadersFrame request, ChannelHandlerContext ctx) {
+            ByteBuf content = ctx.alloc().buffer();
+            content.writeCharSequence("HTTP2 Request received\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
         }
 
@@ -180,6 +195,38 @@ class TestHttpChannelConsumer {
             checkTlsPeer(r, "CN=localhost");
         };
         runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse, new SimpleHandler());
+    }
+
+    @ParameterizedTest
+    @MethodSource("protocolArguments")
+    @Timeout(5)
+    void testSimpleAutoVersion(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
+        resource.setVersionedModelSetup((v, p) -> {
+            switch (v) {
+                case HTTP_1_1 ->
+                    p.addLast(new SimpleHandler());
+                case HTTP_2 ->
+                    p.addLast(new SimpleHttp2Handler());
+                default ->
+                    throw new IllegalArgumentException("Unsupported HTTP version: " + v);
+            }
+        });
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+        Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertEquals(version, r.version());
+            switch (r.version()) {
+            case HTTP_1_1 ->
+                    Assertions.assertEquals("Request received\r\n", r.body());
+            case HTTP_2 ->
+                    Assertions.assertEquals("HTTP2 Request received\r\n", r.body());
+            default ->
+                    throw new IllegalArgumentException("Unsupported HTTP version: " + r.version());
+            }
+            Assertions.assertEquals(200, r.statusCode());
+        };
+        HttpClient.Builder clientBuilder = HttpClient.newBuilder()
+                                                   .version(version);
+        runRequest(clientBuilder, theURL, HttpResponse.BodyHandlers.ofString(), processResponse);
     }
 
     @ParameterizedTest
