@@ -43,7 +43,7 @@ public class GrpcReceiver
              extends NettyReceiver.Builder<GrpcReceiver, Http2Frame, GrpcReceiver.Builder> {
          @Setter
          CodecProvider[] grpcCodecs;
-         protected Builder() {
+         public Builder() {
              setTransport(TRANSPORT.TCP);
              setWithSSL(true);
          }
