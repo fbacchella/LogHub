@@ -1,4 +1,4 @@
-package loghub.protobuf;
+package loghub.grpc;
 
 import java.util.Objects;
 

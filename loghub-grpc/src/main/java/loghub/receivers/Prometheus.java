@@ -27,7 +27,7 @@ import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.RequestAccept;
 import loghub.netty.transport.TRANSPORT;
-import loghub.protobuf.PrometheusDecoder;
+import loghub.grpc.PrometheusDecoder;
 import lombok.Setter;
 
 import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;

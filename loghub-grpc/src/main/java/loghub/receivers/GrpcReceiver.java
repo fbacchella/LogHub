@@ -25,9 +25,9 @@ import loghub.netty.http.HttpProtocolVersion;
 import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.TRANSPORT;
-import loghub.protobuf.BinaryCodec;
-import loghub.protobuf.GrpcStreamHandler;
-import loghub.protobuf.GrpcStreamHandler.Factory;
+import loghub.grpc.BinaryCodec;
+import loghub.grpc.GrpcStreamHandler;
+import loghub.grpc.GrpcStreamHandler.Factory;
 import lombok.Setter;
 
 import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;

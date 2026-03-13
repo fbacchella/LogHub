@@ -1,7 +1,7 @@
 package loghub.decoders;
 
-import loghub.protobuf.BinaryCodec;
-import loghub.protobuf.GrpcStreamHandler;
+import loghub.grpc.BinaryCodec;
+import loghub.grpc.GrpcStreamHandler;
 import loghub.receivers.GrpcReceiver;
 
 public interface CodecProvider {

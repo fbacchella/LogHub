@@ -18,8 +18,8 @@ import io.netty.buffer.ByteBufInputStream;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
-import loghub.protobuf.BinaryCodec;
-import loghub.protobuf.GrpcStreamHandler;
+import loghub.grpc.BinaryCodec;
+import loghub.grpc.GrpcStreamHandler;
 import lombok.Setter;
 
 @BuilderClass(ProtoBuf.Builder.class)

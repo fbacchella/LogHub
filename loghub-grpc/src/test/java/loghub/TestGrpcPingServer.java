@@ -27,10 +27,10 @@ import io.grpc.netty.NettyChannelBuilder;
 import loghub.proto.ping.PingRequest;
 import loghub.proto.ping.PingResponse;
 import loghub.proto.ping.PingServiceGrpc;
-import loghub.protobuf.BinaryCodec;
-import loghub.protobuf.GrpcStatus;
-import loghub.protobuf.GrpcStreamHandler;
-import loghub.protobuf.Ping;
+import loghub.grpc.BinaryCodec;
+import loghub.grpc.GrpcStatus;
+import loghub.grpc.GrpcStreamHandler;
+import loghub.grpc.Ping;
 
 class TestGrpcPingServer {
 

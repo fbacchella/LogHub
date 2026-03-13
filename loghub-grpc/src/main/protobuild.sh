@@ -1,7 +1,7 @@
-set -x
+set -ex
 chmod a+rx "$PROTOC_BIN"
 mkdir -p "$DESCRIPTOR_OUT_DIR"
-for name in prometheus prometheus2 opentelemetry centreon ping ; do
+for name in prometheus prometheus2 opentelemetry centreon ping jaeger; do
     case $name in
     prometheus)
         finddir=prometheus
@@ -17,6 +17,9 @@ for name in prometheus prometheus2 opentelemetry centreon ping ; do
         ;;
     ping)
         finddir=ping
+        ;;
+    jaeger)
+        finddir=jaeger
         ;;
     esac
     if [ -e "$PROTO_SRC_DIR/$finddir" ] ; then

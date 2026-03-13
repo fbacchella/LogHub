@@ -9,8 +9,8 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>loghub-protobuf</artifactId>
-    <name>LogHub :: Protobuf decoder</name>
+    <artifactId>loghub-grpc</artifactId>
+    <name>LogHub :: gRPC support</name>
 
     <properties>
         <protobuf.version>4.34.0</protobuf.version>

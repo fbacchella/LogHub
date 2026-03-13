@@ -6,7 +6,7 @@ import io.netty.handler.ssl.ApplicationProtocolNames;
 import loghub.metrics.Stats;
 import loghub.netty.transport.TcpTransport;
 import loghub.netty.transport.TcpTransport.Builder;
-import loghub.protobuf.GrpcStreamHandler;
+import loghub.grpc.GrpcStreamHandler;
 import loghub.security.ssl.ClientAuthentication;
 
 public class ServerContext {

@@ -6,10 +6,10 @@ import java.util.Map;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 
 import loghub.BuilderClass;
-import loghub.protobuf.BinaryCodec;
-import loghub.protobuf.GrpcStreamHandler;
-import loghub.protobuf.GrpcStreamHandler.Factory;
-import loghub.protobuf.OpentelemetryDecoder;
+import loghub.grpc.BinaryCodec;
+import loghub.grpc.GrpcStreamHandler;
+import loghub.grpc.GrpcStreamHandler.Factory;
+import loghub.grpc.OpentelemetryDecoder;
 import loghub.receivers.GrpcReceiver;
 import lombok.Setter;
 
