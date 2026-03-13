@@ -204,6 +204,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
             try {
                 cf.await().channel();
                 cf.get();
+                logger.debug("Bond to {}", cf.channel().localAddress());
             } catch (ExecutionException | InterruptedException e) {
                 listeningChannels.stream()
                                  .map(ChannelFuture::channel)
@@ -219,7 +220,6 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
             }
         }
         finisher.ifPresent(r -> finished = new FutureTask<>(r, true));
-        logger.debug("Bond to {}", address);
     }
 
     private void bindConnectionless(SocketAddress address) {

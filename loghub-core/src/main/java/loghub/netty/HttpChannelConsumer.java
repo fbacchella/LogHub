@@ -128,7 +128,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         } else if (builder.modelSetup != null) {
             this.modelSetup = (v, c) -> {
                 if (v != HttpProtocolVersion.HTTP_1_1) {
-                    throw new IllegalArgumentException("HTTP/1.1 model setup requires HTTP/1.1 protocol");
+                    throw new IllegalArgumentException("Only handle HTTP/1_1");
                 } else {
                     builder.modelSetup.accept(c);
                 }
@@ -137,7 +137,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         } else if (builder.http2handler != null){
             this.modelSetup = (v, c) -> {
                 if (v != HttpProtocolVersion.HTTP_2) {
-                    throw new IllegalArgumentException("HTTP/2 model setup requires HTTP/2 protocol");
+                    throw new IllegalArgumentException("Only handle HTTP/2");
                 } else {
                     builder.http2handler.accept(c.channel());
                 }

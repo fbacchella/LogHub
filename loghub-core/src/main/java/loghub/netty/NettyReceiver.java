@@ -5,8 +5,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.apache.logging.log4j.Level;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
@@ -110,8 +108,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
             transport.bind();
             return super.configure(properties);
         } catch (IllegalStateException ex) {
-            logger.error("Can't start receiver: {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
+            logger.atError().withThrowable(logger.isDebugEnabled() ? ex : null).log("Can't start receiver: {}", Helpers.resolveThrowableException(ex));
             return false;
         } catch (InterruptedException e1) {
             interrupt();
