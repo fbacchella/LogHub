@@ -17,7 +17,6 @@ import java.util.function.Function;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.decoders.DecodeException;
-import loghub.events.EventsFactory;
 import loghub.netcap.BpfProgram;
 import loghub.netcap.PCAP_LINKTYPE;
 import loghub.netcap.PcapProvider;
@@ -141,7 +140,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
                 }
             }
         } catch (DecodeException ex) {
-            EventsFactory.deadEvent(ConnectionContext.EMPTY);
+            getEventsFactory().deadEvent(ConnectionContext.EMPTY);
             manageDecodeException(ex);
         }
 

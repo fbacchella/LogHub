@@ -43,11 +43,11 @@ public class EventsFactory {
         }
     }
 
-    public static void deadEvent(ConnectionContext<?> ctx) {
-        new EventInstance(ConnectionContext.EMPTY, null).end();
+    public void deadEvent(ConnectionContext<?> ctx) {
+        new EventInstance(ConnectionContext.EMPTY, this).end();
     }
 
-    private void leakDetector() {
+   private void leakDetector() {
         Reference<?> referenceFromQueue;
         while ((referenceFromQueue = referenceQueue.poll()) != null) {
             ((EventFinalizer) referenceFromQueue).finalizeResources();

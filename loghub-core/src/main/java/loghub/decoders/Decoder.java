@@ -23,7 +23,6 @@ import loghub.ConnectionContext;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventBuilder;
-import loghub.events.EventsFactory;
 import loghub.receivers.Receiver;
 import lombok.Getter;
 import lombok.Setter;
@@ -60,7 +59,7 @@ public abstract class Decoder {
 
     protected void manageDecodeException(ConnectionContext<?> connectionContext, DecodeException ex) {
         receiver.manageDecodeException(ex);
-        EventsFactory.deadEvent(connectionContext);
+        receiver.getEventsFactory().deadEvent(connectionContext);
     }
 
     protected Object decodeObject(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException {

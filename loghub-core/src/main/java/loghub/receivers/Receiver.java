@@ -215,7 +215,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     protected final Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> content) {
         if (content == null || content.isEmpty()) {
             manageDecodeException(new DecodeException("Received null or empty event"));
-            EventsFactory.deadEvent(ctx);
+            eventsFactory.deadEvent(ctx);
             return null;
         } else {
             try {
@@ -243,15 +243,15 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
                     return newEvent;
                 }
             } catch (RuntimeDecodeException ex) {
-                EventsFactory.deadEvent(ctx);
+                eventsFactory.deadEvent(ctx);
                 manageDecodeException(ex.getDecodeException());
                 return null;
             } catch (DecodeException ex) {
-                EventsFactory.deadEvent(ctx);
+                eventsFactory.deadEvent(ctx);
                 manageDecodeException(ex);
                 return null;
             } catch (RuntimeException ex) {
-                EventsFactory.deadEvent(ctx);
+                eventsFactory.deadEvent(ctx);
                 Stats.newUnhandledException(this, ex);
                 logger.atDebug()
                       .withThrowable(logger.isDebugEnabled() ? ex : null)
@@ -305,7 +305,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     protected final boolean send(Event event) {
         if (event == null) {
             manageDecodeException(new DecodeException("Received null event"));
-            EventsFactory.deadEvent(ConnectionContext.EMPTY);
+            eventsFactory.deadEvent(ConnectionContext.EMPTY);
             return false;
         } else if (event.getConnectionContext() == null) {
             Stats.newReceivedError(this, "Received an event without context");
