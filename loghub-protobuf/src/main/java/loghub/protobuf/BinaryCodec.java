@@ -84,12 +84,12 @@ public class BinaryCodec<C> {
     }
 
     protected void initFastPath() {
-        messageFastPath.put("com.google.protobuf.Any", (s, d, u) -> Any.parseFrom(s.readByteBuffer()));
-        messageFastPath.put("com.google.protobuf.Duration", (s, desc, u) -> {
+        messageFastPath.put("google.protobuf.Any", (s, d, u) -> Any.parseFrom(s.readByteBuffer()));
+        messageFastPath.put("google.protobuf.Duration", (s, desc, u) -> {
             Duration d = Duration.parseFrom(s.readByteBuffer());
             return java.time.Duration.ofSeconds(d.getSeconds(), d.getNanos());
         });
-        messageFastPath.put("com.google.protobuf.Timestamp", (s, d, u) -> {
+        messageFastPath.put("google.protobuf.Timestamp", (s, d, u) -> {
             Timestamp ts = Timestamp.parseFrom(s.readByteBuffer());
             return Instant.ofEpochSecond(ts.getSeconds(), ts.getNanos());
         });

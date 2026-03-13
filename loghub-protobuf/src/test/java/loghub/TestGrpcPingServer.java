@@ -1,24 +1,17 @@
 package loghub;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -31,19 +24,6 @@ import com.google.protobuf.Descriptors.DescriptorValidationException;
 
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NettyChannelBuilder;
-import io.netty.handler.ssl.ApplicationProtocolConfig;
-import io.netty.handler.ssl.ApplicationProtocolConfig.Protocol;
-import io.netty.handler.ssl.ApplicationProtocolConfig.SelectedListenerFailureBehavior;
-import io.netty.handler.ssl.ApplicationProtocolConfig.SelectorFailureBehavior;
-import io.netty.handler.ssl.ApplicationProtocolNames;
-import io.netty.handler.ssl.ClientAuth;
-import io.netty.handler.ssl.IdentityCipherSuiteFilter;
-import io.netty.handler.ssl.JdkSslContext;
-import io.netty.handler.ssl.SslContext;
-import loghub.metrics.JmxService;
-import loghub.metrics.Stats;
-import loghub.netty.transport.TcpTransport;
-import loghub.netty.transport.TcpTransport.Builder;
 import loghub.proto.ping.PingRequest;
 import loghub.proto.ping.PingResponse;
 import loghub.proto.ping.PingServiceGrpc;
@@ -51,85 +31,47 @@ import loghub.protobuf.BinaryCodec;
 import loghub.protobuf.GrpcStatus;
 import loghub.protobuf.GrpcStreamHandler;
 import loghub.protobuf.Ping;
-import loghub.security.ssl.ClientAuthentication;
-import loghub.security.ssl.SslContextBuilder;
 
 class TestGrpcPingServer {
 
     @TempDir
     static Path tempDir;
 
-    private static SSLContext sslctx;
-    private static SslContext nettyCtx;
+    private static TlsContext tlsContext;
+    private static ServerContext serverContext;
     private static HttpClient client;
-
-    private static final HttpTestServer resource = new HttpTestServer();
-
-    private static GrpcStreamHandler.Factory factory;
-    private static URI listenUri;
-
-    private static SSLContext generateSslContext() {
-        Path tempP12File = tempDir.resolve("loghub.p12");
-        try (InputStream is = TestGrpcPingServer.class.getResourceAsStream("/loghub.p12")) {
-            Files.copy(is, tempP12File, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            return SslContextBuilder.getBuilder(Map.of("context", "TLSv1.3", "trusts", tempP12File.toString())).build();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static SslContext getNettyCtx() {
-        ApplicationProtocolConfig apn = new ApplicationProtocolConfig(Protocol.ALPN, SelectorFailureBehavior.FATAL_ALERT, SelectedListenerFailureBehavior.FATAL_ALERT, "h2");
-        return new JdkSslContext(sslctx, true, null, IdentityCipherSuiteFilter.INSTANCE, apn, ClientAuth.NONE, null, false);
-    }
 
     @BeforeAll
     static void configure() throws IOException, DescriptorValidationException {
         Tools.configure();
         Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer", "loghub.netty", "loghub.protobuf");
-        Configurator.setLevel("org", Level.WARN);
-        sslctx = generateSslContext();
-        nettyCtx = getNettyCtx();
-        client = HttpClient.newBuilder().sslContext(sslctx).build();
-        JmxService.start(JmxService.configuration());
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.protobuf");
+        tlsContext = new TlsContext(tempDir);
+        client = HttpClient.newBuilder().sslContext(tlsContext.sslctx).build();
         BinaryCodec<GrpcStreamHandler> ping = new Ping<>();
-        factory = new GrpcStreamHandler.Factory(ping);
+        GrpcStreamHandler.Factory factory = new GrpcStreamHandler.Factory(ping);
         factory.register("ping.PingService.Ping", (o, c) -> 15L);
-        resource.setModelHandlers();
-        resource.setHttp2handler(ch -> ch.pipeline().addLast("GrpcStreamHandler", factory.get()));
-
-        Builder transportConfig = TcpTransport.getBuilder();
-        transportConfig.setEndpoint("localhost");
-        transportConfig.setWithSsl(true);
-        transportConfig.setSslContext(sslctx);
-        transportConfig.setSslKeyAlias("localhost (loghub ca)");
-        transportConfig.setSslClientAuthentication(ClientAuthentication.NONE);
-        transportConfig.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
-        transportConfig.addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
-        transportConfig.setThreadPrefix("gRPCServer");
-        listenUri = resource.startServer(transportConfig);
-        logger.info("gRPC server started on port {}", listenUri.getPort());
+        serverContext = new ServerContext(tlsContext, factory);
+        logger.info("gRPC server started on port {}", serverContext.listenUri.getPort());
     }
 
     @AfterAll
     static void clean() {
-        resource.after();
+        serverContext.clean();
     }
 
     @BeforeEach
     void webStats() {
-        Stats.reset();
-        Stats.registerHttpService(resource.getHolder());
+        serverContext.resetStats();
     }
 
     @Test
-    @Timeout(5)
+    //@Timeout(5)
     void testPing() throws InterruptedException {
         ManagedChannel channel = NettyChannelBuilder
-                                         .forAddress("localhost", listenUri.getPort())
+                                         .forAddress("localhost", serverContext.listenUri.getPort())
                                          .useTransportSecurity()
-                                         .sslContext(nettyCtx)
+                                         .sslContext(tlsContext.nettyCtx)
                                          .build();
 
         PingServiceGrpc.PingServiceBlockingStub stub = PingServiceGrpc.newBlockingStub(channel);
@@ -138,7 +80,7 @@ class TestGrpcPingServer {
                                          .setMessage("ping")
                                          .build();
 
-        PingResponse response = stub.withDeadlineAfter(5, TimeUnit.DAYS)
+        PingResponse response = stub.withDeadlineAfter(5, TimeUnit.SECONDS)
                                     .ping(request);
 
         Assertions.assertEquals("ping", response.getMessage());
@@ -151,7 +93,7 @@ class TestGrpcPingServer {
     @Timeout(5)
     void testUnknownGrpcMethod() throws InterruptedException, IOException {
         HttpRequest request = HttpRequest.newBuilder()
-                                      .uri(listenUri.resolve("/ping.PingService/Pong"))
+                                      .uri(serverContext.listenUri.resolve("/ping.PingService/Pong"))
                                       .POST(BodyPublishers.noBody())
                                       .header("Content-Type", "application/grpc")
                                       .build();
@@ -164,7 +106,7 @@ class TestGrpcPingServer {
     @Timeout(5)
     void testWrongHttpMethod() throws InterruptedException, IOException {
         HttpRequest request = HttpRequest.newBuilder()
-                                         .uri(listenUri.resolve("/ping.PingService/Ping"))
+                                         .uri(serverContext.listenUri.resolve("/ping.PingService/Ping"))
                                          .GET()
                                          .header("Content-Type", "application/grpc")
                                          .build();
@@ -177,7 +119,7 @@ class TestGrpcPingServer {
     @Timeout(5)
     void testWrongContentType() throws InterruptedException, IOException {
         HttpRequest request = HttpRequest.newBuilder()
-                                         .uri(listenUri.resolve("/ping.PingService/Ping"))
+                                         .uri(serverContext.listenUri.resolve("/ping.PingService/Ping"))
                                          .POST(java.net.http.HttpRequest.BodyPublishers.noBody())
                                          .header("Content-Type", "text/plain")
                                          .build();
@@ -190,7 +132,7 @@ class TestGrpcPingServer {
     @Timeout(5)
     void testHttp1_1() throws InterruptedException, IOException {
         HttpRequest request = HttpRequest.newBuilder()
-                                      .uri(listenUri.resolve("/ping.PingService/Ping"))
+                                      .uri(serverContext.listenUri.resolve("/ping.PingService/Ping"))
                                       .POST(java.net.http.HttpRequest.BodyPublishers.noBody())
                                       .header("Content-Type", "text/plain")
                                       .version(Version.HTTP_1_1)

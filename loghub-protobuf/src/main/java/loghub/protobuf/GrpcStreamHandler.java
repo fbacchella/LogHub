@@ -23,10 +23,13 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http2.DefaultHttp2DataFrame;
 import io.netty.handler.codec.http2.DefaultHttp2Headers;
 import io.netty.handler.codec.http2.DefaultHttp2HeadersFrame;
+import io.netty.handler.codec.http2.EmptyHttp2Headers;
 import io.netty.handler.codec.http2.Http2DataFrame;
 import io.netty.handler.codec.http2.Http2Headers;
 import io.netty.handler.codec.http2.Http2HeadersFrame;
+import io.netty.handler.codec.http2.ReadOnlyHttp2Headers;
 import io.netty.util.AsciiString;
+import loghub.Helpers;
 import lombok.Getter;
 
 public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
@@ -82,6 +85,8 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
     private Duration grpcTimout;
     @Getter
     private ChannelHandlerContext currentContext;
+    @Getter
+    Http2Headers requestHeaders = EmptyHttp2Headers.INSTANCE;
 
     private GrpcStreamHandler(Map<String, BinaryCodec<GrpcStreamHandler>> servicesByPath, Map<String, BiFunction<?, GrpcStreamHandler, ?>> transformers) {
         this.servicesByPath = servicesByPath;
@@ -99,7 +104,7 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
 
     private void onHeadersReceived(ChannelHandlerContext ctx,
             Http2HeadersFrame frame) {
-        Http2Headers requestHeaders = frame.headers();
+        requestHeaders = readOnlyHeaders(frame.headers());
         String path = requestHeaders.path().toString();
         StringTokenizer st = new StringTokenizer(path, "/");
         while (st.countTokens() > 2) {
@@ -134,6 +139,33 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+    private Http2Headers readOnlyHeaders(Http2Headers sourceHeaders) {
+        // Extraction des pseudo-en-têtes obligatoires
+        AsciiString method    = AsciiString.of(sourceHeaders.method());
+        AsciiString path      = AsciiString.of(sourceHeaders.path());
+        AsciiString scheme    = AsciiString.of(sourceHeaders.scheme());
+        AsciiString authority = AsciiString.of(sourceHeaders.authority());
+
+        // Collecte des en-têtes ordinaires (non pseudo)
+        List<AsciiString> others = new ArrayList<>();
+        for (Map.Entry<CharSequence, CharSequence> entry : sourceHeaders) {
+            CharSequence name = entry.getKey();
+            if (!name.isEmpty() && name.charAt(0) != ':') {
+                others.add(AsciiString.of(name));
+                others.add(AsciiString.of(entry.getValue()));
+            }
+        }
+
+        return ReadOnlyHttp2Headers.clientHeaders(
+                false,
+                method,
+                path,
+                scheme,
+                authority,
+                others.toArray(new AsciiString[0])
+        );
+    }
+
     /**
      * Parses a grpc-timeout header value as defined by the gRPC specification
      * (e.g. "1S", "500m", "100u") into a {@link Duration}.
@@ -142,7 +174,7 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
      * @return the corresponding {@link Duration}
      * @throws IllegalArgumentException if the format is invalid
      */
-    public static Duration parse(CharSequence grpcTimeout) {
+    private Duration parse(CharSequence grpcTimeout) {
         if (grpcTimeout == null || grpcTimeout.isEmpty()) {
             return Duration.ofNanos(Long.MAX_VALUE);
         }
@@ -216,8 +248,11 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
             byte[] response = codec.process(qualifiedMethodName, this, request, methodConsumer);
             writeGrpcDataFrame(ctx, response);
             sendTrailers(ctx, GrpcStatus.OK);
-        } catch (IOException e) {
-            sendTrailers(ctx, GrpcStatus.FAILED_PRECONDITION.withMessage("Invalid input", e));
+        } catch (IOException ex) {
+            sendTrailers(ctx, GrpcStatus.FAILED_PRECONDITION.withMessage("Invalid input", ex));
+        } catch (RuntimeException ex) {
+            logger.atError().withThrowable(ex).log("{}: {}", () -> requestHeaders.path(), () -> Helpers.resolveThrowableException(ex));
+            sendTrailers(ctx, GrpcStatus.INTERNAL.withMessage("Internal error processing gRPC request"));
         } finally {
             frame.release();
         }
@@ -236,9 +271,9 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
 
     private void sendTrailers(ChannelHandlerContext ctx, GrpcStatus status) {
         if (status.isOk()) {
-            logger.debug("Processing gRPC frame for method {}", qualifiedMethodName);
+            logger.debug("{} done", () -> requestHeaders.path());
         } else {
-            logger.warn("Processing gRPC frame for method {} with error status: {}", qualifiedMethodName, status);
+            logger.warn("{} failed with error status: {}", () -> requestHeaders.path(), () -> status);
         }
         ctx.writeAndFlush(new DefaultHttp2HeadersFrame(status.getHeaders(), true)).addListener(f -> {
             if (!f.isSuccess()) {
@@ -258,16 +293,15 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
         if (status.isOk()) {
             assert httpStatus == 200 : "HTTP status must be 200 for successful gRPC requests";
             // It's a valid gRPC request, so more data will follow
-            logger.debug("Processing gRPC request");
+            logger.debug("{} call", () -> requestHeaders.path());
             responseHeaders = new DefaultHttp2Headers().status("200");
         } else {
-            logger.warn("Processing invalid gRPC request with error status {}: {}", httpStatus, status.getStatus());
+            logger.warn("{} received invalid call with error status {}: {}",
+                    () -> requestHeaders.path(), () -> httpStatus, status::getStatus);
             responseHeaders = status.getHeaders().status(Integer.toString(httpStatus));
         }
         responseHeaders.add(HEADER_CONTENT_TYPE, GRPC_CONTENT_TYPE)
                        .add("grpc-encoding", "identity")
-                //.add(HEADER_TE, TRAILERS)
-                //.add("X-custom", "loghub")
                        .add("grpc-accept-encoding", "identity,gzip");
         ctx.writeAndFlush(new DefaultHttp2HeadersFrame(responseHeaders, ! status.isOk()));
     }

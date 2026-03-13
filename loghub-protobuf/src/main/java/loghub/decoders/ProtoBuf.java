@@ -10,6 +10,7 @@ import java.util.List;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.GeneratedMessage;
 
 import io.netty.buffer.ByteBuf;
@@ -18,6 +19,7 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.protobuf.BinaryCodec;
+import loghub.protobuf.GrpcStreamHandler;
 import lombok.Setter;
 
 @BuilderClass(ProtoBuf.Builder.class)
@@ -29,48 +31,58 @@ public class ProtoBuf extends Decoder {
 
     @Setter
     public static class Builder extends Decoder.Builder<ProtoBuf> {
-        private String schemaUri;
-        private String mappingClass;
-        private ClassLoader loader;
-        private String[] knowMessages = new String[]{};
+        protected String schemaUri;
+        protected String mappingClass;
+        protected ClassLoader loader;
+        protected String[] knowMessages = new String[] {};
+
         @Override
         public ProtoBuf build() {
             return new ProtoBuf(this);
         }
     }
-    public static ProtoBuf.Builder getBuilder() {
-        return new ProtoBuf.Builder();
+
+    public static Builder getBuilder() {
+        return new Builder();
     }
 
-    private final BinaryCodec decoder;
-    private final String mappingClass;
+    protected final BinaryCodec<GrpcStreamHandler> decoder;
+    protected final String mappingClass;
 
-    public ProtoBuf(Builder builder) {
+    protected ProtoBuf(Builder builder) {
         super(builder);
         mappingClass = builder.mappingClass;
         try {
-             decoder = new BinaryCodec(Helpers.fileUri(builder.schemaUri));
+            decoder = getDecoder(builder);
         } catch (Descriptors.DescriptorValidationException | IOException ex) {
-            throw new IllegalStateException("Unusable binary schema :" + Helpers.resolveThrowableException(ex), ex);
+            throw new IllegalArgumentException("Unusable binary schema:" + Helpers.resolveThrowableException(ex), ex);
         }
-        for (String clazz: builder.knowMessages) {
-            try {
-                Class<?> loadedClass = builder.loader.loadClass(clazz);
-                if (loadedClass.isAssignableFrom(GeneratedMessage.class)) {
-                    Method builderMethod = loadedClass.getMethod("parseFrom", CodedInputStream.class);
-                    decoder.addFastPath(clazz, (BinaryCodec.MessageFastPathFunction<? extends Object>) (s, d,u) -> parseFrom(builderMethod, s));
+        if (builder.loader != null && builder.knowMessages != null) {
+            for (String clazz : builder.knowMessages) {
+                try {
+                    Class<?> loadedClass = builder.loader.loadClass(clazz);
+                    if (GeneratedMessage.class.isAssignableFrom(loadedClass)) {
+                        Method builderMethod = loadedClass.getMethod("parseFrom", CodedInputStream.class);
+                        decoder.addFastPath(clazz,
+                                (BinaryCodec.MessageFastPathFunction<? extends Object>) (s, d, u) -> parseFrom(
+                                        builderMethod, s));
+                    }
+                } catch (ClassNotFoundException | NoSuchMethodException ex) {
+                    throw new IllegalArgumentException("Unusable helpers class:" + Helpers.resolveThrowableException(ex), ex);
                 }
-            } catch (ClassNotFoundException | NoSuchMethodException e) {
-                throw new RuntimeException(e);
             }
         }
+    }
+
+    protected BinaryCodec<GrpcStreamHandler> getDecoder(Builder builder) throws DescriptorValidationException, IOException {
+        return new BinaryCodec<>(Helpers.fileUri(builder.schemaUri));
     }
 
     private Object parseFrom(Method builderMethod, CodedInputStream stream) {
         try {
             return builderMethod.invoke(null, stream);
         } catch (IllegalAccessException | InvocationTargetException ex) {
-            throw new RuntimeException(ex);
+            throw new IllegalArgumentException("Unusable helpers class:" + Helpers.resolveThrowableException(ex), ex);
         }
     }
 
@@ -91,6 +103,10 @@ public class ProtoBuf extends Decoder {
         } catch (IOException ex) {
             throw new DecodeException("Failed to decode Protobuf event: " + Helpers.resolveThrowableException(ex), ex);
         }
+    }
+
+    public BinaryCodec<GrpcStreamHandler> getProtobufCodec() {
+        return decoder;
     }
 
 }
