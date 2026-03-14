@@ -19,7 +19,6 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.grpc.BinaryCodec;
-import loghub.grpc.GrpcStreamHandler;
 import lombok.Setter;
 
 @BuilderClass(ProtoBuf.Builder.class)
@@ -46,7 +45,7 @@ public class ProtoBuf extends Decoder {
         return new Builder();
     }
 
-    protected final BinaryCodec<GrpcStreamHandler> decoder;
+    protected final BinaryCodec decoder;
     protected final String mappingClass;
 
     protected ProtoBuf(Builder builder) {
@@ -74,8 +73,8 @@ public class ProtoBuf extends Decoder {
         }
     }
 
-    protected BinaryCodec<GrpcStreamHandler> getDecoder(Builder builder) throws DescriptorValidationException, IOException {
-        return new BinaryCodec<>(Helpers.fileUri(builder.schemaUri));
+    protected BinaryCodec getDecoder(Builder builder) throws DescriptorValidationException, IOException {
+        return new BinaryCodec(Helpers.fileUri(builder.schemaUri));
     }
 
     private Object parseFrom(Method builderMethod, CodedInputStream stream) {
@@ -105,7 +104,7 @@ public class ProtoBuf extends Decoder {
         }
     }
 
-    public BinaryCodec<GrpcStreamHandler> getProtobufCodec() {
+    public BinaryCodec getProtobufCodec() {
         return decoder;
     }
 

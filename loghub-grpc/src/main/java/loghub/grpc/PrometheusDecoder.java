@@ -13,7 +13,7 @@ import com.google.protobuf.Descriptors;
 
 import lombok.Data;
 
-public class PrometheusDecoder<C> extends BinaryCodec<C> {
+public class PrometheusDecoder extends BinaryCodec {
 
     @Data
     private static class Sample {

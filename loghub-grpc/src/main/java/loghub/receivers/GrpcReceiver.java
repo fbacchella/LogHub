@@ -64,8 +64,7 @@ public class GrpcReceiver
     protected GrpcReceiver(Builder builder) {
         super(builder);
         this.resolver = new ContextExtractor<>(Http2Frame.class, this);
-        @SuppressWarnings("unchecked")
-        BinaryCodec<GrpcStreamHandler>[] codecs = Arrays.stream(builder.grpcCodecs).map(CodecProvider::getProtobufCodec).toArray(BinaryCodec[]::new);
+        BinaryCodec[] codecs = Arrays.stream(builder.grpcCodecs).map(CodecProvider::getProtobufCodec).toArray(BinaryCodec[]::new);
         grpcFactory = new Factory(codecs);
         for (CodecProvider cp: builder.grpcCodecs) {
             cp.registerFastPath(grpcFactory, this);

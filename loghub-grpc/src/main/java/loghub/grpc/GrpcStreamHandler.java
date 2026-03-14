@@ -15,6 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 
 import io.netty.buffer.ByteBuf;
@@ -37,17 +38,17 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
     private static final Logger logger = LogManager.getLogger();
 
     public static class Factory {
-        private final Map<String, BinaryCodec<GrpcStreamHandler>> servicesByPath;
-        private Map<String, BiFunction<?, GrpcStreamHandler, ?>> transformers = new HashMap<>();
+        private final Map<String, BinaryCodec> servicesByPath;
+        private Map<String, MethodProcessor<?, ?>> transformers = new HashMap<>();
         @SafeVarargs
-        public Factory(BinaryCodec<GrpcStreamHandler>... services) {
-            Map<String, BinaryCodec<GrpcStreamHandler>> tmpMap = new HashMap<>();
-            for (BinaryCodec<GrpcStreamHandler> bc: services) {
+        public Factory(BinaryCodec... services) {
+            Map<String, BinaryCodec> tmpMap = new HashMap<>();
+            for (BinaryCodec bc: services) {
                 bc.getMethods().forEach(e -> tmpMap.put(e.getKey(), bc));
             }
             servicesByPath = Map.copyOf(tmpMap);
         }
-        public void register(String methodQualifiedName, BiFunction<?, GrpcStreamHandler, ?> transformer) {
+        public void register(String methodQualifiedName, MethodProcessor<?, ?> transformer) {
             if (transformer != null) {
                 transformers.put(methodQualifiedName, transformer);
             } else {
@@ -74,13 +75,13 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
 
     private static final Pattern TIMEOUT_PATTERN = Pattern.compile("^(\\d+)([HMSmun])$");
 
-    private final Map<String, BinaryCodec<GrpcStreamHandler>> servicesByPath;
-    private final Map<String, BiFunction<?, GrpcStreamHandler, ?>> transformers;
+    private final Map<String, BinaryCodec> servicesByPath;
+    private final Map<String, MethodProcessor<?, ?>> transformers;
 
     @Getter
     private String qualifiedMethodName;
     @Getter
-    private BinaryCodec<GrpcStreamHandler> codec;
+    private BinaryCodec codec;
     @Getter
     private Duration grpcTimout;
     @Getter
@@ -88,7 +89,7 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
     @Getter
     Http2Headers requestHeaders = EmptyHttp2Headers.INSTANCE;
 
-    private GrpcStreamHandler(Map<String, BinaryCodec<GrpcStreamHandler>> servicesByPath, Map<String, BiFunction<?, GrpcStreamHandler, ?>> transformers) {
+    private GrpcStreamHandler(Map<String, BinaryCodec> servicesByPath, Map<String, MethodProcessor<?, ?>> transformers) {
         this.servicesByPath = servicesByPath;
         this.transformers = transformers;
     }
@@ -207,7 +208,7 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
         };
     }
 
-    private void onDataReceived(ChannelHandlerContext ctx, Http2DataFrame frame) {
+    private <I, O> void onDataReceived(ChannelHandlerContext ctx, Http2DataFrame frame) {
         try {
             List<BinaryCodec.UnknownField> unknownFields = new ArrayList<>();
 
@@ -219,40 +220,54 @@ public class GrpcStreamHandler extends ChannelInboundHandlerAdapter {
             // Bytes 5+  : serialized protobuf payload
             // ----------------------------------------------------------------
 
-            if (buf.readableBytes() < GRPC_FRAME_HEADER_LENGTH) {
-                sendTrailers(ctx, GrpcStatus.INTERNAL.withMessage("Incomplete gRPC frame header"));
-                return;
+            while (buf.readableBytes() >= GRPC_FRAME_HEADER_LENGTH) {
+                buf.markReaderIndex();
+                byte compressionFlag = buf.readByte();
+                int messageLength = buf.readInt();
+
+                if (compressionFlag != GRPC_FRAME_NOT_COMPRESSED) {
+                    sendTrailers(ctx,
+                            GrpcStatus.UNIMPLEMENTED.withMessage("Compressed messages are not supported by this handler"));
+                    return;
+                }
+
+                if (buf.readableBytes() < messageLength) {
+                    buf.resetReaderIndex();
+                    return;
+                }
+
+                ByteBuf messageBuf = buf.readSlice(messageLength);
+                I request = (I) codec.decode(CodedInputStream.newInstance(messageBuf.nioBuffer()), md.getInputType(), unknownFields);
+                MethodProcessor<I, O> methodConsumer = (MethodProcessor<I, O>) transformers.get(qualifiedMethodName);
+                if (methodConsumer == null) {
+                    sendTrailers(ctx, GrpcStatus.UNIMPLEMENTED.withMessage("Method %s has no registered transformer", qualifiedMethodName));
+                    return;
+                }
+                currentContext = ctx;
+                O processed = methodConsumer.doProcessing(this, request);
+                byte[] response = switch (processed) {
+                case byte[] r ->  r;
+                case Map<?, ?> m -> {
+                    Descriptor omd = codec.getMethodDescriptor(qualifiedMethodName).getOutputType();
+                    yield codec.encode(omd, (Map<String, Object>) m).toByteArray();
+                }
+                default -> throw new IllegalArgumentException(
+                        "Method " + qualifiedMethodName + " returned unexpected type: " + processed.getClass()
+                                                                                                  .getName());
+                };
+                writeGrpcDataFrame(ctx, response);
             }
 
-            byte compressionFlag = buf.readByte();
-            int  messageLength   = buf.readInt();
-
-            if (compressionFlag != GRPC_FRAME_NOT_COMPRESSED) {
-                sendTrailers(ctx,
-                        GrpcStatus.UNIMPLEMENTED.withMessage("Compressed messages are not supported by this handler"));
-                return;
+            if (frame.isEndStream()) {
+                sendTrailers(ctx, GrpcStatus.OK);
             }
-
-            if (buf.readableBytes() < messageLength) {
-                sendTrailers(ctx,
-                        GrpcStatus.INTERNAL.withMessage("Declared message length %d exceeds available bytes %d", messageLength, buf.readableBytes()));
-                return;
-            }
-            Object request = codec.decode(CodedInputStream.newInstance(buf.nioBuffer()), md.getInputType(), unknownFields);
-            BiFunction<?, GrpcStreamHandler, ?> methodConsumer = transformers.get(qualifiedMethodName);
-            if (methodConsumer == null) {
-                sendTrailers(ctx, GrpcStatus.UNIMPLEMENTED.withMessage("Method %s has no registered transformer", qualifiedMethodName));
-                return;
-            }
-            currentContext = ctx;
-            byte[] response = codec.process(qualifiedMethodName, this, request, methodConsumer);
-            writeGrpcDataFrame(ctx, response);
-            sendTrailers(ctx, GrpcStatus.OK);
         } catch (IOException ex) {
             sendTrailers(ctx, GrpcStatus.FAILED_PRECONDITION.withMessage("Invalid input", ex));
         } catch (RuntimeException ex) {
             logger.atError().withThrowable(ex).log("{}: {}", () -> requestHeaders.path(), () -> Helpers.resolveThrowableException(ex));
             sendTrailers(ctx, GrpcStatus.INTERNAL.withMessage("Internal error processing gRPC request"));
+        } catch (GrpcMethodException e) {
+            sendTrailers(ctx, e.getStatus());
         } finally {
             frame.release();
         }

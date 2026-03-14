@@ -12,7 +12,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -54,7 +53,6 @@ class TestOpenTelemetry {
     private static TlsContext tlsContext;
     private static Logger logger;
 
-    private GrpcReceiver receiver = null;
     private int port;
 
     @BeforeAll
@@ -65,21 +63,12 @@ class TestOpenTelemetry {
         tlsContext = new TlsContext(tempDir);
     }
 
-    @AfterEach
-    void clean() {
-        if (receiver != null) {
-            receiver.stopReceiving();
-            receiver.close();
-        }
-    }
-
     private void doRequest() {
         ManagedChannel channel = NettyChannelBuilder
                                          .forAddress("localhost", port)
                                          .useTransportSecurity()
                                          .sslContext(tlsContext.nettyCtx)
                                          .build();
-        MetricsServiceBlockingStub stub = MetricsServiceGrpc.newBlockingStub(channel);
 
         long tsNanos = Instant.now().toEpochMilli() * 1_000_000L;
 
@@ -136,6 +125,7 @@ class TestOpenTelemetry {
                                                   .addScopeMetrics(scopeMetrics)
                                                   .build();
         ExportMetricsServiceRequest m = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
+        MetricsServiceBlockingStub stub = MetricsServiceGrpc.newBlockingStub(channel);
         ExportMetricsServiceResponse  response = stub.withDeadlineAfter(5, TimeUnit.SECONDS).export(m);
         Assertions.assertEquals(0L, response.getPartialSuccess().getRejectedDataPoints());
         Assertions.assertEquals("", response.getPartialSuccess().getErrorMessage());

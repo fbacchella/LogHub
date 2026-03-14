@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.function.BiFunction;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.CodedInputStream;
@@ -25,11 +24,10 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
 
-public class BinaryCodec<C> {
+public class BinaryCodec {
 
     private final Map<String, MessageFastPathFunction<?>> messageFastPath = new HashMap<>();
     private final Map<String, FieldFastPathFunction<?>> fieldFastPath = new HashMap<>();
-    private final Map<String, MethodFastPathFunction> methodFastPath = new HashMap<>();
     private final Map<String, Descriptors.Descriptor> messages = new HashMap<>();
     private final Map<String, Descriptors.MethodDescriptor> methods = new HashMap<>();
 
@@ -41,17 +39,6 @@ public class BinaryCodec<C> {
     @FunctionalInterface
     public interface FieldFastPathFunction<T> {
         T resolve(CodedInputStream stream, Descriptors.FieldDescriptor descriptor, List<UnknownField> unknownFields) throws IOException;
-    }
-
-    private interface MethodFastPathFunction {
-    }
-
-    public interface MethodBytesFastPathFunction<I, C, T, O> extends MethodFastPathFunction {
-        byte[] process(I input, C context, BiFunction<T, C, O> operator);
-    }
-
-    public interface MethodMapFastPathFunction<I, C, T, O> extends MethodFastPathFunction {
-        Map<String, Object> process(I input, C context, BiFunction<T, C, O> operator);
     }
 
     public BinaryCodec(URI source) throws Descriptors.DescriptorValidationException, IOException {
@@ -149,22 +136,6 @@ public class BinaryCodec<C> {
         }
     }
 
-    public <I, T, O> void addFastPath(String methodFullName, MethodBytesFastPathFunction<I, C, T, O> fastPath) {
-        if (fastPath == null) {
-            methodFastPath.remove(methodFullName);
-        } else {
-            methodFastPath.put(methodFullName, fastPath);
-        }
-    }
-
-    public <I, T, O> void addFastPath(String methodFullName, MethodMapFastPathFunction<I, C, T, O> fastPath) {
-        if (fastPath == null) {
-            methodFastPath.remove(methodFullName);
-        } else {
-            methodFastPath.put(methodFullName, fastPath);
-        }
-    }
-
     public record UnknownField(String message, int fieldNumber, int fieldWireType, Object value) {
     }
 
@@ -174,30 +145,6 @@ public class BinaryCodec<C> {
 
     public <I> I decode(CodedInputStream stream, Descriptor message, List<UnknownField> unknownFields) throws IOException {
         return parseMessage(stream, message, unknownFields);
-    }
-
-    public <I, T, O> byte[] process(String method, C context, I input, BiFunction<T, C, O> consumer) {
-        if (methodFastPath.containsKey(method)) {
-            MethodFastPathFunction fastMethod = methodFastPath.get(method);
-            switch (fastMethod) {
-            case MethodBytesFastPathFunction mb -> {
-                return mb.process(input, context, consumer);
-            }
-            case MethodMapFastPathFunction mm -> {
-                Map<String, Object> values = mm.process(input, context, consumer);
-                String outMessageName = methods.get(method).getOutputType().getFullName();
-                return encode(outMessageName, values);
-            }
-            default ->
-                throw new IllegalArgumentException(
-                        "Method " + method + " returned unexpected type: " + fastMethod.getClass().getName());
-            }
-        } else if (input instanceof Map m) {
-            String outMessage = methods.get(method).getOutputType().getFullName();
-            return encode(outMessage, m);
-        } else {
-            throw new IllegalArgumentException("Input must be a Map or a supported method result type");
-        }
     }
 
     public byte[] encode(String messageName, Map<String, Object> values) {
@@ -335,12 +282,34 @@ public class BinaryCodec<C> {
         return methods.entrySet();
     }
 
-    private DynamicMessage encode(Descriptors.Descriptor descriptor, Map<String, Object> values) {
+    @SuppressWarnings("unchecked")
+    public DynamicMessage encode(Descriptors.Descriptor descriptor, Map<String, Object> values) {
         DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
         for (Map.Entry<String, Object> e: values.entrySet()) {
             Descriptors.FieldDescriptor fd = descriptor.findFieldByName(e.getKey());
+            if (fd == null) {
+                continue;
+            }
             if (fd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE && e.getValue() instanceof Map m) {
                 builder.setField(fd, encode(fd.getMessageType(), m));
+            } else if (fd.isRepeated() && e.getValue() instanceof List<?> l) {
+                for (Object o : l) {
+                    if (fd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE && o instanceof Map m) {
+                        builder.addRepeatedField(fd, encode(fd.getMessageType(), m));
+                    } else {
+                        builder.addRepeatedField(fd, o);
+                    }
+                }
+            } else if (fd.getType() == Descriptors.FieldDescriptor.Type.ENUM && e.getValue() instanceof String s) {
+                Descriptors.EnumValueDescriptor evd = fd.getEnumType().findValueByName(s);
+                if (evd != null) {
+                    builder.setField(fd, evd);
+                }
+            } else if (fd.getType() == Descriptors.FieldDescriptor.Type.ENUM && e.getValue() instanceof Integer i) {
+                Descriptors.EnumValueDescriptor evd = fd.getEnumType().findValueByNumber(i);
+                if (evd != null) {
+                    builder.setField(fd, evd);
+                }
             } else {
                 builder.setField(fd, e.getValue());
             }

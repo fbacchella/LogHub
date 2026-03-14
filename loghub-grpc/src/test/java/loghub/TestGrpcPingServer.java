@@ -7,6 +7,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
@@ -48,9 +49,9 @@ class TestGrpcPingServer {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.protobuf");
         tlsContext = new TlsContext(tempDir);
         client = HttpClient.newBuilder().sslContext(tlsContext.sslctx).build();
-        BinaryCodec<GrpcStreamHandler> ping = new Ping<>();
+        BinaryCodec ping = new Ping();
         GrpcStreamHandler.Factory factory = new GrpcStreamHandler.Factory(ping);
-        factory.register("ping.PingService.Ping", (o, c) -> 15L);
+        factory.register("ping.PingService.Ping", (h, i) -> Map.of("message", i, "timestamp", 15L));
         serverContext = new ServerContext(tlsContext, factory);
         logger.info("gRPC server started on port {}", serverContext.listenUri.getPort());
     }

@@ -5,6 +5,6 @@ import loghub.grpc.GrpcStreamHandler;
 import loghub.receivers.GrpcReceiver;
 
 public interface CodecProvider {
-    BinaryCodec<GrpcStreamHandler> getProtobufCodec();
+    BinaryCodec getProtobufCodec();
     void registerFastPath(GrpcStreamHandler.Factory factory, GrpcReceiver r);
 }

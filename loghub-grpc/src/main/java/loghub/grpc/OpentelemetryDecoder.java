@@ -7,12 +7,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors;
 
-public class OpentelemetryDecoder<C> extends BinaryCodec<C> {
+public class OpentelemetryDecoder extends BinaryCodec {
 
     public OpentelemetryDecoder() throws Descriptors.DescriptorValidationException, IOException {
         super(OpentelemetryDecoder.class.getClassLoader().getResourceAsStream("opentelemetry.binpb"));
@@ -27,10 +26,9 @@ public class OpentelemetryDecoder<C> extends BinaryCodec<C> {
         addFastPath("opentelemetry.proto.metrics.v1.NumberDataPoint", this::decodeDataPoints);
         addFastPath("opentelemetry.proto.metrics.v1.ResourceMetrics.schema_url", this::decodeUrl);
         addFastPath("opentelemetry.proto.metrics.v1.ScopeMetrics.schema_url", this::decodeUrl);
-        addFastPath("opentelemetry.proto.collector.metrics.v1.MetricsService.Export", this::metricsExport);
     }
 
-    private Object decodeResource(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields)
+    public Object decodeResource(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields)
             throws IOException {
         Map<String, Object> content = new HashMap<>();
         Map<String, Object> attributes = new HashMap<>();
@@ -49,7 +47,7 @@ public class OpentelemetryDecoder<C> extends BinaryCodec<C> {
         return content;
     }
 
-    private Object decodeDataPoints(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException {
+    public Object decodeDataPoints(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException {
         Map<String, Object> content = new HashMap<>();
         while (!stream.isAtEnd()) {
             Descriptors.FieldDescriptor gd = resolveField(stream, descriptor);
@@ -72,7 +70,7 @@ public class OpentelemetryDecoder<C> extends BinaryCodec<C> {
         return content;
     }
 
-    private Map.Entry<String, Object> decodeKeyValue(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException {
+    public Map.Entry<String, Object> decodeKeyValue(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException {
         String name = "";
         Object value = null;
         while (!stream.isAtEnd()) {
@@ -91,7 +89,7 @@ public class OpentelemetryDecoder<C> extends BinaryCodec<C> {
         return Map.entry(name, value);
     }
 
-    private Object decodeAnyValue(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException {
+    public Object decodeAnyValue(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException {
         if (!stream.isAtEnd()) {
             Descriptors.FieldDescriptor gd = resolveField(stream, descriptor);
             return switch (gd.getName()) {
@@ -103,10 +101,6 @@ public class OpentelemetryDecoder<C> extends BinaryCodec<C> {
         } else {
             return null;
         }
-    }
-
-    private Map<String, Object> metricsExport(Map<String, Object> metrics, C context, BiFunction<Map<String, Object>, C, Map<String, Object>> transformer) {
-        return transformer.apply(metrics, context);
     }
 
     public Map<String, Object> parseWriteRequest(String messageType, ByteBuffer buffer) throws IOException {

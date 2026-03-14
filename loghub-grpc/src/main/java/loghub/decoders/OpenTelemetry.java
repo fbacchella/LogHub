@@ -32,17 +32,16 @@ public class OpenTelemetry extends ProtoBuf implements CodecProvider {
     }
 
     @Override
-    protected BinaryCodec<GrpcStreamHandler> getDecoder(ProtoBuf.Builder builder) throws DescriptorValidationException, IOException {
-        return new OpentelemetryDecoder<>();
+    protected BinaryCodec getDecoder(ProtoBuf.Builder builder) throws DescriptorValidationException, IOException {
+        return new OpentelemetryDecoder();
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public void registerFastPath(Factory factory, GrpcReceiver r) {
         factory.register("opentelemetry.proto.collector.metrics.v1.MetricsService.Export",
-                (m, c) -> metricsExport(r, c,(Map<String, Object>) m)
+                (c, m) -> metricsExport(r, c,(Map<String, Object>) m)
         );
-
     }
 
     private Map<String, Object> metricsExport(GrpcReceiver r, GrpcStreamHandler handler, Map<String, Object> metrics) {
