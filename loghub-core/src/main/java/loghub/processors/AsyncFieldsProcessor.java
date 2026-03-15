@@ -29,9 +29,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
 
         @Override
         public boolean processCallback(Event event, FI content) throws ProcessorException {
-            Supplier<Object> resolver = () -> {
-                return AsyncFieldsProcessor.this.asyncProcess(event, content);
-            };
+            Supplier<Object> resolver = () -> AsyncFieldsProcessor.this.asyncProcess(event, content);
             try {
                 return processField(event, toprocess, resolver, r -> event.putAtPath(resolveDestination(toprocess), r));
             } catch (UncheckedProcessorException ex) {
@@ -80,9 +78,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
 
         @Override
         public boolean processCallback(Event event, FI content) throws ProcessorException {
-            Supplier<Object> resolver = () -> {
-                return AsyncFieldsProcessor.this.asyncProcess(event, content);
-            };
+            Supplier<Object> resolver = () -> AsyncFieldsProcessor.this.asyncProcess(event, content);
             try {
                 return processField(event, toprocess, resolver, results::add);
             } catch (UncheckedProcessorException ex) {

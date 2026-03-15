@@ -82,9 +82,7 @@ public class File extends Sender {
         public void onRemoved(
                 Iterable<CacheEntryEvent<? extends Path, ? extends FileEntry>> cacheEntryEvents
         ) throws CacheEntryListenerException {
-            cacheEntryEvents.forEach(e -> {
-                e.getValue().close();
-            });
+            cacheEntryEvents.forEach(e -> e.getValue().close());
         }
     }
 
