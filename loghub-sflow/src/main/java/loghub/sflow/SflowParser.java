@@ -96,7 +96,7 @@ public class SflowParser {
 
     private void addConstructor(String name, StructConstructor constructor) {
         DataFormat si = structByName.get(name);
-        registry.put(si, constructor::get);
+        registry.put(si, constructor);
     }
 
     private void loadTsvUrl(URL url) {
