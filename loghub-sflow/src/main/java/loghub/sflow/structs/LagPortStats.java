@@ -30,7 +30,7 @@ public class LagPortStats extends Struct {
     private final long dot3adAggPortStatsMarkerPDUsTx;
     private final long dot3adAggPortStatsMarkerResponsePDUsTx;
 
-    public LagPortStats(SflowParser parser, ByteBuf buf) throws IOException {
+    public LagPortStats(SflowParser parser, ByteBuf buf) {
         super(parser.getByName(NAME));
         buf = extractData(buf);
 

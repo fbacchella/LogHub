@@ -48,7 +48,7 @@ public class PojoConverter {
         return obj;
     }
 
-    private Map<String, Object> convertPojo(Object pojo, Set<Object> visited) throws Exception {
+    private Map<String, Object> convertPojo(Object pojo, Set<Object> visited) {
         Map<String, Object> map = new LinkedHashMap<>();
 
         Class<?> clazz = pojo.getClass();

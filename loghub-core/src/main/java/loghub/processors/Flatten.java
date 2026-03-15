@@ -26,7 +26,7 @@ public class Flatten  extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) {
         return Expression.flatten(value);
      }
 

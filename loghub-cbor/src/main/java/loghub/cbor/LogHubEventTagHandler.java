@@ -23,7 +23,7 @@ public class LogHubEventTagHandler extends CborTagHandler<Event> {
     }
 
     @Override
-    public Event parse(CborParser p) throws IOException {
+    public Event parse(CborParser p) {
         throw new IllegalArgumentException("Needs a custom parser");
     }
 

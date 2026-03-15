@@ -64,7 +64,7 @@ public class Gatherer extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) {
         if (value instanceof Map<?, ?> map) {
             Map<Object, List<Object>> listsMap = getListsMap(map);
             int maxLen = listsMap.values().stream()

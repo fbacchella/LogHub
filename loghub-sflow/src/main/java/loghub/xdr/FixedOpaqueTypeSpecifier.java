@@ -21,7 +21,7 @@ public class FixedOpaqueTypeSpecifier extends TypeSpecifier<NativeType> {
     }
 
     @Override
-    public <O> O read(ByteBuf b) throws IOException {
+    public <O> O read(ByteBuf b) {
         byte[] data = new byte[size];
         b.readBytes(data);
         return (O) data;
