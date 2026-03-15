@@ -47,7 +47,7 @@ class TestKaitaiDecoder {
 
     public static class MockKaitaiStruct extends KaitaiStruct {
         public String visibleField = "visible";
-        private String _internalField = "hidden";
+        private final String _internalField = "hidden";
 
         public MockKaitaiStruct(KaitaiStream _io) {
             super(_io);

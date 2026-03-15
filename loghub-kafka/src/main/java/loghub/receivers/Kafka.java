@@ -136,7 +136,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> implements CustomStats
     private final String topic;
     @Getter
     private final String receiverName;
-    private Supplier<Consumer<byte[], byte[]>> consumerSupplier;
+    private final Supplier<Consumer<byte[], byte[]>> consumerSupplier;
     private final Map<Integer, RangeCollection> ranges;
     private final Class<?> keyClass;
     private final boolean withAutoCommit;

@@ -41,9 +41,9 @@ public class SflowParser {
     interface StructConstructor {
         Struct get(ByteBuf buf) throws IOException;
     }
-    private Map<DataFormat, StructConstructor> registry = new HashMap<>();
-    private Map<StructureClass, Map<Integer, Map<Integer, DataFormat>>> structRegistry = new EnumMap<>(StructureClass.class);
-    private Map<String, DataFormat> structByName = new HashMap<>();
+    private final Map<DataFormat, StructConstructor> registry = new HashMap<>();
+    private final Map<StructureClass, Map<Integer, Map<Integer, DataFormat>>> structRegistry = new EnumMap<>(StructureClass.class);
+    private final Map<String, DataFormat> structByName = new HashMap<>();
     public final Set<DataFormat> missing = new HashSet<>();
     private final Map<String, ReadType<?>> byTypeReaders = new HashMap<>();
     private final Map<String, ReadType<?>> byAttributeReaders = new HashMap<>();
