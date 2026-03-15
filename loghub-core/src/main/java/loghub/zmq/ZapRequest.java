@@ -79,7 +79,7 @@ public class ZapRequest {
     @Override
     public String toString() {
         return "ZapRequest [" + (version != null ? "version=" + version + ", " : "")
-                       + (requestId != null ? "sequence=" + requestId + ", " : "")
+                       + (requestId != null ? "sequence=" + Arrays.toString(requestId) + ", " : "")
                        + (domain != null ? "domain=" + domain + ", " : "")
                        + (address != null ? "address=" + address + ", " : "")
                        + (identity != null ? "identity=" + identity + ", " : "")
