@@ -41,7 +41,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
     private static class PipelineOutput implements Closeable {
         private final StringBuilder buffer = new StringBuilder();
         private String prefix;
-        Deque<Integer> stack = new ArrayDeque<>();
+        final Deque<Integer> stack = new ArrayDeque<>();
         PipelineOutput(String pipelineName) {
             buffer.append("pipeline[%s] {%n".formatted(pipelineName));
             stack.push(-1);

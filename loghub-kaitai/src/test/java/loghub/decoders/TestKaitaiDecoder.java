@@ -46,7 +46,7 @@ class TestKaitaiDecoder {
     private final EventsFactory factory = new EventsFactory();
 
     public static class MockKaitaiStruct extends KaitaiStruct {
-        public String visibleField = "visible";
+        public final String visibleField = "visible";
         private final String _internalField = "hidden";
 
         public MockKaitaiStruct(KaitaiStream _io) {

@@ -14,7 +14,7 @@ import lombok.Setter;
 @BuilderClass(EvalExpression.Builder.class)
 public class EvalExpression extends Encoder {
 
-    public static MimeType MIME_TYPE = MimeType.of("text/plain");
+    public static final MimeType MIME_TYPE = MimeType.of("text/plain");
 
     @Setter
     public static class Builder extends Encoder.Builder<EvalExpression> {

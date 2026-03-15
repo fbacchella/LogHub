@@ -84,7 +84,7 @@ public class StdlibProvider {
 
     private static final StructLayout CAPTURE_LAYOUT= Linker.Option.captureStateLayout();
 
-    VarHandle errnoHandle = CAPTURE_LAYOUT.varHandle(
+    final VarHandle errnoHandle = CAPTURE_LAYOUT.varHandle(
             MemoryLayout.PathElement.groupElement("errno")
     );
 

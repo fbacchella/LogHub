@@ -24,7 +24,7 @@ public abstract class AbstractXmlDecoder<X extends AbstractXmlDecoder<X, XB>, XB
         boolean nameSpaceAware = true;
     }
 
-    XmlHandler handler;
+    final XmlHandler handler;
 
     protected AbstractXmlDecoder(XB builder) {
         super(builder);

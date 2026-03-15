@@ -6,7 +6,7 @@ import io.netty.buffer.ByteBuf;
 
 public class InvalidTypeSpecifier extends TypeSpecifier<String> {
 
-    String typeName;
+    final String typeName;
     protected InvalidTypeSpecifier(String name, String typeName) {
         super(name);
         this.typeName = typeName;

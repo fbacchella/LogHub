@@ -31,7 +31,7 @@ public class ParseXml extends FieldsProcessor {
         return new ParseXml.Builder();
     }
 
-    XmlHandler handler;
+    final XmlHandler handler;
 
     private ParseXml(Builder builder) {
         super(builder);

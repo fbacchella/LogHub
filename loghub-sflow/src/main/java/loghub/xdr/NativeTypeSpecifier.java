@@ -10,7 +10,7 @@ import lombok.Getter;
 public class NativeTypeSpecifier extends TypeSpecifier<NativeType> {
 
     private final NativeType type;
-    int size;
+    final int size;
 
     protected NativeTypeSpecifier(NativeType type, int size) {
         super(type.typeName);
