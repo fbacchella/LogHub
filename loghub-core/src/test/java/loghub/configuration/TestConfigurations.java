@@ -55,8 +55,8 @@ public class TestConfigurations {
     public void testBuildPipeline() throws IOException, InterruptedException, ConfigException {
         Properties conf = Tools.loadConf("simple.conf");
         Event sent = factory.newEvent();
-        logger.debug("pipelines: " + conf.pipelines);
-        logger.debug("namedPipeLine: " + conf.namedPipeLine);
+        logger.debug("pipelines: {}", conf.pipelines);
+        logger.debug("namedPipeLine: {}", conf.namedPipeLine);
         conf.mainQueue.add(sent);
         Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
         Assert.assertEquals("not expected event received", sent, received);
@@ -67,8 +67,8 @@ public class TestConfigurations {
         Properties conf = Tools.loadConf("simple.conf");
         Event sent = factory.newEvent();
 
-        logger.debug("pipelines: " + conf.pipelines);
-        logger.debug("namedPipeLine: " + conf.namedPipeLine);
+        logger.debug("pipelines: {}", conf.pipelines);
+        logger.debug("namedPipeLine: {}", conf.namedPipeLine);
         conf.mainQueue.add(sent);
         Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
         Assert.assertEquals("not expected event received", sent, received);

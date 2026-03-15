@@ -27,7 +27,7 @@ public record EventExceptionDescription(String eventJson, CONTEXT context, Strin
         try {
             return JSON_FORMATER.format(e);
         } catch (RuntimeException ex) {
-            logger.atError().withThrowable(ex).log("Unformatable event :" + Helpers.resolveThrowableException(ex));
+            logger.atError().withThrowable(ex).log("Unformattable event: {}", Helpers.resolveThrowableException(ex));
             return "Unformatable event :" + Helpers.resolveThrowableException(ex);
         }
     };

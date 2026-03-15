@@ -68,12 +68,12 @@ public abstract class SystemdHandler {
 
         @Override
         public void exception(ChannelHandlerContext ctx, Throwable cause) {
-            logger.error("Exception with sytemd handler: " + Helpers.resolveThrowableException(cause));
+            logger.error("Exception with sytemd handler: {}", Helpers.resolveThrowableException(cause));
         }
 
         @Override
         public void logFatalException(Throwable cause) {
-            logger.error("Exception with sytemd handler: " + Helpers.resolveThrowableException(cause));
+            logger.error("Exception with sytemd handler: {}", Helpers.resolveThrowableException(cause));
         }
 
         @Override
