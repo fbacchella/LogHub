@@ -142,7 +142,7 @@ public enum HttpProtocolVersion {
      */
     public static Optional<HttpProtocolVersion> fromNettyVersion(HttpVersion version) {
         return Optional.ofNullable(version)
-                .map(v -> BY_NETTY_VERSION.get(v))
+                .map(BY_NETTY_VERSION::get)
                 .or(() -> {
                     switch (version == null ? -1 : version.majorVersion()) {
                         case 2:

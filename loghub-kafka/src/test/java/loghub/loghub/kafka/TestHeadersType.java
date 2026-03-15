@@ -15,7 +15,7 @@ public class TestHeadersType {
     @Test
     public void testRoundRobin() {
         Random random = new Random();
-        Function<Object, HeadersTypes> detect = o -> HeadersTypes.resolve(o);
+        Function<Object, HeadersTypes> detect = HeadersTypes::resolve;
         roundRobin(detect, Long.MAX_VALUE);
         roundRobin(detect, Double.MAX_VALUE);
         roundRobin(detect, Double.NaN);
