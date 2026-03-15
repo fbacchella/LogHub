@@ -23,7 +23,7 @@ public class TimePattern implements BaseParametersRunner {
     @Override
     public int run(List<String> mainParameters, PrintWriter o, PrintWriter e) {
         if (timepattern != null) {
-            DatetimeProcessor tested = null;
+            DatetimeProcessor tested;
             try {
                 tested = DatetimeProcessor.of(timepattern);
             } catch (IllegalArgumentException ex) {

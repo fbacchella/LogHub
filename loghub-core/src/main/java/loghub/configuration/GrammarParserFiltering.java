@@ -89,7 +89,7 @@ public class GrammarParserFiltering {
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();
     private BEANTYPE currentBeanType = null;
     @Getter
-    private ClassLoader classLoader = getClass().getClassLoader();
+    private ClassLoader classLoader;
     @Getter
     private final BeansManager manager = new BeansManager();
     @Getter
