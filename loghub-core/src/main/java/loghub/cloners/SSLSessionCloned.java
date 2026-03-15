@@ -2,11 +2,8 @@ package loghub.cloners;
 
 import java.security.Principal;
 import java.security.cert.Certificate;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;

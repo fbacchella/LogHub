@@ -7,7 +7,6 @@ import loghub.Processor;
 import loghub.cloners.NotClonableException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
-import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 import lombok.Getter;
 import lombok.Setter;

@@ -1,7 +1,6 @@
 package loghub.netty.http2;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http2.Http2HeadersFrame;
 import loghub.netty.http.HttpRequestFailure;

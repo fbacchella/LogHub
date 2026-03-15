@@ -21,7 +21,6 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Timer.Context;
 
 import loghub.ConnectionContext;
-import loghub.Helpers;
 import loghub.NullOrMissingValue;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;

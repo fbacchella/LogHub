@@ -3,7 +3,6 @@ package loghub.commands;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,7 +41,6 @@ import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.jackson.EventSerializer;
 import loghub.jackson.JacksonBuilder;
-import lombok.Getter;
 import lombok.ToString;
 
 @Parameters(commandNames = { "test" })

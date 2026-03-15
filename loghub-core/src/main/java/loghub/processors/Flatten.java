@@ -2,7 +2,6 @@ package loghub.processors;
 
 import loghub.BuilderClass;
 import loghub.Expression;
-import loghub.ProcessorException;
 import loghub.events.Event;
 import lombok.Setter;
 

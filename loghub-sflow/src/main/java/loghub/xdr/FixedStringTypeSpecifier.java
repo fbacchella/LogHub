@@ -1,7 +1,5 @@
 package loghub.xdr;
 
-import java.io.IOException;
-
 import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 

@@ -11,7 +11,6 @@ import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.VarHandle;
-import java.nio.ByteOrder;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.function.IntConsumer;
