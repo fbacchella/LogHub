@@ -283,7 +283,7 @@ class TestFlatten {
 
                 // Single element wrapped multiple times
                 Arguments.of(
-                        List.of(Collections.singletonList(Arrays.asList(new int[]{8}))),
+                        List.of(List.of(List.of(new int[] { 8 }))),
                         8
                 ),
 
