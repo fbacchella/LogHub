@@ -6,6 +6,7 @@ import java.io.StringReader;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
@@ -39,7 +40,7 @@ class TestGeoip2 {
     static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors", "loghub.pipeline.geoip");
     }
 
     @ParameterizedTest
@@ -80,15 +81,16 @@ class TestGeoip2 {
         Geoip2 geoip = build(b -> {
             b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString());
             b.setTypes(new String[]{"name", "code", "country"});
-            b.setKeepOld(false);
         });
         Map<String, Object> geoinfos = runner.apply(geoip, factory);
-        Assertions.assertEquals(1, geoinfos.size());
+        Assertions.assertEquals(2, geoinfos.size());
         @SuppressWarnings("unchecked")
         Map<String, String> country = (Map<String, String>) geoinfos.get("country");
         Assertions.assertEquals(2, country.size());
         Assertions.assertEquals("United States", country.get("name"));
         Assertions.assertEquals("US", country.get("code"));
+        String postal = (String) geoinfos.get("postal");
+        Assertions.assertEquals("94040", postal);
     }
 
     @ParameterizedTest
@@ -96,8 +98,29 @@ class TestGeoip2 {
     void testProcessCountry(GeoipRunner runner) throws ProcessorException {
         Geoip2 geoip = build(b -> b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-Country.mmdb").toString()));
         Map<String, Object> geoinfos = runner.apply(geoip, factory);
-        Assertions.assertEquals(2, geoinfos.size());
-        Assertions.assertEquals("North America", geoinfos.get("continent"));
+        Assertions.assertEquals(Map.of("code", "NA", "name", "North America"), geoinfos.remove("continent"));
+        Assertions.assertEquals(Map.of("code", "US", "name", "United States"), geoinfos.remove("country"));
+        Assertions.assertEquals(0, geoinfos.size());
+    }
+
+    @ParameterizedTest
+    @EnumSource(GeoipRunner.class)
+    void testExtendedFormat(GeoipRunner runner) throws ProcessorException {
+        Geoip2 geoip = build(b -> {
+            b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString());
+            b.setExtendedFormat(true);
+            b.setIsoCodeKey("iso");
+            b.setTypes(new String[]{"all"});
+        });
+        Map<String, Object> geoinfos = runner.apply(geoip, factory);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> country = (Map<String, Object>) geoinfos.remove("country");
+        Assertions.assertEquals(Set.of("iso", "name", "geoname_id"), country.keySet());
+        Map<String, Object> continent = (Map<String, Object>) geoinfos.remove("continent");
+        Assertions.assertEquals(Set.of("code", "name", "geoname_id"), continent.keySet());
+        Map<String, Object> city = (Map<String, Object>) geoinfos.remove("city");
+        Assertions.assertEquals(Set.of("name", "geoname_id"), city.keySet());
     }
 
     private Geoip2 build(Consumer<Geoip2.Builder> builderTweaks) {
@@ -146,6 +169,7 @@ class TestGeoip2 {
                 , BeanChecks.BeanInfo.build("success", Processor.class)
                 , BeanChecks.BeanInfo.build("failure", Processor.class)
                 , BeanChecks.BeanInfo.build("exception", Processor.class)
+                , BeanChecks.BeanInfo.build("extendedFormat", Boolean.TYPE)
         );
     }
 

@@ -9,6 +9,7 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -84,15 +85,16 @@ public class Geoip2 extends FieldsProcessor {
     @Setter
     public static class Builder extends FieldsProcessor.Builder<Geoip2> {
         private String geoipdb = null;
-        // Keep compatibily with previous version of this processor
+        // Keep compatible with the previous version of this processor
         private String isoCodeKey = "code";
+        // Keep the old format
+        private boolean extendedFormat = false;
         private String[] types = new String[] {};
         private String locale = Locale.getDefault().getLanguage();
         private int cacheSize = 100;
         private String refresh = "";
         private CacheManager cacheManager;
         private boolean required = true;
-        private boolean keepOld = true;
         public Geoip2 build() {
             return new Geoip2(this);
         }
@@ -114,23 +116,34 @@ public class Geoip2 extends FieldsProcessor {
     private final Duration delay;
     private final String isoCodeKey;
     private final boolean keepOld;
+    private final Set<String> withLocalizedName;
     private final ReadWriteLock dbProtectionLock = new ReentrantReadWriteLock();
     private volatile long lastBuildDate = 0;
 
     public Geoip2(Builder builder) {
         super(builder);
-        if (builder.types.length == 0 && builder.keepOld) {
+        this.keepOld = !builder.extendedFormat;
+        if (builder.types.length == 0 && !builder.extendedFormat) {
             this.types = Set.of("country", "continent", "name", "city", "latitude", "longitude", "code", "timezone",
                                 "accuray_radius", "metro_code", "average_income", "population_density");
         } else if (builder.types.length == 0) {
             this.types = Set.of("country", "continent", "name", "city", "latitude", "longitude", builder.isoCodeKey);
         } else if (builder.types.length == 1 && builder.types[0].equalsIgnoreCase("all")) {
             this.types = ALL;
+        } else if (keepOld) {
+            Set<String> bufferTypes = Arrays.stream(builder.types).collect(Collectors.toSet());
+            bufferTypes.add("name");
+            bufferTypes.add("code");
+            this.types = Set.copyOf(bufferTypes);
         } else {
             this.types = Set.of(builder.types);
         }
-        this.keepOld = builder.keepOld;
-        this.isoCodeKey = builder.keepOld ? "code" : builder.isoCodeKey;
+        if (keepOld) {
+            this.withLocalizedName = Set.of("country", "continent", "city");
+        } else {
+            this.withLocalizedName = Set.of();
+        }
+        this.isoCodeKey = !builder.extendedFormat ? "code" : builder.isoCodeKey;
         this.geoipdb = Optional.ofNullable(builder.geoipdb)
                                .map(Helpers::fileUri)
                                .orElse(null);
@@ -223,18 +236,28 @@ public class Geoip2 extends FieldsProcessor {
             return Optional.of(Map.entry("name", langs.get(locale)));
         } else if (e.getKey().equals("iso_code") && checkKey(isoCodeKey)){
             return Optional.of(Map.entry(isoCodeKey, e.getValue()));
-        } else if (e.getKey().equals("continent") && checkKey("continent") && keepOld) {
+        } else if (e.getKey().equals("time_zone") && checkKey(isoCodeKey)){
+            return Optional.of(Map.entry("timezone", e.getValue()));
+        } else if (withLocalizedName.contains(e.getKey()) && checkKey(e.getKey()) && e.getValue() instanceof Map m) {
             @SuppressWarnings("unchecked")
-            Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
-            return filtered.containsKey("name") ? Optional.of(Map.entry("continent", filtered.get("name"))) : Optional.empty();
+            Map<String, Object> filtered = filterMap(m);
+            if (filtered.size() == 1 && filtered.containsKey("name")) {
+                return Optional.of(Map.entry(e.getKey(), filtered.get("name")));
+            } else {
+                return Optional.of(Map.entry(e.getKey(), filtered));
+            }
         } else if (e.getKey().equals("postal") && checkKey(isoCodeKey) && keepOld) {
             @SuppressWarnings("unchecked")
             Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
             return filtered.containsKey("code") ? Optional.of(Map.entry("postal", filtered.get("code"))) : Optional.empty();
-        } else if (e.getKey().equals("city") && e.getValue() instanceof Map && checkKey(isoCodeKey) && keepOld) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
-            return filtered.containsKey("name") ? Optional.of(Map.entry("city", filtered.get("name"))) : Optional.empty();
+        } else if (e.getKey().equals("location") && checkKey("location")) {
+            if (e.getValue() instanceof Map m && keepOld) {
+                Object tz = m.remove("time_zone");
+                if (tz != null) {
+                    m.put("timezone", tz);
+                }
+            }
+            return Optional.of(Map.entry("location", e.getValue()));
         } else if (e.getValue() instanceof Map && checkKey(e.getKey())){
             @SuppressWarnings("unchecked")
             Map<String, Object> submap = (Map<String, Object>) e.getValue();
