@@ -9,14 +9,15 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import loghub.Helpers;
 import loghub.decoders.DecodeException;
+import loghub.metrics.Stats;
 import loghub.netcap.BpfProgram;
 import loghub.netcap.PCAP_LINKTYPE;
 import loghub.netcap.PcapProvider;
@@ -84,13 +85,13 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
                 byte[] hardwareAddress = ni.getHardwareAddress();
                 this.interfaceHardwareAddress = (hardwareAddress != null && (hardwareAddress.length == 6 || hardwareAddress.length == 8 || hardwareAddress.length == 20)) ? new MacAddress(hardwareAddress) : null;
             } catch (SocketException e) {
-                throw new RuntimeException(e);
+                throw new IllegalArgumentException("Unusable listening interface",e);
             }
         }
         try (Arena arena = Arena.ofConfined()){
-            bpfCompiler = (a) -> bpfCompile(a, builder.bpfFilter, builder.linktype, builder.snaplen);
+            bpfCompiler = a -> bpfCompile(a, builder.bpfFilter, builder.linktype, builder.snaplen);
             // try to compile the bpf program
-            try (BpfProgram bpfProgram = bpfCompiler.apply(arena)) {
+            try (BpfProgram _ = bpfCompiler.apply(arena)) {
                 // bpfProgram is closed automatically
             }
         }
@@ -100,7 +101,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         try {
             return pcap.compileBpfFilter(arena, bpfFilter, linktype, snaplen);
         } catch (ExecutionException e) {
-            throw new IllegalArgumentException(e.getMessage(), e.getCause());
+            throw new IllegalArgumentException(String.format("Invalid bpf filter %s: %s", bpfFilter, Helpers.resolveThrowableException(e)), e.getCause());
         }
     }
 
@@ -114,7 +115,7 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
                 sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue());
                 stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
             }
-            SocketaddrSll listenAddress = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ALL, ifIndex);
+            SocketaddrSll<MacAddress> listenAddress = new SocketaddrSll<>(SLL_PROTOCOL.ETH_P_ALL, ifIndex);
             stdlib.bind(sockfd, listenAddress.getSegment(arena), SocketaddrSll.SOCKADDR_LL_SIZE);
             MemorySegment buffer = arena.allocate(snaplen);
             MemorySegment addrlen = arena.allocate(ValueLayout.JAVA_INT);
@@ -124,17 +125,25 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
                 receptionIteration(sockfd, buffer, sockaddrSegment, addrlen);
             }
         } catch (IOException ex) {
-            throw new RuntimeException(ex);
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Received failed to start: {}", () -> Helpers.resolveThrowableException(ex));
         } catch (ExecutionException ex) {
-            throw new RuntimeException(ex);
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Received failed to start: {}", () -> Helpers.resolveThrowableException(ex.getCause()));
         } finally {
             if (sockfd > 0) {
                 try {
                     stdlib.close(sockfd);
-                } catch (ExecutionException e) {
-                    throw new RuntimeException(e);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                } catch (IOException ex) {
+                    logger.atError()
+                          .withThrowable(logger.isDebugEnabled() ? ex : null)
+                          .log("Unable to close netcap handle: {}", () -> Helpers.resolveThrowableException(ex));
+                } catch (ExecutionException ex) {
+                    logger.atError()
+                          .withThrowable(logger.isDebugEnabled() ? ex : null)
+                          .log("Unable to close netcap handle: {}", () -> Helpers.resolveThrowableException(ex.getCause()));
                 }
             }
         }
@@ -144,13 +153,19 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         try {
             ByteBuffer packet = readFd(sockfd, buffer, sockaddr, addrlen);
             if (packet != null) {
-                SocketaddrSll receivedAddress = new SocketaddrSll(sockaddr);
-                ConnectionContext ctx = new SllConnectionContext(receivedAddress, interfaceDisplayName, interfaceHardwareAddress);
+                SocketaddrSll<MacAddress> receivedAddress = new SocketaddrSll<>(sockaddr);
+                ConnectionContext<MacAddress> ctx = new SllConnectionContext<>(receivedAddress, interfaceDisplayName, interfaceHardwareAddress);
                 decoder.decode(ctx, packet).forEach(m -> send(mapToEvent(ctx, m)));
             }
         } catch (DecodeException ex) {
             getEventsFactory().deadEvent(ConnectionContext.EMPTY);
             manageDecodeException(ex);
+        } catch (RuntimeException ex) {
+            this.getEventsFactory().deadEvent(ConnectionContext.EMPTY);
+            Stats.newReceivedError(this, ex.getCause());
+            logger.atDebug()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Unhandled received packet: {}", Helpers.resolveThrowableException(ex));
         }
     }
 
@@ -180,10 +195,20 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             } else {
                 return null;
             }
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (ExecutionException ex) {
+            this.getEventsFactory().deadEvent(ConnectionContext.EMPTY);
+            Stats.newReceivedError(this, ex.getCause());
+            logger.atDebug()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Unhandled received packet: {}", Helpers.resolveThrowableException(ex.getCause()));
+            return null;
+        } catch (IOException ex) {
+            this.getEventsFactory().deadEvent(ConnectionContext.EMPTY);
+            Stats.newReceivedError(this, ex);
+            logger.atDebug()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Unhandled received packet: {}", Helpers.resolveThrowableException(ex));
+            return null;
         }
     }
 
