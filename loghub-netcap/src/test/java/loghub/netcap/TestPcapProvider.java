@@ -2,8 +2,12 @@ package loghub.netcap;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.Linker;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.Level;
@@ -14,6 +18,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnJre;
 import org.junit.jupiter.api.condition.JRE;
+import org.junit.jupiter.api.io.TempDir;
 
 import loghub.LogUtils;
 
@@ -27,7 +32,7 @@ class TestPcapProvider {
     static void setup() {
         LogUtils.configure();
         logger = LogManager.getLogger(TestPcapProvider.class);
-        LogUtils.setLevel(logger, Level.DEBUG);
+        LogUtils.setLevel(logger, Level.DEBUG, "loghub.netcap");
         provider = Optional.ofNullable(tryAuto()).orElseGet(TestPcapProvider::findProvider);
         if (provider == null) {
             String os = System.getProperty("os.name");
@@ -86,4 +91,25 @@ class TestPcapProvider {
             Assertions.assertEquals("Failed to compile BPF filter: can't parse filter expression: syntax error", ex.getMessage());
         }
     }
+
+    @Test
+    void testParseLdSoConf(@TempDir Path tempDir) throws Exception {
+        Path ldSoConf = tempDir.resolve("ld.so.conf");
+        Path includeDir = tempDir.resolve("ld.so.conf.d");
+        Files.createDirectories(includeDir);
+
+        Files.writeString(ldSoConf, "# comment\n/lib/x86_64-linux-gnu # inline comment\ninclude " + includeDir + "/*.conf # mixed comment\n  /usr/local/lib  \n");
+        Files.writeString(includeDir.resolve("libc.conf"), "/usr/lib/x86_64-linux-gnu\n# only comment line\n");
+        Files.writeString(includeDir.resolve("local.conf"), "/opt/lib\n");
+
+        List<String> searchDirs = new ArrayList<>();
+        PcapProvider.parseLdSoConf(ldSoConf, searchDirs);
+        Assertions.assertEquals("/lib/x86_64-linux-gnu", searchDirs.remove(0));
+        // The order of libc.conf and local.conf is not deterministic
+        Assertions.assertTrue(Set.of("/opt/lib", "/usr/lib/x86_64-linux-gnu").contains(searchDirs.remove(0)));
+        Assertions.assertTrue(Set.of("/opt/lib", "/usr/lib/x86_64-linux-gnu").contains(searchDirs.remove(0)));
+        Assertions.assertEquals("/usr/local/lib", searchDirs.remove(0));
+        Assertions.assertTrue(searchDirs.isEmpty());
+    }
+
 }

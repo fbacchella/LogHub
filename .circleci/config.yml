@@ -55,6 +55,8 @@ jobs:
                 at: /tmp/ws
             - run:
                 command: |
+                    sudo apt-get update
+                    sudo apt install tcpdump
                     mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/

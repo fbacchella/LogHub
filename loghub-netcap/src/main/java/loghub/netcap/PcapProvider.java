@@ -11,11 +11,12 @@ import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
@@ -57,6 +58,59 @@ public class PcapProvider {
     private final MethodHandle pcap_freecode;
     private final MethodHandle pcap_geterr;
 
+    static void parseLdSoConf(Path confFile, List<String> searchDirs) {
+        if (!Files.exists(confFile)) {
+            return;
+        }
+        try (Stream<String> lines = Files.lines(confFile)) {
+            lines.map(line -> {
+                     int commentIdx = line.indexOf('#');
+                     if (commentIdx != -1) {
+                         line = line.substring(0, commentIdx);
+                     }
+                     return line.trim();
+                 })
+                 .filter(line -> !line.isEmpty())
+                 .forEach(l -> resolveLine(l, confFile, searchDirs));
+        } catch (IOException e) {
+            logger.atWarn()
+                  .withThrowable(logger.isDebugEnabled() ? e : null)
+                  .log("Failed to read {}: {}", confFile, Helpers.resolveThrowableException(e));
+        }
+    }
+
+    private static void resolveLine(String line, Path confFile, List<String> searchDirs) {
+        if (line.startsWith("include ")) {
+            String glob = line.substring("include ".length()).trim();
+            Path globPath = Path.of(glob);
+            if (!globPath.isAbsolute()) {
+                globPath = confFile.getParent().resolve(globPath);
+            }
+            Pattern pattern = Helpers.convertGlobToRegex(globPath.toString());
+            Path searchBase = globPath;
+            while (searchBase != null && (searchBase.toString().contains("*") || searchBase.toString().contains("?") || searchBase.toString().contains("[") || searchBase.toString().contains("{"))) {
+                searchBase = searchBase.getParent();
+            }
+            if (searchBase == null) {
+                searchBase = Path.of("/");
+            }
+            if (Files.isDirectory(searchBase)) {
+                try (Stream<Path> includedFiles = Files.walk(searchBase, 1)) {
+                    includedFiles.filter(p -> pattern.matcher(p.toString()).matches())
+                                 .filter(Files::isRegularFile)
+                                 .forEach(p -> parseLdSoConf(p, searchDirs));
+                } catch (IOException e) {
+                    logger.atWarn()
+                            .withThrowable(logger.isDebugEnabled() ? e : null)
+                            .log("Failed to process include {}: {}", glob, Helpers.resolveThrowableException(e));
+                }
+            }
+        } else {
+            logger.debug("Adding search directory: {}", line);
+            searchDirs.add(line);
+        }
+    }
+
     private static SymbolLookup findPcap(List<String> searchDirs) {
         SortedSet<Path> possiblePaths = new TreeSet<>(Helpers.NATURALSORTPATH::compare);
 
@@ -69,15 +123,21 @@ public class PcapProvider {
 
             if (searchDirs == null) {
                 String libraryPath = System.getProperty("java.library.path");
-                searchDirs = libraryPath != null ? List.of(libraryPath.split(File.pathSeparator)) : Collections.emptyList();
+                searchDirs = new ArrayList<>();
+                if (libraryPath != null) {
+                    searchDirs.addAll(List.of(libraryPath.split(File.pathSeparator)));
+                }
+                if (os.contains("linux")) {
+                    parseLdSoConf(Path.of("/etc/ld.so.conf"), searchDirs);
+                }
             }
 
+            logger.debug("Will search pcap in {}", searchDirs);
             for (String dir : searchDirs) {
                 Path p = Path.of(dir);
                 if (Files.isDirectory(p)) {
                     try (Stream<Path> stream = Files.list(p)) {
-                        List<Path> found = stream.filter(Files::isExecutable)
-                                                 .filter(path -> path.getFileName().toString().startsWith(prefix))
+                        List<Path> found = stream.filter(path -> Files.isRegularFile(path) && Files.isReadable(path) && path.getFileName().toString().startsWith(prefix))
                                                  .map(p::resolve)
                                                  .toList();
                         possiblePaths.addAll(found);
@@ -90,6 +150,7 @@ public class PcapProvider {
             }
         }
 
+        logger.debug("Will try pcap as {}", possiblePaths);
         for (Path path: possiblePaths) {
             try {
                 SymbolLookup symbol = SymbolLookup.libraryLookup(path, Arena.global());
