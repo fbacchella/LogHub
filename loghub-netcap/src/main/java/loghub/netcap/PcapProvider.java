@@ -42,7 +42,11 @@ public class PcapProvider {
     private final MethodHandle pcap_geterr;
 
     public PcapProvider(Linker linker) {
-        SymbolLookup libpcap = SymbolLookup.libraryLookup("libpcap.so.1", Arena.global());
+        this(linker, "pcap");
+    }
+
+    public PcapProvider(Linker linker, String libraryPath) {
+        SymbolLookup libpcap = SymbolLookup.libraryLookup(libraryPath == null || libraryPath.isBlank() ? "pcap" : libraryPath, Arena.global());
         pcap_compile = linker.downcallHandle(
                 libpcap.findOrThrow("pcap_compile"),
                 PCAP_COMPILE_DESC

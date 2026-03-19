@@ -44,7 +44,7 @@ class PcapHandle implements AutoCloseable {
 
         if (result != 0) {
             MemorySegment errorMsg = pcap.pcap_geterr(handle);
-            String error = errorMsg.getString(0);
+            String error = errorMsg.reinterpret(256).getString(0);
             throw new IllegalArgumentException("Failed to compile BPF filter: " + error);
         }
 

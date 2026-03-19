@@ -12,7 +12,7 @@ jobs:
             - run:
                 command: |
                     sudo apt-get update
-                    sudo apt install libsnmp-base snmp-mibs-downloader
+                    sudo apt install libsnmp-base snmp-mibs-downloader libpcap-dev
                     sudo sudo mv /usr/share/snmp/mibs/ietf/* /usr/share/snmp/mibs/
                     sudo sudo mv /usr/share/snmp/mibs/iana/* /usr/share/snmp/mibs/
                     sudo rm /usr/share/snmp/mibs/HPR-MIB
