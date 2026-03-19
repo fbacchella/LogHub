@@ -20,7 +20,23 @@ public class SllConnectionContext<T> extends BuildableConnectionContext<T> {
     private final String interfaceDisplayName;
     private final MacAddress interfaceHardwareAddress;
 
+    public SllConnectionContext(SocketaddrSll<T> packetAddress, String interfaceDisplayName, MacAddress interfaceHardwareAddress) {
+        this.packetAddress = packetAddress;
+        T receivedAddr = packetAddress.getAddr();
+        this.interfaceDisplayName = interfaceDisplayName;
+        this.interfaceHardwareAddress = interfaceHardwareAddress;
+        if (receivedAddr instanceof InetAddress && interfaceDisplayName != null) {
+            // No MAC address on a tunnel interface
+            receivedInterfaceAddress = receivedAddr;
+        } else if ((receivedAddr instanceof MacAddress || receivedAddr == null)) {
+            receivedInterfaceAddress = (T) interfaceHardwareAddress;
+        } else {
+            throw new IllegalArgumentException("Unhandled address type: " + packetAddress);
+        }
+    }
+
     @SuppressWarnings("unchecked")
+    @Deprecated
     public SllConnectionContext(SocketaddrSll<T> packetAddress) {
         try {
             this.packetAddress = packetAddress;
@@ -36,7 +52,7 @@ public class SllConnectionContext<T> extends BuildableConnectionContext<T> {
             }
             if (receivedAddr instanceof InetAddress && localInterface != null) {
                 // No MAC address on a tunnel interface
-                receivedInterfaceAddress = (T) localInterface.getInterfaceAddresses().get(0).getAddress();
+                receivedInterfaceAddress = receivedAddr;
             } else if ((receivedAddr instanceof MacAddress || receivedAddr == null) && localInterface != null) {
                 receivedInterfaceAddress = (T) interfaceHardwareAddress;
             } else {

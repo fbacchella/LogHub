@@ -24,6 +24,7 @@ import loghub.netcap.SLL_PROTOCOL;
 import loghub.netcap.SllConnectionContext;
 import loghub.netcap.SocketaddrSll;
 import loghub.netcap.StdlibProvider;
+import loghub.types.MacAddress;
 import lombok.Setter;
 
 @BuilderClass(Netcap.Builder.class)
@@ -65,16 +66,23 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
     private Function<Arena, BpfProgram> bpfCompiler;
     private final int snaplen;
     private final int ifIndex;
+    private final String interfaceDisplayName;
+    private final MacAddress interfaceHardwareAddress;
 
     public Netcap(Builder builder) {
         super(builder);
         this.snaplen = builder.snaplen;
         if (builder.ifname.isBlank() || "all".equalsIgnoreCase(builder.ifname)) {
             ifIndex = 0;
+            interfaceDisplayName = "all";
+            interfaceHardwareAddress = null;
         } else {
             try {
                 NetworkInterface ni = NetworkInterface.getByName(builder.ifname);
                 ifIndex = ni.getIndex();
+                interfaceDisplayName = ni.getDisplayName();
+                byte[] hardwareAddress = ni.getHardwareAddress();
+                this.interfaceHardwareAddress = (hardwareAddress != null && (hardwareAddress.length == 6 || hardwareAddress.length == 8 || hardwareAddress.length == 20)) ? new MacAddress(hardwareAddress) : null;
             } catch (SocketException e) {
                 throw new RuntimeException(e);
             }
@@ -82,7 +90,9 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         try (Arena arena = Arena.ofConfined()){
             bpfCompiler = (a) -> bpfCompile(a, builder.bpfFilter, builder.linktype, builder.snaplen);
             // try to compile the bpf program
-            bpfCompiler.apply(arena);
+            try (BpfProgram bpfProgram = bpfCompiler.apply(arena)) {
+                // bpfProgram is closed automatically
+            }
         }
     }
 
@@ -98,11 +108,12 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
     public void run() {
         int sockfd = -1;
         try (Arena arena = Arena.ofConfined()) {
-            BpfProgram bpfProgram = bpfCompiler.apply(arena);
-            bpfCompiler = null;
-            // Create AF_PACKET socket
-            sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue());
-            stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
+            try (BpfProgram bpfProgram = bpfCompiler.apply(arena)) {
+                bpfCompiler = null;
+                // Create AF_PACKET socket
+                sockfd = stdlib.socket(SocketaddrSll.AF_PACKET, SOCK_RAW, SLL_PROTOCOL.ETH_P_ALL.getNetworkValue());
+                stdlib.setsockopt(sockfd, SOL_SOCKET, SO_ATTACH_FILTER, bpfProgram.asMemorySegment(arena), 16);
+            }
             SocketaddrSll listenAddress = new SocketaddrSll(SLL_PROTOCOL.ETH_P_ALL, ifIndex);
             stdlib.bind(sockfd, listenAddress.getSegment(arena), SocketaddrSll.SOCKADDR_LL_SIZE);
             MemorySegment buffer = arena.allocate(snaplen);
@@ -134,16 +145,13 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
             ByteBuffer packet = readFd(sockfd, buffer, sockaddr, addrlen);
             if (packet != null) {
                 SocketaddrSll receivedAddress = new SocketaddrSll(sockaddr);
-                ConnectionContext ctx = new SllConnectionContext(receivedAddress);
-                for (Map<String, Object> m: decoder.decode(ctx, packet).toList()) {
-                    send(mapToEvent(ctx, m));
-                }
+                ConnectionContext ctx = new SllConnectionContext(receivedAddress, interfaceDisplayName, interfaceHardwareAddress);
+                decoder.decode(ctx, packet).forEach(m -> send(mapToEvent(ctx, m)));
             }
         } catch (DecodeException ex) {
             getEventsFactory().deadEvent(ConnectionContext.EMPTY);
             manageDecodeException(ex);
         }
-
     }
 
     private ByteBuffer readFd(int sockfd, MemorySegment buffer, MemorySegment sockaddr, MemorySegment addrlen) {

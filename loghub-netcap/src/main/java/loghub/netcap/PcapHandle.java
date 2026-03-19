@@ -56,7 +56,6 @@ class PcapHandle implements AutoCloseable {
         Runnable closeProgram = () -> {
             try {
                 pcap.pcap_freecode(bpfProgram);
-                pcap.pcap_close(handle);
             } catch (ExecutionException e) {
                 throw new IllegalStateException(e.getMessage(), e.getCause());
             }
