@@ -2,6 +2,8 @@ package loghub.netcap;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.Linker;
+import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.Level;
@@ -26,15 +28,25 @@ class TestPcapProvider {
         LogUtils.configure();
         logger = LogManager.getLogger(TestPcapProvider.class);
         LogUtils.setLevel(logger, Level.DEBUG);
-        findProvider();
+        provider = Optional.ofNullable(tryAuto()).orElseGet(TestPcapProvider::findProvider);
+        if (provider == null) {
+            String os = System.getProperty("os.name");
+            logger.error("Could not find libpcap on OS: {}", os);
+            Assertions.fail("libpcap not found");
+        }
     }
 
-    static void findProvider() {
+    private static PcapProvider tryAuto() {
+        try {
+            return new PcapProvider(Linker.nativeLinker());
+        } catch (IllegalArgumentException _) {
+            return null;
+        }
+    }
+
+    private static PcapProvider findProvider() {
+        logger.warn("Automatic lookup failed, trying common library paths...");
         String[] possiblePaths = {
-                "pcap",                            // generic name
-                "libpcap.so.1",                    // Linux standard
-                "libpcap.dylib",                   // macOS standard (shorthand)
-                "libpcap.A.dylib",                 // macOS specific
                 "/usr/lib/libpcap.A.dylib",        // MacOS actual path
                 "/opt/homebrew/lib/libpcap.dylib", // Homebrew
                 "/opt/local/lib/libpcap.dylib"     // MacPorts
@@ -44,22 +56,14 @@ class TestPcapProvider {
 
         for (String path : possiblePaths) {
             try {
-                logger.debug("Trying to load pcap from: {}", path);
-                provider = new PcapProvider(linker, path);
+                PcapProvider prov = new PcapProvider(linker, Path.of(path));
                 logger.info("Successfully loaded pcap from: {}", path);
-                break;
+                return prov;
             } catch (Throwable e) {
                 logger.debug("Failed to load pcap from {}: {}", path, e.getMessage());
             }
         }
-
-        if (provider == null) {
-            String os = System.getProperty("os.name");
-            logger.error("Could not find libpcap on OS: {}", os);
-            // On some environments (like CI/minimal containers), libpcap might be missing.
-            // But for this test to be useful, it should probably fail if not found on a desktop OS.
-            Assertions.fail("libpcap not found. Tried: " + String.join(", ", possiblePaths));
-        }
+        return null;
     }
 
     @Test

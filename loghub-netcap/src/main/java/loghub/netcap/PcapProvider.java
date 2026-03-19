@@ -1,5 +1,7 @@
 package loghub.netcap;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
@@ -7,9 +9,23 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import loghub.Helpers;
 
 public class PcapProvider {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private static final FunctionDescriptor PCAP_COMPILE_DESC =
             FunctionDescriptor.of(ValueLayout.JAVA_INT,
@@ -41,12 +57,64 @@ public class PcapProvider {
     private final MethodHandle pcap_freecode;
     private final MethodHandle pcap_geterr;
 
-    public PcapProvider(Linker linker) {
-        this(linker, "pcap");
+    private static SymbolLookup findPcap(List<String> searchDirs) {
+        SortedSet<Path> possiblePaths = new TreeSet<>(Helpers.NATURALSORTPATH::compare);
+
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            throw new IllegalArgumentException("Windows platform is not supported");
+        } else {
+            String extension = os.contains("mac") ? ".dylib" : ".so";
+            String prefix = "libpcap" + extension;
+
+            if (searchDirs == null) {
+                String libraryPath = System.getProperty("java.library.path");
+                searchDirs = libraryPath != null ? List.of(libraryPath.split(File.pathSeparator)) : Collections.emptyList();
+            }
+
+            for (String dir : searchDirs) {
+                Path p = Path.of(dir);
+                if (Files.isDirectory(p)) {
+                    try (Stream<Path> stream = Files.list(p)) {
+                        List<Path> found = stream.filter(Files::isExecutable)
+                                                 .filter(path -> path.getFileName().toString().startsWith(prefix))
+                                                 .map(p::resolve)
+                                                 .toList();
+                        possiblePaths.addAll(found);
+                    } catch (IOException ex) {
+                        logger.atWarn()
+                              .withThrowable(logger.isDebugEnabled() ? ex : null)
+                              .log("Failed to list directory {}: {}", dir, Helpers.resolveThrowableException(ex));
+                    }
+                }
+            }
+        }
+
+        for (Path path: possiblePaths) {
+            try {
+                SymbolLookup symbol = SymbolLookup.libraryLookup(path, Arena.global());
+                logger.debug("Successfully loaded pcap from {}", path);
+                return symbol;
+            } catch (IllegalArgumentException e) {
+                logger.debug("Failed to load pcap from {}: {}", path, e.getMessage());
+            }
+        }
+        throw new IllegalArgumentException("Failed to load pcap library");
     }
 
-    public PcapProvider(Linker linker, String libraryPath) {
-        SymbolLookup libpcap = SymbolLookup.libraryLookup(libraryPath == null || libraryPath.isBlank() ? "pcap" : libraryPath, Arena.global());
+    public PcapProvider(Linker linker) {
+        this(linker, findPcap(null));
+    }
+
+    public PcapProvider(Linker linker, List<String> searchDirs) {
+        this(linker, findPcap(searchDirs));
+    }
+
+    public PcapProvider(Linker linker, Path libraryPath) {
+        this(linker, SymbolLookup.libraryLookup(libraryPath, Arena.global()));
+    }
+
+    private PcapProvider(Linker linker, SymbolLookup libpcap ) {
         pcap_compile = linker.downcallHandle(
                 libpcap.findOrThrow("pcap_compile"),
                 PCAP_COMPILE_DESC
