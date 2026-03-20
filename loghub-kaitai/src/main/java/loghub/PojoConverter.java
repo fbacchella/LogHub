@@ -4,10 +4,13 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.kaitai.struct.KaitaiStruct;
 
 public class PojoConverter {
+
+    private final Map<Class<?>, Map<String, Method>> methodsCache = new ConcurrentHashMap<>();
 
     public Map<String, Object> pojoToMap(Object pojo) throws Exception {
         if (pojo == null) {
@@ -52,6 +55,25 @@ public class PojoConverter {
         Map<String, Object> map = new LinkedHashMap<>();
 
         Class<?> clazz = pojo.getClass();
+        Map<String, Method> methods = methodsCache.computeIfAbsent(clazz, this::getPojoMethods);
+
+        for (Map.Entry<String, Method> entry : methods.entrySet()) {
+            String propertyName = entry.getKey();
+            Method method = entry.getValue();
+
+            try {
+                Object value = method.invoke(pojo);
+                map.put(propertyName, convertObject(value, visited));
+            } catch (Exception e) {
+                map.put(propertyName, "[Error: " + e.getMessage() + "]");
+            }
+        }
+
+        return map;
+    }
+
+    private Map<String, Method> getPojoMethods(Class<?> clazz) {
+        Map<String, Method> map = new LinkedHashMap<>();
         Method[] methods = clazz.getMethods();
 
         for (Method method : methods) {
@@ -77,16 +99,9 @@ public class PojoConverter {
             }
 
             String propertyName = extractPropertyName(method);
-
-            try {
-                Object value = method.invoke(pojo);
-                map.put(propertyName, convertObject(value, visited));
-            } catch (Exception e) {
-                map.put(propertyName, "[Error: " + e.getMessage() + "]");
-            }
+            map.put(propertyName, method);
         }
-
-        return map;
+        return Map.copyOf(map);
     }
 
     private String extractPropertyName(Method method) {
