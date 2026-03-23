@@ -23,6 +23,10 @@ public class TestMacAddress {
         Assert.assertEquals(STANDARDFORMAT64, new MacAddress("3D:F2:C9:A6:B3:4F:AB:CD").toString());
         Assert.assertEquals(STANDARDFORMAT64, new MacAddress("3d-f2-c9-a6-b3-4f-ab-cd").toString());
         Assert.assertEquals("00-50-56-AC-00-09", new MacAddress("0:50:56:ac:0:9").toString());
+        Assert.assertEquals(STANDARDFORMAT48, new MacAddress("3DF2.C9A6.B34F").toString());
+        Assert.assertEquals(STANDARDFORMAT48, new MacAddress("3df2.c9a6.b34f").toString());
+        Assert.assertEquals(STANDARDFORMAT64, new MacAddress("3DF2.C9A6.B34F.ABCD").toString());
+        Assert.assertEquals(STANDARDFORMAT64, new MacAddress("3df2.c9a6.b34f.abcd").toString());
     }
 
     @Test

@@ -17,8 +17,10 @@ public class MacAddress {
 
     private static final Pattern macPattern = Pattern.compile("([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2})(?:[-:.]([0-9A-Fa-f]{1,2})[-:.]([0-9A-Fa-f]{1,2}))?");
     private static final Pattern ibPattern = Pattern.compile("(?:IB )?GID: ([0-9a-fA-F:]+), QPN: (0x[0-9a-fA-F]+)");
+    private static final Pattern ciscoPattern = Pattern.compile("([0-9a-fA-F]{2})([0-9a-fA-F]{2})\\.([0-9a-fA-F]{2})([0-9a-fA-F]{2})\\.([0-9a-fA-F]{2})([0-9a-fA-F]{2})(?:\\.([0-9a-fA-F]{2})([0-9a-fA-F]{2}))?");
     private static final ThreadLocal<Matcher> localMatcher = ThreadLocal.withInitial(() -> macPattern.matcher(""));
     private static final ThreadLocal<Matcher> localIbMatcher = ThreadLocal.withInitial(() -> ibPattern.matcher(""));
+    private static final ThreadLocal<Matcher> localCiscoMatcher = ThreadLocal.withInitial(() -> ciscoPattern.matcher(""));
     private static final VarFormatter formatter48 = new VarFormatter("${#1%02X}-${#2%02X}-${#3%02X}-${#4%02X}-${#5%02X}-${#6%02X}");
     private static final VarFormatter formatter64 = new VarFormatter("${#1%02X}-${#2%02X}-${#3%02X}-${#4%02X}-${#5%02X}-${#6%02X}-${#7%02X}-${#8%02X}");
 
@@ -34,34 +36,41 @@ public class MacAddress {
 
     public MacAddress(String addressStr) {
         String trimmed = addressStr.trim();
-        Matcher m = localMatcher.get().reset(trimmed);
-        Matcher mIb = localIbMatcher.get().reset(trimmed);
-        if (m.matches()) {
-            int length = 0;
-            for (int i = 1; i <= m.groupCount(); i++) {
-                if (m.group(i) == null) {
-                    break;
-                } else {
-                    length = i;
-                }
-            }
-            address = new byte[length];
+        Matcher m = localMatcher.get();
+        Matcher mIb = localIbMatcher.get();
+        Matcher mCisco = localCiscoMatcher.get();
 
-            for (int i = 0; i < address.length; i++) {
-                String j = m.group(i + 1);
-                address[i] = Short.decode("0x" + j).byteValue();
+        try {
+            if (m.reset(trimmed).matches()) {
+                boolean isEui48 = m.group(7) == null;
+                int length = isEui48 ? 6 : 8;
+                address = new byte[length];
+                for (int i = 0; i < length; i++) {
+                    address[i] = (byte) Integer.parseInt(m.group(i + 1), 16);
+                }
+            } else if (mCisco.reset(trimmed).matches()) {
+                boolean isEui48 = mCisco.group(7) == null;
+                int length = isEui48 ? 6 : 8;
+                address = new byte[length];
+                for (int i = 0; i < length; i++) {
+                    address[i] = (byte) Integer.parseInt(mCisco.group(i + 1), 16);
+                }
+            } else if (mIb.reset(trimmed).matches()) {
+                String gid = mIb.group(1);
+                String qpnStr = mIb.group(2);
+                byte[] gidBytes = parseGid(gid);
+                long qpn = Long.decode(qpnStr);
+                address = new byte[20];
+                ByteBuffer bb = ByteBuffer.wrap(address);
+                bb.put(gidBytes);
+                bb.putInt((int) qpn);
+            } else {
+                throw new IllegalArgumentException(addressStr + " is not a valid mac address");
             }
-        } else if (mIb.matches()) {
-            String gid = mIb.group(1);
-            String qpnStr = mIb.group(2);
-            byte[] gidBytes = parseGid(gid);
-            long qpn = Long.decode(qpnStr);
-            address = new byte[20];
-            ByteBuffer bb = ByteBuffer.wrap(address);
-            bb.put(gidBytes);
-            bb.putInt((int) qpn);
-        } else {
-            throw new IllegalArgumentException(addressStr + " is not a valid mac address");
+        } finally {
+            m.reset("");
+            mCisco.reset("");
+            mIb.reset("");
         }
     }
 
