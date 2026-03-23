@@ -33,6 +33,8 @@ import com.maxmind.db.Reader;
 import loghub.BuilderClass;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.cloners.DeepCloner;
+import loghub.cloners.NotClonableException;
 import loghub.configuration.CacheManager;
 import loghub.configuration.CacheManager.Policy;
 import loghub.configuration.Properties;
@@ -61,21 +63,21 @@ public class Geoip2 extends FieldsProcessor {
             }
 
         private DecodedValue extractValue(MutableEntry<CacheKey, DecodedValue> i, Object... j) {
-                try {
-                    DecodedValue node;
-                    if (!i.exists()) {
-                        Loader loader = (Loader) j[0];
-                        node = loader.load(i.getKey());
-                        i.setValue(node);
-                    } else {
-                        node = i.getValue();
-                    }
-                    return node;
-                } catch (IOException e) {
-                    throw new EntryProcessorException(e);
+            try {
+                DecodedValue node;
+                if (!i.exists()) {
+                    Loader loader = (Loader) j[0];
+                    node = loader.load(i.getKey());
+                    i.setValue(node);
+                } else {
+                    node = i.getValue();
                 }
+                return node;
+            } catch (IOException e) {
+                throw new EntryProcessorException(e);
             }
         }
+    }
 
     @FunctionalInterface
     interface MakeReader {
@@ -92,6 +94,7 @@ public class Geoip2 extends FieldsProcessor {
         private String[] types = new String[] {};
         private String locale = Locale.getDefault().getLanguage();
         private int cacheSize = 100;
+        private int ipCacheSize = 1000;
         private String refresh = "";
         private CacheManager cacheManager;
         private boolean required = true;
@@ -119,6 +122,8 @@ public class Geoip2 extends FieldsProcessor {
     private final Set<String> withLocalizedName;
     private final ReadWriteLock dbProtectionLock = new ReentrantReadWriteLock();
     private volatile long lastBuildDate = 0;
+    private final InetAddressLockRegistry lockRegistry = new InetAddressLockRegistry();
+    private final Cache<InetAddress, Map> ipCache;
 
     public Geoip2(Builder builder) {
         super(builder);
@@ -162,6 +167,11 @@ public class Geoip2 extends FieldsProcessor {
                                                      .build();
         this.geoipCache = new LogHubNodeCache(cache);
         this.required = builder.required;
+        ipCache = builder.cacheManager
+                         .getBuilder(InetAddress.class, Map.class)
+                         .setName("IPGeoCache", this)
+                         .setCacheSize(builder.ipCacheSize)
+                         .build();
     }
 
     @Override
@@ -203,16 +213,36 @@ public class Geoip2 extends FieldsProcessor {
             return RUNSTATUS.FAILED;
         }
 
-        Map<String, Object> informations;
-        try {
-            informations = filterMap(reader.getRecord(ipInfo, Map.class).data());
-        } catch (IOException e) {
-            throw event.buildException("Can't read GeoIP database", e);
-        }
-        if (! informations.isEmpty()) {
-            return informations;
+        Map information = ipCache.invoke(ipInfo, this::resolveGeoloc, event);
+        if (! information.isEmpty()) {
+            return information;
         } else {
             return RUNSTATUS.FAILED;
+        }
+    }
+
+    private Map resolveGeoloc(MutableEntry<InetAddress, Map> me, Object[] args) {
+        Event event = (Event) args[0];
+        Map<String, Object> information = Map.of();
+        if (!me.exists()) {
+            InetAddress ipInfo = me.getKey();
+            try {
+                lockRegistry.acquire(ipInfo);
+                information = reader.getRecord(ipInfo, Map.class).data();
+            } catch (IOException e) {
+                throw new EntryProcessorException(event.buildException("Can't read GeoIP database", e));
+            } finally {
+                lockRegistry.release(ipInfo);
+            }
+            information = filterMap(information);
+            me.setValue(Map.copyOf(information));
+        } else {
+            information = me.getValue();
+        }
+        try {
+            return DeepCloner.clone(information);
+        } catch (NotClonableException e) {
+            throw new EntryProcessorException(event.buildException("Can't clone IP geoloc information", e));
         }
     }
 
@@ -313,6 +343,7 @@ public class Geoip2 extends FieldsProcessor {
             }
             try {
                 geoipCache.reset();
+                ipCache.clear();
                 if (reader != null) {
                     reader.close();
                 }
@@ -320,7 +351,9 @@ public class Geoip2 extends FieldsProcessor {
                 logger.debug("Reloaded GeoIP database of type {} from {}", () -> reader.getMetadata().databaseType(), () -> geoipdb);
                 lastBuildDate = reader.getMetadata().buildTime().toEpochMilli();
             } catch (IOException e) {
-                logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
+                logger.atError()
+                      .withThrowable(logger.isDebugEnabled() ? e : null)
+                      .log("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
             } finally {
                 dbProtectionLock.writeLock().unlock();
             }
