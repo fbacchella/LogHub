@@ -3,6 +3,7 @@ package loghub.processors;
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -86,22 +87,22 @@ public class Dissect extends FieldsProcessor {
 
     private static class AppendData {
         private int last = 0;
-        private final String[] data;
+        private final Object[] data;
         AppendData(int size) {
-            data = new String[size];
+            data = new Object[size];
         }
-        AppendData(int size, String value) {
-            data = new String[size];
+        AppendData(int size, Object value) {
+            data = new Object[size];
             data[last++] = value;
         }
-        void add(String value) {
+        void add(Object value) {
             data[last++] = value;
         }
-        void set(int pos, String value) {
+        void set(int pos, Object value) {
             data[pos] = value;
         }
         String join(String separator) {
-            return String.join(separator, data);
+            return Arrays.stream(data).map(o -> o != null ? o.toString() : "").collect(Collectors.joining(separator));
         }
     }
 
@@ -115,7 +116,7 @@ public class Dissect extends FieldsProcessor {
     @Setter
     public static class Builder extends FieldsProcessor.Builder<Dissect> {
         String pattern;
-        String appendSeparator = "";
+        String appendSeparator = null;
         public Builder() {
             setInPlace(true);
         }
@@ -168,7 +169,7 @@ public class Dissect extends FieldsProcessor {
     }
 
     private boolean keepReference(List<Key> keys) {
-        List<Key> tryReferenceKeys = keys.stream().filter(k -> k.reference).collect(Collectors.toList());
+        List<Key> tryReferenceKeys = keys.stream().filter(k -> k.reference).toList();
         if (tryReferenceKeys.isEmpty()) {
             return false;
         } else {
@@ -191,9 +192,6 @@ public class Dissect extends FieldsProcessor {
                 if (k.appendModifier >= keys.size()) {
                     throw new IllegalArgumentException(String.format("Appender modifier out of range for key \"%s\"", k.name));
                 }
-                if (k.classConverter != null) {
-                    throw new IllegalArgumentException(String.format("Appender only works with Strings for key \"%s\"", k.name));
-                }
                 if (k.ignore) {
                     return false;
                 }
@@ -211,8 +209,7 @@ public class Dissect extends FieldsProcessor {
         for (int i = 0; i < content.size(); i++) {
             boolean valid = true;
             Object o = content.get(i);
-            if (o instanceof String) {
-                String separator = (String) o;
+            if (o instanceof String separator) {
                 if (! valueStr.startsWith(separator, pos)) {
                     valid = false;
                 } else {
@@ -244,9 +241,8 @@ public class Dissect extends FieldsProcessor {
             }
         }
         for (Map.Entry<String, Object> e : values.entrySet()) {
-            if (e.getValue() instanceof AppendData) {
-                AppendData l = (AppendData) e.getValue();
-                values.put(e.getKey(), l.join(appendSeparator));
+            if (e.getValue() instanceof AppendData l) {
+                values.put(e.getKey(), appendSeparator == null ? l.data : l.join(appendSeparator));
             }
         }
         for (Reference r : references.values()) {
@@ -266,8 +262,7 @@ public class Dissect extends FieldsProcessor {
     private boolean processKey(Event ev, Key key, String foundValue, Map<String, Object> values, Map<String, Reference> references)
             throws ProcessorException {
         Object value;
-        if (key.classConverter != null && ! appendKeys.containsKey(key.name)) {
-            // Append key only handle string values
+        if (key.classConverter != null) {
             try {
                 value = BeansManager.constructFromString(key.classConverter, foundValue);
             } catch (InvocationTargetException e) {
@@ -289,13 +284,13 @@ public class Dissect extends FieldsProcessor {
                 } else if (v instanceof AppendData) {
                     return v;
                 } else {
-                    return new AppendData(appendKeys.get(key.name).size(), v.toString());
+                    return new AppendData(appendKeys.get(key.name).size(), v);
                 }
             });
-            if (key.appendModifier > 0) {
-                valuesList.set(key.appendModifier, foundValue);
+            if (key.appendModifier >= 0) {
+                valuesList.set(key.appendModifier, value);
             } else {
-                valuesList.add(foundValue);
+                valuesList.add(value);
             }
         }
         return true;
