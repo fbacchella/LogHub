@@ -1,22 +1,55 @@
 package loghub;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.UnaryOperator;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import io.kaitai.struct.KaitaiStruct;
 
 public class PojoConverter {
 
-    private final Map<Class<?>, Map<String, Method>> methodsCache = new ConcurrentHashMap<>();
+    public static final UnaryOperator<Object> IGNORE = o -> null;
+
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.publicLookup();
+    private static final Logger logger = LogManager.getLogger();
+
+    private final ClassValue<Map<String, UnaryOperator<Object>>> methodsCache = new ClassValue<>() {
+        @Override
+        protected Map<String, UnaryOperator<Object>> computeValue(Class<?> type) {
+            return getPojoMethods(type);
+        }
+    };
+
+    private final Map<String, UnaryOperator<Object>> propertiesFunctions;
+
+    public PojoConverter(Map<String, UnaryOperator<Object>> propertiesFunctions) {
+        this.propertiesFunctions = Map.copyOf(propertiesFunctions);
+    }
+
+    public PojoConverter() {
+        this.propertiesFunctions = Map.of();
+    }
 
     public Map<String, Object> pojoToMap(Object pojo) throws Exception {
         if (pojo == null) {
             return null;
         }
-        return (Map<String, Object>) convertObject(pojo, Collections.newSetFromMap(new IdentityHashMap<>()));
+        Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        return (Map<String, Object>) convertObject(pojo, visited);
     }
 
     private Object convertObject(Object obj, Set<Object> visited) throws Exception {
@@ -26,7 +59,7 @@ public class PojoConverter {
 
         if (obj instanceof KaitaiStruct) {
             // Circular reference check
-            if (visited.contains(obj) && ! (obj instanceof String)) {
+            if (visited.contains(obj)) {
                 return "[Circular reference]";
             }
             visited.add(obj);
@@ -51,29 +84,25 @@ public class PojoConverter {
         return obj;
     }
 
-    private Map<String, Object> convertPojo(Object pojo, Set<Object> visited) {
+    private Map<String, Object> convertPojo(Object pojo, Set<Object> visited) throws Exception {
         Map<String, Object> map = new LinkedHashMap<>();
 
         Class<?> clazz = pojo.getClass();
-        Map<String, Method> methods = methodsCache.computeIfAbsent(clazz, this::getPojoMethods);
+        Map<String, UnaryOperator<Object>> methods = methodsCache.get(clazz);
 
-        for (Map.Entry<String, Method> entry : methods.entrySet()) {
+        for (Map.Entry<String, UnaryOperator<Object>> entry : methods.entrySet()) {
             String propertyName = entry.getKey();
-            Method method = entry.getValue();
+            UnaryOperator<Object> method = entry.getValue();
 
-            try {
-                Object value = method.invoke(pojo);
-                map.put(propertyName, convertObject(value, visited));
-            } catch (Exception e) {
-                map.put(propertyName, "[Error: " + e.getMessage() + "]");
-            }
+            Object value = method.apply(pojo);
+            map.put(propertyName, convertObject(value, visited));
         }
 
         return map;
     }
 
-    private Map<String, Method> getPojoMethods(Class<?> clazz) {
-        Map<String, Method> map = new LinkedHashMap<>();
+    private Map<String, UnaryOperator<Object>> getPojoMethods(Class<?> clazz) {
+        Map<String, UnaryOperator<Object>> map = new LinkedHashMap<>();
         Method[] methods = clazz.getMethods();
 
         for (Method method : methods) {
@@ -99,9 +128,34 @@ public class PojoConverter {
             }
 
             String propertyName = extractPropertyName(method);
-            map.put(propertyName, method);
+            String propertyFQN = method.getDeclaringClass().getName() + "." + method.getName();
+            if (propertiesFunctions.containsKey(propertyFQN)) {
+                UnaryOperator<Object> propertyFunction = propertiesFunctions.get(propertyFQN);
+                if (propertyFunction != PojoConverter.IGNORE) {
+                    map.put(propertyName, propertyFunction);
+                }
+            } else {
+                try {
+                    MethodHandle mh = LOOKUP.unreflect(method);
+                    map.put(propertyName, pojo -> invokePojoMethod(mh, pojo));
+                } catch (IllegalAccessException e) {
+                    // Should not happen as we check for public methods from getMethods()
+                }
+            }
         }
         return Map.copyOf(map);
+    }
+
+    private Object invokePojoMethod(MethodHandle mh, Object pojo) {
+        try {
+            return mh.invoke(pojo);
+        } catch (Throwable ex) {
+            if (Helpers.isFatal(ex)) {
+                logger.fatal("Caught a fatal exception", ex);
+                ShutdownTask.fatalException(ex);
+            }
+            return "[Error: " + Helpers.resolveThrowableException(ex) + "]";
+        }
     }
 
     private String extractPropertyName(Method method) {
