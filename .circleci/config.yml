@@ -177,6 +177,9 @@ jobs:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-geoip
                   destination: /loghub-geoip
             - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-grpc
+                  destination: /loghub-grpc
+            - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-jolokia
                   destination: /loghub-jolokia
             - store_artifacts:
@@ -188,6 +191,9 @@ jobs:
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-netflow
                   destination: /loghub-netflow
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-netcap
+                  destination: /loghub-netcap
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-nsca
                   destination: /loghub-nsca
@@ -201,9 +207,6 @@ jobs:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-prometheus
                   destination: /loghub-prometheus
             - store_artifacts:
-                  path: /home/circleci/.m2/repository/fr/loghub/loghub-protobuf
-                  destination: /loghub-protobuf
-            - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-ratelimiter
                   destination: /loghub-ratelimiter
             - store_artifacts:
@@ -215,6 +218,9 @@ jobs:
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-uap
                   destination: /loghub-uap
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-uuid
+                  destination: /loghub-uuid
             - store_artifacts:
                   path: /home/circleci/.m2/repository/fr/loghub/loghub-zabbix
                   destination: /loghub-zabbix
