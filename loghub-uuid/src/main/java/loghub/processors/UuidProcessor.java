@@ -6,13 +6,16 @@ import java.time.Instant;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import com.github.f4b6a3.uuid.enums.UuidLocalDomain;
 import com.github.f4b6a3.uuid.enums.UuidNamespace;
+import com.github.f4b6a3.uuid.factory.UuidFactory;
 import com.github.f4b6a3.uuid.factory.standard.NameBasedMd5Factory;
 import com.github.f4b6a3.uuid.factory.standard.NameBasedSha1Factory;
 import com.github.f4b6a3.uuid.factory.standard.RandomBasedFactory;
+import com.github.f4b6a3.uuid.factory.standard.TimeOrderedEpochFactory;
 
 import loghub.BuilderClass;
 import loghub.Expression;
@@ -41,9 +44,8 @@ public class UuidProcessor extends Processor {
         V5_CUSTOM,
         V6,
         V7,
-        V7_TYPE1,
-        V7_TYPE2,
-        V7_TYPE3;
+        V7_FAST,
+        V7_SECURE,
     }
 
     @FunctionalInterface
@@ -54,6 +56,7 @@ public class UuidProcessor extends Processor {
     @Setter
     public static class Builder extends Processor.Builder<UuidProcessor> {
         private Version version = Version.V7;
+        private int v7type = 1;
         private Expression name;
         private Expression localNumber;
         private Expression nodeIdentifier;
@@ -97,9 +100,8 @@ public class UuidProcessor extends Processor {
             case V5 -> getGeneratorV5(builder.namespace, builder.name);
             case V5_CUSTOM -> getGeneratorV5(builder.namespaceUuid, builder.name);
             case V6 -> event -> UuidCreator.getTimeOrdered();
-            case V7, V7_TYPE1 -> event -> UuidCreator.getTimeOrderedEpoch();
-            case V7_TYPE2 -> event -> UuidCreator.getTimeOrderedEpochPlus1();
-            case V7_TYPE3 -> event -> UuidCreator.getTimeOrderedEpochPlusN();
+            case V7, V7_FAST -> getGeneratorV7(builder.v7type);
+            case V7_SECURE -> getGeneratorV7(builder.v7type, builder.randomSource);
         };
     }
 
@@ -160,6 +162,32 @@ public class UuidProcessor extends Processor {
         UUID namespaceUuid = UUID.fromString(namespace);
         NameBasedSha1Factory factory = new NameBasedSha1Factory(namespaceUuid);
         return event -> factory.create(getName(value, event));
+    }
+
+    private UuidGenerator getGeneratorV7(int v7type) {
+        return getGeneratorV7(v7type, b -> b.withFastRandom());
+    }
+
+    private UuidGenerator getGeneratorV7(int v7type, String secureRandom) {
+        try {
+            Random random = SecureRandom.getInstance(secureRandom);
+            return getGeneratorV7(v7type, b -> b.withRandom(random));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalArgumentException("Unknown secure random", e);
+        }
+    }
+
+    private UuidGenerator getGeneratorV7(int v7type, Consumer<TimeOrderedEpochFactory.Builder> setRandom) {
+        TimeOrderedEpochFactory.Builder builder = TimeOrderedEpochFactory.builder();
+        setRandom.accept(builder);
+        switch (v7type)  {
+        case 1 -> {}
+        case 2 -> builder.withIncrementPlus1();
+        case 3 -> builder.withIncrementPlusN();
+        default -> throw new IllegalArgumentException("Invalid v7type: " + v7type);
+        }
+        UuidFactory factory = builder.build();
+        return event -> factory.create();
     }
 
     @Override

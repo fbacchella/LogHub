@@ -61,7 +61,7 @@ class TestUuidProcessor {
                 builder.setLocalDomain(UuidLocalDomain.LOCAL_DOMAIN_PERSON);
                 builder.setLocalNumber(new Expression(1));
             }
-            case V4_SECURE -> builder.setRandomSource("SHA1PRNG");
+            case V4_SECURE, V7_SECURE -> builder.setRandomSource("SHA1PRNG");
             default -> { }
         }
 
@@ -81,7 +81,7 @@ class TestUuidProcessor {
             case V4, V4_FAST, V4_SECURE -> 4;
             case V5, V5_CUSTOM -> 5;
             case V6 -> 6;
-            case V7, V7_TYPE1, V7_TYPE2, V7_TYPE3 -> 7;
+            case V7, V7_FAST, V7_SECURE -> 7;
         };
         Assertions.assertEquals(expectedVersion, result.version());
 
@@ -109,6 +109,7 @@ class TestUuidProcessor {
             pipeline[defaultmessage] {
                 loghub.processors.UuidProcessor {
                     version: "%s",
+                    v7type: 2,
                     namespace: "NAMESPACE_DNS",
                     namespaceUuid: "4e2b4d4c-92e8-11ed-86a8-3fdb0085247e",
                     localDomain: "LOCAL_DOMAIN_PERSON",
@@ -129,6 +130,7 @@ class TestUuidProcessor {
     void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.UuidProcessor"
                 , BeanChecks.BeanInfo.build("version", Version.class)
+                , BeanChecks.BeanInfo.build("v7type", Integer.TYPE)
                 , BeanChecks.BeanInfo.build("name", Expression.class)
                 , BeanChecks.BeanInfo.build("nodeIdentifier", Expression.class)
                 , BeanChecks.BeanInfo.build("namespace", UuidNamespace.class)
