@@ -477,6 +477,7 @@ class ConfigListener extends RouteBaseListener {
                 Object created = builder.build();
                 stack.push(new ObjectWrapped<>(created));
             } catch (Exception e) {
+                logger.atDebug().withThrowable(e).log("Unable to build object {}: {}", builder::getClass, () -> Helpers.resolveThrowableException(e));
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
             }
         } else {
