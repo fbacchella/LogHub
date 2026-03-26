@@ -8,7 +8,7 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>loghub-UUID</artifactId>
+    <artifactId>loghub-uuid</artifactId>
     <name>LogHub :: UUID generator</name>
 
     <dependencies>
