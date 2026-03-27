@@ -55,9 +55,9 @@ public class BinaryCodec {
         initFastPath();
     }
 
-    public BinaryCodec(InputStream source) throws Descriptors.DescriptorValidationException, IOException {
+    public BinaryCodec(String name, InputStream source) throws Descriptors.DescriptorValidationException, IOException {
         if (source == null) {
-            throw new IllegalArgumentException("Not defined InputStream source");
+            throw new IllegalArgumentException("Not defined protobuf binpb for " + name);
         }
         analyseProto(source);
         initFastPath();

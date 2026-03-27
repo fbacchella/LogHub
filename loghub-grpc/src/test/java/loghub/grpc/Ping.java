@@ -10,7 +10,7 @@ import com.google.protobuf.Descriptors.DescriptorValidationException;
 public class Ping extends BinaryCodec {
 
     public Ping() throws DescriptorValidationException, IOException {
-        super(Ping.class.getResourceAsStream("/ping.binpb"));
+        super("Ping", Ping.class.getResourceAsStream("/ping.binpb"));
     }
 
     @Override

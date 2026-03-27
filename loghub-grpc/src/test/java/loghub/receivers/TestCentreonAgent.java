@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.centreon.agent.Agent.AgentInfo;
@@ -148,7 +149,7 @@ class TestCentreonAgent {
     }
 
     @Test
-    //@Timeout(5)
+    @Timeout(5)
     void runGrpc() throws IOException, InterruptedException {
         port = Tools.tryGetPort();
         String confile = """

@@ -34,7 +34,7 @@ public class CentreonAgent extends ProtoBuf implements CodecProvider {
     @Override
     protected BinaryCodec getDecoder(ProtoBuf.Builder builder)
             throws DescriptorValidationException, IOException {
-        BinaryCodec decoder = new BinaryCodec(CentreonAgent.class.getClassLoader().getResourceAsStream("centreon.binpb"));
+        BinaryCodec decoder = new BinaryCodec("Centreon", CentreonAgent.class.getClassLoader().getResourceAsStream("centreon.binpb"));
         OpentelemetryDecoder otel = new OpentelemetryDecoder();
         decoder.addFastPath("opentelemetry.proto.common.v1.KeyValue", (BinaryCodec.MessageFastPathFunction<?>) otel::decodeKeyValue);
         decoder.addFastPath("opentelemetry.proto.common.v1.AnyValue", (BinaryCodec.MessageFastPathFunction<?>) otel::decodeAnyValue);
