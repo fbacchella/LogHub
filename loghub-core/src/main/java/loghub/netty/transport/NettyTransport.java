@@ -150,7 +150,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
 
     private Optional<Runnable> finisher = Optional.empty();
     private Future<Boolean> finished = CompletableFuture.completedFuture(true);
-    private final Set<ChannelFuture> listeningChannels = new HashSet<>(1);
+    private final Set<ChannelFuture> listeningChannels = HashSet.newHashSet(1);
 
     protected NettyTransport(B b) {
         this.transport = getClass().getAnnotation(TransportEnum.class).value();
@@ -211,9 +211,9 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
                                  .filter(Channel::isActive)
                                  .forEach(Channel::close);
                 listeningChannels.clear();
-                if (e instanceof InterruptedException) {
+                if (e instanceof InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    throw (InterruptedException) e;
+                    throw ie;
                 } else {
                     throw new IllegalStateException("Failed to start listening on " + address, e.getCause());
                 }
@@ -295,6 +295,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
             @Override
             public void initChannel(Channel ch) {
                 NettyTransport.this.initChannel(ch, client);
+                ch.pipeline().remove(this);
             }
 
             @Override
@@ -341,14 +342,11 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
     }
 
     public static ChannelConsumer resolveConsumer(Object o) {
-        if (o instanceof ChannelConsumer) {
-            return (ChannelConsumer) o;
-        } else if (o instanceof ConsumerProvider) {
-            ConsumerProvider cp = (ConsumerProvider) o;
-            return cp.getConsumer();
-        } else {
-            return null;
-        }
+        return switch (o) {
+            case ChannelConsumer cc -> cc;
+            case ConsumerProvider cp -> cp.getConsumer();
+            default -> null;
+        };
     }
 
     public Stream<Channel> getChannels() {
