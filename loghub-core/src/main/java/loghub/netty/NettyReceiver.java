@@ -66,9 +66,6 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
             nettyIpBuilder.setPort(builder.port);
             nettyIpBuilder.setRcvBuf(builder.rcvBuf);
             nettyIpBuilder.setSndBuf(builder.sndBuf);
-            if (builder.transport == TRANSPORT.TCP) {
-                ((TcpTransport.Builder) nettyIpBuilder).setNoDelay(builder.noDelay);
-            }
             nettyIpBuilder.setSslContext(getSslContext());
             nettyIpBuilder.setSslParams(getSslParams());
             nettyIpBuilder.setSslClientAuthentication(getSSLClientAuthentication());
