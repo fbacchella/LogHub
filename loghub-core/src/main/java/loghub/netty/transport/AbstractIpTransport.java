@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
 import javax.net.ssl.SNIHostName;
@@ -24,6 +25,7 @@ import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
@@ -33,6 +35,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import loghub.cloners.DeepCloner;
 import loghub.cloners.NotClonableException;
 import loghub.netty.AlpnResolver;
+import loghub.netty.TlsDetector;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.Getter;
 import lombok.Setter;
@@ -80,6 +83,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
     protected final ClientAuthentication sslClientAuthentication;
     protected final BiFunction<SSLEngine, List<String>, String> alpnSelector;
     private final boolean hasAlpn;
+    private final ChannelHandler tlsDetector;
 
     protected AbstractIpTransport(B builder) {
         super(builder);
@@ -102,6 +106,11 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         } else {
             this.alpnSelector = null;
             this.hasAlpn = false;
+        }
+        if (this instanceof TcpTransport && ! withSsl) {
+            tlsDetector = new TlsDetector(logger, this::addTlsHandler);
+        } else {
+            tlsDetector = null;
         }
     }
 
@@ -148,10 +157,12 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         if (consumer instanceof AlpnResolver ar) {
             ch.pipeline().addFirst(AlpnResolver.RESOLVERNAME, new AlpnResolver.AplNProcessing(ar));
         }
-        if (withSsl && client) {
+        if (client && withSsl) {
             addSslClientHandler(ch.pipeline());
         } else if (withSsl) {
-            addSslHandler(ch.pipeline());
+            addTlsHandler(ch.pipeline(), (p, h) -> p.addFirst(TlsDetector.SSLHANDLER_NAME, h));
+        } else if (this instanceof TcpTransport) {
+            ch.pipeline().addFirst(TlsDetector.TLSDETECTOR_NAME, tlsDetector);
         }
         /* From linux man page:
             SO_RCVBUF
@@ -183,12 +194,12 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         }
     }
 
-    void addSslHandler(ChannelPipeline pipeline) {
+    void addTlsHandler(ChannelPipeline pipeline, BiConsumer<ChannelPipeline, SslHandler> inserter) {
         logger.debug("Adding an SSL handler on {}", pipeline::channel);
         SSLEngine engine = getEngine();
         engine.setUseClientMode(false);
         SslHandler sslHandler = new SslHandler(engine);
-        pipeline.addFirst("ssl", sslHandler);
+        inserter.accept(pipeline, sslHandler);
         Future<Channel> future = sslHandler.handshakeFuture();
         future.addListener((GenericFutureListener<Future<Channel>>) f -> {
             SSLSession sess = sslHandler.engine().getSession();

@@ -69,14 +69,11 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
             if (builder.transport == TRANSPORT.TCP) {
                 ((TcpTransport.Builder) nettyIpBuilder).setNoDelay(builder.noDelay);
             }
-            if (isWithSSL()) {
-                nettyIpBuilder.setWithSsl(true);
-                nettyIpBuilder.setSslContext(getSslContext());
-                nettyIpBuilder.setSslParams(getSslParams());
-                nettyIpBuilder.setSslClientAuthentication(getSSLClientAuthentication());
-                nettyIpBuilder.setSslKeyAlias(getSSLKeyAlias());
-                nettyIpBuilder.setWithSsl(true);
-            }
+            nettyIpBuilder.setSslContext(getSslContext());
+            nettyIpBuilder.setSslParams(getSslParams());
+            nettyIpBuilder.setSslClientAuthentication(getSSLClientAuthentication());
+            nettyIpBuilder.setSslKeyAlias(getSSLKeyAlias());
+            nettyIpBuilder.setWithSsl(isWithSSL());
         }
         if (builder.poller != null) {
             nettyBuilder.setPoller(builder.poller);

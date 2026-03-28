@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import loghub.BeanChecks;
@@ -101,8 +102,8 @@ class TestHttp {
         httpbuilder.setHost(hostname);
         httpbuilder.setPort(port);
         httpbuilder.setEventsFactory(factory);
+        httpbuilder.setSslContext(sslctx);
         if ("https".equals(scheme)) {
-            httpbuilder.setSslContext(sslctx);
             httpbuilder.setWithSSL(true);
         }
         prepare.accept(httpbuilder);
@@ -174,7 +175,7 @@ class TestHttp {
     @ParameterizedTest
     @MethodSource("protocolArguments")
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void testHttpsGet(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
+    void testHttpGet(HttpClient.Version version, String scheme) throws IOException, URISyntaxException, InterruptedException {
         boolean isHttps = "https".equals(scheme);
         try (Http ignored = makeReceiver(scheme, i -> i.setSSLClientAuthentication(ClientAuthentication.WANTED), Collections.emptyMap())) {
             URI uri = new URI(scheme, null, hostname, port, "/", "a=1", null);
@@ -190,6 +191,34 @@ class TestHttp {
             if (isHttps) {
                 Assertions.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
             }
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
+            Assertions.assertNotNull(ectxt.getLocalAddress());
+            Assertions.assertNotNull(ectxt.getRemoteAddress());
+            // Test that ssl state is still good
+            doRequest(uri,
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
+                    i -> { }, 200, version);
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
+    @Timeout(5)
+    void testDetectTls(HttpClient.Version version) throws IOException, URISyntaxException, InterruptedException {
+        try (Http ignored = makeReceiver("http", i -> i.setSSLClientAuthentication(ClientAuthentication.WANTED), Collections.emptyMap())) {
+            URI uri = new URI("https", null, hostname, port, "/", "a=1", null);
+            doRequest(uri,
+                    "GET",
+                    HttpRequest.BodyPublishers.noBody(),
+                    i -> { }, 200, version);
+
+            Event e = queue.poll();
+            Assertions.assertNotNull(e);
+            String a = (String) e.get("a");
+            Assertions.assertEquals("1", a);
+            Assertions.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
             Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
             Assertions.assertNotNull(ectxt.getLocalAddress());

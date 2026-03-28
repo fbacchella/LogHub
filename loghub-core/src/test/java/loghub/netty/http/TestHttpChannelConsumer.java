@@ -65,7 +65,6 @@ class TestHttpChannelConsumer {
             content.writeCharSequence("Request received\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
         }
-
     }
 
     @ContentType("text/plain")
@@ -125,17 +124,14 @@ class TestHttpChannelConsumer {
     private URI startHttpServer(String scheme, Map<String, Object> sslprops, Consumer<TcpTransport.Builder> postconfig) {
         TcpTransport.Builder config = TcpTransport.getBuilder();
         config.setEndpoint("localhost");
-        if ("https".equals(scheme)) {
-            config.setWithSsl(true);
-            config.setSslContext(getContext.apply(sslprops));
-            config.setSslKeyAlias("localhost (loghub ca)");
-            config.setSslClientAuthentication(ClientAuthentication.REQUIRED);
-            config.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
-            config.addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
-        }
+        config.setSslContext(getContext.apply(sslprops));
+        config.setSslKeyAlias("localhost (loghub ca)");
+        config.setSslClientAuthentication(ClientAuthentication.REQUIRED);
+        config.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
+        config.addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
         config.setThreadPrefix("TestHttpSSL");
         postconfig.accept(config);
-        return resource.startServer(config);
+        return resource.startServer(scheme, config);
     }
 
     private <T> void runRequest(HttpClient.Version version, URI url, BodyHandler<T> handler, Consumer<HttpResponse<T>> processResponse, HttpHandler... handlers)
@@ -182,13 +178,13 @@ class TestHttpChannelConsumer {
         }
     }
 
-
     @ParameterizedTest
     @MethodSource("protocolArguments")
     @Timeout(5)
-    void testSimple(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
+    void testSimple(HttpClient.Version version, String scheme)
+            throws IOException, InterruptedException {
         URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
-        Consumer<HttpResponse<String>> processResponse = r -> {
+            Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertEquals(version, r.version());
             Assertions.assertEquals("Request received\r\n", r.body());
             Assertions.assertEquals(200, r.statusCode());
@@ -260,7 +256,7 @@ class TestHttpChannelConsumer {
     @MethodSource("protocolArguments")
     @Timeout(5)
     void testRessourceFile(HttpClient.Version version, String scheme) throws IOException, InterruptedException, URISyntaxException {
-        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { i.setSslClientAuthentication(ClientAuthentication.NONE);});
         URI requestUri = new URI(scheme, null, theURL.getHost(), theURL.getPort(), "/static/index.html", null, null);
         Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertEquals(version, r.version());
@@ -423,6 +419,22 @@ class TestHttpChannelConsumer {
         URI theURL = startHttpServer("https", Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         HttpClient.Builder clientBuilder = HttpClient.newBuilder().version(version);
         clientBuilder.sslContext(getContext.apply(Collections.emptyMap()));
+        try (HttpClient client = clientBuilder.build()) {
+            HttpRequest request = HttpRequest.newBuilder()
+                                          .uri(theURL)
+                                          .GET()
+                                          .build();
+            Assertions.assertThrows(IOException.class, () -> client.send(request, HttpResponse.BodyHandlers.ofString()));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
+    @Timeout(5)
+    void testNoSsl(HttpClient.Version version) {
+        // Start an SSL server but connect via http
+        URI theURL = startHttpServer("http", Collections.emptyMap(), i -> { i.setWithSsl(true); i.setSslClientAuthentication(ClientAuthentication.NONE);});
+        HttpClient.Builder clientBuilder = HttpClient.newBuilder().version(version);
         try (HttpClient client = clientBuilder.build()) {
             HttpRequest request = HttpRequest.newBuilder()
                                           .uri(theURL)

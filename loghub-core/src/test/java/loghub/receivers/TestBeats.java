@@ -158,6 +158,32 @@ public class TestBeats {
         }
     }
 
+    @Test(timeout = 5000)
+    public void testAutoSSL() throws IOException, InterruptedException {
+        SslContextBuilder builder = SslContextBuilder.getBuilder();
+        builder.setTrusts(Tools.getDefaultKeyStore());
+        SSLContext sslctx = builder.build();
+        try {
+            makeReceiver(i -> {
+                i.setSslContext(sslctx);
+                // It should be required for a better test, needs to understand how to make client side TLS works
+                i.setSSLClientAuthentication(ClientAuthentication.NONE);
+            }, Collections.emptyMap());
+            List<Map<?, ?>> batch = Collections.singletonList(Collections.singletonMap("message", "LogHub"));
+            Socket s = sslctx.getSocketFactory().createSocket();
+            sendFrame(encode(batch), s);
+            Event e = queue.poll(6, TimeUnit.SECONDS);
+            String message = (String) e.get("message");
+            Assert.assertEquals("LogHub", message);
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+        } catch (IOException | InterruptedException | RuntimeException e) {
+            if (receiver != null) {
+                receiver.stopReceiving();
+            }
+            throw e;
+        }
+    }
+
     @Test
     public void testAlreadyBinded() throws IOException {
         try (ServerSocket ss = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());

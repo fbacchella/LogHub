@@ -46,6 +46,10 @@ public class HttpTestServer extends ExternalResource {
     }
 
     public URI startServer(TcpTransport.Builder config) {
+        return startServer(null, config);
+    }
+
+    public URI startServer(String scheme, TcpTransport.Builder config) {
         HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
                                                .setAuthHandler(authHandler)
                                                .setVersionedModelSetup(versionedModelSetup)
@@ -62,8 +66,10 @@ public class HttpTestServer extends ExternalResource {
         try {
             transport.bind();
             String listen = transport.getEndpoint();
-            boolean ssl = transport.isWithSsl();
-            uri = new URI(String.format("%s://%s:%d/", ssl ? "https" : "http", listen, transport.getPort()));
+            if (scheme == null) {
+                scheme = transport.isWithSsl() ? "https" : "http";
+            }
+            uri = new URI(String.format("%s://%s:%d/", scheme, listen, transport.getPort()));
             return uri;
         } catch (URISyntaxException ex) {
             throw new IllegalStateException(ex);
