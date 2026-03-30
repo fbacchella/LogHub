@@ -9,6 +9,8 @@ import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublisher;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.util.Collections;
@@ -58,7 +60,17 @@ class TestHttpChannelConsumer {
     @ContentType("text/plain")
     @RequestAccept(path = "/")
     static class SimpleHandler extends HttpRequestProcessing {
+        @Override
+        protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) {
+            ByteBuf content = ctx.alloc().buffer();
+            content.writeCharSequence("Request received\r\n", CharsetUtil.UTF_8);
+            writeResponse(ctx, request, content, content.readableBytes());
+        }
+    }
 
+    @ContentType("text/plain")
+    @RequestAccept(path = "/", methods = {"POST"})
+    static class SimplePostHandler extends HttpRequestProcessing {
         @Override
         protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) {
             ByteBuf content = ctx.alloc().buffer();
@@ -144,6 +156,24 @@ class TestHttpChannelConsumer {
             HttpRequest request = HttpRequest.newBuilder()
                                           .uri(url)
                                           .GET()
+                                          .build();
+            HttpResponse<T> response = client.send(request, handler);
+            processResponse.accept(response);
+        }
+    }
+
+    private <T> void runPostRequest(HttpClient.Version version, URI url, BodyPublisher publisher, BodyHandler<T> handler, Consumer<HttpResponse<T>> processResponse, HttpHandler... handlers)
+            throws IOException, InterruptedException {
+        String scheme = url.getScheme();
+        resource.setModelHandlers(handlers);
+        HttpClient.Builder clientBuilder = HttpClient.newBuilder().version(version);
+        if ("https".equals(scheme)) {
+            clientBuilder.sslContext(getContext.apply(Collections.emptyMap()));
+        }
+        try (HttpClient client = clientBuilder.build()) {
+            HttpRequest request = HttpRequest.newBuilder()
+                                          .uri(url)
+                                          .POST(publisher)
                                           .build();
             HttpResponse<T> response = client.send(request, handler);
             processResponse.accept(response);
@@ -307,6 +337,25 @@ class TestHttpChannelConsumer {
             checkTlsPeer(r, "CN=localhost");
         };
         runRequest(version, theURL, HttpResponse.BodyHandlers.ofString(), processResponse, new RootRedirect());
+    }
+
+    @ParameterizedTest
+    @MethodSource("protocolArguments")
+    @Timeout(5)
+    void testPost(HttpClient.Version version, String scheme) throws IOException, InterruptedException {
+        URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
+        Consumer<HttpResponse<String>> processResponse = r -> {
+            Assertions.assertEquals(200, r.statusCode());
+            if ("http".equals(scheme) && version.equals(Version.HTTP_2)) {
+                // POST requests are not upgraded
+                Assertions.assertEquals(Version.HTTP_1_1, r.version());
+            } else {
+                Assertions.assertEquals(version, r.version());
+            }
+            Assertions.assertEquals("Request received\r\n", r.body());
+            checkTlsPeer(r, "CN=localhost");
+        };
+        runPostRequest(version, theURL, BodyPublishers.ofString("some body text"), HttpResponse.BodyHandlers.ofString(), processResponse, new SimplePostHandler());
     }
 
     @ParameterizedTest

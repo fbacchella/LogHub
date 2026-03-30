@@ -26,7 +26,9 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
 import io.netty.handler.codec.http.HttpServerUpgradeHandler;
@@ -156,6 +158,19 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
             pipeline.remove(this);
             state.putback();
             ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
+        }
+    }
+
+    private class FilteredHttp2ServerUpgradeHandler extends HttpServerUpgradeHandler {
+        public FilteredHttp2ServerUpgradeHandler(HttpServerCodec sourceCodec, UpgradeCodecFactory upgradeCodecFactory) {
+            super(sourceCodec, upgradeCodecFactory);
+        }
+
+        @Override
+        protected boolean shouldHandleUpgradeRequest(HttpRequest req) {
+            // It's probably dangerous to upgrade after ony else than a PUT
+            // It know to fails on POST
+            return ! req.method().equals(HttpMethod.GET) ? false : super.shouldHandleUpgradeRequest(req);
         }
     }
 
@@ -301,7 +316,7 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
                     }
                     return null;
                 };
-        HttpServerUpgradeHandler upgradeHandler = new HttpServerUpgradeHandler(sourceCodec, upgradeCodecFactory);
+        HttpServerUpgradeHandler upgradeHandler = new FilteredHttp2ServerUpgradeHandler(sourceCodec, upgradeCodecFactory);
         CleartextHttp2ServerUpgradeHandler cleartextHandler =
                 new CleartextHttp2ServerUpgradeHandler(
                         sourceCodec,

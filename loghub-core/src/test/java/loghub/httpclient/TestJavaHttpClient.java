@@ -162,7 +162,7 @@ public class TestJavaHttpClient {
             Assert.assertEquals("PUT", data.get("VERB"));
             @SuppressWarnings("unchecked")
             Map<String, Object> headers = (Map<String, Object>) data.get("HEADERS");
-            Assert.assertEquals("true", headers.get("x-test-header"));
+            Assert.assertEquals("true", headers.get("X-Test-Header"));
         }
     }
 
