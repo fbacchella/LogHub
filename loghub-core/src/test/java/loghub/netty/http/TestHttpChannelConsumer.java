@@ -70,14 +70,12 @@ class TestHttpChannelConsumer {
     @ContentType("text/plain")
     @RequestAccept(path = "/")
     static class SimpleHttp2Handler extends Http2RequestProcessing {
-
         @Override
         protected void processRequest(Http2HeadersFrame request, ChannelHandlerContext ctx) {
             ByteBuf content = ctx.alloc().buffer();
             content.writeCharSequence("HTTP2 Request received\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
         }
-
     }
 
     @BeforeAll
@@ -116,7 +114,7 @@ class TestHttpChannelConsumer {
         return Stream.of(
                 Arguments.of(Version.HTTP_1_1, "http"),
                 Arguments.of(Version.HTTP_1_1, "https"),
-                // HTTP_2 temporarily disabled
+                Arguments.of(Version.HTTP_2, "http"),
                 Arguments.of(Version.HTTP_2, "https")
         );
     }
@@ -184,7 +182,7 @@ class TestHttpChannelConsumer {
     void testSimple(HttpClient.Version version, String scheme)
             throws IOException, InterruptedException {
         URI theURL = startHttpServer(scheme, Collections.emptyMap(), i -> { });
-            Consumer<HttpResponse<String>> processResponse = r -> {
+        Consumer<HttpResponse<String>> processResponse = r -> {
             Assertions.assertEquals(version, r.version());
             Assertions.assertEquals("Request received\r\n", r.body());
             Assertions.assertEquals(200, r.statusCode());

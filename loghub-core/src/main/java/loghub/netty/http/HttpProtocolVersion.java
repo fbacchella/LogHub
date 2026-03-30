@@ -88,9 +88,12 @@ public enum HttpProtocolVersion {
     private static final Map<HttpVersion, HttpProtocolVersion> BY_NETTY_VERSION;
 
     static {
-        BY_ALPN_ID = Arrays.stream(values())
+        Map<String, HttpProtocolVersion> tempAlpnMap = Arrays.stream(values())
                            .filter(v -> v.alpnId != null)
-                           .collect(Collectors.toUnmodifiableMap(v -> v.alpnId, Function.identity()));
+                           .collect(Collectors.toMap(v -> v.alpnId, Function.identity()));
+        tempAlpnMap.put("h2c", HTTP_2);
+        BY_ALPN_ID = Map.copyOf(tempAlpnMap);
+
         BY_JDK_VERSION = Arrays.stream(values())
                                .filter(v -> v.jdkVersion != null)
                                .collect(Collectors.toUnmodifiableMap(v -> v.jdkVersion, Function.identity()));

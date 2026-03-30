@@ -25,23 +25,31 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpContentDecompressor;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
+import io.netty.handler.codec.http.HttpServerUpgradeHandler;
+import io.netty.handler.codec.http2.CleartextHttp2ServerUpgradeHandler;
+import io.netty.handler.codec.http2.Http2CodecUtil;
 import io.netty.handler.codec.http2.Http2Frame;
+import io.netty.handler.codec.http2.Http2FrameCodec;
 import io.netty.handler.codec.http2.Http2FrameCodecBuilder;
 import io.netty.handler.codec.http2.Http2GoAwayFrame;
 import io.netty.handler.codec.http2.Http2HeadersFrame;
 import io.netty.handler.codec.http2.Http2MultiplexHandler;
 import io.netty.handler.codec.http2.Http2PingFrame;
+import io.netty.handler.codec.http2.Http2ServerUpgradeCodec;
 import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.handler.codec.http2.Http2SettingsAckFrame;
 import io.netty.handler.codec.http2.Http2SettingsFrame;
+import io.netty.handler.codec.http2.Http2StreamChannel;
 import io.netty.handler.codec.http2.Http2StreamFrameToHttpObjectCodec;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 import loghub.Helpers;
 import loghub.netty.http.AccessControl;
 import loghub.netty.http.FatalErrorHandler;
@@ -65,6 +73,91 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
     private static final String HTTP_OBJECT_AGGREGATOR = "HttpObjectAggregator";
     public static final AttributeKey<Object> HOLDERATTRIBUTE = AttributeKey.newInstance("holder");
     public static final AttributeKey<Long> STARTTIMEATTRIBUTE = AttributeKey.newInstance("startTime");
+
+    private class PipeLineStatHolder {
+        final LinkedHashMap<String, ChannelHandler> removed;
+        final ChannelPipeline pipeline;
+        PipeLineStatHolder(ChannelHandlerContext ctx) {
+            removed = new LinkedHashMap<>();
+            this.pipeline = ctx.pipeline();
+            // Don't use .names(), it returns context, not handlers
+            List<String> names = List.copyOf(pipeline.toMap().keySet());
+            int currentIndex = names.indexOf(ctx.name());
+            if (currentIndex >= 0) {
+                List<String> toRemove = names.subList(currentIndex + 1, names.size());
+                for (String n: toRemove) {
+                    ChannelHandler handler = pipeline.remove(n);
+                    removed.put(n, handler);
+                }
+            }
+        }
+        void putback() {
+            removed.forEach(pipeline::addLast);
+        }
+    }
+
+    private class LogHubFrameHandler extends ChannelInboundHandlerAdapter {
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            switch (msg) {
+            case Http2SettingsFrame hf -> logger.trace("Intercepted HTTP/2 frame {}", hf::name);
+            case Http2SettingsAckFrame hf -> logger.trace("Intercepted HTTP/2 frame {}", hf::name);
+            case Http2PingFrame ping -> {
+                logger.trace("Intercepted HTTP/2 PING frame: ack={}", ping::ack);
+                if (ping.ack()) {
+                    super.channelRead(ctx, msg);
+                }
+            }
+            case Http2GoAwayFrame goaway -> {
+                logger.trace("Intercepted HTTP/2 GOAWAY frame: lastStreamId={}, errorCode={}, debugData={}",
+                        goaway::lastStreamId, goaway::errorCode, () -> goaway.content().toString(CharsetUtil.UTF_8));
+                ctx.close();
+                super.channelRead(ctx, msg);
+            }
+            case Http2Frame hf -> {
+                logger.trace("Logged HTTP/2 frame {} {} {}", () -> hf.getClass().getCanonicalName(), hf::name, () -> msg);
+                super.channelRead(ctx, msg);
+            }
+            default -> {
+                logger.info("Unknown HTTP/2 frame {}", msg);
+                super.channelRead(ctx, msg);
+            }
+            }
+        }
+    }
+
+    private class LogHubMultiplexChannelInitializer extends ChannelInitializer<Http2StreamChannel> {
+        @Override
+        protected void initChannel(Http2StreamChannel ch) {
+            Channel parentChannel = ch.parent();
+            for (AttributeKey<?> key : List.of(
+                    NettyTransport.PRINCIPALATTRIBUTE, NettyReceiver.CONNECTIONCONTEXTATTRIBUTE,
+                    AbstractIpTransport.SSLSENGINATTRIBUTE, AbstractIpTransport.SSLSESSIONATTRIBUTE, AbstractIpTransport.ALPNPROTOCOL,
+                    HttpChannelConsumer.HOLDERATTRIBUTE, HttpChannelConsumer.STARTTIMEATTRIBUTE
+                )
+            ) {
+                copyAttribue(key, parentChannel, ch);
+            }
+            if (http1only) {
+                ch.pipeline().addLast(new Http2StreamFrameToHttpObjectCodec(true, true));
+                finishHttp1PipelineSetup(ch.pipeline());
+            } else {
+                finishHttp2PipelineSetup(ch.pipeline());
+            }
+        }
+    }
+
+    private class LogHubHttp1Message extends SimpleChannelInboundHandler<HttpMessage> {
+        @Override
+        public void channelRead0(ChannelHandlerContext ctx, HttpMessage msg) {
+            ChannelPipeline pipeline = ctx.pipeline();
+            PipeLineStatHolder state = new PipeLineStatHolder(ctx);
+            addHttp1Handlers(pipeline);
+            pipeline.remove(this);
+            state.putback();
+            ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
+        }
+    }
 
     @Setter
     @Accessors(chain = true)
@@ -171,110 +264,76 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
     public void addHandlers(ChannelPipeline p) {
         p.channel().attr(HOLDERATTRIBUTE).set(holder);
         p.channel().attr(STARTTIMEATTRIBUTE).set(System.nanoTime());
-        p.channel().attr(ALPNPROTOCOL).set(HttpProtocolVersion.HTTP_1_1.alpnId);
     }
 
     @Override
     public void insertAlpnPipeline(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.pipeline();
-        LinkedHashMap<String, ChannelHandler> removed = new LinkedHashMap<>();
-        // Don't use .names(), it returns context, not handlers
-        List<String> names = List.copyOf(p.toMap().keySet());
-        int alpnIndex = names.indexOf(RESOLVERNAME);
-        if (alpnIndex >= 0) {
-            List<String> toRemove = names.subList(alpnIndex + 1, names.size());
-            for (String name : toRemove) {
-                ChannelHandler handler = p.remove(name);
-                removed.put(name, handler);
-            }
-        }
+        PipeLineStatHolder state = new PipeLineStatHolder(ctx);
         String protocol = ctx.channel().attr(ALPNPROTOCOL).get();
-        logger.debug("Negotiated ALPN protocol {}", protocol);
-        switch (HttpProtocolVersion.fromAlpnId(protocol).orElse(null)) {
+        if (protocol == null) {
+            upgrader(p);
+        } else {
+            logger.debug("Negotiated ALPN protocol {}", protocol);
+            switch (HttpProtocolVersion.fromAlpnId(protocol).orElse(null)) {
             case HttpProtocolVersion.HTTP_1_1 -> addHttp1Handlers(p);
             case HttpProtocolVersion.HTTP_2 -> addHttp2Handlers(p);
             default -> throw new IllegalStateException("Unexpected value: " + HttpProtocolVersion.fromAlpnId(protocol));
+            }
         }
-        p.remove(RESOLVERNAME);
-        removed.forEach(p::addLast);
+        state.putback();
     }
 
     private void addHttp1Handlers(ChannelPipeline p) {
-        p.addLast("HttpServerCodec", serverCodecSupplier.get());
         p.addLast("HttpContentDeCompressor", new HttpContentDecompressor());
         p.addLast("httpKeepAlive", new HttpServerKeepAliveHandler());
         p.addLast("HttpContentCompressor", new HttpContentCompressor());
         finishHttp1PipelineSetup(p);
     }
 
-    private void addHttp2Handlers(ChannelPipeline p) {
-        p.addLast("Http2FrameCodec", Http2FrameCodecBuilder.forServer().initialSettings(Http2Settings.defaultSettings()).autoAckPingFrame(true).build());
-        ChannelInboundHandlerAdapter frameHandler = new ChannelInboundHandlerAdapter() {
-            @Override
-            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                Optional<?> o = http2FrameHandling(ctx, msg);
-                if (o.isPresent()) {
-                    super.channelRead(ctx, o.get());
-                }
-            }
-        };
-        p.addLast("UnandledHTTP2Frame", frameHandler);
-        Http2MultiplexHandler multiplexHandler = new Http2MultiplexHandler(new ChannelInitializer<>() {
-            @Override
-            protected void initChannel(Channel ch) {
-                Channel parentChannel = ch.parent();
-                for (AttributeKey<?> key : List.of(
-                        NettyTransport.PRINCIPALATTRIBUTE, NettyReceiver.CONNECTIONCONTEXTATTRIBUTE,
-                        AbstractIpTransport.SSLSENGINATTRIBUTE, AbstractIpTransport.SSLSESSIONATTRIBUTE, ALPNPROTOCOL,
-                        HttpChannelConsumer.HOLDERATTRIBUTE, HttpChannelConsumer.STARTTIMEATTRIBUTE
-                    )
-                ) {
-                    copyAttribue(key, parentChannel, ch);
-                }
-                if (http1only) {
-                    ch.pipeline().addLast(new Http2StreamFrameToHttpObjectCodec(true, true));
-                    finishHttp1PipelineSetup(ch.pipeline());
-                } else {
-                    finishHttp2PipelineSetup(ch.pipeline());
-                }
-            }
-        });
-        p.addLast("Http2MultiplexHandler", multiplexHandler);
+    private void upgrader(ChannelPipeline p) {
+        HttpServerCodec sourceCodec = serverCodecSupplier.get();
+        HttpServerUpgradeHandler.UpgradeCodecFactory upgradeCodecFactory =
+                protocol -> {
+                    if (Http2CodecUtil.HTTP_UPGRADE_PROTOCOL_NAME.equals(protocol)) {
+                        logger.debug("Upgrade to protocol {} detected", protocol);
+                        return getUpgradeCodec();
+                    }
+                    return null;
+                };
+        HttpServerUpgradeHandler upgradeHandler = new HttpServerUpgradeHandler(sourceCodec, upgradeCodecFactory);
+        CleartextHttp2ServerUpgradeHandler cleartextHandler =
+                new CleartextHttp2ServerUpgradeHandler(
+                        sourceCodec,
+                        upgradeHandler,
+                        getHttp2ServerHandler()
+                );
+        p.addLast(cleartextHandler);
+        p.addLast(new LogHubHttp1Message());
     }
 
-    private Optional<Object> http2FrameHandling(ChannelHandlerContext ctx, Object msg) {
-        switch (msg) {
-        case Http2SettingsFrame hf -> {
-            logger.trace("Intercepted HTTP/2 frame {}", hf::name);
-            return Optional.empty();
-        }
-        case Http2SettingsAckFrame hf -> {
-            logger.trace("Intercepted HTTP/2 frame {}", hf::name);
-            return Optional.empty();
-        }
-        case Http2PingFrame ping -> {
-            logger.trace("Intercepted HTTP/2 PING frame: ack={}", ping::ack);
-            if (!ping.ack()) {
-                return Optional.empty();
-            } else {
-                return Optional.of(msg);
+    private Http2ServerUpgradeCodec getUpgradeCodec() {
+        Http2FrameCodec fcodec = Http2FrameCodecBuilder.forServer().initialSettings(Http2Settings.defaultSettings()).autoAckPingFrame(true).build();
+        ChannelInboundHandlerAdapter frameHandler = new LogHubFrameHandler();
+        Http2MultiplexHandler multiplexHandler = new Http2MultiplexHandler(new LogHubMultiplexChannelInitializer());
+        return new Http2ServerUpgradeCodec(fcodec, frameHandler, multiplexHandler);
+    }
+
+    ChannelHandler getHttp2ServerHandler() {
+        return new ChannelInitializer<>() {
+            @Override
+            protected void initChannel(Channel ch) {
+                ChannelPipeline p = ch.pipeline();
+                addHttp2Handlers(p);
             }
-        }
-        case Http2GoAwayFrame goaway -> {
-            logger.trace("Intercepted HTTP/2 GOAWAY frame: lastStreamId={}, errorCode={}, debugData={}",
-                    goaway::lastStreamId, goaway::errorCode, () -> goaway.content().toString(CharsetUtil.UTF_8));
-            ctx.close();
-            return Optional.empty();
-        }
-        case Http2Frame hf -> {
-            logger.trace("Logged HTTP/2 frame {} {} {}", () -> hf.getClass().getCanonicalName(), hf::name, () -> msg);
-            return Optional.of(msg);
-        }
-        default -> {
-            logger.info("Unknown HTTP/2 frame {}", msg);
-            return Optional.of(msg);
-        }
-        }
+        };
+    }
+
+    private void addHttp2Handlers(ChannelPipeline p) {
+        p.addLast("Http2FrameCodec", Http2FrameCodecBuilder.forServer().initialSettings(Http2Settings.defaultSettings()).autoAckPingFrame(true).build());
+        p.addLast("UnandledHTTP2Frame", new LogHubFrameHandler());
+        Http2MultiplexHandler multiplexHandler = new Http2MultiplexHandler(new LogHubMultiplexChannelInitializer());
+        p.addLast("Http2MultiplexHandler", multiplexHandler);
     }
 
     private <T> void copyAttribue(AttributeKey<T> key, Channel from, Channel to) {

@@ -135,10 +135,10 @@ public class TestJavaHttpClient {
         }
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testConnection() throws IOException, URISyntaxException {
         JavaHttpClientService.Builder clientBuilder = JavaHttpClientService.getBuilder();
-        clientBuilder.setTimeout(10);
+        clientBuilder.setTimeout(5);
         clientBuilder.setUser("bla");
         clientBuilder.setPassword("blo");
         clientBuilder.setWorkers(2);
@@ -162,8 +162,7 @@ public class TestJavaHttpClient {
             Assert.assertEquals("PUT", data.get("VERB"));
             @SuppressWarnings("unchecked")
             Map<String, Object> headers = (Map<String, Object>) data.get("HEADERS");
-            Assert.assertEquals("true", headers.get("X-Test-Header"));
-            Assert.assertEquals("true", headers.get("X-Test-Header"));
+            Assert.assertEquals("true", headers.get("x-test-header"));
         }
     }
 

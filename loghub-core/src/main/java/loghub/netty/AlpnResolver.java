@@ -7,18 +7,14 @@ public interface AlpnResolver {
     String RESOLVERNAME = "ALPNResolver";
     class AplNProcessing extends ChannelInboundHandlerAdapter {
         private final AlpnResolver consumer;
-        private boolean alpnConfigured;
         public AplNProcessing(AlpnResolver consumer) {
             this.consumer = consumer;
-            this.alpnConfigured = false;
         }
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
-            if (! alpnConfigured) {
-                alpnConfigured = true;
-                consumer.insertAlpnPipeline(ctx);
-                ctx.fireChannelRead(msg);
-            }
+            consumer.insertAlpnPipeline(ctx);
+            ctx.pipeline().remove(this);
+            ctx.fireChannelRead(msg);
         }
     }
     void insertAlpnPipeline(ChannelHandlerContext ctx);
