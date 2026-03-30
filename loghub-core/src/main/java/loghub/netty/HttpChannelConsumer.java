@@ -76,7 +76,19 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
     public static final AttributeKey<Object> HOLDERATTRIBUTE = AttributeKey.newInstance("holder");
     public static final AttributeKey<Long> STARTTIMEATTRIBUTE = AttributeKey.newInstance("startTime");
 
-    private class PipeLineStatHolder {
+    private record Http2PipelineElements(Http2FrameCodec fcodec, ChannelInboundHandlerAdapter frameHandler, Http2MultiplexHandler multiplexHandler) {
+        static final String CODEC = "Http2FrameCodecBuilder";
+        static final String FRAME_HANDLER = "LogHubFrameHandler";
+        static final String MULTIPLEX_HANDLER =  "Http2MultiplexHandler";
+        static Http2PipelineElements getElements(HttpChannelConsumer consumer) {
+            Http2FrameCodec fcodec = Http2FrameCodecBuilder.forServer().initialSettings(Http2Settings.defaultSettings()).autoAckPingFrame(true).build();
+            ChannelInboundHandlerAdapter frameHandler = consumer.new LogHubFrameHandler();
+            Http2MultiplexHandler multiplexHandler = new Http2MultiplexHandler(consumer.new LogHubMultiplexChannelInitializer());
+            return new Http2PipelineElements(fcodec, frameHandler, multiplexHandler);
+        }
+    }
+
+    private static class PipeLineStatHolder {
         final LinkedHashMap<String, ChannelHandler> removed;
         final ChannelPipeline pipeline;
         PipeLineStatHolder(ChannelHandlerContext ctx) {
@@ -169,8 +181,8 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         @Override
         protected boolean shouldHandleUpgradeRequest(HttpRequest req) {
             // It's probably dangerous to upgrade after ony else than a PUT
-            // It know to fails on POST
-            return ! req.method().equals(HttpMethod.GET) ? false : super.shouldHandleUpgradeRequest(req);
+            // It's known to fail on POST
+            return req.method().equals(HttpMethod.GET) && super.shouldHandleUpgradeRequest(req);
         }
     }
 
@@ -323,32 +335,34 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
                         upgradeHandler,
                         getHttp2ServerHandler()
                 );
-        p.addLast(cleartextHandler);
+        p.addLast("CleartextHttp2ServerUpgradeHandler", cleartextHandler);
         p.addLast(new LogHubHttp1Message());
     }
 
     private Http2ServerUpgradeCodec getUpgradeCodec() {
-        Http2FrameCodec fcodec = Http2FrameCodecBuilder.forServer().initialSettings(Http2Settings.defaultSettings()).autoAckPingFrame(true).build();
-        ChannelInboundHandlerAdapter frameHandler = new LogHubFrameHandler();
-        Http2MultiplexHandler multiplexHandler = new Http2MultiplexHandler(new LogHubMultiplexChannelInitializer());
-        return new Http2ServerUpgradeCodec(fcodec, frameHandler, multiplexHandler);
+        Http2PipelineElements elements = Http2PipelineElements.getElements(this);
+        return new Http2ServerUpgradeCodec(elements.fcodec, elements.frameHandler, elements.multiplexHandler);
     }
 
-    ChannelHandler getHttp2ServerHandler() {
+    private ChannelHandler getHttp2ServerHandler() {
         return new ChannelInitializer<>() {
             @Override
             protected void initChannel(Channel ch) {
                 ChannelPipeline p = ch.pipeline();
-                addHttp2Handlers(p);
+                p.lastContext().name();
+                Http2PipelineElements elements = Http2PipelineElements.getElements(HttpChannelConsumer.this);
+                p.addAfter("CleartextHttp2ServerUpgradeHandler", Http2PipelineElements.CODEC, elements.fcodec);
+                p.addAfter(Http2PipelineElements.CODEC, Http2PipelineElements.FRAME_HANDLER, elements.frameHandler);
+                p.addAfter(Http2PipelineElements.FRAME_HANDLER, Http2PipelineElements.MULTIPLEX_HANDLER, elements.multiplexHandler);
             }
         };
     }
 
     private void addHttp2Handlers(ChannelPipeline p) {
-        p.addLast("Http2FrameCodec", Http2FrameCodecBuilder.forServer().initialSettings(Http2Settings.defaultSettings()).autoAckPingFrame(true).build());
-        p.addLast("UnandledHTTP2Frame", new LogHubFrameHandler());
-        Http2MultiplexHandler multiplexHandler = new Http2MultiplexHandler(new LogHubMultiplexChannelInitializer());
-        p.addLast("Http2MultiplexHandler", multiplexHandler);
+        Http2PipelineElements elements = Http2PipelineElements.getElements(this);
+        p.addLast(Http2PipelineElements.CODEC, elements.fcodec);
+        p.addLast(Http2PipelineElements.FRAME_HANDLER, elements.frameHandler);
+        p.addLast(Http2PipelineElements.MULTIPLEX_HANDLER, elements.multiplexHandler);
     }
 
     private <T> void copyAttribue(AttributeKey<T> key, Channel from, Channel to) {

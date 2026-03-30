@@ -32,7 +32,7 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
     @Override
     protected void tweakNettyBuilder(B builder, NettyTransport.Builder<?, HttpMessage, ?, ?> nettyTransportBuilder) {
         super.tweakNettyBuilder(builder, nettyTransportBuilder);
-        if (isWithSSL() && nettyTransportBuilder instanceof AbstractIpTransport.Builder<?, ?, ?> ipTransportBuilder) {
+        if (nettyTransportBuilder instanceof AbstractIpTransport.Builder<?, ?, ?> ipTransportBuilder) {
             ipTransportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
             ipTransportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
             HttpChannelConsumer consumer = (HttpChannelConsumer) getConsumer();
