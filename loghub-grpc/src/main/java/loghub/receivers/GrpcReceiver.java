@@ -5,6 +5,7 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLEngine;
 
@@ -16,6 +17,9 @@ import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
 import loghub.decoders.CodecProvider;
 import loghub.events.Event;
+import loghub.grpc.BinaryCodec;
+import loghub.grpc.GrpcStreamHandler;
+import loghub.grpc.GrpcStreamHandler.Factory;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.ContextExtractor;
@@ -25,9 +29,6 @@ import loghub.netty.http.HttpProtocolVersion;
 import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.TRANSPORT;
-import loghub.grpc.BinaryCodec;
-import loghub.grpc.GrpcStreamHandler;
-import loghub.grpc.GrpcStreamHandler.Factory;
 import lombok.Setter;
 
 import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
@@ -74,7 +75,7 @@ public class GrpcReceiver
     @Override
     protected void tweakNettyBuilder(Builder builder, NettyTransport.Builder<?, Http2Frame, ?, ?> nettyTransportBuilder) {
         super.tweakNettyBuilder(builder, nettyTransportBuilder);
-        if (isWithSSL() && nettyTransportBuilder instanceof AbstractIpTransport.Builder<?, ?, ?> ipTransportBuilder) {
+        if (nettyTransportBuilder instanceof AbstractIpTransport.Builder<?, ?, ?> ipTransportBuilder) {
             ipTransportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
             ipTransportBuilder.setAlpnSelector(this::alpnSelector);
         }
@@ -103,24 +104,26 @@ public class GrpcReceiver
         ch.pipeline().addLast("gRPCHandler", grpcFactory.get());
     }
 
-    public void publish(GrpcStreamHandler handler, Map<String, Object> content) {
+    public void publish(GrpcStreamHandler<?, ?> handler, Stream<Map<String, Object>> content) {
         Principal p = handler.getCurrentContext().channel().attr(PRINCIPALATTRIBUTE).get();
         BuildableConnectionContext<InetSocketAddress> cctx = getConnectionContext(handler.getCurrentContext());
         if (p != null) {
             cctx.setPrincipal(p);
         }
-        Event ev = mapToEvent(cctx, content);
-        if (ev != null) {
-            ev.putMeta("gRPCMethod", handler.getQualifiedMethodName());
-            ev.putMeta("url_path", handler.getRequestHeaders().path().toString());
-            Http2Headers headers =  handler.getRequestHeaders();
-            if (headers.contains("User-Agent")) {
-                ev.putMeta("user_agent", headers.get("User-Agent").toString());
-            }
-            ev.putMeta("host_header", headers.authority().toString());
+        content.forEach(m -> {
+            Event ev = mapToEvent(cctx, m);
+            if (ev != null) {
+                ev.putMeta("gRPCMethod", handler.getQualifiedMethodName());
+                ev.putMeta("url_path", handler.getRequestHeaders().path().toString());
+                Http2Headers headers =  handler.getRequestHeaders();
+                if (headers.contains("User-Agent")) {
+                    ev.putMeta("user_agent", headers.get("User-Agent").toString());
+                }
+                ev.putMeta("host_header", headers.authority().toString());
 
-            send(ev);
-        }
+                send(ev);
+            }
+        });
     }
 
     @Override

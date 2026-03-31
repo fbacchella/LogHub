@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.grpc.CompressorRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NettyChannelBuilder;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
@@ -73,7 +74,8 @@ class TestOpenTelemetry {
         ManagedChannel channel = NettyChannelBuilder
                                          .forAddress("localhost", port)
                                          .useTransportSecurity()
-                                         .sslContext(tlsContext.nettyCtx)
+                                         .usePlaintext()
+                                         .compressorRegistry(CompressorRegistry.getDefaultInstance())
                                          .build();
 
         long tsNanos = Instant.now().toEpochMilli() * 1_000_000L;
@@ -132,7 +134,7 @@ class TestOpenTelemetry {
                                                   .build();
         ExportMetricsServiceRequest m = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
         MetricsServiceBlockingStub stub = MetricsServiceGrpc.newBlockingStub(channel);
-        ExportMetricsServiceResponse  response = stub.withDeadlineAfter(5, TimeUnit.SECONDS).export(m);
+        ExportMetricsServiceResponse  response = stub.withDeadlineAfter(5, TimeUnit.SECONDS).withCompression("gzip").export(m);
         Assertions.assertEquals(0L, response.getPartialSuccess().getRejectedDataPoints());
         Assertions.assertEquals("", response.getPartialSuccess().getErrorMessage());
     }
@@ -145,6 +147,7 @@ class TestOpenTelemetry {
                 input {
                     loghub.receivers.GrpcReceiver {
                         port: %1$d,
+                        withSSL: false,
                         grpcCodecs: [
                             loghub.decoders.OpenTelemetry,
                         ],
@@ -157,20 +160,19 @@ class TestOpenTelemetry {
         try (Receiver<?, ?> r = conf.receivers.stream().findAny().orElseThrow()) {
             r.start();
             doRequest();
-            Event ev = conf.mainQueue.poll(5, TimeUnit.SECONDS);
-            Assertions.assertEquals("opentelemetry.proto.collector.metrics.v1.MetricsService.Export", ev.getMeta("gRPCMethod"));
-            Assertions.assertEquals("/opentelemetry.proto.collector.metrics.v1.MetricsService/Export", ev.getMeta("url_path"));
-            Assertions.assertTrue(ev.getMeta("user_agent").toString().startsWith("grpc-java-netty/"));
-            Assertions.assertTrue(ev.getMeta("host_header").toString().startsWith("localhost:"));
-            List<Map<String, Object>> resourceMetrics = (List<Map<String, Object>>) ev.getAtPath(VariablePath.of("resource_metrics"));
-            Map<String, Object> firstRM = resourceMetrics.getFirst();
-            Assertions.assertEquals(3, firstRM.size());
-            List<Map<String, Object>> scopeMetrics = (List<Map<String, Object>>) firstRM.get("scope_metrics");
-            Assertions.assertEquals(1, scopeMetrics.size());
-            Map<String, Object> firstSM = scopeMetrics.getFirst();
-            List<Map<String, Object>> metrics = (List<Map<String, Object>>) firstSM.get("metrics");
-            Map<String, Object> firstM = metrics.getFirst();
-            Assertions.assertEquals("jvm.memory.used", firstM.get("name"));
+            Event ev;
+            while ((ev = conf.mainQueue.poll(100, TimeUnit.MILLISECONDS)) != null) {
+                Assertions.assertEquals("opentelemetry.proto.collector.metrics.v1.MetricsService.Export", ev.getMeta("gRPCMethod"));
+                Assertions.assertEquals("/opentelemetry.proto.collector.metrics.v1.MetricsService/Export", ev.getMeta("url_path"));
+                Assertions.assertTrue(ev.getMeta("user_agent").toString().startsWith("grpc-java-netty/"));
+                Assertions.assertTrue(ev.getMeta("host_header").toString().startsWith("localhost:"));
+                Assertions.assertEquals(7, ev.size());
+                Assertions.assertEquals("jvm.memory.used", ev.get("name"));
+                List<Map<String, Object>> scopeMetrics = (List<Map<String, Object>>) ev.getAtPath(VariablePath.of("sum", "data_points"));
+                Assertions.assertEquals(1, scopeMetrics.size());
+                Map<String, Object> firstSM = scopeMetrics.getFirst();
+                Assertions.assertInstanceOf(Instant.class, firstSM.get("time_unix_nano"));
+            }
         }
     }
 

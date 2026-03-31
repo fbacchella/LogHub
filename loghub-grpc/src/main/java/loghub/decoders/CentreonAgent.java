@@ -2,6 +2,7 @@ package loghub.decoders;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 
@@ -54,9 +55,9 @@ public class CentreonAgent extends ProtoBuf implements CodecProvider {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> export(GrpcReceiver r, GrpcStreamHandler handler, Map<String, Object> messageFrom) {
+    private Map<String, Object> export(GrpcReceiver r, GrpcStreamHandler<?, ?> handler, Map<String, Object> messageFrom) {
         if (messageFrom.containsKey("otel_request")) {
-            r.publish(handler, (Map<String, Object>) messageFrom.get("otel_request"));
+            r.publish(handler, Stream.of((Map<String, Object>) messageFrom.get("otel_request")));
             return Map.of("otel_response", Map.of("partial_success", Map.of("rejected_data_points", 0L, "error_message", "")));
         } else if (messageFrom.containsKey("init")) {
             return Map.of("config", Map.of("centreon_version", Map.of("major", 24, "minor", 10, "patch", 0)));
