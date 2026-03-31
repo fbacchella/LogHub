@@ -309,7 +309,7 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
     }
 
     private ByteBuf decompress(boolean compressed, ByteBuf messageBuf) throws IOException {
-        if (compressed || encoding.isEmpty()) {
+        if (! compressed || encoding.isEmpty()) {
             return messageBuf;
         } else {
             ByteBuf out = Unpooled.compositeBuffer(messageBuf.readableBytes());
