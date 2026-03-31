@@ -114,26 +114,28 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             switch (msg) {
-            case Http2SettingsFrame hf -> logger.trace("Intercepted HTTP/2 frame {}", hf::name);
-            case Http2SettingsAckFrame hf -> logger.trace("Intercepted HTTP/2 frame {}", hf::name);
+            case Http2SettingsFrame hf -> logger.trace("HTTP/2 frame (intercepted) type {}: {}", hf::name, () -> msg);
+            case Http2SettingsAckFrame hf -> logger.trace("HTTP/2 frame (intercepted) type {}", hf::name);
             case Http2PingFrame ping -> {
-                logger.trace("Intercepted HTTP/2 PING frame: ack={}", ping::ack);
                 if (ping.ack()) {
+                    logger.trace("HTTP/2 frame type {}: {}", ping::name, ping::ack);
                     super.channelRead(ctx, msg);
+                } else {
+                    logger.trace("HTTP/2 frame type {}: {}", ping::name, ping::content);
                 }
             }
             case Http2GoAwayFrame goaway -> {
-                logger.trace("Intercepted HTTP/2 GOAWAY frame: lastStreamId={}, errorCode={}, debugData={}",
-                        goaway::lastStreamId, goaway::errorCode, () -> goaway.content().toString(CharsetUtil.UTF_8));
+                logger.trace("HTTP/2 frame type {}: lastStreamId={}, errorCode={}, debugData={}",
+                        goaway::name, goaway::lastStreamId, goaway::errorCode, () -> goaway.content().toString(CharsetUtil.UTF_8));
                 ctx.close();
                 super.channelRead(ctx, msg);
             }
             case Http2Frame hf -> {
-                logger.trace("Logged HTTP/2 frame {} {} {}", () -> hf.getClass().getCanonicalName(), hf::name, () -> msg);
+                logger.trace("HTTP/2 frame type {}: {}", hf::name, () -> msg);
                 super.channelRead(ctx, msg);
             }
             default -> {
-                logger.info("Unknown HTTP/2 frame {}", msg);
+                logger.info("Unknown HTTP/2 message {}", msg);
                 super.channelRead(ctx, msg);
             }
             }
