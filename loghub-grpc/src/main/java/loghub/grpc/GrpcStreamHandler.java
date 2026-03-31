@@ -103,6 +103,7 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
     private MethodDescriptor method;
     @Getter
     MethodProcessor<I, O> methodConsumer;
+    private boolean canProcessData = false;
 
     private GrpcStreamHandler(Map<String, BinaryCodec> servicesByPath, Map<String, MethodProcessor<?, ?>> transformers) {
         this.servicesByPath = servicesByPath;
@@ -113,7 +114,8 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         switch (msg) {
         case Http2HeadersFrame hf -> onHeadersReceived(ctx, hf);
-        case Http2DataFrame df when codec != null -> onDataReceived(ctx, df);
+        case Http2DataFrame df when canProcessData  -> onDataReceived(ctx, df);
+        case Http2DataFrame df -> {}
         default -> ctx.fireChannelRead(msg);
         }
     }
@@ -152,9 +154,6 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
             if (! GRPC_CONTENT_TYPE.equals(requestHeaders.get(HEADER_CONTENT_TYPE)) && codec == null) {
                 // Not a gRPC request, skip it
                 ctx.fireChannelRead(frame);
-            } else if (grpcTimout == null) {
-                // Unparsable timeout header
-                sendInitialHeaders(ctx, GrpcStatus.INVALID_ARGUMENT.withMessage("Missing timeout header", requestHeaders.method()), 400);
             } else if (codec == null) {
                 // an unhandled gRPC end point
                 sendInitialHeaders(ctx, GrpcStatus.UNIMPLEMENTED.withMessage("Unhandled method %s", qualifiedMethodName), 200);
@@ -171,6 +170,7 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
                 // Missing or invalid mandatory te header
                 sendInitialHeaders(ctx, GrpcStatus.INVALID_ARGUMENT.withMessage("Missing or invalid te header", requestHeaders.method()), 400);
             } else {
+                canProcessData = true;
                 sendInitialHeaders(ctx, GrpcStatus.OK, 200);
             }
         } else {
@@ -369,7 +369,7 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
             responseHeaders = new DefaultHttp2Headers().status("200");
         } else {
             logger.warn("{} received invalid call with error status {}: {}",
-                    () -> requestHeaders.path(), () -> httpStatus, status::getStatus);
+                    () -> requestHeaders.path(), () -> httpStatus, status::getMessage);
             responseHeaders = status.getHeaders().status(Integer.toString(httpStatus));
         }
         responseHeaders.add(HEADER_CONTENT_TYPE, GRPC_CONTENT_TYPE)

@@ -3,7 +3,13 @@ package loghub.receivers;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -165,6 +171,43 @@ class TestOpenTelemetry {
             List<Map<String, Object>> metrics = (List<Map<String, Object>>) firstSM.get("metrics");
             Map<String, Object> firstM = metrics.getFirst();
             Assertions.assertEquals("jvm.memory.used", firstM.get("name"));
+        }
+    }
+
+    @Test
+    @Timeout(5)
+    void runBroken() throws IOException, InterruptedException {
+        port = Tools.tryGetPort();
+        String confile = """
+                input {
+                    loghub.receivers.GrpcReceiver {
+                        port: %1$d,
+                        withSSL: false,
+                        grpcCodecs: [
+                            loghub.decoders.OpenTelemetry,
+                        ],
+                    }
+                } | $main
+                pipeline[main] {}
+                ssl.trusts: ["%2$s"]
+                """.formatted(port, tempDir.resolve("loghub.p12"));
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        try (Receiver<?, ?> r = conf.receivers.stream().findAny().orElseThrow()) {
+            r.start();
+            HttpClient client = HttpClient.newBuilder()
+                                          .connectTimeout(Duration.ofSeconds(5))
+                                          .sslContext(tlsContext.sslctx)
+                                          .build();
+            HttpRequest.Builder jRequestBuilder = HttpRequest.newBuilder();
+            HttpRequest req = jRequestBuilder.method("GET", HttpRequest.BodyPublishers.ofByteArray(new byte[]{-1 ,-2, -3, -4, -5, -6}))
+                                      .uri(URI.create(String.format("https://%s:%d/opentelemetry.proto.collector.metrics.v1.MetricsService/Export", "localhost", port)))
+                                      .header("Content-Type", "application/grpc")
+                                      .header("grpc-encoding", "gzip")
+                                      .header("te", "trailers")
+                                      .version(Version.HTTP_2)
+                                      .build();
+            HttpResponse<?> response = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
+            Assertions.assertEquals(400, response.statusCode());
         }
     }
 
