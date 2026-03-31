@@ -149,11 +149,12 @@ public class HttpChannelConsumer implements ChannelConsumer, AlpnResolver {
             for (AttributeKey<?> key : List.of(
                     NettyTransport.PRINCIPALATTRIBUTE, NettyReceiver.CONNECTIONCONTEXTATTRIBUTE,
                     AbstractIpTransport.SSLSENGINATTRIBUTE, AbstractIpTransport.SSLSESSIONATTRIBUTE, AbstractIpTransport.ALPNPROTOCOL,
-                    HttpChannelConsumer.HOLDERATTRIBUTE, HttpChannelConsumer.STARTTIMEATTRIBUTE
+                    HttpChannelConsumer.HOLDERATTRIBUTE
                 )
             ) {
                 copyAttribue(key, parentChannel, ch);
             }
+            ch.attr(STARTTIMEATTRIBUTE).set(System.nanoTime());
             if (http1only) {
                 ch.pipeline().addLast(new Http2StreamFrameToHttpObjectCodec(true, true));
                 finishHttp1PipelineSetup(ch.pipeline());
