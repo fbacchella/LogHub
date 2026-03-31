@@ -6,8 +6,10 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.management.AttributeNotFoundException;
@@ -44,8 +46,6 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-
-import static org.junit.Assert.assertEquals;
 
 public class TestJmxStats {
 
@@ -127,7 +127,18 @@ public class TestJmxStats {
     public void testBeans()
             throws MalformedObjectNameException, ReflectionException, InstanceNotFoundException, IntrospectionException,
                            AttributeNotFoundException, MBeanException, IOException {
-        getProperties("pipeline[main] { }");
+        getProperties("""
+            input {
+                loghub.receivers.Http {
+                    port: 0,
+                    decoders: {
+                        "application/json": loghub.decoders.Json
+                    },
+                },
+            } | $main
+            pipeline[main] { }
+            http.port: 0
+            """);
 
         Map<String, List<String>> attributes = new HashMap<>();
         for (String type : List.of("Global", "Exceptions", "Pipelines", "Receivers", "Senders")) {
@@ -153,11 +164,33 @@ public class TestJmxStats {
                 }
             }
         }
-        Assert.assertEquals(List.of("DuplicateEnd", "EventLifeTime95", "EventLifeTimeMedian", "Inflight", "Leaked", "TotalEvents", "UnhandledExceptions", "WaitingProcessing"), attributes.get("Global"));
-        Assert.assertEquals(List.of("DecodersFailures", "ProcessorsFailures", "ReceiversFailures", "SendersFailures", "UnhandledExceptions"), attributes.get("Exceptions"));
-        Assert.assertEquals(List.of("95per", "Count", "Discarded", "Dropped", "Exceptions", "Failed", "Inflight", "LoopOverflow", "Median"), attributes.get("Pipelines"));
-        Assert.assertEquals(List.of("Blocked", "Bytes", "Count", "Exceptions", "Failed", "FailedDecode"), attributes.get("Receivers"));
-        Assert.assertEquals(List.of("ActiveBatches", "Bytes", "Count", "DoneBatches", "Errors", "Exceptions", "Failed", "FlushDuration95", "FlushDurationMedian", "QueueSize", "WaitingBatches"), attributes.get("Senders"));
+        Assert.assertEquals(List.of("DuplicateEnd", "EventLifeTime95", "EventLifeTimeMedian", "Inflight", "Leaked", "TotalEvents", "UnhandledExceptions", "WaitingProcessing"), attributes.remove("Global"));
+        Assert.assertEquals(List.of("DecodersFailures", "ProcessorsFailures", "ReceiversFailures", "SendersFailures", "UnhandledExceptions"), attributes.remove("Exceptions"));
+        Assert.assertEquals(List.of("95per", "Count", "Discarded", "Dropped", "Exceptions", "Failed", "Inflight", "LoopOverflow", "Median"), attributes.remove("Pipelines"));
+        Assert.assertEquals(List.of("Blocked", "Bytes", "Count", "Exceptions", "Failed", "FailedDecode"), attributes.remove("Receivers"));
+        Assert.assertEquals(List.of("ActiveBatches", "Bytes", "Count", "DoneBatches", "Errors", "Exceptions", "Failed", "FlushDuration95", "FlushDurationMedian", "QueueSize", "WaitingBatches"), attributes.remove("Senders"));
+        Assert.assertTrue(attributes.isEmpty());
+        for (String code : List.of("200", "301","302", "400", "401", "403", "404", "500", "503")) {
+            Hashtable ht = new Hashtable();
+            ht.put("type", "Dashboard");
+            ht.put("level", "HTTPStatus");
+            ht.put("code", code);
+            ObjectName on = ObjectName.getInstance("loghub", ht);
+            MBeanInfo info = mbs.getMBeanInfo(on);
+            Set<String> attrList = Arrays.stream(info.getAttributes())
+                                           .map(MBeanFeatureInfo::getName)
+                                           .collect(Collectors.toSet());
+            Assert.assertTrue(attrList.contains("95thPercentile"));
+            Assert.assertTrue(attrList.contains("DurationUnit"));
+            Assert.assertTrue(attrList.contains("Mean"));
+        }
+        Hashtable ht = new Hashtable();
+        ht.put("type", "Receivers");
+        ht.put("servicename", "HTTP/0.0.0.0/0");
+        ht.put("level", "HTTPStatus");
+        ht.put("code", "200");
+        ObjectName on = ObjectName.getInstance("loghub", ht);
+        Assert.assertNotNull(mbs.getMBeanInfo(on));
     }
 
     private Map<String, Map<String, Object>> dumpBeans()
