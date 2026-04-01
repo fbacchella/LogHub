@@ -113,6 +113,15 @@ public class TestJmxStats {
         Assert.assertNotNull(attributes.get("Pipelines").remove("Median"));
 
         Assert.assertTrue(attributes.get("Pipelines").isEmpty());
+
+        for (String name: List.of("exception", "discarded", "failed", "loopOverflow", "paused", "pausedCount", "dropped", "inflight", "timer")) {
+            Hashtable ht = new Hashtable();
+            ht.put("type", "Pipelines");
+            ht.put("servicename", "main");
+            ht.put("name", name);
+            ObjectName on = ObjectName.getInstance("loghub", ht);
+            Assert.assertNotNull(mbs.getMBeanInfo(on));
+        }
     }
 
     private <T extends Metric> T returnStatMetric(Class<T> clazz, String name) {

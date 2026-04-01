@@ -57,6 +57,11 @@ import lombok.experimental.Accessors;
 public class JmxService {
 
     public static final String DEFAULTPROTOCOL = "rmi";
+    private static final String SERVICENAME = "servicename";
+    private static final String DETAILS = "details";
+    private static final String LEVEL = "level";
+    private static final String NAME = "name";
+    private static final String CODE = "code";
 
     public static Configuration configuration() {
         return new Configuration();
@@ -255,8 +260,8 @@ public class JmxService {
         ObjectName metricName;
         Matcher m = pipepattern.matcher(name);
         if (m.matches()) {
-            Map<String, String> table = getStringStringHashtable(m);
             try {
+                Map<String, String> table = getStringStringHashtable(m);
                 metricName = getName("loghub", table);
             } catch (MalformedObjectNameException e) {
                 metricName = donf.createName(type, domain, name);
@@ -275,35 +280,62 @@ public class JmxService {
         return new ObjectName(canonicalName);
     }
 
-    private static Map<String, String> getStringStringHashtable(Matcher m) {
+    private static Map<String, String> getStringStringHashtable(Matcher m) throws MalformedObjectNameException {
         Map<String, String> table = LinkedHashMap.newLinkedHashMap(5);
         String service = m.group(1);
         table.put("type", service);
-        if ("Dashboard".equals(service)) {
-            table.put("level", "HTTPStatus");
-            table.put("code", m.group(4));
-        } else if (".HTTPStatus".equals(m.group(3))) {
-            String servicename = m.group(2);
-            String metric = m.group(4);
-            table.put("servicename", servicename);
-            table.put("level", "HTTPStatus");
-            table.put("code", metric);
-        } else if (m.group(4) != null) {
-            String servicename = m.group(2);
-            String metric = m.group(4);
-            table.put("servicename", servicename);
-            table.put("name", metric);
-        } else {
+        switch (m.group(1)) {
+        case "Dashboard" -> {
+            if ("HTTPStatus".equals(m.group(2))) {
+                table.put(LEVEL, m.group(2));
+                table.put(CODE, m.group(4));
+            } else {
+                table.put(LEVEL, m.group(2));
+                table.put(NAME, m.group(4));
+            }
+        }
+        case "Global" -> {
             String metric = m.group(2);
-            table.put("name", metric);
-            table.put("level", "details");
+            table.put(NAME, metric);
+            table.put(LEVEL, DETAILS);
+        }
+        case "Pipelines" -> {
+            if (m.group(3) == null) {
+                String metric = m.group(2);
+                table.put(NAME, metric);
+                table.put(LEVEL, DETAILS);
+            } else if (m.group(4) == null) {
+                table.put(NAME, m.group(3));
+                table.put(SERVICENAME, m.group(2));
+            }
+        }
+        case "Senders", "Receivers" -> {
+            if (m.group(3) == null) {
+                table.put(NAME, m.group(2));
+                table.put(LEVEL, DETAILS);
+            } else if (m.group(4) == null) {
+                table.put(NAME, m.group(3));
+                table.put(SERVICENAME, m.group(2));
+            } else {
+                table.put(LEVEL, m.group(3));
+                table.put(SERVICENAME, m.group(2));
+                if ("Receivers".equals(m.group(1)) && "HTTPStatus".equals(m.group(3))) {
+                    table.put(LEVEL, m.group(3));
+                    table.put(CODE, m.group(4));
+                } else {
+                    table.put(LEVEL, m.group(3));
+                    table.put(NAME, m.group(4));
+                }
+            }
+        }
+        default -> throw new MalformedObjectNameException("Can't handle metric name " + m.group(0));
         }
         return table;
     }
 
     private static void startJmxReporter() {
         ObjectNameFactory donf = new DefaultObjectNameFactory();
-        Pattern pipepattern = Pattern.compile("^([^.]+)\\.(.+?)(\\.HTTPStatus)?(?:\\.([a-zA-Z0-9]+))?$");
+        Pattern pipepattern = Pattern.compile("^([^.]+)\\.(.+?)(?:\\.([A-Za-z]\\w+))?(?:\\.([a-zA-Z0-9]+))?$");
         ObjectNameFactory factory = (t, d, n) -> createMetricName(t, d, n, donf, pipepattern);
         reporter = JmxReporter.forRegistry(Stats.metricsRegistry).createsObjectNamesWith(factory).registerWith(mbs).build();
         reporter.start();
@@ -337,15 +369,12 @@ public class JmxService {
 
             env.put(JMXConnectorServer.AUTHENTICATOR, (JMXAuthenticator) credentials -> {
                 Principal p = null;
-                if ((credentials instanceof String[])) {
-                    String[] loginPassword = (String[]) credentials;
-                    if (loginPassword.length == 2) {
-                        p = ah.checkLoginPassword(loginPassword[0],
-                                                  loginPassword[1].toCharArray());
-                        loginPassword[1] = null;
-                        if (p == null) {
-                            throw new SecurityException("Invalid user");
-                        }
+                if (credentials instanceof String[] loginPassword && loginPassword.length == 2) {
+                    p = ah.checkLoginPassword(loginPassword[0],
+                            loginPassword[1].toCharArray());
+                    loginPassword[1] = null;
+                    if (p == null) {
+                        throw new SecurityException("Invalid user");
                     }
                 }
                 if (p == null) {
