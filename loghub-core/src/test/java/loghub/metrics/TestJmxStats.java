@@ -6,7 +6,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -115,12 +114,8 @@ public class TestJmxStats {
         Assert.assertTrue(attributes.get("Pipelines").isEmpty());
 
         for (String name: List.of("exception", "discarded", "failed", "loopOverflow", "paused", "pausedCount", "dropped", "inflight", "timer")) {
-            Hashtable ht = new Hashtable();
-            ht.put("type", "Pipelines");
-            ht.put("servicename", "main");
-            ht.put("name", name);
-            ObjectName on = ObjectName.getInstance("loghub", ht);
-            Assert.assertNotNull(mbs.getMBeanInfo(on));
+            String on = "loghub:type=Pipelines,servicename=main,name=%s".formatted(name);
+            Assert.assertEquals(on, mbs.getObjectInstance(new ObjectName(on)).getObjectName().toString());
         }
     }
 
@@ -180,12 +175,9 @@ public class TestJmxStats {
         Assert.assertEquals(List.of("ActiveBatches", "Bytes", "Count", "DoneBatches", "Errors", "Exceptions", "Failed", "FlushDuration95", "FlushDurationMedian", "QueueSize", "WaitingBatches"), attributes.remove("Senders"));
         Assert.assertTrue(attributes.isEmpty());
         for (String code : List.of("200", "301","302", "400", "401", "403", "404", "500", "503")) {
-            Hashtable ht = new Hashtable();
-            ht.put("type", "Dashboard");
-            ht.put("level", "HTTPStatus");
-            ht.put("code", code);
-            ObjectName on = ObjectName.getInstance("loghub", ht);
-            MBeanInfo info = mbs.getMBeanInfo(on);
+            String on = "loghub:type=Dashboard,level=HTTPStatus,code=%s".formatted(code);
+            Assert.assertEquals(on, mbs.getObjectInstance(new ObjectName(on)).getObjectName().toString());
+            MBeanInfo info = mbs.getMBeanInfo(mbs.getObjectInstance(new ObjectName(on)).getObjectName());
             Set<String> attrList = Arrays.stream(info.getAttributes())
                                            .map(MBeanFeatureInfo::getName)
                                            .collect(Collectors.toSet());
@@ -193,13 +185,8 @@ public class TestJmxStats {
             Assert.assertTrue(attrList.contains("DurationUnit"));
             Assert.assertTrue(attrList.contains("Mean"));
         }
-        Hashtable ht = new Hashtable();
-        ht.put("type", "Receivers");
-        ht.put("servicename", "HTTP/0.0.0.0/0");
-        ht.put("level", "HTTPStatus");
-        ht.put("code", "200");
-        ObjectName on = ObjectName.getInstance("loghub", ht);
-        Assert.assertNotNull(mbs.getMBeanInfo(on));
+        String on = "loghub:type=Receivers,servicename=HTTP/0.0.0.0/0,level=HTTPStatus,code=200";
+        Assert.assertEquals(on, mbs.getObjectInstance(new ObjectName(on)).getObjectName().toString());
     }
 
     private Map<String, Map<String, Object>> dumpBeans()
@@ -212,7 +199,7 @@ public class TestJmxStats {
             MBeanInfo info = mbs.getMBeanInfo(on);
             List<String> attrList = Arrays.stream(info.getAttributes())
                                           .map(MBeanFeatureInfo::getName).sorted()
-                                          .collect(Collectors.toList());
+                                          .toList();
             for (String a : attrList) {
                 Object o = mbs.getAttribute(on, a);
                 attributes.computeIfAbsent(type, k -> new HashMap<>()).put(a, o);
