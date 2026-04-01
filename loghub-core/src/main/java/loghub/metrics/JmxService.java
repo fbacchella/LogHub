@@ -14,14 +14,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
@@ -261,8 +260,7 @@ public class JmxService {
         Matcher m = pipepattern.matcher(name);
         if (m.matches()) {
             try {
-                Map<String, String> table = getStringStringHashtable(m);
-                metricName = getName("loghub", table);
+                metricName = getStringStringHashtable(m);
             } catch (MalformedObjectNameException e) {
                 metricName = donf.createName(type, domain, name);
             }
@@ -272,65 +270,56 @@ public class JmxService {
         return metricName;
     }
 
-    private static ObjectName getName(String domain, Map<String, String> table) throws MalformedObjectNameException {
-        String canonicalName = domain  + ":" + table.entrySet()
-                                                    .stream()
-                                                    .map(e -> e.getKey() + "=" + e.getValue())
-                                                    .collect(Collectors.joining(","));
-        return new ObjectName(canonicalName);
-    }
-
-    private static Map<String, String> getStringStringHashtable(Matcher m) throws MalformedObjectNameException {
-        Map<String, String> table = LinkedHashMap.newLinkedHashMap(5);
+    private static ObjectName getStringStringHashtable(Matcher m) throws MalformedObjectNameException {
+        StringJoiner joiner = new StringJoiner(",");
         String service = m.group(1);
-        table.put("type", service);
-        switch (m.group(1)) {
+
+        joiner.add("type=" + service);
+
+        // Order of construction is important, it must be kept as is if rewritten
+        switch (service) {
         case "Dashboard" -> {
+            joiner.add(LEVEL + "=" + m.group(2));
             if ("HTTPStatus".equals(m.group(2))) {
-                table.put(LEVEL, m.group(2));
-                table.put(CODE, m.group(4));
+                joiner.add(CODE + "=" + m.group(4));
             } else {
-                table.put(LEVEL, m.group(2));
-                table.put(NAME, m.group(4));
+                joiner.add(NAME + "=" + m.group(4));
             }
         }
         case "Global" -> {
-            String metric = m.group(2);
-            table.put(NAME, metric);
-            table.put(LEVEL, DETAILS);
+            joiner.add(NAME + "=" + m.group(2));
+            joiner.add(LEVEL + "=" + DETAILS);
         }
         case "Pipelines" -> {
             if (m.group(3) == null) {
-                String metric = m.group(2);
-                table.put(NAME, metric);
-                table.put(LEVEL, DETAILS);
+                joiner.add(NAME + "=" + m.group(2));
+                joiner.add(LEVEL + "=" + DETAILS);
             } else if (m.group(4) == null) {
-                table.put(NAME, m.group(3));
-                table.put(SERVICENAME, m.group(2));
+                joiner.add(SERVICENAME + "=" + m.group(2));
+                joiner.add(NAME + "=" + m.group(3));
             }
         }
         case "Senders", "Receivers" -> {
             if (m.group(3) == null) {
-                table.put(NAME, m.group(2));
-                table.put(LEVEL, DETAILS);
+                joiner.add(NAME + "=" + m.group(2));
+                joiner.add(LEVEL + "=" + DETAILS);
             } else if (m.group(4) == null) {
-                table.put(NAME, m.group(3));
-                table.put(SERVICENAME, m.group(2));
+                joiner.add(SERVICENAME + "=" + m.group(2));
+                joiner.add(NAME + "=" + m.group(3));
             } else {
-                table.put(LEVEL, m.group(3));
-                table.put(SERVICENAME, m.group(2));
-                if ("Receivers".equals(m.group(1)) && "HTTPStatus".equals(m.group(3))) {
-                    table.put(LEVEL, m.group(3));
-                    table.put(CODE, m.group(4));
+                joiner.add(SERVICENAME + "=" + m.group(2));
+                joiner.add(LEVEL + "=" + m.group(3));
+                // Receivers with HTTPStatus report a numeric code instead of a name
+                if ("HTTPStatus".equals(m.group(3))) {
+                    joiner.add(CODE + "=" + m.group(4));
                 } else {
-                    table.put(LEVEL, m.group(3));
-                    table.put(NAME, m.group(4));
+                    joiner.add(NAME + "=" + m.group(4));
                 }
             }
         }
         default -> throw new MalformedObjectNameException("Can't handle metric name " + m.group(0));
         }
-        return table;
+        return new ObjectName("loghub:" + joiner);
     }
 
     private static void startJmxReporter() {
