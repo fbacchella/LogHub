@@ -2,8 +2,10 @@ package loghub.senders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.ZonedDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,18 +18,23 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import com.codahale.metrics.Counter;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -38,13 +45,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
-import loghub.BuildableConnectionContext;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
+import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.MockHttpClient;
+import loghub.MockHttpClient.MockHttpRequest;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
@@ -58,7 +67,7 @@ import loghub.jackson.JacksonBuilder;
 import loghub.metrics.Stats;
 import loghub.senders.ElasticSearch.TYPEHANDLING;
 
-public class TestElasticSearch {
+class TestElasticSearch {
 
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
@@ -92,11 +101,29 @@ public class TestElasticSearch {
 
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
-            Assert.assertNull(req.content);
+            Assertions.assertNull(req.content);
             try {
                 return new MockHttpClient.ResponseBuilder()
                                .setMimeType(ContentType.APPLICATION_JSON)
-                               .setParsedResponse(jsonMapper.reader().readTree("{\n" + "  \"name\" : \"localhost\",\n" + "  \"cluster_name\" : \"loghub\",\n" + "  \"cluster_uuid\" : \"c5KDJoxeSrybF3IEuSseKw\",\n" + "  \"version\" : {\n" + "    \"number\" : \"7.17.10\",\n" + "    \"build_flavor\" : \"default\",\n" + "    \"build_type\" : \"rpm\",\n" + "    \"build_hash\" : \"fecd68e3150eda0c307ab9a9d7557f5d5fd71349\",\n" + "    \"build_date\" : \"2023-04-23T05:33:18.138275597Z\",\n" + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"8.11.1\",\n" + "    \"minimum_wire_compatibility_version\" : \"6.8.0\",\n" + "    \"minimum_index_compatibility_version\" : \"6.0.0-beta1\"\n" + "  },\n" + "  \"tagline\" : \"You Know, for Search\"\n" + "}"))
+                               .setParsedResponse(jsonMapper.reader().readTree("""
+                                                 {
+                                                   "name" : "localhost",
+                                                   "cluster_name" : "loghub",
+                                                   "cluster_uuid" : "c5KDJoxeSrybF3IEuSseKw",
+                                                   "version" : {
+                                                     "number" : "7.17.10",
+                                                     "build_flavor" : "default",
+                                                     "build_type" : "rpm",
+                                                     "build_hash" : "fecd68e3150eda0c307ab9a9d7557f5d5fd71349",
+                                                     "build_date" : "2023-04-23T05:33:18.138275597Z",
+                                                     "build_snapshot" : false,
+                                                     "lucene_version" : "8.11.1",
+                                                     "minimum_wire_compatibility_version" : "6.8.0",
+                                                     "minimum_index_compatibility_version" : "6.0.0-beta1"
+                                                   },
+                                                   "tagline" : "You Know, for Search"
+                                                 }
+                                                 """))
                                .build();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
@@ -117,7 +144,7 @@ public class TestElasticSearch {
 
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
-            Assert.assertNull(req.content);
+            Assertions.assertNull(req.content);
             Map<String, Object> responseContent = Map.of("loghub", Map.of());
             JsonNode node = jsonMapper.valueToTree(responseContent);
             return new MockHttpClient.ResponseBuilder()
@@ -141,9 +168,9 @@ public class TestElasticSearch {
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
             Map<?, ?> details = jsonMapper.readerFor(Map.class).readValue(req.getContent());
-            Assert.assertTrue(details.containsKey("mappings"));
-            Assert.assertTrue(details.containsKey("index_patterns"));
-            Assert.assertTrue(details.containsKey("settings"));
+            Assertions.assertTrue(details.containsKey("mappings"));
+            Assertions.assertTrue(details.containsKey("index_patterns"));
+            Assertions.assertTrue(details.containsKey("settings"));
             Map<String, Object> responseContent = Map.of("loghub", Map.of());
             JsonNode node = jsonMapper.valueToTree(responseContent);
             return new MockHttpClient.ResponseBuilder()
@@ -169,8 +196,8 @@ public class TestElasticSearch {
 
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
-            Assert.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
-            Assert.assertNull(req.content);
+            Assertions.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
+            Assertions.assertNull(req.content);
             Map<String, Map<String, Map<?, ?>>> responseContent = new HashMap<>();
             aliases.forEach((key, value) -> responseContent.put(value, Map.of("aliases", Map.of(key, Map.of()))));
             JsonNode node = jsonMapper.valueToTree(responseContent);
@@ -196,7 +223,7 @@ public class TestElasticSearch {
 
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
-            Assert.assertEquals("allow_no_indices=true&ignore_unavailable=true&flat_settings=true", req.getUri().getQuery());
+            Assertions.assertEquals("allow_no_indices=true&ignore_unavailable=true&flat_settings=true", req.getUri().getQuery());
             JsonNode node = jsonMapper.valueToTree(settings);
             return new MockHttpClient.ResponseBuilder()
                            .setMimeType(ContentType.APPLICATION_JSON)
@@ -222,7 +249,7 @@ public class TestElasticSearch {
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
             Map<?, ?> details = jsonMapper.readerFor(Map.class).readValue(req.getContent());
-            Assert.assertEquals(Map.of(alias, Map.of()), details.get("aliases"));
+            Assertions.assertEquals(Map.of(alias, Map.of()), details.get("aliases"));
             return new MockHttpClient.ResponseBuilder()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
@@ -292,8 +319,8 @@ public class TestElasticSearch {
         }
     }
 
-    @BeforeClass
-    public static void configure() {
+    @BeforeAll
+    static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.ElasticSearch", "loghub.HttpTestServer");
@@ -301,33 +328,33 @@ public class TestElasticSearch {
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
     }
 
-    @AfterClass
-    public static void checkLeaks() {
-        Assert.assertEquals(0, Stats.getMetric(Stats.class, "EventLeaked", Counter.class).getCount());
-        Assert.assertEquals(0, Stats.getMetric(Stats.class, "EventDuplicateEnd", Counter.class).getCount());
+    @AfterAll
+    static void checkLeaks() {
+        Assertions.assertEquals(0, Stats.getMetric(Stats.class, "EventLeaked", Counter.class).getCount());
+        Assertions.assertEquals(0, Stats.getMetric(Stats.class, "EventDuplicateEnd", Counter.class).getCount());
     }
 
     private static Function<HttpRequest<?>, HttpResponse<?>> httpOps = null;
 
-    @Before
-    public void resetOps() {
+    @BeforeEach
+    void resetOps() {
         httpOps = null;
     }
 
     private HttpResponse elasticMockDialog(HttpRequest req, Deque<HttpDialogElement> steps) {
         try {
             MockHttpClient.MockHttpRequest r = (MockHttpClient.MockHttpRequest) req;
-            Assert.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
-            Assert.assertEquals("localhost", req.getUri().getHost());
+            Assertions.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
+            Assertions.assertEquals("localhost", req.getUri().getHost());
             if (steps.getFirst().match(r)) {
                 return steps.removeFirst().doResponse(r);
             } else {
-                Assert.fail("Unhandled request " + req);
+                Assertions.fail("Unhandled request " + req);
                 // Never reached
                 return null;
             }
         } catch (IOException ex) {
-            Assert.fail("Got Exception " + ex);
+            Assertions.fail("Got Exception " + ex);
             // Never reached
             return null;
         }
@@ -336,20 +363,38 @@ public class TestElasticSearch {
     private HttpResponse elasticMockDialog(String index, HttpRequest req, Function<MappingIterator<Map<String, ?>>, Map<String, Object>> bulkHandling) {
         try {
             MockHttpClient.MockHttpRequest r = (MockHttpClient.MockHttpRequest) req;
-            Assert.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
-            Assert.assertEquals("localhost", req.getUri().getHost());
+            Assertions.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
+            Assertions.assertEquals("localhost", req.getUri().getHost());
             String path = req.getUri().getPath();
             switch (req.getVerb()) {
             case "GET":
                 if ("/".equals(path)) {
-                    Assert.assertNull(r.content);
+                    Assertions.assertNull(r.content);
                     return new MockHttpClient.ResponseBuilder()
                                    .setMimeType(ContentType.APPLICATION_JSON)
-                                   .setParsedResponse(jsonMapper.reader().readTree("{\n" + "  \"name\" : \"localhost\",\n" + "  \"cluster_name\" : \"loghub\",\n" + "  \"cluster_uuid\" : \"c5KDJoxeSrybF3IEuSseKw\",\n" + "  \"version\" : {\n" + "    \"number\" : \"7.17.10\",\n" + "    \"build_flavor\" : \"default\",\n" + "    \"build_type\" : \"rpm\",\n" + "    \"build_hash\" : \"fecd68e3150eda0c307ab9a9d7557f5d5fd71349\",\n" + "    \"build_date\" : \"2023-04-23T05:33:18.138275597Z\",\n" + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"8.11.1\",\n" + "    \"minimum_wire_compatibility_version\" : \"6.8.0\",\n" + "    \"minimum_index_compatibility_version\" : \"6.0.0-beta1\"\n" + "  },\n" + "  \"tagline\" : \"You Know, for Search\"\n" + "}"))
+                                   .setParsedResponse(jsonMapper.reader().readTree("""
+                                                     {
+                                                       "name" : "localhost",
+                                                       "cluster_name" : "loghub",
+                                                       "cluster_uuid" : "c5KDJoxeSrybF3IEuSseKw",
+                                                       "version" : {
+                                                         "number" : "7.17.10",
+                                                         "build_flavor" : "default",
+                                                         "build_type" : "rpm",
+                                                         "build_hash" : "fecd68e3150eda0c307ab9a9d7557f5d5fd71349",
+                                                         "build_date" : "2023-04-23T05:33:18.138275597Z",
+                                                         "build_snapshot" : false,
+                                                         "lucene_version" : "8.11.1",
+                                                         "minimum_wire_compatibility_version" : "6.8.0",
+                                                         "minimum_index_compatibility_version" : "6.0.0-beta1"
+                                                       },
+                                                       "tagline" : "You Know, for Search"
+                                                     }
+                                                     """))
                                    .build();
                 } else if (comparePath(index, "/_alias", req.getUri())) {
-                    Assert.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
-                    Assert.assertNull(r.content);
+                    Assertions.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
+                    Assertions.assertNull(r.content);
                     Map<String, ?> responseContent = Map.of(index + "-000001", Map.of("aliases", Map.of(index, Map.of())));
                     JsonNode node = jsonMapper.valueToTree(responseContent);
                     return new MockHttpClient.ResponseBuilder()
@@ -419,10 +464,10 @@ public class TestElasticSearch {
             Map<String, Map<String, Object>> o1 = (Map<String, Map<String, Object>>) mi.next();
             @SuppressWarnings("unchecked")
             Map<String, Object> o2 = (Map<String, Object>) mi.next();
-            Assert.assertEquals(Map.ofEntries(Map.entry("_index", index), Map.entry("_type", type)), o1.get("index"));
-            Assert.assertEquals("junit", o2.get("type"));
-            Assert.assertTrue(o2.containsKey("value"));
-            Assert.assertTrue(o2.containsKey("@timestamp"));
+            Assertions.assertEquals(Map.ofEntries(Map.entry("_index", index), Map.entry("_type", type)), o1.get("index"));
+            Assertions.assertEquals("junit", o2.get("type"));
+            Assertions.assertTrue(o2.containsKey("value"));
+            Assertions.assertTrue(o2.containsKey("@timestamp"));
         }
         return responseContent;
     }
@@ -431,8 +476,42 @@ public class TestElasticSearch {
         return uri.getPath().equals("/" + index + path);
     }
 
-    @Test(timeout = 2000)
-    public void testSend() {
+    @Test
+    void testConfigurationParsing() throws IOException {
+        String confile = """
+             pipeline[main] {}
+             output $main | {
+                loghub.senders.ElasticSearch {
+                    destinations: [
+                        "https://localhost:9200",
+                        "localhost:9201",
+                    ],
+                    clientService: "loghub.httpclient.JavaHttpClientService",
+                    timeout: 10,
+                    workers: 32,
+                    batchSize: 10000,
+                    index: [#index],
+                    withTemplate: false,
+                    typeHandling: "DEPRECATED",
+                    ilm: true,
+                    clusterName: "testCluster",
+                    elasticArguments: {
+                        "arg1": 1+2,
+                        1: 'a',
+                        "time": now,
+                        "hostname": hostname,
+                    }
+                }
+            }
+            """;
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        ElasticSearch es = (ElasticSearch) conf.senders.stream().findFirst().orElseThrow();
+        Assertions.assertEquals("ElasticSearch/testCluster", es.getSenderName());
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testSend() {
         Properties props = new Properties(Collections.emptyMap());
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> handleSimpleBulk(mi, "default", "type");
         httpOps = r -> elasticMockDialog("default", r, handleSimpleBulk);
@@ -447,9 +526,10 @@ public class TestElasticSearch {
         esbuilder.setTypeHandling(TYPEHANDLING.MIGRATING);
         esbuilder.setClientService(MockElasticClient.class.getName());
         esbuilder.setIndex(new Expression("default"));
+        esbuilder.setElasticArguments(Map.of("date", new Expression("now", ed -> ZonedDateTime.now())));
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
-            Assert.assertTrue("Elastic configuration failed", es.configure(props));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
             Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
@@ -457,14 +537,15 @@ public class TestElasticSearch {
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
                 ev.setTimestamp(new Date(0));
-                Assert.assertTrue(es.queue(ev));
+                Assertions.assertTrue(es.queue(ev));
             }
         }
-        Assert.assertEquals(count, Stats.getSent());
+        Assertions.assertEquals(count, Stats.getSent());
     }
 
-    @Test(timeout = 2000)
-    public void testWithExpression() {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testWithExpression() {
         Properties props = new Properties(Collections.emptyMap());
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> this.handleSimpleBulk(mi, "testwithexpression-1970.01.01", "junit");
         httpOps = r -> this.elasticMockDialog("testwithexpression-1970.01.01", r, handleSimpleBulk);
@@ -478,7 +559,7 @@ public class TestElasticSearch {
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
-            Assert.assertTrue("Elastic configuration failed", es.configure(props));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
             Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
@@ -488,11 +569,11 @@ public class TestElasticSearch {
                 ev.put("value", "atest" + i);
                 ev.put("type", "junit");
                 ev.setTimestamp(new Date(0));
-                Assert.assertTrue(es.queue(ev));
+                Assertions.assertTrue(es.queue(ev));
             }
         }
-        Assert.assertEquals(0, Stats.getFailed());
-        Assert.assertEquals(count, Stats.getSent());
+        Assertions.assertEquals(0, Stats.getFailed());
+        Assertions.assertEquals(count, Stats.getSent());
     }
 
     private static class NotificationConnectionContext extends BuildableConnectionContext<Object> {
@@ -512,8 +593,9 @@ public class TestElasticSearch {
         }
     }
 
-    @Test//(timeout = 2000)
-    public void testEmptySend() {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testEmptySend() {
         Properties props = new Properties(Collections.emptyMap());
         AtomicInteger counter = new AtomicInteger(0);
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> handleSimpleBulk(mi, "default", "type");
@@ -530,20 +612,21 @@ public class TestElasticSearch {
         BlockingQueue<Event> inQueue = new ArrayBlockingQueue<>(count);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(inQueue);
-            Assert.assertTrue(es.configure(props));
+            Assertions.assertTrue(es.configure(props));
             Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent(new NotificationConnectionContext(counter));
                 ev.put("value", "atest" + i);
                 ev.setTimestamp(new Date(0));
-                Assert.assertTrue(es.queue(ev));
+                Assertions.assertTrue(es.queue(ev));
             }
         }
     }
 
-    @Test(timeout = 5000)
-    public void testSendInQueue() throws InterruptedException {
+    @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    void testSendInQueue() throws InterruptedException {
         Properties props = new Properties(Collections.emptyMap());
         String index = UUID.randomUUID().toString();
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> this.handleSimpleBulk(mi, index, "_doc");
@@ -561,7 +644,7 @@ public class TestElasticSearch {
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(queue);
-            Assert.assertTrue(es.configure(props));
+            Assertions.assertTrue(es.configure(props));
             Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
@@ -577,12 +660,13 @@ public class TestElasticSearch {
             }
             es.stopSending();
         }
-        Assert.assertEquals(count, Stats.getSent());
-        Assert.assertEquals(0, Stats.getFailed());
+        Assertions.assertEquals(count, Stats.getSent());
+        Assertions.assertEquals(0, Stats.getFailed());
     }
 
-    @Test(timeout = 2000)
-    public void testSomeFailed() {
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testSomeFailed() {
         List<Map<String, ?>> errors = new ArrayList<>(3);
         errors.add(null);
         errors.add(Map.of("type", "mapper_parsing_exception",
@@ -615,7 +699,7 @@ public class TestElasticSearch {
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
-            Assert.assertTrue("Elastic configuration failed", es.configure(props));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
             Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
@@ -624,7 +708,7 @@ public class TestElasticSearch {
                 ev.put("value", new Date(0));
                 ev.putMeta("index", "default");
                 ev.setTimestamp(new Date(0));
-                Assert.assertTrue(es.queue(ev));
+                Assertions.assertTrue(es.queue(ev));
             }
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -632,7 +716,7 @@ public class TestElasticSearch {
                 ev.put("value", "atest" + i);
                 ev.putMeta("index", "default");
                 ev.setTimestamp(new Date(0));
-                Assert.assertTrue(es.queue(ev));
+                Assertions.assertTrue(es.queue(ev));
             }
             for (int i = 0; i < count; i++) {
                 Event ev = factory.newEvent();
@@ -640,21 +724,22 @@ public class TestElasticSearch {
                 ev.put("value", "atest" + i);
                 ev.putMeta("index", "BADINDEX");
                 ev.setTimestamp(new Date(0));
-                Assert.assertTrue(es.queue(ev));
+                Assertions.assertTrue(es.queue(ev));
             }
         }
-        Assert.assertEquals(0, Stats.getDropped());
-        Assert.assertEquals(0, Stats.getExceptionsCount());
-        Assert.assertEquals(0, Stats.getInflight());
-        Assert.assertEquals(3, Stats.getReceived());
-        Assert.assertEquals(2, Stats.getFailed());
-        Assert.assertEquals(1, Stats.getSent());
-        Assert.assertEquals(2, Stats.getSenderError().size());
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(3, Stats.getReceived());
+        Assertions.assertEquals(2, Stats.getFailed());
+        Assertions.assertEquals(1, Stats.getSent());
+        Assertions.assertEquals(2, Stats.getSenderError().size());
         logger.debug("Events failed: {}", Stats::getSenderError);
     }
 
-    @Test(timeout = 2000)
-    public void testWithIlm() {
+    @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    void testWithIlm() {
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
                 new HttpGetAlias("index1,index2", Map.of("index1", "index1-00002")),
                 new HttpGetSettings("index1,index2", Map.of("index1-00002", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
@@ -677,7 +762,7 @@ public class TestElasticSearch {
         esbuilder.setIlm(true);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
-            Assert.assertTrue("Elastic configuration failed", es.configure(props));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
             Stats.registerSender(es);
             es.start();
             for (int i = 0; i < count; i++) {
@@ -686,23 +771,23 @@ public class TestElasticSearch {
                 ev.put("value", new Date(0));
                 ev.setTimestamp(new Date(0));
                 ev.putMeta("index", "index" + (i % 2 + 1));
-                Assert.assertTrue(es.queue(ev));
+                Assertions.assertTrue(es.queue(ev));
             }
             es.stopSending();
         }
-        Assert.assertEquals(0, Stats.getDropped());
-        Assert.assertEquals(0, Stats.getExceptionsCount());
-        Assert.assertEquals(0, Stats.getInflight());
-        Assert.assertEquals(count, Stats.getReceived());
-        Assert.assertEquals(0, Stats.getFailed());
-        Assert.assertEquals(count, Stats.getSent());
-        Assert.assertEquals(0, Stats.getSenderError().size());
-        Assert.assertEquals(count, Stats.getSent());
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(count, Stats.getReceived());
+        Assertions.assertEquals(0, Stats.getFailed());
+        Assertions.assertEquals(count, Stats.getSent());
+        Assertions.assertEquals(0, Stats.getSenderError().size());
+        Assertions.assertEquals(count, Stats.getSent());
         logger.debug("Events failed: {}", Stats::getSenderError);
     }
 
     @Test
-    public void testParse() throws URISyntaxException {
+    void testParse() throws URISyntaxException {
         String[] destinations  = new String[] {"//localhost", "//truc:9301", "truc", "truc:9300"};
         URI[] uris  = new URI[] {new URI("thrift://localhost:9300"), new URI("thrift://truc:9301"), new URI("thrift://localhost:9300"), new URI("truc://localhost:9300")};
         for (int i = 0; i < destinations.length; i++) {
@@ -715,29 +800,105 @@ public class TestElasticSearch {
                     null,
                     null
             );
-            Assert.assertEquals(uris[i], newUrl);
+            Assertions.assertEquals(uris[i], newUrl);
         }
     }
 
+    /**
+     * VictoriaLogs can emulate an Elastic
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
     @Test
-    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testVictoria() throws ExecutionException, InterruptedException {
+        CompletableFuture<Boolean> matching = new CompletableFuture<>();
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpPostBulk() {
+                    @Override
+                    public boolean match(MockHttpRequest req) {
+                        try {
+                            QueryStringDecoder decoder = new QueryStringDecoder(req.getUri());
+                            Assertions.assertEquals(List.of("@timestamp"), decoder.parameters().get("_time_field"));
+                            Assertions.assertEquals(List.of("host.name,process.name"), decoder.parameters().get("_stream_fields"));
+                            Assertions.assertEquals(List.of("message"), decoder.parameters().get("_msg_field"));
+                            Assertions.assertEquals(List.of("LogHub"), decoder.parameters().get("environment"));
+                            matching.complete(super.match(req));
+                            return matching.get();
+                        } catch (Throwable e) {
+                            matching.completeExceptionally(e);
+                            return false;
+                        }
+                    }
+                }
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties props = new Properties(Collections.emptyMap());
+        int count = 20;
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(count * 2);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(new Expression("[#index]", VariablePath.ofMeta("index")));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        esbuilder.setIlm(true);
+        esbuilder.setStatusCheck(false);
+        esbuilder.setElasticArguments(Map.of("_msg_field","message", "_time_field", "@timestamp", "_stream_fields", "host.name,process.name", "environment", new Expression("now", ed -> "LogHub")));
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(count));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+            for (int i = 0; i < count; i++) {
+                Event ev = factory.newEvent();
+                ev.put("type", "junit");
+                ev.put("value", new Date(0));
+                ev.setTimestamp(new Date(0));
+                ev.putMeta("index", "index" + (i % 2 + 1));
+                Assertions.assertTrue(es.queue(ev));
+            }
+            es.stopSending();
+        }
+        Assertions.assertTrue(matching.get());
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(count, Stats.getReceived());
+        Assertions.assertEquals(0, Stats.getFailed());
+        Assertions.assertEquals(count, Stats.getSent());
+        Assertions.assertEquals(0, Stats.getSenderError().size());
+        Assertions.assertEquals(count, Stats.getSent());
+        logger.debug("Events failed: {}", Stats::getSenderError);
+    }
+
+    @Test
+    void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.senders.ElasticSearch"
-                              , BeanInfo.build("workers", Integer.TYPE)
-                              , BeanInfo.build("batchSize", Integer.TYPE)
-                              , BeanInfo.build("flushInterval", Integer.TYPE)
-                              , BeanInfo.build("destinations", BeanChecks.LSTRING)
-                              , BeanInfo.build("index", Expression.class)
-                              , BeanInfo.build("timeout", Integer.TYPE)
-                              , BeanInfo.build("dateformat", String.class)
-                              , BeanInfo.build("type", Expression.class)
-                              , BeanInfo.build("templatePath", String.class)
-                              , BeanInfo.build("templateName", String.class)
-                              , BeanInfo.build("withTemplate", Boolean.TYPE)
-                              , BeanInfo.build("password", String.class)
-                              , BeanInfo.build("typeHandling", TYPEHANDLING.class)
-                              , BeanInfo.build("ilm", Boolean.TYPE)
-                              , BeanInfo.build("pipeline", String.class)
-                        );
+                , BeanInfo.build("workers", Integer.TYPE)
+                , BeanInfo.build("batchSize", Integer.TYPE)
+                , BeanInfo.build("flushInterval", Integer.TYPE)
+                , BeanInfo.build("destinations", BeanChecks.LSTRING)
+                , BeanInfo.build("index", Expression.class)
+                , BeanInfo.build("timeout", Integer.TYPE)
+                , BeanInfo.build("dateformat", String.class)
+                , BeanInfo.build("type", Expression.class)
+                , BeanInfo.build("templatePath", String.class)
+                , BeanInfo.build("templateName", String.class)
+                , BeanInfo.build("withTemplate", Boolean.TYPE)
+                , BeanInfo.build("password", String.class)
+                , BeanInfo.build("typeHandling", TYPEHANDLING.class)
+                , BeanInfo.build("ilm", Boolean.TYPE)
+                , BeanInfo.build("pipeline", String.class)
+                , BeanInfo.build("statusCheck", Boolean.TYPE)
+                , BeanInfo.build("clusterName", String.class)
+                , BeanInfo.build("elasticArguments", Map.class)
+                , BeanInfo.build("protocol", String.class)
+                , BeanInfo.build("user", String.class)
+                , BeanInfo.build("port", Integer.TYPE)
+                , BeanInfo.build("clientService", String.class)
+        );
     }
 
 }

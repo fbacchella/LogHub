@@ -7,6 +7,7 @@ import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.text.DateFormat;
@@ -18,9 +19,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -75,6 +78,8 @@ public class ElasticSearch extends AbstractHttpSender {
         private boolean ilm = false;
         private String pipeline = null;
         private boolean statusCheck = true;
+        private String clusterName = "";
+        private Map<Object, Object> elasticArguments = Map.of();
 
         public Builder() {
             this.setPort(9200);
@@ -111,6 +116,8 @@ public class ElasticSearch extends AbstractHttpSender {
     private final boolean ilm;
     private final String pipeline;
     private final boolean statusCheck;
+    private final String nameSuffix;
+    private final Map<String, Object> elasticArguments;
 
     private final ThreadLocal<DateFormat> esIndexFormat;
 
@@ -149,6 +156,14 @@ public class ElasticSearch extends AbstractHttpSender {
         ilm = builder.ilm;
         pipeline = builder.pipeline;
         statusCheck = builder.statusCheck;
+        nameSuffix = Objects.toString(builder.clusterName, "").isBlank() ? "" : ("/" + builder.clusterName);
+        Map<String, Object> tmpMap = builder.elasticArguments
+                                            .entrySet()
+                                            .stream()
+                                            .collect(
+                                                    Collectors.toMap(e -> e.getKey().toString(), Entry::getValue)
+                                            );
+        elasticArguments = Map.copyOf(tmpMap);
     }
 
     @Override
@@ -214,7 +229,24 @@ public class ElasticSearch extends AbstractHttpSender {
                 throw new UncheckedIOException(e);
             }
         };
-        String bulkArgs = "_bulk" + (pipeline != null ? "?pipeline=" + pipeline : "");
+        StringJoiner joiner = new StringJoiner("&", "?", "");
+        if (pipeline != null) {
+            joiner.add("pipeline=%s".formatted(URLEncoder.encode(pipeline, StandardCharsets.UTF_8)));
+        }
+        for (Map.Entry<String, Object> e: elasticArguments.entrySet()) {
+            try {
+                String value;
+                if (e.getValue() instanceof Expression ex) {
+                    value = Objects.toString(ex.eval(), "null");
+                } else {
+                    value = Objects.toString(e.getValue(), "null");
+                }
+                joiner.add(URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8) + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8));
+            } catch (ProcessorException ex) {
+                logger.error("Unable to resolve elastic argument {}: {}", e.getKey(), Helpers.resolveThrowableException(ex));
+            }
+        }
+        String bulkArgs = "_bulk" + joiner;
         Map<String, ?> response = doquery(request, bulkArgs, reader, Collections.emptyMap(), null);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
@@ -256,7 +288,7 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     private void putContent(List<EventFuture> events, List<EventFuture> toprocess, OutputStream os) throws IOException {
-        Map<String, String> settings = new HashMap<>(2);
+        Map<String, String> settings = HashMap.newHashMap(2);
         Map<String, Object> action = Collections.singletonMap("index", settings);
         Map<String, Object> esjson = new HashMap<>();
         int sent = 0;
@@ -450,7 +482,7 @@ public class ElasticSearch extends AbstractHttpSender {
         StringBuilder filePart = new StringBuilder();
         filePart.append(String.join(",", indices));
         filePart.append("/_alias?ignore_unavailable=true");
-        Map<String, String> aliases = new HashMap<>(indices.size());
+        Map<String, String> aliases = HashMap.newHashMap(indices.size());
         indices.forEach(s -> aliases.put(s, s));
         Function<JsonNode, Boolean> transform = node -> {
             node.fieldNames().forEachRemaining(s -> {
@@ -609,7 +641,7 @@ public class ElasticSearch extends AbstractHttpSender {
 
     @Override
     public String getSenderName() {
-        return "ElasticSearch";
+        return "ElasticSearch" + nameSuffix;
     }
 
 }
