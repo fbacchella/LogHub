@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -23,8 +24,18 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+
+import javax.management.Attribute;
+import javax.management.JMException;
+import javax.management.MBeanFeatureInfo;
+import javax.management.MBeanInfo;
+import javax.management.MBeanServer;
+import javax.management.ObjectInstance;
+import javax.management.ObjectName;
 
 import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import com.beust.jcommander.JCommander;
 
@@ -257,6 +268,25 @@ public class Tools {
     public static void executeCmd(Parser parser, String expected, int expectedStatus, String... args)
             throws IOException {
         executeCmd(parser, a -> a, expected, expectedStatus, args);
+    }
+
+    public record SimplifiedMbean(Class<?> mbeanClass, ObjectName name, Map<String, Object> values) {
+
+    }
+
+    public static SimplifiedMbean testMBean(MBeanServer mbs, String mbeanName) throws JMException {
+        ObjectName on = new ObjectName(mbeanName);
+        ObjectInstance oi = mbs.getObjectInstance(on);
+        MBeanInfo mi = mbs.getMBeanInfo(on);
+        // Only way to recover the name as declared initially
+        ObjectName realName = mbs.queryNames(on, null).stream().findAny().orElseThrow();
+        Assertions.assertEquals(mbeanName, realName.toString());
+        String[] attributes = Arrays.stream(mi.getAttributes()).map(MBeanFeatureInfo::getName).toArray(String[]::new);
+        Map<String, Object> values = mbs.getAttributes(on,attributes)
+                                        .asList()
+                                        .stream()
+                                        .collect(Collectors.toMap(Attribute::getName, Attribute::getValue));
+        return new SimplifiedMbean(oi.getClass(), realName, values);
     }
 
 }

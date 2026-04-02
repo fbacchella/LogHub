@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.StringTokenizer;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,6 +19,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Timer;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
@@ -26,6 +29,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http2.DefaultHttp2DataFrame;
@@ -38,6 +42,9 @@ import io.netty.handler.codec.http2.Http2HeadersFrame;
 import io.netty.handler.codec.http2.ReadOnlyHttp2Headers;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
+import loghub.metrics.Stats;
+import loghub.netty.HttpChannelConsumer;
+import loghub.receivers.Receiver;
 import lombok.Getter;
 
 public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
@@ -46,14 +53,16 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
 
     public static class Factory {
         private final Map<String, BinaryCodec> servicesByPath;
+        private final Object statsHolder;
         private Map<String, MethodProcessor<?, ?>> transformers = new HashMap<>();
         @SafeVarargs
-        public Factory(BinaryCodec... services) {
+        public Factory(Object statsHolder, BinaryCodec... services) {
             Map<String, BinaryCodec> tmpMap = new HashMap<>();
             for (BinaryCodec bc: services) {
                 bc.getMethods().forEach(e -> tmpMap.put(e.getKey(), bc));
             }
             servicesByPath = Map.copyOf(tmpMap);
+            this.statsHolder = statsHolder;
         }
         public void register(String methodQualifiedName, MethodProcessor<?, ?> transformer) {
             if (transformer != null) {
@@ -66,7 +75,7 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
             // Lock the transformers. The map is immutable after this point.
             // The current implementation returns the input if it's already an immutable map
             transformers = Map.copyOf(transformers);
-            return new GrpcStreamHandler<>(servicesByPath, transformers);
+            return new GrpcStreamHandler<>(statsHolder, servicesByPath, transformers);
         }
     }
 
@@ -86,6 +95,7 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
 
     private final Map<String, BinaryCodec> servicesByPath;
     private final Map<String, MethodProcessor<?, ?>> transformers;
+    private final Object statsHolder;
     private ByteBuf currentMessage;
     private String encoding;
 
@@ -105,17 +115,19 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
     MethodProcessor<I, O> methodConsumer;
     private boolean canProcessData = false;
 
-    private GrpcStreamHandler(Map<String, BinaryCodec> servicesByPath, Map<String, MethodProcessor<?, ?>> transformers) {
+    private GrpcStreamHandler(Object statsHolder, Map<String, BinaryCodec> servicesByPath, Map<String, MethodProcessor<?, ?>> transformers) {
+        this.statsHolder = statsHolder;
         this.servicesByPath = servicesByPath;
         this.transformers = transformers;
     }
+
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         switch (msg) {
         case Http2HeadersFrame hf -> onHeadersReceived(ctx, hf);
-        case Http2DataFrame df when canProcessData  -> onDataReceived(ctx, df);
-        case Http2DataFrame df -> {}
+        case Http2DataFrame df when canProcessData -> onDataReceived(ctx, df);
+        case Http2DataFrame df -> logger.debug("Skipped invalid data {}", df);
         default -> ctx.fireChannelRead(msg);
         }
     }
@@ -272,7 +284,9 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
                     break;
                 }
                 logger.debug("Receveid gRPC message, compression flag = {}, messageLength = {}", compressionFlag, messageLength);
-
+                if (statsHolder instanceof Receiver r) {
+                    Stats.getMetric(r, "gRPCMessage", Histogram.class).update(currentMessage.readableBytes());
+                }
                 ByteBuf messageBuf = decompress(compressed, currentMessage.readSlice(messageLength));
                 I request = codec.decode(CodedInputStream.newInstance(messageBuf.nioBuffer()), method.getInputType(), unknownFields);
                 currentContext = ctx;
@@ -351,6 +365,8 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
             if (!f.isSuccess()) {
                 logger.warn("Failed to send trailers: {}", f.cause().getMessage());
             }
+            Long startTime = ctx.channel().attr(HttpChannelConsumer.STARTTIMEATTRIBUTE).get();
+            stats(startTime, 200, status);
         });
     }
 
@@ -375,7 +391,19 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
         responseHeaders.add(HEADER_CONTENT_TYPE, GRPC_CONTENT_TYPE)
                        .add("grpc-encoding", "identity")
                        .add("grpc-accept-encoding", "identity,gzip");
-        ctx.writeAndFlush(new DefaultHttp2HeadersFrame(responseHeaders, ! status.isOk()));
+        ChannelFuture future = ctx.writeAndFlush(new DefaultHttp2HeadersFrame(responseHeaders, ! status.isOk()));
+        if (! status.isOk()) {
+            future.addListener(f -> {
+                Long startTime = ctx.channel().attr(HttpChannelConsumer.STARTTIMEATTRIBUTE).get();
+                stats(startTime, httpStatus, status);
+            });
+        }
+    }
+
+    private void stats(Long startTime , int httpStatus, GrpcStatus grepStatus) {
+        long duration = startTime != null ? System.nanoTime() - startTime : 0;
+        Stats.getWebMetric(statsHolder, httpStatus).update(duration, TimeUnit.NANOSECONDS);
+        Stats.getMetric(statsHolder, "gRPC." + grepStatus.resolveKey(), Timer.class).update(duration, TimeUnit.NANOSECONDS);
     }
 
 }

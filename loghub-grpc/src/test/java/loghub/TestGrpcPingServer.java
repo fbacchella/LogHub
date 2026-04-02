@@ -25,13 +25,13 @@ import com.google.protobuf.Descriptors.DescriptorValidationException;
 
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NettyChannelBuilder;
-import loghub.proto.ping.PingRequest;
-import loghub.proto.ping.PingResponse;
-import loghub.proto.ping.PingServiceGrpc;
 import loghub.grpc.BinaryCodec;
 import loghub.grpc.GrpcStatus;
 import loghub.grpc.GrpcStreamHandler;
 import loghub.grpc.Ping;
+import loghub.proto.ping.PingRequest;
+import loghub.proto.ping.PingResponse;
+import loghub.proto.ping.PingServiceGrpc;
 
 class TestGrpcPingServer {
 
@@ -50,7 +50,7 @@ class TestGrpcPingServer {
         tlsContext = new TlsContext(tempDir);
         client = HttpClient.newBuilder().sslContext(tlsContext.sslctx).build();
         BinaryCodec ping = new Ping();
-        GrpcStreamHandler.Factory factory = new GrpcStreamHandler.Factory(ping);
+        GrpcStreamHandler.Factory factory = new GrpcStreamHandler.Factory(TestGrpcPingServer.class, ping);
         factory.register("ping.PingService.Ping", (h, i) -> Map.of("message", i, "timestamp", 15L));
         serverContext = new ServerContext(tlsContext, factory);
         logger.info("gRPC server started on port {}", serverContext.listenUri.getPort());
@@ -67,7 +67,7 @@ class TestGrpcPingServer {
     }
 
     @Test
-    //@Timeout(5)
+    @Timeout(5)
     void testPing() throws InterruptedException {
         ManagedChannel channel = NettyChannelBuilder
                                          .forAddress("localhost", serverContext.listenUri.getPort())

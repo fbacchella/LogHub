@@ -5,23 +5,20 @@ import java.io.StringReader;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.management.AttributeNotFoundException;
-import javax.management.InstanceNotFoundException;
-import javax.management.IntrospectionException;
+import javax.management.JMException;
 import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanException;
 import javax.management.MBeanFeatureInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import javax.management.ReflectionException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -40,11 +37,14 @@ import com.codahale.metrics.Timer;
 
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.Tools.SimplifiedMbean;
 import loghub.VariablePath;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+
+import static loghub.Tools.testMBean;
 
 public class TestJmxStats {
 
@@ -69,10 +69,7 @@ public class TestJmxStats {
     }
 
     @Test
-    public void testCount()
-            throws IOException, ReflectionException, MalformedObjectNameException,
-                           AttributeNotFoundException, InstanceNotFoundException, IntrospectionException,
-                           MBeanException {
+    public void testCount() throws IOException, JMException {
         Properties p = getProperties("pipeline[main] { [a] == 1 ? drop}");
 
         Event ev = factory.newEvent();
@@ -89,29 +86,28 @@ public class TestJmxStats {
         } catch (AssertionError e) {
             // normal
         }
-        Map<String, Map<String, Object>> attributes = dumpBeans();
-        Assert.assertEquals(returnStatMetric(Timer.class, Stats.METRIC_ALL_TIMER).getCount(), attributes.get("Global").remove("TotalEvents"));
-        Assert.assertEquals(returnStatMetric(Counter.class, Stats.METRIC_ALL_EVENT_DUPLICATEEND).getCount(), attributes.get("Global").remove("DuplicateEnd"));
-        Assert.assertEquals(returnStatMetric(Counter.class, Stats.METRIC_ALL_INFLIGHT).getCount(), attributes.get("Global").remove("Inflight"));
-        Assert.assertEquals(returnStatMetric(Counter.class, Stats.METRIC_ALL_EVENT_LEAKED).getCount(), attributes.get("Global").remove("Leaked"));
-        Assert.assertEquals(returnStatMetric(Meter.class, Stats.METRIC_ALL_EXCEPTION).getCount(), attributes.get("Global").remove("UnhandledExceptions"));
-        Assert.assertEquals(returnStatMetric(Gauge.class, Stats.METRIC_ALL_WAITINGPROCESSING).getValue(), attributes.get("Global").remove("WaitingProcessing"));
-        Assert.assertNotNull(attributes.get("Global").remove("EventLifeTime95"));
-        Assert.assertNotNull(attributes.get("Global").remove("EventLifeTimeMedian"));
-        Assert.assertTrue(attributes.get("Global").isEmpty());
+        Map<String, SimplifiedMbean> attributes = dumpBeans();
+        SimplifiedMbean global = attributes.get("loghub:type=Global");
+        Assert.assertEquals(returnStatMetric(Timer.class, Stats.METRIC_ALL_TIMER).getCount(), global.values().get("TotalEvents"));
+        Assert.assertEquals(returnStatMetric(Counter.class, Stats.METRIC_ALL_EVENT_DUPLICATEEND).getCount(), global.values().get("DuplicateEnd"));
+        Assert.assertEquals(returnStatMetric(Counter.class, Stats.METRIC_ALL_INFLIGHT).getCount(), global.values().get("Inflight"));
+        Assert.assertEquals(returnStatMetric(Counter.class, Stats.METRIC_ALL_EVENT_LEAKED).getCount(), global.values().get("Leaked"));
+        Assert.assertEquals(returnStatMetric(Meter.class, Stats.METRIC_ALL_EXCEPTION).getCount(), global.values().get("UnhandledExceptions"));
+        Assert.assertEquals(returnStatMetric(Gauge.class, Stats.METRIC_ALL_WAITINGPROCESSING).getValue(), global.values().get("WaitingProcessing"));
+        Assert.assertNotNull(global.values().get("EventLifeTime95"));
+        Assert.assertNotNull(global.values().get("EventLifeTimeMedian"));
 
-        Assert.assertEquals(returnPipelineMetric(Timer.class, Stats.METRIC_PIPELINE_TIMER).getCount(), attributes.get("Pipelines").remove("Count"));
-        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_DISCARDED).getCount(), attributes.get("Pipelines").remove("Discarded"));
-        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_DROPPED).getCount(), attributes.get("Pipelines").remove("Dropped"));
-        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_EXCEPTION).getCount(), attributes.get("Pipelines").remove("Exceptions"));
-        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_FAILED).getCount(), attributes.get("Pipelines").remove("Failed"));
-        Assert.assertEquals(returnPipelineMetric(Counter.class, Stats.METRIC_PIPELINE_INFLIGHT).getCount(), attributes.get("Pipelines").remove("Inflight"));
-        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_LOOPOVERFLOW).getCount(), attributes.get("Pipelines").remove("LoopOverflow"));
+        SimplifiedMbean pipelines = attributes.get("loghub:type=Pipelines");
+        Assert.assertEquals(returnPipelineMetric(Timer.class, Stats.METRIC_PIPELINE_TIMER).getCount(), pipelines.values().get("Count"));
+        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_DISCARDED).getCount(), pipelines.values().get("Discarded"));
+        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_DROPPED).getCount(), pipelines.values().get("Dropped"));
+        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_EXCEPTION).getCount(), pipelines.values().get("Exceptions"));
+        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_FAILED).getCount(), pipelines.values().get("Failed"));
+        Assert.assertEquals(returnPipelineMetric(Counter.class, Stats.METRIC_PIPELINE_INFLIGHT).getCount(), pipelines.values().get("Inflight"));
+        Assert.assertEquals(returnPipelineMetric(Meter.class, Stats.METRIC_PIPELINE_LOOPOVERFLOW).getCount(), pipelines.values().get("LoopOverflow"));
 
-        Assert.assertNotNull(attributes.get("Pipelines").remove("95per"));
-        Assert.assertNotNull(attributes.get("Pipelines").remove("Median"));
-
-        Assert.assertTrue(attributes.get("Pipelines").isEmpty());
+        Assert.assertNotNull(pipelines.values().get("95per"));
+        Assert.assertNotNull(pipelines.values().get("Median"));
 
         for (String name: List.of("exception", "discarded", "failed", "loopOverflow", "paused", "pausedCount", "dropped", "inflight", "timer")) {
             String on = "loghub:type=Pipelines,servicename=main,name=%s".formatted(name);
@@ -128,9 +124,7 @@ public class TestJmxStats {
     }
 
     @Test
-    public void testBeans()
-            throws MalformedObjectNameException, ReflectionException, InstanceNotFoundException, IntrospectionException,
-                           AttributeNotFoundException, MBeanException, IOException {
+    public void testBeans() throws JMException, IOException {
         getProperties("""
             input {
                 loghub.receivers.Http {
@@ -144,21 +138,18 @@ public class TestJmxStats {
             http.port: 0
             """);
 
-        Map<String, List<String>> attributes = new HashMap<>();
+        Map<String, Collection<String>> attributes = new HashMap<>();
         for (String type : List.of("Global", "Exceptions", "Pipelines", "Receivers", "Senders")) {
+            SimplifiedMbean smb = Tools.testMBean(mbs, "loghub:type=%s".formatted(type));
             ObjectName on = ObjectName.getInstance("loghub", "type", type);
             MBeanInfo info = mbs.getMBeanInfo(on);
             for (MBeanAttributeInfo ai : info.getAttributes()) {
                 Assert.assertNotNull(on + "." + ai.getName(), ai.getDescriptor().getFieldValue("units"));
                 Assert.assertNotNull(on + "." + ai.getName(), ai.getDescriptor().getFieldValue("metricType"));
             }
-            List<String> attrList = Arrays.stream(info.getAttributes())
-                                          .map(MBeanFeatureInfo::getName)
-                                          .sorted()
-                                          .collect(Collectors.toList());
+            Collection<String> attrList = smb.values().keySet();
             attributes.put(type, attrList);
-            for (String a : attrList) {
-                Object o = mbs.getAttribute(on, a);
+            for (Object o: smb.values().values()) {
                 if (o instanceof Number) {
                     Assert.assertEquals(0, ((Number) o).longValue());
                 } else if (o.getClass().isArray()) {
@@ -168,42 +159,26 @@ public class TestJmxStats {
                 }
             }
         }
-        Assert.assertEquals(List.of("DuplicateEnd", "EventLifeTime95", "EventLifeTimeMedian", "Inflight", "Leaked", "TotalEvents", "UnhandledExceptions", "WaitingProcessing"), attributes.remove("Global"));
-        Assert.assertEquals(List.of("DecodersFailures", "ProcessorsFailures", "ReceiversFailures", "SendersFailures", "UnhandledExceptions"), attributes.remove("Exceptions"));
-        Assert.assertEquals(List.of("95per", "Count", "Discarded", "Dropped", "Exceptions", "Failed", "Inflight", "LoopOverflow", "Median"), attributes.remove("Pipelines"));
-        Assert.assertEquals(List.of("Blocked", "Bytes", "Count", "Exceptions", "Failed", "FailedDecode"), attributes.remove("Receivers"));
-        Assert.assertEquals(List.of("ActiveBatches", "Bytes", "Count", "DoneBatches", "Errors", "Exceptions", "Failed", "FlushDuration95", "FlushDurationMedian", "QueueSize", "WaitingBatches"), attributes.remove("Senders"));
+        Assert.assertEquals(Set.of("DuplicateEnd", "EventLifeTime95", "EventLifeTimeMedian", "Inflight", "Leaked", "TotalEvents", "UnhandledExceptions", "WaitingProcessing"), attributes.remove("Global"));
+        Assert.assertEquals(Set.of("DecodersFailures", "ProcessorsFailures", "ReceiversFailures", "SendersFailures", "UnhandledExceptions"), attributes.remove("Exceptions"));
+        Assert.assertEquals(Set.of("95per", "Count", "Discarded", "Dropped", "Exceptions", "Failed", "Inflight", "LoopOverflow", "Median"), attributes.remove("Pipelines"));
+        Assert.assertEquals(Set.of("Blocked", "Bytes", "Count", "Exceptions", "Failed", "FailedDecode"), attributes.remove("Receivers"));
+        Assert.assertEquals(Set.of("ActiveBatches", "Bytes", "Count", "DoneBatches", "Errors", "Exceptions", "Failed", "FlushDuration95", "FlushDurationMedian", "QueueSize", "WaitingBatches"), attributes.remove("Senders"));
         Assert.assertTrue(attributes.isEmpty());
         for (String code : List.of("200", "301","302", "400", "401", "403", "404", "500", "503")) {
-            String on = "loghub:type=Dashboard,level=HTTPStatus,code=%s".formatted(code);
-            Assert.assertEquals(on, mbs.getObjectInstance(new ObjectName(on)).getObjectName().toString());
-            MBeanInfo info = mbs.getMBeanInfo(mbs.getObjectInstance(new ObjectName(on)).getObjectName());
-            Set<String> attrList = Arrays.stream(info.getAttributes())
-                                           .map(MBeanFeatureInfo::getName)
-                                           .collect(Collectors.toSet());
-            Assert.assertTrue(attrList.contains("95thPercentile"));
-            Assert.assertTrue(attrList.contains("DurationUnit"));
-            Assert.assertTrue(attrList.contains("Mean"));
+            SimplifiedMbean smb = Tools.testMBean(mbs, "loghub:type=Dashboard,level=HTTPStatus,code=%s".formatted(code));
+            Assert.assertTrue(smb.values().containsKey("95thPercentile"));
+            Assert.assertTrue(smb.values().containsKey("DurationUnit"));
+            Assert.assertTrue(smb.values().containsKey("Mean"));
         }
-        String on = "loghub:type=Receivers,servicename=HTTP/0.0.0.0/0,level=HTTPStatus,code=200";
-        Assert.assertEquals(on, mbs.getObjectInstance(new ObjectName(on)).getObjectName().toString());
+        testMBean(mbs, "loghub:type=Receivers,servicename=HTTP/0.0.0.0/0,level=HTTPStatus,code=200");
     }
 
-    private Map<String, Map<String, Object>> dumpBeans()
-            throws MalformedObjectNameException, ReflectionException, InstanceNotFoundException,
-                           IntrospectionException, AttributeNotFoundException, MBeanException {
-
-        Map<String, Map<String, Object>> attributes = new HashMap<>();
+    private Map<String, SimplifiedMbean> dumpBeans() throws JMException {
+        Map<String, SimplifiedMbean> attributes = new HashMap<>();
         for (String type : List.of("Global", "Exceptions", "Pipelines", "Receivers", "Senders")) {
-            ObjectName on = ObjectName.getInstance("loghub", "type", type);
-            MBeanInfo info = mbs.getMBeanInfo(on);
-            List<String> attrList = Arrays.stream(info.getAttributes())
-                                          .map(MBeanFeatureInfo::getName).sorted()
-                                          .toList();
-            for (String a : attrList) {
-                Object o = mbs.getAttribute(on, a);
-                attributes.computeIfAbsent(type, k -> new HashMap<>()).put(a, o);
-            }
+            SimplifiedMbean smb = Tools.testMBean(mbs, "loghub:type=%s".formatted(type));
+            attributes.put(smb.name().toString(), smb);
         }
         return attributes;
     }

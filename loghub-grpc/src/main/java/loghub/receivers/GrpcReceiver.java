@@ -20,6 +20,7 @@ import loghub.events.Event;
 import loghub.grpc.BinaryCodec;
 import loghub.grpc.GrpcStreamHandler;
 import loghub.grpc.GrpcStreamHandler.Factory;
+import loghub.metrics.Stats;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.ContextExtractor;
@@ -66,10 +67,16 @@ public class GrpcReceiver
         super(builder);
         this.resolver = new ContextExtractor<>(Http2Frame.class, this);
         BinaryCodec[] codecs = Arrays.stream(builder.grpcCodecs).map(CodecProvider::getProtobufCodec).toArray(BinaryCodec[]::new);
-        grpcFactory = new Factory(codecs);
+        grpcFactory = new Factory(this, codecs);
         for (CodecProvider cp: builder.grpcCodecs) {
             cp.registerFastPath(grpcFactory, this);
         }
+    }
+
+    @Override
+    public void run() {
+        Stats.registerHttpService(this);
+        super.run();
     }
 
     @Override

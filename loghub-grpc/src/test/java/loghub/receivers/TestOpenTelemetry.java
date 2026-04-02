@@ -3,6 +3,7 @@ package loghub.receivers;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
@@ -15,9 +16,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import javax.management.JMException;
+import javax.management.MBeanServer;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -46,11 +51,15 @@ import loghub.BeanChecks.BeanInfo;
 import loghub.LogUtils;
 import loghub.TlsContext;
 import loghub.Tools;
+import loghub.Tools.SimplifiedMbean;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.decoders.CodecProvider;
 import loghub.events.Event;
+import loghub.metrics.JmxService;
 import loghub.security.ssl.ClientAuthentication;
+
+import static loghub.Tools.testMBean;
 
 class TestOpenTelemetry {
 
@@ -60,14 +69,21 @@ class TestOpenTelemetry {
     private static TlsContext tlsContext;
     private static Logger logger;
 
+    private final MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+
     private int port;
 
     @BeforeAll
     static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.protobuf", "loghub.receivers");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.protobuf", "loghub.receivers", "io.netty", "loghub.grpc");
         tlsContext = new TlsContext(tempDir);
+    }
+
+    @AfterEach
+    void stop() {
+        JmxService.stop();
     }
 
     private void doRequest() {
@@ -90,7 +106,7 @@ class TestOpenTelemetry {
                                                              AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE)
                                                      .addDataPoints(NumberDataPoint.newBuilder()
                                                                             .setTimeUnixNano(tsNanos)
-                                                                            .setAsInt(512 * 1024 * 1024L) // 512 Mio
+                                                                            .setAsInt(512 * 1024 * 1024L)
                                                                             .addAttributes(KeyValue.newBuilder()
                                                                                                    .setKey("jvm.memory.pool.name")
                                                                                                    .setValue(AnyValue.newBuilder().setStringValue("G1 Eden Space").build())
@@ -129,9 +145,9 @@ class TestOpenTelemetry {
                                     .build();
 
         ResourceMetrics resourceMetrics = ResourceMetrics.newBuilder()
-                                                  .setResource(resource)
-                                                  .addScopeMetrics(scopeMetrics)
-                                                  .build();
+                                                         .setResource(resource)
+                                                         .addScopeMetrics(scopeMetrics)
+                                                         .build();
         ExportMetricsServiceRequest m = ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
         MetricsServiceBlockingStub stub = MetricsServiceGrpc.newBlockingStub(channel);
         ExportMetricsServiceResponse  response = stub.withDeadlineAfter(5, TimeUnit.SECONDS).withCompression("gzip").export(m);
@@ -141,7 +157,7 @@ class TestOpenTelemetry {
 
     @Test
     @Timeout(5)
-    void runGrpc() throws IOException, InterruptedException {
+    void runGrpc() throws IOException, InterruptedException, JMException {
         port = Tools.tryGetPort();
         String confile = """
                 input {
@@ -157,6 +173,7 @@ class TestOpenTelemetry {
                 ssl.trusts: ["%2$s"]
                 """.formatted(port, tempDir.resolve("loghub.p12"));
         Properties conf = Tools.loadConf(new StringReader(confile));
+        JmxService.start(conf.jmxServiceConfiguration);
         try (Receiver<?, ?> r = conf.receivers.stream().findAny().orElseThrow()) {
             r.start();
             doRequest();
@@ -174,11 +191,13 @@ class TestOpenTelemetry {
                 Assertions.assertInstanceOf(Instant.class, firstSM.get("time_unix_nano"));
             }
         }
+        SimplifiedMbean mbeans = testMBean(mbs, "loghub:type=Receivers,servicename=gRPCReceiver,level=gRPC,name=OK");
+        Assertions.assertEquals(1L, mbeans.values().get("Count"));
     }
 
     @Test
     @Timeout(5)
-    void runBroken() throws IOException, InterruptedException {
+    void runGet() throws IOException, InterruptedException {
         port = Tools.tryGetPort();
         String confile = """
                 input {
@@ -194,6 +213,7 @@ class TestOpenTelemetry {
                 ssl.trusts: ["%2$s"]
                 """.formatted(port, tempDir.resolve("loghub.p12"));
         Properties conf = Tools.loadConf(new StringReader(confile));
+        JmxService.start(conf.jmxServiceConfiguration);
         try (Receiver<?, ?> r = conf.receivers.stream().findAny().orElseThrow()) {
             r.start();
             HttpClient client = HttpClient.newBuilder()
@@ -211,6 +231,49 @@ class TestOpenTelemetry {
             HttpResponse<?> response = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
             Assertions.assertEquals(400, response.statusCode());
         }
+    }
+
+    @Test
+    @Timeout(5)
+    void runNotUsed() throws IOException, InterruptedException, JMException {
+        port = Tools.tryGetPort();
+        String confile = """
+                input {
+                    loghub.receivers.GrpcReceiver {
+                        port: %1$d,
+                        withSSL: false,
+                        grpcCodecs: [
+                        ],
+                    }
+                } | $main
+                pipeline[main] {}
+                ssl.trusts: ["%2$s"]
+                """.formatted(port, tempDir.resolve("loghub.p12"));
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        JmxService.start(conf.jmxServiceConfiguration);
+        try (Receiver<?, ?> r = conf.receivers.stream().findAny().orElseThrow()) {
+            r.start();
+            HttpClient client = HttpClient.newBuilder()
+                                        .connectTimeout(Duration.ofSeconds(5))
+                                        .sslContext(tlsContext.sslctx)
+                                        .build();
+            HttpRequest.Builder jRequestBuilder = HttpRequest.newBuilder();
+            HttpRequest req = jRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(new byte[]{-1 ,-2, -3, -4, -5, -6}))
+                                      .uri(URI.create(String.format("https://%s:%d/opentelemetry.proto.collector.metrics.v1.MetricsService/Export", "localhost", port)))
+                                      .header("Content-Type", "application/grpc")
+                                      .header("grpc-encoding", "gzip")
+                                      .header("te", "trailers")
+                                      .version(Version.HTTP_2)
+                                      .build();
+            HttpResponse<?> response = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
+            Assertions.assertEquals(200, response.statusCode());
+        }
+        // Waiting for the receiver to be stopped means it was started and handled the interrupt
+        // so JMX data would have been registered
+        SimplifiedMbean grpc = testMBean(mbs, "loghub:type=Receivers,servicename=gRPCReceiver,level=gRPC,name=UNIMPLEMENTED");
+        Assertions.assertEquals(1L, grpc.values().get("Count"));
+        SimplifiedMbean grpcBean = testMBean(mbs, "loghub:type=Receivers,servicename=gRPCReceiver,level=HTTPStatus,code=200");
+        Assertions.assertEquals(1L, grpcBean.values().get("Count"));
     }
 
     @Test

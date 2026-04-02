@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import javax.management.JMException;
 import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
@@ -110,7 +111,8 @@ public abstract class AbstractDashboard {
     @ParameterizedTest
     @EnumSource(HttpClient.Version.class)
     @Timeout(5)
-    public void getIndex(HttpClient.Version version) throws IllegalArgumentException, IOException, InterruptedException {
+    public void getIndex(HttpClient.Version version)
+            throws IllegalArgumentException, IOException, InterruptedException, JMException {
         URI theurl = URI.create(String.format("%s://localhost:%d/static/index.html", scheme, port));
         java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                                                     .uri(theurl)

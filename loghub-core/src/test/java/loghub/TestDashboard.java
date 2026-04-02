@@ -10,6 +10,7 @@ import java.util.Map;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.IntrospectionException;
+import javax.management.JMException;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
+import loghub.Tools.SimplifiedMbean;
 import loghub.metrics.JmxService;
 
 class TestDashboard extends AbstractDashboard {
@@ -38,6 +40,17 @@ class TestDashboard extends AbstractDashboard {
     @Override
     protected String getDashboardScheme() {
         return "http";
+    }
+
+    @Test
+    void testJmx() throws IOException, JMException {
+        new URL(String.format("http://localhost:%d/", getPort())).getContent();
+        SimplifiedMbean status200 = Tools.testMBean(ManagementFactory.getPlatformMBeanServer(), "loghub:type=Dashboard,level=HTTPStatus,code=200");
+        long count = ((Number)(status200.values().get("Count"))).longValue();
+        Assertions.assertTrue(count > 0 && count < 10);
+        SimplifiedMbean status301 = Tools.testMBean(ManagementFactory.getPlatformMBeanServer(), "loghub:type=Dashboard,level=HTTPStatus,code=301");
+        count = ((Number)(status301.values().get("Count"))).longValue();
+        Assertions.assertTrue(count > 0 && count < 10);
     }
 
     @Test
