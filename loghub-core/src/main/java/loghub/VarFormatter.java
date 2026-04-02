@@ -55,49 +55,23 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
+import loghub.events.Event;
 import loghub.jackson.EventSerializer;
 import loghub.jackson.JacksonBuilder;
 import lombok.Getter;
 
 public class VarFormatter {
 
-    private static final class Flags {
-        public final boolean leftjustified;
-        public final boolean alternateform;
-        public final boolean withsign;
-        @SuppressWarnings("unused")
-        public final boolean leadingspace;
-        public final boolean zeropadded;
-        public final boolean grouping;
-        public final boolean parenthesis;
-
+    private record Flags(boolean leftjustified, boolean alternateform, boolean withsign, boolean leadingspace, boolean zeropadded, boolean grouping, boolean parenthesis) {
         private Flags(String flags) {
-            boolean lLeftJustified = false;
-            boolean lAlternateForm = false;
-            boolean lWithSign = false;
-            boolean lLeadingSpace = false;
-            boolean lZeroPadded = false;
-            boolean lGrouping = false;
-            boolean lParenthesis = false;
-            for (char c : flags.toCharArray()) {
-                switch(c) {
-                case '-': lLeftJustified = true; break;
-                case '#': lAlternateForm = true; break;
-                case '+': lWithSign = true; break;
-                case ' ': lLeadingSpace = true; break;
-                case '0': lZeroPadded = true; break;
-                case ',': lGrouping = true; break;
-                case '(': lParenthesis = true; break;
-                default: throw new IllegalStateException("Unhandled flag format, should not be reached");
-                }
-            }
-            this.leftjustified = lLeftJustified;
-            this.alternateform = lAlternateForm;
-            this.withsign = lWithSign;
-            this.leadingspace = lLeadingSpace;
-            this.zeropadded = lZeroPadded;
-            this.grouping = lGrouping;
-            this.parenthesis = lParenthesis;
+            this(flags.contains("-"),
+                 flags.contains("#"),
+                 flags.contains("+"),
+                 flags.contains(" "),
+                 flags.contains("0"),
+                 flags.contains(","),
+                 flags.contains("(")
+            );
         }
     }
 
@@ -235,15 +209,19 @@ public class VarFormatter {
             } else {
                 longValue = n.longValue();
             }
-            if (base == 16) {
+            switch (base) {
+            case 16 -> {
                 formatted = Long.toHexString(longValue);
                 prefix = "0x";
-            } else if (base == 8) {
+            }
+            case 8 -> {
                 formatted = Long.toOctalString(n.longValue());
                 prefix = "0";
-            } else {
+            }
+            default -> {
                 formatted = Long.toString(n.longValue());
                 prefix = "";
+            }
             }
             if (flags.alternateform) {
                 formatted = prefix + formatted;
@@ -280,237 +258,224 @@ public class VarFormatter {
             this.locale = l;
             this.isUpper = isUpper;
             switch (timeFormat) {
-            case 'H':
-                // Hour of the day for the 24-hour clock, formatted as two digits with a leading zero as necessary i.e. 00 - 23.
-                taToStr = formatTemporalAccessor("00", ChronoField.HOUR_OF_DAY);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'I':
-                // Hour for the 12-hour clock, formatted as two digits with a leading zero as necessary, i.e. 01 - 12.
-                taToStr = formatTemporalAccessor("00", ChronoField.CLOCK_HOUR_OF_AMPM);
-                zoned = true;
-                chronologyCheck = false;
-               break;
-            case 'k':
-                // Hour of the day for the 24-hour clock, i.e. 0 - 23.
-                taToStr = formatTemporalAccessor("#0", ChronoField.HOUR_OF_DAY);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'l':
-                // Hour for the 12-hour clock, i.e. 1 - 12.
-                taToStr = formatTemporalAccessor("#0", ChronoField.CLOCK_HOUR_OF_AMPM);
-                // TZ goes to minute specifications
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'M':
-                // Minute within the hour formatted as two digits with a leading zero as necessary, i.e. 00 - 59.
-                taToStr = formatTemporalAccessor("00", ChronoField.MINUTE_OF_HOUR);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'S':
-                // Seconds within the minute, formatted as two digits with a leading zero as necessary, i.e. 00 - 60 ("60" is a special value required to support leap seconds).
-                taToStr = formatTemporalAccessor("00", ChronoField.SECOND_OF_MINUTE);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'L':
-                // Millisecond within the second formatted as three digits with leading zeros as necessary, i.e. 000 - 999.
-                taToStr = formatTemporalAccessor("000", ChronoField.MILLI_OF_SECOND);
-                zoned = false;
-                chronologyCheck = false;
-                break;
-            case 'N':
-                // Nanosecond within the second, formatted as nine digits with leading zeros as necessary, i.e. 000000000 - 999999999.
-                taToStr = formatTemporalAccessor("000000000", ChronoField.NANO_OF_SECOND);
-                zoned = false;
-                chronologyCheck = false;
-                break;
-            case 'p': {
-                // Locale-specific morning or afternoon marker in lower case, e.g."am" or "pm". Use of the conversion prefix 'T' forces this output to upper case.
-                String[] ampm = DateFormatSymbols.getInstance(l).getAmPmStrings();
-                taToStr = (sb, ta) -> {
-                    String temp = ampm[ta.get(ChronoField.AMPM_OF_DAY)];
-                    sb.append(isUpper ? temp.toUpperCase(l) : temp.toLowerCase(l));
-                };
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            }
-            case 'z': {
-                // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time.
-                taToStr = (sb, ta) -> {
-                    int offsetS = getTemporalAccessor(ta).get(ChronoField.OFFSET_SECONDS);
-                    sb.append(offsetS < 0 ? '-' : '+');
-                    int minutes = Math.abs(offsetS) / 60;
-                    int offset = (minutes / 60) * 100 + (minutes % 60);
-                    DecimalFormat df = new DecimalFormat("0000", DecimalFormatSymbols.getInstance(locale));
-                    df.format(offset, sb, new FieldPosition(0));
-                };
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            }
-            case 'Z': {
-                // A string representing the abbreviation for the time zone. This value will be adjusted as necessary for Daylight Saving Time.
-                ZoneRules zr = etz.getRules();
-                TimeZone timeZone = TimeZone.getTimeZone(etz);
-                taToStr = (sb, ta) -> sb.append(timeZone.getDisplayName(zr.isDaylightSavings(Instant.from(ta)), TimeZone.SHORT, l));
-                zoned = false;
-                chronologyCheck = false;
-                break;
-            }
-            case 's':
-                // Seconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE/1000 to Long.MAX_VALUE/1000.
-                taToStr = formatTemporalAccessor("#0", i -> Instant.from(i).getEpochSecond());
-                zoned = false;
-                chronologyCheck = false;
-               break;
-            case 'Q':
-                // Milliseconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE to Long.MAX_VALUE.
-                taToStr = formatTemporalAccessor("#0", i -> Instant.from(i).toEpochMilli());
-                zoned = false;
-                chronologyCheck = false;
-                break;
-            case 'B': {
-                // Locale-specific full month name, e.g. "January", "February".
-                DateTimeFormatter dtf = new DateTimeFormatterBuilder().appendText(ChronoField.MONTH_OF_YEAR, TextStyle.FULL).toFormatter(l);
-                taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            }
-            case 'b':
-                // Locale-specific abbreviated month name, e.g. "Jan", "Feb", same as h.
-            case 'h': {
-                // Locale-specific abbreviated month name, e.g. "Jan", "Feb", same as b.
-                DateTimeFormatter dtf = new DateTimeFormatterBuilder().appendText(ChronoField.MONTH_OF_YEAR, TextStyle.SHORT).toFormatter(l);
-                taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            }
-            case 'A':
-                // Locale-specific full name of the day of the week, e.g. "Sunday", "Monday"
-                taToStr = (sb, ta) -> sb.append(DayOfWeek.from(ta).getDisplayName(TextStyle.FULL, l));
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'a':
-                // Locale-specific short name of the day of the week, e.g. "Sun", "Mon"
-                taToStr = (sb, ta) -> sb.append(DayOfWeek.from(ta).getDisplayName(TextStyle.SHORT, l));
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'C':
-                // Four-digit year divided by 100, formatted as two digits with leading zero as necessary, i.e. 00 - 99
-                taToStr = formatTemporalAccessor("00", i -> i.getLong(ChronoField.YEAR_OF_ERA) / 100);
-                zoned = true;
-                chronologyCheck = true;
-                break;
-            case 'Y':
-                // Year, formatted as at least four digits with leading zeros as necessary, e.g. 0092 equals 92 CE for the Gregorian calendar.
-                taToStr = formatTemporalAccessor("0000", ChronoField.YEAR_OF_ERA);
-                zoned = true;
-                chronologyCheck = true;
-                break;
-            case 'y':
-                // Last two digits of the year, formatted with leading zeros as necessary, i.e. 00 - 99.
-                taToStr = formatTemporalAccessor("00", i -> i.getLong(ChronoField.YEAR_OF_ERA) % 100);
-                zoned = true;
-                chronologyCheck = true;
-                break;
-            case 'j':
-                // Day of year, formatted as three digits with leading zeros as necessary, e.g. 001 - 366 for the Gregorian calendar.
-                taToStr = formatTemporalAccessor("000", ChronoField.DAY_OF_YEAR);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'm':
-                // Month, formatted as two digits with leading zeros as necessary, i.e. 01 - 13.
-                taToStr = formatTemporalAccessor("00", ChronoField.MONTH_OF_YEAR);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'd':
-                // Day of month, formatted as two digits with leading zeros as necessary, i.e. 01 - 31
-                taToStr = formatTemporalAccessor("00", ChronoField.DAY_OF_MONTH);
-                zoned = true;
-                chronologyCheck = false;
-               break;
-            case 'e':
-                // Day of month, formatted as two digits, i.e. 1 - 31.
-                taToStr = formatTemporalAccessor("#0", ChronoField.DAY_OF_MONTH);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            case 'V':
-                // The week number of the year (Monday as the first day of the week) as a decimal number (01-53).  If the week
-                // containing January 1 has four or more days in the new year, then it is week 1; otherwise it is the last week
-                // of the previous year, and the next week is week 1. Defined in ISO-8601
-                taToStr = formatTemporalAccessor("00", WeekFields.ISO.weekOfWeekBasedYear());
-                zoned = true;
-                chronologyCheck = false;
-               break;
-            case 'R': {
-                // Time formatted for the 24-hour clock as "%tH:%tM"
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm", locale).withDecimalStyle(DecimalStyle.of(l));
-                taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            }
-            case 'T': {
-                // Time formatted for the 24-hour clock as "%tH:%tM:%tS".
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss", locale).withDecimalStyle(DecimalStyle.of(l));
-                taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            }
-            case 'r': {
-                // Time formatted for the 12-hour clock as "%tI:%tM:%tS %Tp". The location of the morning or afternoon marker ('%Tp') may be locale-dependent.
-                DateTimeFormatter dtf1 = DateTimeFormatter.ofPattern("hh:mm:ss", locale).withDecimalStyle(DecimalStyle.of(l));
-                DateTimeFormatter dtf2 = DateTimeFormatter.ofPattern("a", locale).withDecimalStyle(DecimalStyle.of(l));
-                taToStr = (sb, ta) -> {
-                    dtf1.formatTo(ta, sb);
-                    sb.append(' ');
-                    String tzStr =  dtf2.format(ta).toUpperCase();
-                    sb.append(tzStr);
-                };
-                zoned = true;
-                chronologyCheck = false;
-                break;
-            }
-            case 'D': {
-                // Date formatted as "%tm/%td/%ty".
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("MM/dd/yy", locale).withDecimalStyle(DecimalStyle.of(l));
-                taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
-                zoned = true;
-                chronologyCheck = true;
-                break;
-            }
-            case 'F': {
-                // ISO 8601 complete date formatted as "%tY-%tm-%td".
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd", locale).withDecimalStyle(DecimalStyle.of(l));
-                taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
-                zoned = true;
-                chronologyCheck = true;
-                break;
-            }
-            case 'c': {
-                // Date and time formatted as "%ta %tb %td %tT %tZ %tY", e.g. "Sun Jul 20 16:17:00 EDT 1969".
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("eee MMM dd HH:mm:ss zz yyyy", locale).withDecimalStyle(DecimalStyle.of(l));
-                taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
-                zoned = true;
-                chronologyCheck = true;
-                break;
-            }
-            default:
-                throw new IllegalArgumentException("Unreconized date/time format: '" + timeFormat + "'");
+                case 'H' -> {
+                    // Hour of the day for the 24-hour clock, formatted as two digits with a leading zero as necessary i.e. 00 - 23.
+                    taToStr = formatTemporalAccessor("00", ChronoField.HOUR_OF_DAY);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'I' -> {
+                    // Hour for the 12-hour clock, formatted as two digits with a leading zero as necessary, i.e. 01 - 12.
+                    taToStr = formatTemporalAccessor("00", ChronoField.CLOCK_HOUR_OF_AMPM);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'k' -> {
+                    // Hour of the day for the 24-hour clock, i.e. 0 - 23.
+                    taToStr = formatTemporalAccessor("#0", ChronoField.HOUR_OF_DAY);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'l' -> {
+                    // Hour for the 12-hour clock, i.e. 1 - 12.
+                    taToStr = formatTemporalAccessor("#0", ChronoField.CLOCK_HOUR_OF_AMPM);
+                    // TZ goes to minute specifications
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'M' -> {
+                    // Minute within the hour formatted as two digits with a leading zero as necessary, i.e. 00 - 59.
+                    taToStr = formatTemporalAccessor("00", ChronoField.MINUTE_OF_HOUR);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'S' -> {
+                    // Seconds within the minute, formatted as two digits with a leading zero as necessary, i.e. 00 - 60 ("60" is a special value required to support leap seconds).
+                    taToStr = formatTemporalAccessor("00", ChronoField.SECOND_OF_MINUTE);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'L' -> {
+                    // Millisecond within the second formatted as three digits with leading zeros as necessary, i.e. 000 - 999.
+                    taToStr = formatTemporalAccessor("000", ChronoField.MILLI_OF_SECOND);
+                    zoned = false;
+                    chronologyCheck = false;
+                }
+                case 'N' -> {
+                    // Nanosecond within the second, formatted as nine digits with leading zeros as necessary, i.e. 000000000 - 999999999.
+                    taToStr = formatTemporalAccessor("000000000", ChronoField.NANO_OF_SECOND);
+                    zoned = false;
+                    chronologyCheck = false;
+                }
+                case 'p' -> {
+                    // Locale-specific morning or afternoon marker in lower case, e.g."am" or "pm". Use of the conversion prefix 'T' forces this output to upper case.
+                    String[] ampm = DateFormatSymbols.getInstance(l).getAmPmStrings();
+                    taToStr = (sb, ta) -> {
+                        String temp = ampm[ta.get(ChronoField.AMPM_OF_DAY)];
+                        sb.append(isUpper ? temp.toUpperCase(l) : temp.toLowerCase(l));
+                    };
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'z' -> {
+                    // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time.
+                    taToStr = (sb, ta) -> {
+                        int offsetS = getTemporalAccessor(ta).get(ChronoField.OFFSET_SECONDS);
+                        sb.append(offsetS < 0 ? '-' : '+');
+                        int minutes = Math.abs(offsetS) / 60;
+                        int offset = (minutes / 60) * 100 + (minutes % 60);
+                        DecimalFormat df = new DecimalFormat("0000", DecimalFormatSymbols.getInstance(locale));
+                        df.format(offset, sb, new FieldPosition(0));
+                    };
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'Z' -> {
+                    // A string representing the abbreviation for the time zone. This value will be adjusted as necessary for Daylight Saving Time.
+                    ZoneRules zr = etz.getRules();
+                    TimeZone timeZone = TimeZone.getTimeZone(etz);
+                    taToStr = (sb, ta) -> sb.append(timeZone.getDisplayName(zr.isDaylightSavings(Instant.from(ta)), TimeZone.SHORT, l));
+                    zoned = false;
+                    chronologyCheck = false;
+                }
+                case 's' -> {
+                    // Seconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE/1000 to Long.MAX_VALUE/1000.
+                    taToStr = formatTemporalAccessor("#0", i -> Instant.from(i).getEpochSecond());
+                    zoned = false;
+                    chronologyCheck = false;
+                }
+                case 'Q' -> {
+                    // Milliseconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE to Long.MAX_VALUE.
+                    taToStr = formatTemporalAccessor("#0", i -> Instant.from(i).toEpochMilli());
+                    zoned = false;
+                    chronologyCheck = false;
+                }
+                case 'B' -> {
+                    // Locale-specific full month name, e.g. "January", "February".
+                    DateTimeFormatter dtf = new DateTimeFormatterBuilder().appendText(ChronoField.MONTH_OF_YEAR, TextStyle.FULL).toFormatter(l);
+                    taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'b', 'h' -> {
+                    // Locale-specific abbreviated month name, e.g. "Jan", "Feb", same as h.
+                    // Locale-specific abbreviated month name, e.g. "Jan", "Feb", same as b.
+                    DateTimeFormatter dtf = new DateTimeFormatterBuilder().appendText(ChronoField.MONTH_OF_YEAR, TextStyle.SHORT).toFormatter(l);
+                    taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'A' -> {
+                    // Locale-specific full name of the day of the week, e.g. "Sunday", "Monday"
+                    taToStr = (sb, ta) -> sb.append(DayOfWeek.from(ta).getDisplayName(TextStyle.FULL, l));
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'a' -> {
+                    // Locale-specific short name of the day of the week, e.g. "Sun", "Mon"
+                    taToStr = (sb, ta) -> sb.append(DayOfWeek.from(ta).getDisplayName(TextStyle.SHORT, l));
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'C' -> {
+                    // Four-digit year divided by 100, formatted as two digits with leading zero as necessary, i.e. 00 - 99
+                    taToStr = formatTemporalAccessor("00", i -> i.getLong(ChronoField.YEAR_OF_ERA) / 100);
+                    zoned = true;
+                    chronologyCheck = true;
+                }
+                case 'Y' -> {
+                    // Year, formatted as at least four digits with leading zeros as necessary, e.g. 0092 equals 92 CE for the Gregorian calendar.
+                    taToStr = formatTemporalAccessor("0000", ChronoField.YEAR_OF_ERA);
+                    zoned = true;
+                    chronologyCheck = true;
+                }
+                case 'y' -> {
+                    // Last two digits of the year, formatted with leading zeros as necessary, i.e. 00 - 99.
+                    taToStr = formatTemporalAccessor("00", i -> i.getLong(ChronoField.YEAR_OF_ERA) % 100);
+                    zoned = true;
+                    chronologyCheck = true;
+                }
+                case 'j' -> {
+                    // Day of year, formatted as three digits with leading zeros as necessary, e.g. 001 - 366 for the Gregorian calendar.
+                    taToStr = formatTemporalAccessor("000", ChronoField.DAY_OF_YEAR);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'm' -> {
+                    // Month, formatted as two digits with leading zeros as necessary, i.e. 01 - 13.
+                    taToStr = formatTemporalAccessor("00", ChronoField.MONTH_OF_YEAR);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'd' -> {
+                    // Day of month, formatted as two digits with leading zeros as necessary, i.e. 01 - 31
+                    taToStr = formatTemporalAccessor("00", ChronoField.DAY_OF_MONTH);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'e' -> {
+                    // Day of month, formatted as two digits, i.e. 1 - 31.
+                    taToStr = formatTemporalAccessor("#0", ChronoField.DAY_OF_MONTH);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'V' -> {
+                    // The week number of the year (Monday as the first day of the week) as a decimal number (01-53).  If the week
+                    // containing January 1 has four or more days in the new year, then it is week 1; otherwise it is the last week
+                    // of the previous year, and the next week is week 1. Defined in ISO-8601
+                    taToStr = formatTemporalAccessor("00", WeekFields.ISO.weekOfWeekBasedYear());
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'R' -> {
+                    // Time formatted for the 24-hour clock as "%tH:%tM"
+                    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm", locale).withDecimalStyle(DecimalStyle.of(l));
+                    taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'T' -> {
+                    // Time formatted for the 24-hour clock as "%tH:%tM:%tS".
+                    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss", locale).withDecimalStyle(DecimalStyle.of(l));
+                    taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'r' -> {
+                    // Time formatted for the 12-hour clock as "%tI:%tM:%tS %Tp". The location of the morning or afternoon marker ('%Tp') may be locale-dependent.
+                    DateTimeFormatter dtf1 = DateTimeFormatter.ofPattern("hh:mm:ss", locale).withDecimalStyle(DecimalStyle.of(l));
+                    DateTimeFormatter dtf2 = DateTimeFormatter.ofPattern("a", locale).withDecimalStyle(DecimalStyle.of(l));
+                    taToStr = (sb, ta) -> {
+                        dtf1.formatTo(ta, sb);
+                        sb.append(' ');
+                        String tzStr = dtf2.format(ta).toUpperCase();
+                        sb.append(tzStr);
+                    };
+                    zoned = true;
+                    chronologyCheck = false;
+                }
+                case 'D' -> {
+                    // Date formatted as "%tm/%td/%ty".
+                    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("MM/dd/yy", locale).withDecimalStyle(DecimalStyle.of(l));
+                    taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
+                    zoned = true;
+                    chronologyCheck = true;
+                }
+                case 'F' -> {
+                    // ISO 8601 complete date formatted as "%tY-%tm-%td".
+                    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd", locale).withDecimalStyle(DecimalStyle.of(l));
+                    taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
+                    zoned = true;
+                    chronologyCheck = true;
+                }
+                case 'c' -> {
+                    // Date and time formatted as "%ta %tb %td %tT %tZ %tY", e.g. "Sun Jul 20 16:17:00 EDT 1969".
+                    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("eee MMM dd HH:mm:ss zz yyyy", locale).withDecimalStyle(DecimalStyle.of(l));
+                    taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
+                    zoned = true;
+                    chronologyCheck = true;
+                }
+                default -> throw new IllegalArgumentException("Unreconized date/time format: '" + timeFormat + "'");
             }
         }
 
@@ -534,17 +499,12 @@ public class VarFormatter {
         }
 
         private TemporalAccessor getTemporalAccessor(Object obj) {
-            if (obj instanceof Instant && zoned) {
-                Instant i = (Instant) obj;
-                return withCalendarSystem(i.atZone(etz));
-            } else if (obj instanceof ZonedDateTime && tz != null) {
-                ZonedDateTime zdt = (ZonedDateTime) obj;
-                return zdt.withZoneSameInstant(etz);
-            } else if (obj instanceof TemporalAccessor) {
-                return (TemporalAccessor) obj;
-            } else {
-                throw new IllegalArgumentException("Not a date/time argument");
-            }
+            return switch (obj) {
+                case Instant i when zoned -> withCalendarSystem(i.atZone(etz));
+                case ZonedDateTime zdt when tz != null -> zdt.withZoneSameInstant(etz);
+                case TemporalAccessor ta -> ta;
+                default -> throw new IllegalArgumentException("Not a date/time argument");
+            };
         }
 
         @Override
@@ -573,7 +533,7 @@ public class VarFormatter {
         }
     }
 
-    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=\\$\\{|\\{|'))(?:\\$\\{(?<varname>#?[\\w.-]+)?(?<format>%[^}]+)?}|(?:(?<curlybraces>\\{.*})|(?<quote>')))(?<after>.*)$", Pattern.DOTALL);
+    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=\\$\\{|\\{|'))(?:\\$\\{(?<varname>[@#]?[\\w.-]+)?(?<format>%[^}]+)?}|(?:(?<curlybraces>\\{.*})|(?<quote>')))(?<after>.*)$", Pattern.DOTALL);
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:<(?<tz>.*)>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.+))?$", Pattern.DOTALL);
     private static final Pattern arrayIndex = Pattern.compile("#(?<index>\\d+)");
 
@@ -677,7 +637,7 @@ public class VarFormatter {
             }
             if (mapperType instanceof Number && arg instanceof List) {
                 int i = ((Number) mapping.getKey()).intValue();
-                int j = ((Number) mapping.getValue()).intValue();
+                int j = (mapping.getValue()).intValue();
                 List<Object> l = (List<Object>) arg;
                 if (j > l.size()) {
                     throw new IllegalArgumentException("index out of range");
@@ -685,11 +645,14 @@ public class VarFormatter {
                 resolved[i] = checkArgType(l.get(j - 1));
             } else if (mapperType instanceof Number && arg.getClass().isArray()) {
                 int i = ((Number) mapping.getKey()).intValue();
-                int j = ((Number) mapping.getValue()).intValue();
+                int j = (mapping.getValue()).intValue();
                 if (j >  Array.getLength(arg)) {
                     throw new IllegalArgumentException("index out of range");
                 }
                 resolved[i] = Array.get(arg, j - 1);
+            } else if (arg instanceof Event ev) {
+                VariablePath vp = VariablePath.parse(mapping.getKey().toString());
+                resolved[mapping.getValue()] = checkArgType(ev.getAtPath(vp));
             } else {
                 String[] path = mapping.getKey().toString().split("\\.");
                 if (path.length == 1) {
@@ -721,47 +684,30 @@ public class VarFormatter {
     private static final Locale LOCALETHAIERA = Locale.forLanguageTag("ja-JP-u-ca-japanese-x-lvariant-JP");
 
     private Object checkArgType(Object arg) {
-        if (arg instanceof Date) {
-            Date d = (Date) arg;
-            return d.toInstant();
-        } else if (arg instanceof Calendar) {
-            // Because Calendar type hierarchy is inconsistent and some class are not public
-            Calendar c = (Calendar) arg;
-            switch (c.getCalendarType()) {
-            case "gregory":
-                GregorianCalendar gc = (GregorianCalendar) c;
-                return gc.toZonedDateTime();
-            case "japanese":
-                return resolveWithEra(LOCALEJAPANESERA,
-                                      ZonedDateTime.ofInstant(c.toInstant(), c.getTimeZone().toZoneId()));
-            case "buddhist":
-                return resolveWithEra(LOCALETHAIERA,
-                                      ZonedDateTime.ofInstant(c.toInstant(), c.getTimeZone().toZoneId()));
-            default:
-                return resolveWithEra(Locale.getDefault(),
-                        ZonedDateTime.ofInstant(c.toInstant(), c.getTimeZone().toZoneId()));
-            }
-        } else if (arg == null || ! arg.getClass().isArray()) {
-            return arg;
-        } else if (arg instanceof byte[]) {
-            return Arrays.toString((byte[]) arg);
-        } else if (arg instanceof short[]) {
-            return Arrays.toString((short[]) arg);
-        } else if (arg instanceof int[]) {
-            return Arrays.toString((int[]) arg);
-        } else if (arg instanceof long[]) {
-            return Arrays.toString((long[]) arg);
-        } else if (arg instanceof float[]) {
-            return Arrays.toString((float[]) arg);
-        } else if (arg instanceof double[]) {
-            return Arrays.toString((double[]) arg);
-        } else if (arg instanceof boolean[]) {
-            return Arrays.toString((boolean[]) arg);
-        } else if (arg instanceof char[]) {
-            return Arrays.toString((char[]) arg);
-        } else {
-            return Arrays.deepToString((Object[]) arg);
-        }
+        return switch (arg) {
+            case null -> null;
+            case Date d -> d.toInstant();
+            case Calendar c -> // Because Calendar type hierarchy is inconsistent and some class are not public
+                    switch (c.getCalendarType()) {
+                        case "gregory" -> ((GregorianCalendar) c).toZonedDateTime();
+                        case "japanese" -> resolveWithEra(LOCALEJAPANESERA,
+                                ZonedDateTime.ofInstant(c.toInstant(), c.getTimeZone().toZoneId()));
+                        case "buddhist" -> resolveWithEra(LOCALETHAIERA,
+                                ZonedDateTime.ofInstant(c.toInstant(), c.getTimeZone().toZoneId()));
+                        default -> resolveWithEra(Locale.getDefault(),
+                                ZonedDateTime.ofInstant(c.toInstant(), c.getTimeZone().toZoneId()));
+                    };
+            case byte[] ba -> Arrays.toString(ba);
+            case short[] sa -> Arrays.toString(sa);
+            case int[] ia -> Arrays.toString(ia);
+            case long[] la -> Arrays.toString(la);
+            case float[] fa -> Arrays.toString(fa);
+            case double[] da -> Arrays.toString(da);
+            case boolean[] ba -> Arrays.toString(ba);
+            case char[] ca -> Arrays.toString(ca);
+            case Object[] oa -> Arrays.deepToString(oa);
+            default -> arg;
+        };
     }
 
     private StringBuilder findVariables(StringBuilder buffer, String in, int last, List<String> formats, Map<Object, Integer> constructMapper) {
@@ -851,24 +797,27 @@ public class VarFormatter {
             char conversion = conversionStr.toLowerCase(locale).charAt(0);
 
             final UnaryOperator<String> cut = i -> precision < 0 ? i : i.substring(0, precision);
-            switch(conversion) {
-            case 'b': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "false" : (i instanceof Boolean) ? i.toString() : "true"));
-            case 's': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i.toString()));
-            case 'h': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "null" : Integer.toHexString(i.hashCode())));
-            case 'c': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> (i instanceof Character) ? i.toString() : "null");
-            case 'd': { Format f = numberFormat(locale, conversion, flags, true, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'o': return new NonDecimalNumberFormat(locale, 8, isUpper, flags, length);
-            case 'x': return new NonDecimalNumberFormat(locale, 16, isUpper, flags, length);
-            case 'e': { Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'f': { Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'g': { Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'a': { Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 't': return new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
-            case '%': return new NonParsingFormat(Locale.getDefault(), false, i -> "%");
-            case 'n': return new NonParsingFormat(Locale.getDefault(), false, i -> System.lineSeparator());
-            case 'j': return new JsonFormat();
-            default: throw new IllegalArgumentException("Invalid format specifier: " + format);
-            }
+            return switch (conversion) {
+                case 'b' -> new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "false" : (i instanceof Boolean) ? i.toString() : "true"));
+                case 's' -> new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i.toString()));
+                case 'h' -> new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "null" : Integer.toHexString(i.hashCode())));
+                case 'c' -> new NonParsingFormat(Locale.getDefault(), isUpper, i -> (i instanceof Character) ? i.toString() : "null");
+                case 'd' -> {
+                    Format f = numberFormat(locale, conversion, flags, true, length, precision, isUpper);
+                    yield new NonParsingFormat(locale, false, f::format);
+                }
+                case 'o' -> new NonDecimalNumberFormat(locale, 8, isUpper, flags, length);
+                case 'x' -> new NonDecimalNumberFormat(locale, 16, isUpper, flags, length);
+                case 'e', 'f', 'g', 'a' -> {
+                    Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper);
+                    yield new NonParsingFormat(locale, false, f::format);
+                }
+                case 't' -> new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
+                case '%' -> new NonParsingFormat(Locale.getDefault(), false, i -> "%");
+                case 'n' -> new NonParsingFormat(Locale.getDefault(), false, i -> System.lineSeparator());
+                case 'j' -> new JsonFormat();
+                default -> throw new IllegalArgumentException("Invalid format specifier: " + format);
+            };
         } else {
             throw new IllegalArgumentException(format);
         }
