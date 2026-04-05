@@ -80,6 +80,9 @@ public class Netcap extends Receiver<Netcap, Netcap.Builder> {
         } else {
             try {
                 NetworkInterface ni = NetworkInterface.getByName(builder.ifname);
+                if (ni == null) {
+                    throw new IllegalArgumentException("Unknown interface " + builder.ifname);
+                }
                 ifIndex = ni.getIndex();
                 interfaceDisplayName = ni.getDisplayName();
                 byte[] hardwareAddress = ni.getHardwareAddress();
