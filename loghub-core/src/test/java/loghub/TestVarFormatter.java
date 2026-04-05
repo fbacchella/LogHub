@@ -42,13 +42,12 @@ import loghub.jackson.JacksonBuilder;
 
 class TestVarFormatter {
 
-    private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeAll
     static void configure() {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression");
         Configurator.setLevel("loghub.VarFormatter", Level.DEBUG);
     }
@@ -83,9 +82,11 @@ class TestVarFormatter {
         }
         try {
             String formatter = vf.format(value);
-            Assertions.assertEquals(printf, formatter, () -> "mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName());
+            String className = value == null ? "null" : value.getClass().getSimpleName();
+            Assertions.assertEquals(printf, formatter, () -> "mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + className);
         } catch (IllegalArgumentException e) {
-            Assertions.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName() + ": " + Helpers.resolveThrowableException(e));
+            String className = value == null ? "null" : value.getClass().getSimpleName();
+            Assertions.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + className + ": " + Helpers.resolveThrowableException(e));
         }
     }
 
@@ -96,19 +97,40 @@ class TestVarFormatter {
     }
 
     @Test
+    void testBoolean() {
+        checkFormat(true, "%b");
+        checkFormat(false, "%b");
+        checkFormat(true, "%B");
+        checkFormat(false, "%B");
+        checkFormat(null, "%b");
+        checkFormat(new Object(), "%b");
+        Assertions.assertEquals("false", new VarFormatter("${%b}").format(NullOrMissingValue.NULL));
+        Assertions.assertEquals("FALSE", new VarFormatter("${%B}").format(NullOrMissingValue.NULL));
+    }
+
+    @Test
+    void testHash() {
+        checkFormat(this, "%h");
+        checkFormat(this, "%H");
+        Assertions.assertEquals("null", new VarFormatter("${%h}").format(null));
+        Assertions.assertEquals("null", new VarFormatter("${%h}").format(NullOrMissingValue.NULL));
+    }
+
+    @Test
     void testNegativeNumber() {
         checkFormat(-65535, "%(d");
     }
 
     @Test
-    void test4() {
+    void testFloat() {
+        checkFormat(null, "%f");
         checkFormat(Math.PI, "%f");
         checkFormat(Math.PI, "%10.2f");
         checkFormat(Math.PI, "%+10.2f");
         checkFormat(Math.PI, "% 10.2f");
         checkFormat(Math.PI, "%-10.2f");
         checkFormat(Math.PI, "%010.2f");
-        // %f add an exact number of floating digit, even if they are 0
+        // %f add an exact number of floating digits, even if they are 0
         checkFormat(1.0, "%f");
         checkFormat(1.0, "%10.2f");
         checkFormat(1.0, "%+10.2f");
@@ -122,7 +144,6 @@ class TestVarFormatter {
         // DecimalFormat and printf are unable to agree about maximum length for negative number padded with 0, too much work to fix
         AssertionError ex = Assertions.assertThrows(AssertionError.class, () -> testWithLocale(Locale.ENGLISH, -1.0, "%010.2f"));
         Assertions.assertEquals("mismatch for %010.2f at locale en with Double ==> expected: <-000001.00> but was: <-0000001.00>", ex.getMessage());
-
     }
 
     private void checkDate(Object date) {
@@ -340,14 +361,14 @@ class TestVarFormatter {
     }
 
     @ParameterizedTest
-    @MethodSource("formatProvider")
+    @MethodSource("formattedCollectionProvider")
     void testFormatCollections(String pattern, Object value, String expected) {
         VarFormatter vf = new VarFormatter(pattern, Locale.ENGLISH);
         String formatted = vf.format(value);
         Assertions.assertEquals(expected, formatted);
     }
 
-    static List<Arguments> formatProvider() {
+    static List<Arguments> formattedCollectionProvider() {
         List<String> list = Arrays.asList("1", "2", "3");
         String[] array = new String[]{"1", "2", "3"};
         Object[] deepArray = new Object[]{"1", "2", new Object[]{"3"}};
@@ -391,6 +412,44 @@ class TestVarFormatter {
                 Arguments.of("${var%z}", map),
                 Arguments.of("${var%zd}", map)
         );
+    }
+
+    @Test
+    void testLiteral() {
+        VarFormatter vf = new VarFormatter("${%%} ${%n}");
+        Assertions.assertEquals("% " + System.lineSeparator(), vf.format(null));
+        Assertions.assertEquals("% " + System.lineSeparator(), vf.format(NullOrMissingValue.NULL));
+        Assertions.assertEquals("% " + System.lineSeparator(), vf.format(NullOrMissingValue.MISSING));
+    }
+
+    @ParameterizedTest
+    @MethodSource("formatProvider")
+    void testNull(String format) {
+        if (!"%b".equals(format)) {
+            Assertions.assertEquals("null", new VarFormatter("${" + format + "}").format(null));
+        } else {
+            Assertions.assertEquals("false", new VarFormatter("${" + format + "}").format(null));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("formatProvider")
+    void testMissing(String format) {
+        Assertions.assertThrows(IgnoredEventException.class, () -> new VarFormatter("${" + format + "}").format(NullOrMissingValue.MISSING));
+    }
+
+    static List<String> formatProvider() {
+        return List.of("%h", "%s", "%d", "%tz", "%b", "%f", "%d", "%j");
+    }
+
+    @Test
+    void testMissingKeyInEvent() {
+        VarFormatter vf = new VarFormatter("${missing}", Locale.ENGLISH);
+        Event ev = factory.newEvent();
+        // Key "missing" is not in ev
+        Assertions.assertThrows(IgnoredEventException.class, () -> {
+            vf.format(ev);
+        });
     }
 
 }

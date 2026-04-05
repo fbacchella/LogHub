@@ -19,6 +19,7 @@ import loghub.DiscardedEventException;
 import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.Helpers;
+import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 import loghub.PausedEvent;
 import loghub.Processor;
@@ -372,7 +373,7 @@ public class Merge extends Processor {
         Object eventKey;
         try {
             eventKey = index.eval(event);
-        } catch (IllegalArgumentException | ProcessorException e) {
+        } catch (IllegalArgumentException | ProcessorException | IgnoredEventException e) {
             // index key not found or expression failed, not to be merged
             return false;
         }

@@ -14,8 +14,6 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.chrono.ChronoLocalDate;
-import java.time.chrono.ChronoZonedDateTime;
 import java.time.chrono.JapaneseDate;
 import java.time.chrono.ThaiBuddhistDate;
 import java.time.format.DateTimeFormatter;
@@ -75,7 +73,28 @@ public class VarFormatter {
         }
     }
 
-    private static final class JsonFormat extends Format {
+    private abstract static class NonParsingFormat extends Format {
+        @Override
+        public Object parseObject(String source, ParsePosition pos) {
+            throw new UnsupportedOperationException("Can't parse an object");
+        }
+
+        @Override
+        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            if (obj == NullOrMissingValue.NULL) {
+                return toAppendTo.append("null");
+            } else if (obj == NullOrMissingValue.MISSING) {
+                throw IgnoredEventException.INSTANCE;
+            } else {
+                return filteredFormat(obj, toAppendTo, pos);
+            }
+        }
+        protected StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            return toAppendTo;
+        }
+    }
+
+    private static final class JsonFormat extends NonParsingFormat {
         private static final ObjectWriter writer;
         static {
             SimpleModule module = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "EventToJson"));
@@ -88,25 +107,21 @@ public class VarFormatter {
         }
 
         @Override
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
             try {
                 return toAppendTo.append(writer.writeValueAsString(obj));
             } catch (JsonProcessingException e) {
                 throw new UncheckedIOException("Can't serialized value: " + Helpers.resolveThrowableException(e), e);
             }
         }
-        @Override
-        public Object parseObject(String source, ParsePosition pos) {
-            throw new UnsupportedOperationException("Can't parse an object");
-        }
     }
 
-    private static final class NonParsingFormat extends Format {
+    private static final class FunctionFormat extends NonParsingFormat {
         private final Locale l;
         private final boolean toUpper;
         private final Function<Object, String> f;
 
-        private NonParsingFormat(Locale l, boolean toUpper, Function<Object, String> f) {
+        private FunctionFormat(Locale l, boolean toUpper, Function<Object, String> f) {
             super();
             this.l = l;
             this.toUpper = toUpper;
@@ -114,7 +129,7 @@ public class VarFormatter {
         }
 
         @Override
-        public StringBuffer format(Object obj, StringBuffer toAppendTo,
+        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo,
                                          FieldPosition pos) {
             String formatted = f.apply(obj);
             if (toUpper) {
@@ -122,16 +137,26 @@ public class VarFormatter {
             }
             return toAppendTo.append(formatted);
         }
+
+    }
+
+    private static final class LitteralFormat extends NonParsingFormat {
+        private final String litteral;
+        private LitteralFormat(String litteral) {
+            this.litteral = litteral;
+        }
+
         @Override
-        public Object parseObject(String source, ParsePosition pos) {
-            throw new UnsupportedOperationException("Can't parse an object");
+        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            return toAppendTo.append(litteral);
         }
     }
 
-    private abstract static class JustifyFormat extends Format {
+    private abstract static class JustifyFormat extends NonParsingFormat {
         protected final DecimalFormat f;
         protected final int size;
         protected final String padding;
+
         private JustifyFormat(DecimalFormat f, int size) {
             this.f = f;
             this.size = size;
@@ -143,24 +168,27 @@ public class VarFormatter {
                 padding = null;
             }
         }
+
         @Override
-        public Object parseObject(String source, ParsePosition pos) {
-            throw new UnsupportedOperationException("Can't parse an object");
+        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            toAppendTo.ensureCapacity(toAppendTo.length() + size);
+            int oldLength = toAppendTo.length();
+            f.format(obj, toAppendTo, pos);
+            if ((oldLength + size) > toAppendTo.length()) {
+                doPadding(toAppendTo, padding, oldLength, oldLength + size - toAppendTo.length());
+            }
+            return toAppendTo;
         }
+        abstract void doPadding(StringBuffer toAppendTo, String padding, int oldLength, int newLenght);
     }
 
     private static class RightJustifyNumberFormat extends JustifyFormat {
         RightJustifyNumberFormat(DecimalFormat f, int size) {
             super(f, size);
         }
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            toAppendTo.ensureCapacity(toAppendTo.length() + size);
-            int oldLength = toAppendTo.length();
-            f.format(obj, toAppendTo, pos);
-            if ((oldLength + size) > toAppendTo.length()) {
-                toAppendTo.insert(oldLength, padding, 0, oldLength + size - toAppendTo.length());
-            }
-            return toAppendTo;
+        @Override
+        void doPadding(StringBuffer toAppendTo, String padding, int oldLength, int newLenght) {
+            toAppendTo.insert(oldLength, padding, 0, newLenght);
         }
     }
 
@@ -168,18 +196,13 @@ public class VarFormatter {
         LeftJustifyNumberFormat(DecimalFormat f, int size) {
             super(f, size);
         }
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            toAppendTo.ensureCapacity(toAppendTo.length() + size);
-            int oldLength = toAppendTo.length();
-            f.format(obj, toAppendTo, pos);
-            if ((oldLength + size) > toAppendTo.length()) {
-                toAppendTo.append(padding, 0, oldLength + size - toAppendTo.length());
-            }
-            return toAppendTo;
+        @Override
+        void doPadding(StringBuffer toAppendTo, String padding, int oldLength, int newLength) {
+            toAppendTo.append(padding, 0, newLength);
         }
     }
 
-    private static final class NonDecimalNumberFormat extends Format {
+    private static final class NonDecimalNumberFormat extends NonParsingFormat {
         private final Locale l;
         private final int base;
         private final boolean toUpper;
@@ -192,7 +215,9 @@ public class VarFormatter {
             this.flags = flags;
             this.size = size;
         }
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+
+        @Override
+        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
             Number n = (Number) obj;
             String formatted;
             String prefix;
@@ -237,13 +262,9 @@ public class VarFormatter {
 
             return toAppendTo.append(formatted);
         }
-        @Override
-        public Object parseObject(String source, ParsePosition pos) {
-            throw new UnsupportedOperationException("Can't parse an object");
-        }
     }
 
-    private static final class ExtendedDateFormat extends Format {
+    private static final class ExtendedDateFormat extends NonParsingFormat {
         private final ZoneId tz;
         private final ZoneId etz;
         private final boolean chronologyCheck;
@@ -508,7 +529,7 @@ public class VarFormatter {
         }
 
         @Override
-        public StringBuffer format(Object obj, StringBuffer toAppendTo,
+        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo,
                                    FieldPosition pos) {
             if (! (obj instanceof Date) && ! (obj instanceof TemporalAccessor)) {
                 return toAppendTo.append(obj);
@@ -526,10 +547,31 @@ public class VarFormatter {
                 throw new IllegalArgumentException("Can't format the given time data: " + e.getMessage(), e);
             }
         }
+    }
 
+    private static final class BooleanFormat extends NonParsingFormat {
+        private final boolean toUpper;
+        private final Locale l;
+        private BooleanFormat(boolean toUpper, Locale l) {
+            this.toUpper = toUpper;
+            this.l = l;
+        }
         @Override
-        public Object parseObject(String source, ParsePosition pos) {
-            throw new UnsupportedOperationException("Can't parse");
+        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            String formatted;
+            if (obj == null || obj == NullOrMissingValue.NULL) {
+                formatted = "false";
+            } else if (obj == NullOrMissingValue.MISSING) {
+                throw IgnoredEventException.INSTANCE;
+            } else if (obj instanceof Boolean b) {
+                formatted = b.toString();
+            } else {
+                formatted = "true";
+            }
+            if (toUpper) {
+                formatted = formatted.toUpperCase(l);
+            }
+            return toAppendTo.append(formatted);
         }
     }
 
@@ -633,9 +675,7 @@ public class VarFormatter {
         for (Map.Entry<Object, Integer> mapping : mapper.entrySet()) {
             if (".".equals(mapping.getKey())) {
                 resolved[mapping.getValue()] = checkArgType(arg);
-                continue;
-            }
-            if (mapperType instanceof Number && arg instanceof List) {
+            } else if (mapperType instanceof Number && arg instanceof List) {
                 int i = ((Number) mapping.getKey()).intValue();
                 int j = (mapping.getValue()).intValue();
                 List<Object> l = (List<Object>) arg;
@@ -649,10 +689,14 @@ public class VarFormatter {
                 if (j >  Array.getLength(arg)) {
                     throw new IllegalArgumentException("index out of range");
                 }
-                resolved[i] = Array.get(arg, j - 1);
+                resolved[i] = checkArgType(Array.get(arg, j - 1));
             } else if (arg instanceof Event ev) {
                 VariablePath vp = VariablePath.parse(mapping.getKey().toString());
-                resolved[mapping.getValue()] = checkArgType(ev.getAtPath(vp));
+                Object value = checkArgType(ev.getAtPath(vp));
+                if (value == NullOrMissingValue.MISSING) {
+                    throw IgnoredEventException.INSTANCE;
+                }
+                resolved[mapping.getValue()] = value;
             } else {
                 String[] path = mapping.getKey().toString().split("\\.");
                 if (path.length == 1) {
@@ -685,9 +729,10 @@ public class VarFormatter {
 
     private Object checkArgType(Object arg) {
         return switch (arg) {
-            case null -> null;
+            case null -> NullOrMissingValue.NULL;
             case Date d -> d.toInstant();
-            case Calendar c -> // Because Calendar type hierarchy is inconsistent and some class are not public
+            case Calendar c ->
+                    // Because Calendar type hierarchy is inconsistent and some class are not public
                     switch (c.getCalendarType()) {
                         case "gregory" -> ((GregorianCalendar) c).toZonedDateTime();
                         case "japanese" -> resolveWithEra(LOCALEJAPANESERA,
@@ -798,23 +843,19 @@ public class VarFormatter {
 
             final UnaryOperator<String> cut = i -> precision < 0 ? i : i.substring(0, precision);
             return switch (conversion) {
-                case 'b' -> new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "false" : (i instanceof Boolean) ? i.toString() : "true"));
-                case 's' -> new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i.toString()));
-                case 'h' -> new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "null" : Integer.toHexString(i.hashCode())));
-                case 'c' -> new NonParsingFormat(Locale.getDefault(), isUpper, i -> (i instanceof Character) ? i.toString() : "null");
-                case 'd' -> {
-                    Format f = numberFormat(locale, conversion, flags, true, length, precision, isUpper);
-                    yield new NonParsingFormat(locale, false, f::format);
+                case 'b' -> new BooleanFormat(isUpper, locale);
+                case 's' -> new FunctionFormat(Locale.getDefault(), isUpper, o -> cut.apply(o.toString()));
+                case 'h' -> new FunctionFormat(Locale.getDefault(), isUpper, o -> Integer.toHexString(o.hashCode()));
+                case 'c' -> {
+                    Function<Object, String> f = o -> (o instanceof Character) ? o.toString() : "null";
+                    yield new FunctionFormat(Locale.getDefault(), isUpper, f);
                 }
-                case 'o' -> new NonDecimalNumberFormat(locale, 8, isUpper, flags, length);
-                case 'x' -> new NonDecimalNumberFormat(locale, 16, isUpper, flags, length);
-                case 'e', 'f', 'g', 'a' -> {
-                    Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper);
-                    yield new NonParsingFormat(locale, false, f::format);
-                }
+                case 'd' -> numberFormat(locale, conversion, flags, true, length, precision, isUpper);
+                case 'o', 'x' -> new NonDecimalNumberFormat(locale, conversion == 'o' ? 8 : 16, isUpper, flags, length);
+                case 'e', 'f', 'g', 'a' -> numberFormat(locale, conversion, flags, false, length, precision, isUpper);
                 case 't' -> new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
-                case '%' -> new NonParsingFormat(Locale.getDefault(), false, i -> "%");
-                case 'n' -> new NonParsingFormat(Locale.getDefault(), false, i -> System.lineSeparator());
+                case '%' -> new LitteralFormat("%");
+                case 'n' -> new LitteralFormat(System.lineSeparator());
                 case 'j' -> new JsonFormat();
                 default -> throw new IllegalArgumentException("Invalid format specifier: " + format);
             };
@@ -850,7 +891,7 @@ public class VarFormatter {
             df.setMinimumIntegerDigits(fixed);
         }
         if (length < 0) {
-            return df;
+            return new FunctionFormat(l, false, df::format);
         } else if (flags.leftjustified) {
             return new LeftJustifyNumberFormat(df, length);
         } else {
@@ -863,7 +904,7 @@ public class VarFormatter {
         return this.format;
     }
 
-    static ChronoZonedDateTime<? extends ChronoLocalDate> resolveWithEra(Locale locale, ZonedDateTime timePoint) {
+    static TemporalAccessor resolveWithEra(Locale locale, ZonedDateTime timePoint) {
         String language = locale.getLanguage();
         if ("th".equals(language) && "TH".equals(locale.getCountry())) {
             return ThaiBuddhistDate.from(timePoint).atTime(timePoint.toLocalTime()).atZone(timePoint.getZone());
