@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -982,7 +983,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitMap(MapContext ctx) {
         if (ctx.source() == null) {
-            Map<Object, Object> map = new HashMap<>();
+            List<Map.Entry<Object, Object>> entries = new ArrayList<>();
             Object o;
             while ((o = stack.pop()) != StackMarker.MAP) {
                 Object value;
@@ -991,8 +992,16 @@ class ConfigListener extends RouteBaseListener {
                 } else {
                     value = o.getClass();
                 }
+                if (value == null) {
+                    value = NullOrMissingValue.NULL;
+                }
                 Object key = stack.popWrapped();
-                map.put(key, value);
+                entries.add(Map.entry(key, value));
+            }
+            Collections.reverse(entries);
+            Map<Object, Object> map = LinkedHashMap.newLinkedHashMap(entries.size());
+            for(Map.Entry<Object, Object> e: entries) {
+                map.put(e.getKey(), e.getValue());
             }
             stack.pushWrapped(map);
         } else {
@@ -1306,7 +1315,7 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.expressionMap() != null) {
             ExpressionMapContext emc = ctx.expressionMap();
             int entries = emc.expression().size();
-            Map<String, Expression> mapEntries = HashMap.newHashMap(entries);
+            Map<String, Expression> mapEntries = LinkedHashMap.newLinkedHashMap(entries);
             for (int i = (entries - 1); i >= 0; i--) {
                 String identifier = emc.identifier(i).getText();
                 ExpressionBuilder subexpression = stack.popTyped();

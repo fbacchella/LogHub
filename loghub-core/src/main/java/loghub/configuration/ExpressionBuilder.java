@@ -1,6 +1,6 @@
 package loghub.configuration;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -135,7 +135,7 @@ class ExpressionBuilder {
             // Expression data is shared as a thread local, save the event
             Event ev = ed.getEvent();
             Object value = ed.getValue();
-            Map<String, Object> values = HashMap.newHashMap(mapEntries.size());
+            Map<String, Object> values = LinkedHashMap.newLinkedHashMap(mapEntries.size());
             for (Map.Entry<String, Expression> e: mapEntries.entrySet()) {
                 try {
                     Object o = e.getValue().eval(ev, value);
