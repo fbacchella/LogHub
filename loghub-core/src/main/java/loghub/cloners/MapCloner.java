@@ -3,6 +3,7 @@ package loghub.cloners;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.IdentityHashMap;
@@ -34,6 +35,8 @@ public class MapCloner {
     }
 
     static final Map<Class<? extends Map>, MAPCONSTRUCTOR> MAP_MAPPING = Map.ofEntries(
+        // Collections.singletonMap does not return the same class than Map.of(k,v)
+        Map.entry(Collections.singletonMap(1, 2).getClass(), MAPCONSTRUCTOR.HASHMAP),
         Map.entry(Map.of(1, 2).getClass(), MAPCONSTRUCTOR.HASHMAP),
         Map.entry(Map.of(1, 2, 3, 4).getClass(), MAPCONSTRUCTOR.HASHMAP),
         Map.entry(IdentityHashMap.class, MAPCONSTRUCTOR.IDENTITYHASHMAP),

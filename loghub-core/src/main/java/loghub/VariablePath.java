@@ -614,7 +614,13 @@ public abstract class VariablePath {
         } else if (path.startsWith("#")) {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofMeta(s.substring(1)));
         } else if (path.startsWith(Event.CONTEXTKEY)) {
-            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofContext(pathElements(s.substring(Event.CONTEXTKEY.length() + 1))));
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> {
+                List<String> contextStream = switch (s) {
+                    case Event.CONTEXTKEY -> List.of();
+                    default -> pathElements(s.substring(Event.CONTEXTKEY.length() + 1));
+                };
+                return VariablePath.ofContext(contextStream);
+            });
         } else if (path.startsWith(Event.INDIRECTMARK)) {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofIndirect(pathElements(s.substring(Event.INDIRECTMARK.length()))));
         } else if (".".equals(path)) {
