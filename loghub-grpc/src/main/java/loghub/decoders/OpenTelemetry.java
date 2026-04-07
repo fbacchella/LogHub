@@ -66,8 +66,8 @@ public class OpenTelemetry extends ProtoBuf implements CodecProvider {
         Map<String, Object> scope = (Map<String, Object>) scopeMetrics.get("scope");
         List<Map<String, Object>> metrics = (List<Map<String, Object>>) scopeMetrics.get("metrics");
         return metrics.stream().map(m -> {
-            m.put("resource", resource);
-            m.put("scope", scope);
+            m.put("resource", Map.copyOf(resource));
+            m.put("scope", Map.copyOf(scope));
             return m;
         });
     }
