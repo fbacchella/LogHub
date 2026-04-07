@@ -225,7 +225,7 @@ public class GrammarParserFiltering {
             // VARIABLE_PATH_ARRAY is valid only when explicitly required
             return currentBeanType == BEANTYPE.VARIABLE_PATH_ARRAY;
         default:
-            return currentBeanType == null || currentBeanType == proposition;
+            return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.OBJECT;
         }
     }
 
