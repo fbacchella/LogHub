@@ -1,6 +1,9 @@
 package loghub.events;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -485,18 +488,33 @@ public abstract class Event extends HashMap<String, Object> {
     }
 
     public boolean setTimestamp(Object value) {
-        if (value instanceof Date) {
-            setTimestamp((Date) value);
-            return true;
-        } else if (value instanceof Instant) {
-            setTimestamp(Date.from((Instant) value));
-            return true;
-        } else if (value instanceof Number) {
-            Date newDate = new Date(((Number) value).longValue());
-            setTimestamp(newDate);
-            return true;
-        } else {
+        switch (value) {
+        case IgnoredEventException iee -> {
             return false;
+        }
+        case Date d -> {
+            setTimestamp(d);
+            return true;
+        }
+        case Instant i -> {
+            setTimestamp(Date.from(i));
+            return true;
+        }
+        case ZonedDateTime zdt -> {
+            setTimestamp(Date.from(zdt.toInstant()));
+            return true;
+        }
+        case LocalDateTime ldt -> {
+            setTimestamp(Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant()));
+            return true;
+        }
+        case Number n -> {
+            setTimestamp(new Date(n.longValue()));
+            return true;
+        }
+        case null, default -> {
+            return false;
+        }
         }
     }
 
