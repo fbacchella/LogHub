@@ -527,6 +527,38 @@ public abstract class Event extends HashMap<String, Object> {
         return applyAtPath(Action.REMOVE, path, null, false);
     }
 
+    /**
+     * Recursively extracts all the {@link VariablePath} for each non-map value found in the event.
+     * <p>
+     * It performs a depth-first traversal of the event.
+     * <p>
+     * Paths for values equal to {@link NullOrMissingValue#MISSING} are ignored and not returned.
+     * Nested maps are traversed to build full paths to the leaves.
+     *
+     * @return a {@link Stream} of {@link VariablePath} representing all found keys and subkeys
+     */
+    public Stream<VariablePath> enumerateAllPaths() {
+        return enumerateAllPaths(this, VariablePath.EMPTY);
+    }
+
+    private Stream<VariablePath> enumerateAllPaths(Map<String, Object> map, VariablePath parent) {
+        return map.entrySet()
+                  .stream()
+                  .flatMap(entry -> recursePaths(parent, entry.getKey(), entry.getValue()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Stream<VariablePath> recursePaths(VariablePath parent, String key, Object value) {
+        VariablePath currentPath = parent.append(key);
+        if (value instanceof Map<?, ?> nestedMap) {
+            return enumerateAllPaths((Map<String, Object>) nestedMap, currentPath);
+        } else if (value == NullOrMissingValue.MISSING) {
+            return Stream.empty();
+        } else {
+            return Stream.of(currentPath);
+        }
+    }
+
     public abstract void end();
 
     public abstract int processingDone();
