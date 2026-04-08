@@ -77,7 +77,6 @@ beansDescription
 bean
     : {inSection(SECTION.INPUT)}?    (bn='decoder' ':' object)
     | {inSection(SECTION.PIPELINE)}? (bn='if' ':' expression)
-    | {inSection(SECTION.PIPELINE)}? (bn=('success' | 'failure' | 'exception') ':' pipenode)
     | {inSection(SECTION.PIPELINE)}? (bn='fields' ':' array)
     | {inSection(SECTION.PIPELINE)}? (bn='destinationTemplate' ':' stringLiteral)
     | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
@@ -93,6 +92,7 @@ beanName
 beanValue
     : nullLiteral
     | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH)}? eventVariableBean
+    | {filter.allowedBeanType(BEANTYPE.PROCESSOR)}? pipenode
     | {filter.allowedBeanType(BEANTYPE.OBJECT)}? object
     | {filter.allowedBeanType(BEANTYPE.INTEGER)}? integerLiteral
     | {filter.allowedBeanType(BEANTYPE.IMPLICIT_OBJECT)}? implicitObject
@@ -313,7 +313,7 @@ sourcedef
 identifier
     : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'foreach' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
     | 'sslContext' | 'sslParams'
-    | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
+    | 'if' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map' | 'plugins'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
     | 'new' | 'instanceof' | 'now' | 'hostname' |'isEmpty' | 'isIP'

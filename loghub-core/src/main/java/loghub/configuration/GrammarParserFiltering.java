@@ -28,6 +28,7 @@ import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.Lambda;
+import loghub.Processor;
 import loghub.RouteParser;
 import loghub.VariablePath;
 import loghub.decoders.Decoder;
@@ -76,6 +77,7 @@ public class GrammarParserFiltering {
         LAMBDA,
         VARIABLE_PATH,
         VARIABLE_PATH_ARRAY,
+        PROCESSOR,
     }
 
     private static final Map<String, String> IMPLICIT_OBJECT = Map.ofEntries(
@@ -193,6 +195,8 @@ public class GrammarParserFiltering {
                 currentBeanType =  BEANTYPE.LAMBDA;
             } else if (VariablePath.class.equals(clazz)) {
                 currentBeanType =  BEANTYPE.VARIABLE_PATH;
+            } else if (Processor.class.isAssignableFrom(clazz)) {
+                currentBeanType =  BEANTYPE.PROCESSOR;
             } else if (Map.class.isAssignableFrom(clazz)) {
                 currentBeanType =  BEANTYPE.MAP;
             } else if (Encoder.class.isAssignableFrom(clazz)) {
@@ -231,7 +235,7 @@ public class GrammarParserFiltering {
             // VARIABLE_PATH_ARRAY is valid only when explicitly required
             return currentBeanType == BEANTYPE.VARIABLE_PATH_ARRAY;
         default:
-            return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.OBJECT;
+            return currentBeanType == null || currentBeanType == proposition;
         }
     }
 
