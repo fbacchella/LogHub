@@ -57,7 +57,6 @@ pipenode
     | '(' pipenodeList ')'
     | '$' piperef
     | object
-    | '{' pipenodeList? '}'
     | path
     | foreach
     ;
