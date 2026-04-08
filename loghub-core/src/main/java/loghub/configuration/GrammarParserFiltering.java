@@ -212,6 +212,11 @@ public class GrammarParserFiltering {
     }
 
     public boolean allowedBeanType(BEANTYPE proposition) {
+        if (currentBeanType == BEANTYPE.MAP) {
+            return proposition != BEANTYPE.PROCESSOR
+                   && proposition != BEANTYPE.IMPLICIT_OBJECT
+                   && proposition != BEANTYPE.OPTIONAL_ARRAY;
+        }
         switch (proposition) {
         case INTEGER:
             // A float bean can accept integer or float values

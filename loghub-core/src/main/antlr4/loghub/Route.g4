@@ -288,7 +288,7 @@ arrayContent:
     ;
 
 map
-    : {filter.cleanBeanType();} '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
+    : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
     | source
     ;
 
