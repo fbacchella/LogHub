@@ -91,7 +91,8 @@ beanName
 
 beanValue
     : nullLiteral
-    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH)}? eventVariableBean
+    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH)}? eventVariablePath
+    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH_LEGACY)}? eventVariablePathLegacy
     | {filter.allowedBeanType(BEANTYPE.PROCESSOR)}? pipenode
     | {filter.allowedBeanType(BEANTYPE.OBJECT)}? object
     | {filter.allowedBeanType(BEANTYPE.INTEGER)}? integerLiteral
@@ -109,8 +110,12 @@ beanValue
     | {filter.allowedBeanType(BEANTYPE.MAP)}? map
     ;
 
-eventVariableBean
-    : (fsv=stringLiteral | fev=eventVariable)
+eventVariablePath
+    : eventVariable
+    ;
+
+eventVariablePathLegacy
+    : stringLiteral
     ;
 
 finalpiperef: piperef;
@@ -278,7 +283,7 @@ vparray
     ;
 
 array
-    : {filter.cleanBeanType();}  '[' arrayContent ']'
+    : '[' arrayContent ']'
     | source
     ;
 

@@ -17,6 +17,7 @@ import com.googlecode.jsendnsca.encryption.Encryption;
 import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import lombok.Setter;
@@ -85,11 +86,11 @@ public class Nsca extends Sender {
     }
 
     private Expression convertToExpression(Object v) {
-        if (v instanceof Expression e) {
-            return e;
-        } else {
-            return new Expression(v);
-        }
+        return switch (v) {
+            case Expression e -> e;
+            case VariablePath vp -> new Expression(vp);
+            default -> new Expression(v);
+        };
     }
 
     @Override

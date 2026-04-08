@@ -11,6 +11,7 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -76,6 +77,7 @@ public class GrammarParserFiltering {
         OPTIONAL_ARRAY,
         LAMBDA,
         VARIABLE_PATH,
+        VARIABLE_PATH_LEGACY,
         VARIABLE_PATH_ARRAY,
         PROCESSOR,
     }
@@ -193,6 +195,9 @@ public class GrammarParserFiltering {
                 currentBeanType =  BEANTYPE.EXPRESSION;
             } else if (Lambda.class.equals(clazz)) {
                 currentBeanType =  BEANTYPE.LAMBDA;
+            } else if (VariablePath.class.equals(clazz) && List.of("field", "destination", "path").contains(beanName)) {
+                // Only a few beans take a string for legacy configuration compatibility
+                currentBeanType =  BEANTYPE.VARIABLE_PATH_LEGACY;
             } else if (VariablePath.class.equals(clazz)) {
                 currentBeanType =  BEANTYPE.VARIABLE_PATH;
             } else if (Processor.class.isAssignableFrom(clazz)) {
@@ -212,8 +217,10 @@ public class GrammarParserFiltering {
     }
 
     public boolean allowedBeanType(BEANTYPE proposition) {
-        if (currentBeanType == BEANTYPE.MAP) {
+        if (currentBeanType == BEANTYPE.MAP || currentBeanType == BEANTYPE.ARRAY) {
             return proposition != BEANTYPE.PROCESSOR
+                   && proposition != BEANTYPE.VARIABLE_PATH_LEGACY
+                   && proposition != BEANTYPE.VARIABLE_PATH_ARRAY
                    && proposition != BEANTYPE.IMPLICIT_OBJECT
                    && proposition != BEANTYPE.OPTIONAL_ARRAY;
         }
@@ -226,7 +233,7 @@ public class GrammarParserFiltering {
             return currentBeanType == proposition;
         case STRING:
             // String is also valid for an Enum type or a VariablePath
-            return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.ENUM || currentBeanType == BEANTYPE.VARIABLE_PATH;
+            return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.ENUM;
         case SECRET:
             return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.STRING;
         case EXPRESSION:
@@ -234,8 +241,9 @@ public class GrammarParserFiltering {
         case IMPLICIT_OBJECT:
             return currentBeanType == BEANTYPE.IMPLICIT_OBJECT;
         case VARIABLE_PATH:
-            // VARIABLE_PATH is valid only when explicitly required
-            return currentBeanType == BEANTYPE.VARIABLE_PATH;
+            return currentBeanType == BEANTYPE.VARIABLE_PATH || currentBeanType == BEANTYPE.VARIABLE_PATH_LEGACY;
+        case VARIABLE_PATH_LEGACY:
+            return currentBeanType == BEANTYPE.VARIABLE_PATH_LEGACY;
         case VARIABLE_PATH_ARRAY:
             // VARIABLE_PATH_ARRAY is valid only when explicitly required
             return currentBeanType == BEANTYPE.VARIABLE_PATH_ARRAY;

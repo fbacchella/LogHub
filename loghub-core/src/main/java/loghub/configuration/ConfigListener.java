@@ -1055,24 +1055,16 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>The default implementation does nothing.</p>
-     *
-     * @param ctx
-     */
     @Override
-    public void exitEventVariableBean(RouteParser.EventVariableBeanContext ctx) {
-        VariablePath vp = null;
-        if (ctx.fev != null) {
-            vp = convertEventVariable(ctx.fev);
-        } else if (ctx.fsv != null) {
-            // Removed the String litteral
-            stack.pop();
-            vp = VariablePath.parse(ctx.fsv.getText());
-        }
-        assert vp != null;
+    public void exitEventVariablePath(RouteParser.EventVariablePathContext ctx) {
+        VariablePath vp = convertEventVariable(ctx.eventVariable());;
+        stack.pushWrapped(vp);
+    }
+
+    @Override
+    public void exitEventVariablePathLegacy(RouteParser.EventVariablePathLegacyContext ctx) {
+        ObjectWrapped<String> vpString = stack.popTyped();
+        VariablePath vp = VariablePath.parse(vpString.wrapped);
         stack.pushWrapped(vp);
     }
 
