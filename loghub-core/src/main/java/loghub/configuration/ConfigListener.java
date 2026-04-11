@@ -72,7 +72,6 @@ import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
 import loghub.RouteParser.LogContext;
 import loghub.RouteParser.MapContext;
-import loghub.RouteParser.MergeArgumentContext;
 import loghub.RouteParser.MergeContext;
 import loghub.RouteParser.NullLiteralContext;
 import loghub.RouteParser.ObjectContext;
@@ -364,13 +363,6 @@ class ConfigListener extends RouteBaseListener {
         doBean(beanName, beanValue, ctx);
     }
 
-    @Override
-    public void exitMergeArgument(MergeArgumentContext ctx) {
-        String beanName = ctx.type.getText();
-        Object beanValue = stack.popWrapped();
-        doBean(beanName, beanValue, ctx);
-    }
-
     private void doBean(String beanName, Object beanValue, ParserRuleContext ctx) {
         ObjectWrapped<Object> beanObject = stack.peekTyped();
         Object value;
@@ -389,7 +381,19 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterMerge(MergeContext ctx) {
-        stack.push(new ObjectWrapped<>(new Merge()));
+        stack.push(getObject("loghub.processors.Merge", ctx));
+    }
+
+    @Override
+    public void exitMerge(MergeContext ctx) {
+        ObjectWrapped<Merge.Builder> wbuilder = stack.popTyped();
+        try {
+            Merge created = wbuilder.wrapped.build();
+            stack.push(new ObjectWrapped<>(created));
+        } catch (Exception e) {
+            logger.atDebug().withThrowable(e).log("Unable to build object {}: {}", wbuilder.wrapped::getClass, () -> Helpers.resolveThrowableException(e));
+            throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+        }
     }
 
     ObjectWrapped<Object> getObject(String qualifiedName, ParserRuleContext ctx) {

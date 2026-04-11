@@ -7,13 +7,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.antlr.v4.runtime.RecognitionException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 import org.msgpack.jackson.dataformat.ExtensionTypeCustomDeserializers;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.msgpack.jackson.dataformat.MessagePackMapper;
@@ -51,9 +51,11 @@ public class TestMsgpack {
 
     @Test
     public void testParsingFailedBadBean() {
-        RecognitionException ex = Assert.assertThrows(RecognitionException.class, () -> ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { notbean: 1}}}",
-                RouteParser::output));
-        Assert.assertEquals("Unknown bean 'notbean' for loghub.encoders.Msgpack", ex.getMessage());
+        ThrowingRunnable parserFunction = () -> ConfigurationTools.parseFragment(
+                "output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { notbean: 1}}}",
+                RouteParser::output);
+        ConfigException ex = Assert.assertThrows(ConfigException.class, parserFunction);
+        Assert.assertEquals("Unknown bean 'notbean'", ex.getMessage());
     }
 
     @Test

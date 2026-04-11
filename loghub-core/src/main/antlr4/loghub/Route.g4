@@ -76,38 +76,33 @@ beansDescription
 // All defined bean names must be replicated as identifier
 bean
     : {inSection(SECTION.INPUT)}?    (bn='decoder' ':' object)
-    | {inSection(SECTION.PIPELINE)}? (bn='if' ':' expression)
-    | {inSection(SECTION.PIPELINE)}? (bn='fields' ':' array)
-    | {inSection(SECTION.PIPELINE)}? (bn='destinationTemplate' ':' stringLiteral)
     | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
-    | (bn='sslContext' ':' {filter.enterImplicitObject($bn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
-    | (bn='sslParams' ':' {filter.enterImplicitObject($bn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
-    | (beanName ':' beanValue {filter.cleanBeanType();})
+    | (beanName ':' beanValue {filter.exitBean($ctx.beanValue());})
     ;
 
 beanName
-    : identifier {filter.resolveBeanType($identifier.text);}
+    : identifier {filter.enterBean(this, $ctx, $identifier.text);}
     ;
 
 beanValue
     : nullLiteral
-    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH)}? eventVariablePath
-    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH_LEGACY)}? eventVariablePathLegacy
-    | {filter.allowedBeanType(BEANTYPE.PROCESSOR)}? pipenode
-    | {filter.allowedBeanType(BEANTYPE.OBJECT)}? object
     | {filter.allowedBeanType(BEANTYPE.INTEGER)}? integerLiteral
-    | {filter.allowedBeanType(BEANTYPE.IMPLICIT_OBJECT)}? implicitObject
     | {filter.allowedBeanType(BEANTYPE.FLOAT)}? floatingPointLiteral
     | {filter.allowedBeanType(BEANTYPE.CHARACTER)}? characterLiteral
     | {filter.allowedBeanType(BEANTYPE.STRING)}? stringLiteral
     | {filter.allowedBeanType(BEANTYPE.BOOLEAN)}? booleanLiteral
     | {filter.allowedBeanType(BEANTYPE.SECRET)}? secret
-    | {filter.allowedBeanType(BEANTYPE.LAMBDA)}? lambda
-    | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
-    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH_ARRAY)}? vparray
     | {filter.allowedBeanType(BEANTYPE.ARRAY)}? array
+    | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
+    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH)}? eventVariablePath
+    | {filter.allowedBeanType(BEANTYPE.OBJECT)}? object
+    | {filter.allowedBeanType(BEANTYPE.PROCESSOR)}? pipenode
+    | {filter.allowedBeanType(BEANTYPE.LAMBDA)}? lambda
+    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH_LEGACY)}? eventVariablePathLegacy
     | {filter.allowedBeanType(BEANTYPE.OPTIONAL_ARRAY)}? (stringLiteral | array)
+    | {filter.allowedBeanType(BEANTYPE.IMPLICIT_OBJECT)}? implicitObject
     | {filter.allowedBeanType(BEANTYPE.MAP)}? map
+    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH_ARRAY)}? vparray
     ;
 
 eventVariablePath
@@ -123,21 +118,7 @@ finalpiperef: piperef;
 piperef:  identifier;
 
 merge
-    : 'merge' '{' (mergeArgument (',' mergeArgument)*)? ','? '}'
-    ;
-
-mergeArgument
-    : type='if' ':' expression
-    | type='index' ':' expression
-    | type='seeds' ':' map
-    | type='doFire' ':' expression
-    | type='onFire' ':' pipenode
-    | type='onExpiration' ':' pipenode
-    | type='expiration' ':' (integerLiteral | floatingPointLiteral)
-    | type='forward' ':' booleanLiteral
-    | type='default' ':' beanValue
-    | type='inPipeline' ':' stringLiteral
-    | type='defaultMeta' ':' beanValue
+    : 'merge' {filter.enterObject("loghub.processors.Merge");} beansDescription?
     ;
 
 mapping
@@ -165,12 +146,8 @@ level
     ;
 
 property
-    : (pn='http.sslContext' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
-    | (pn='http.sslParams' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
-    | (pn='jmx.sslContext' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
-    | (pn='jmx.sslParams' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
-    | (pn='plugins' ':' {filter.checkProperty($pn.text);} beanValue {filter.cleanBeanType(); filter.refreshIncludes($ctx.beanValue());})
-    | (propertyName ':' {filter.checkProperty($propertyName.text);} beanValue {filter.cleanBeanType();})
+    : (pn='plugins' ':' {filter.enterProperty($pn.text);} beanValue {filter.exitProperty($ctx.beanValue()); filter.refreshIncludes($ctx.beanValue());})
+    | (propertyName ':' {filter.enterProperty($propertyName.text);} beanValue {filter.exitProperty($ctx.beanValue());})
     ;
 
 propertyName
@@ -283,7 +260,7 @@ vparray
     ;
 
 array
-    : '[' arrayContent ']'
+    : {filter.enterArray();} '[' arrayContent ']' {filter.exitArray();}
     | source
     ;
 
@@ -293,7 +270,7 @@ arrayContent:
     ;
 
 map
-    : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
+    : {filter.enterMap();} '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}' {filter.exitMap();}
     | source
     ;
 
@@ -316,8 +293,7 @@ sourcedef
     ;
 
 identifier
-    : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'foreach' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
-    | 'sslContext' | 'sslParams'
+    : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'foreach' | 'bean' | 'input' | 'in' | 'decoder'
     | 'if' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map' | 'plugins'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'

@@ -173,7 +173,17 @@ public class TestConfigurations {
 
     @Test
     public void testArray() throws ConfigException, IOException, ProcessorException {
-        Properties p = Tools.loadConf("array.conf", false);
+        String arrayConf = """
+        pipeline[main] {
+            loghub.processors.SyslogPriority {
+                fields: [ "a", "b" ],
+            } |
+            loghub.configuration.TestConfigurations$TestArrayProcessor {
+                expressions: [ [a], [b] ],
+            }
+        }
+        """;
+        Properties p = Configuration.parse(new StringReader(arrayConf));
         List<Processor> main = p.namedPipeLine.get("main").processors;
         SyslogPriority pr = (SyslogPriority) main.get(0);
         String[] fields = pr.getFields();
@@ -279,7 +289,7 @@ public class TestConfigurations {
                     "}\n";
             Configuration.parse(new StringReader(confile));
         });
-        Assert.assertEquals("Unknown bean 'bad' for loghub.processors.Identity", ex.getMessage());
+        Assert.assertEquals("Unknown bean 'bad'", ex.getMessage());
     }
 
     @Test
@@ -428,13 +438,18 @@ public class TestConfigurations {
 
     @Test
     public void testSet() throws ConfigException, IOException {
-        String confile = "pipeline[main] {\n" +
-                                 "[related ip] = set() |" +
-                                 "[related ip] =+ \"127.0.0.1\" |" +
-                                 "[related ip] =+ \"127.0.0.1\" |" +
-                                 "[related ip] =+ \"127.0.0.2\" |" +
-                                 "    loghub.processors.Map { field: [related ip], lambda: x -> (java.net.InetAddress) x,  }\n" +
-                                 "}\n";
+        String confile = """
+            pipeline[main] {
+                [related ip] = set() |
+                [related ip] =+ "127.0.0.1" |
+                [related ip] =+ "127.0.0.1" |
+                [related ip] =+ "127.0.0.2" |
+                    loghub.processors.Map {
+                        field: [related ip],
+                        lambda: x -> (java.net.InetAddress) x,
+                    }
+                }
+        """;
         Properties  p = Configuration.parse(new StringReader(confile));
         Event ev = factory.newEvent();
         Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);

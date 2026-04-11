@@ -1,26 +1,29 @@
 package loghub.configuration;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLParameters;
 
+import org.antlr.v4.runtime.NoViableAltException;
+import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.RuleContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,6 +34,7 @@ import loghub.Helpers;
 import loghub.Lambda;
 import loghub.Processor;
 import loghub.RouteParser;
+import loghub.RouteParser.BeanNameContext;
 import loghub.VariablePath;
 import loghub.decoders.Decoder;
 import loghub.encoders.Encoder;
@@ -68,7 +72,8 @@ public class GrammarParserFiltering {
         BOOLEAN,
         CHARACTER,
         STRING,
-        OBJECT,
+        OBJECT,       // A loghub object
+        OBJECT_CLASS, // An Object class
         IMPLICIT_OBJECT,
         MAP,
         LITERAL,
@@ -80,6 +85,8 @@ public class GrammarParserFiltering {
         VARIABLE_PATH_LEGACY,
         VARIABLE_PATH_ARRAY,
         PROCESSOR,
+        // A wild card type, typically used with properties
+        ANY,
     }
 
     private static final Map<String, String> IMPLICIT_OBJECT = Map.ofEntries(
@@ -91,9 +98,13 @@ public class GrammarParserFiltering {
         Map.entry("jmx.sslParams", SSLParameters.class.getName())
     );
 
+    private static final Set<String> LEGACY_FIELDS = Set.of("field", "destination", "path");
+
     private final Map<String, BEANTYPE> propertiesTypes = new HashMap<>();
+    private final Map<String, BEANTYPE> propertiesArrayTypes = new HashMap<>();
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();
-    private BEANTYPE currentBeanType = null;
+    private final ArrayDeque<BEANTYPE> beantypes = new ArrayDeque<>();
+    private BEANTYPE currentArrayType = null;
     @Getter
     private ClassLoader classLoader;
     @Getter
@@ -102,6 +113,9 @@ public class GrammarParserFiltering {
     private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets = new HashMap<>();
     private final Set<String> undeclaredProperties = new HashSet<>();
 
+    private boolean inProperty = false;
+    private boolean inMap = false;
+
     public GrammarParserFiltering() {
         classLoader = GrammarParserFiltering.class.getClassLoader();
         refreshPropertiesTypes();
@@ -109,24 +123,53 @@ public class GrammarParserFiltering {
 
     private void refreshPropertiesTypes() {
         undeclaredProperties.clear();
-        Properties ptypes = new Properties();
-        classLoader.resources("propertiestype.properties").forEach(p -> {
-            try (InputStream is = p.openStream()) {
-                ptypes.load(is);
-            } catch (IOException e) {
-                // Ignored
-            }
-        });
-        ptypes.forEach((k, v) -> {
-            String propName = k.toString();
-            BEANTYPE propType = BEANTYPE.valueOf(v.toString().toUpperCase(Locale.US));
-            propertiesTypes.put(propName, propType);
-        });
+        propertiesTypes.clear();
+        propertiesArrayTypes.clear();
+        classLoader.resources("propertiestype.properties").forEach(this::readProperties);
     }
 
-    public void enterObject(String objectName) {
+    private void readProperties(URL p) {
+        try (InputStream is = p.openStream()) {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank() || line.startsWith("#") || line.startsWith("!")) {
+                    continue;
+                }
+                String[] propkv = split(line, '=');
+                if (propkv.length != 2) {
+                    continue;
+                }
+                String propName = propkv[0];
+                String propTypeValue = propkv[1];
+                String[] propTypeSubtypeValue = split(propTypeValue, '/');
+                BEANTYPE type = BEANTYPE.valueOf(propTypeSubtypeValue[0]);
+                propertiesTypes.put(propName, type);
+                if (propTypeSubtypeValue.length == 2) {
+                    propertiesArrayTypes.put(propName, BEANTYPE.valueOf(propTypeSubtypeValue[1]));
+                } else if (type == BEANTYPE.ARRAY || type == BEANTYPE.OPTIONAL_ARRAY) {
+                    propertiesArrayTypes.put(propName, BEANTYPE.STRING);
+                }
+            }
+        } catch (IOException ex) {
+            logger.error("Failed to read {}", p);
+        }
+    }
+
+    private String[] split(String s, char c) {
+        int pos = s.indexOf(c);
+        if (pos < 0) {
+            return new String[]{s};
+        } else {
+            String s1 = s.substring(0, pos).strip();
+            String s2 = s.substring(pos + 1).strip();
+            return new String[]{s1, s2};
+        }
+    }
+
+    public void enterObject(String objectIdentifier) {
         try {
-            Class<?> objectClass = classLoader.loadClass(objectName);
+            Class<?> objectClass = classLoader.loadClass(objectIdentifier);
             BuilderClass bca = objectClass.getAnnotation(BuilderClass.class);
             if (bca != null) {
                 objectClass = bca.value();
@@ -142,124 +185,158 @@ public class GrammarParserFiltering {
         objectStack.pop();
     }
 
-    public void enterImplicitObject(String beanName) {
-        currentBeanType = BEANTYPE.IMPLICIT_OBJECT;
+    public void enterBean(Parser parser, BeanNameContext ctx, String beanName) {
         if (IMPLICIT_OBJECT.containsKey(beanName)) {
+            beantypes.push(BEANTYPE.IMPLICIT_OBJECT);
             enterObject(IMPLICIT_OBJECT.get(beanName));
         } else {
-            throw new ConfigException("Not handled bean " + beanName);
-        }
-    }
-
-    public void exitImplicitObject(RouteParser.BeanValueContext value) {
-        currentBeanType = null;
-        implicitObjets.put(value, objectStack.peek());
-        exitObject();
-    }
-
-    public void resolveBeanType(String beanName) {
-        Class<?> currentClass = objectStack.isEmpty() ? null : objectStack.peek();
-        Method m;
-        if (currentClass != null && ! Object.class.equals(currentClass)) {
-            m = manager.getBean(objectStack.peek(), beanName);
-        } else {
-            m = null;
-        }
-        if (m != null) {
-            Class<?> clazz = m.getParameterTypes()[0];
-            if (clazz == Integer.TYPE || Integer.class.equals(clazz)) {
-                currentBeanType = BEANTYPE.INTEGER;
-            } else if (clazz == Double.TYPE || Double.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.FLOAT;
-            } else if (clazz == Float.TYPE || Float.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.FLOAT;
-            } else if (clazz == Byte.TYPE || Byte.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.INTEGER;
-            } else if (clazz == Long.TYPE || Long.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.INTEGER;
-            } else if (clazz == Short.TYPE || Short.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.INTEGER;
-            } else if (clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.BOOLEAN;
-            } else if (clazz == Character.TYPE || Character.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.CHARACTER;
-            } else if (String.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.STRING;
-            } else if (VariablePath[].class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.VARIABLE_PATH_ARRAY;
-            } else if (clazz.isArray()) {
-                currentBeanType =  BEANTYPE.ARRAY;
-            } else if (clazz.isEnum()) {
-                currentBeanType =  BEANTYPE.ENUM;
-            } else if (Expression.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.EXPRESSION;
-            } else if (Lambda.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.LAMBDA;
-            } else if (VariablePath.class.equals(clazz) && List.of("field", "destination", "path").contains(beanName)) {
-                // Only a few beans take a string for legacy configuration compatibility
-                currentBeanType =  BEANTYPE.VARIABLE_PATH_LEGACY;
-            } else if (VariablePath.class.equals(clazz)) {
-                currentBeanType =  BEANTYPE.VARIABLE_PATH;
-            } else if (Processor.class.isAssignableFrom(clazz)) {
-                currentBeanType =  BEANTYPE.PROCESSOR;
-            } else if (Map.class.isAssignableFrom(clazz)) {
-                currentBeanType =  BEANTYPE.MAP;
-            } else if (Encoder.class.isAssignableFrom(clazz)) {
-                currentBeanType =  BEANTYPE.OBJECT;
-            } else if (Decoder.class.isAssignableFrom(clazz)) {
-                currentBeanType =  BEANTYPE.OBJECT;
+            Class<?> currentClass = objectStack.isEmpty() ? null : objectStack.peek();
+            Method m;
+            if (currentClass != null && ! Object.class.equals(currentClass)) {
+                m = manager.getBean(objectStack.peek(), beanName);
             } else {
-                throw new IllegalStateException("Unhandled class " + clazz);
+                m = null;
             }
+            if (m != null) {
+                Class<?> clazz = m.getParameterTypes()[0];
+                if (VariablePath.class.equals(clazz) && LEGACY_FIELDS.contains(beanName)) {
+                    // Only a few beans take a string for legacy configuration compatibility
+                    beantypes.push(BEANTYPE.VARIABLE_PATH_LEGACY);
+                } else {
+                    beantypes.push(resolveType(clazz));
+                }
+            } else {
+                beantypes.clear();
+                NoViableAltException ex = new NoViableAltException(parser) {{
+                    this.setOffendingToken(ctx.getStart());
+                }};
+                parser.notifyErrorListeners(ctx.getStart(), "Unknown bean '%s'".formatted(beanName), ex);
+            }
+        }
+    }
+
+    private BEANTYPE resolveType(Class<?> clazz) {
+        if (clazz == Integer.TYPE || Integer.class.equals(clazz)) {
+            return BEANTYPE.INTEGER;
+        } else if (clazz == Double.TYPE || Double.class.equals(clazz)) {
+            return  BEANTYPE.FLOAT;
+        } else if (clazz == Float.TYPE || Float.class.equals(clazz)) {
+            return  BEANTYPE.FLOAT;
+        } else if (clazz == Byte.TYPE || Byte.class.equals(clazz)) {
+            return  BEANTYPE.INTEGER;
+        } else if (clazz == Long.TYPE || Long.class.equals(clazz)) {
+            return  BEANTYPE.INTEGER;
+        } else if (clazz == Short.TYPE || Short.class.equals(clazz)) {
+            return  BEANTYPE.INTEGER;
+        } else if (clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
+            return  BEANTYPE.BOOLEAN;
+        } else if (clazz == Character.TYPE || Character.class.equals(clazz)) {
+            return BEANTYPE.CHARACTER;
+        } else if (String.class.equals(clazz)) {
+            return BEANTYPE.STRING;
+        } else if (VariablePath[].class.equals(clazz)) {
+            return BEANTYPE.VARIABLE_PATH_ARRAY;
+        } else if (clazz.isArray() && currentArrayType == null) {
+            // Array can't be nested
+            currentArrayType = resolveType(clazz.getComponentType());
+            return BEANTYPE.ARRAY;
+        } else if (clazz.isEnum()) {
+            return BEANTYPE.ENUM;
+        } else if (Expression.class.equals(clazz)) {
+            return BEANTYPE.EXPRESSION;
+        } else if (Lambda.class.equals(clazz)) {
+            return BEANTYPE.LAMBDA;
+        } else if (VariablePath.class.equals(clazz)) {
+            return BEANTYPE.VARIABLE_PATH;
+        } else if (Object.class.equals(clazz)) {
+            return BEANTYPE.OBJECT_CLASS;
+        } else if (Processor.class.isAssignableFrom(clazz)) {
+            return BEANTYPE.PROCESSOR;
+        } else if (Map.class.isAssignableFrom(clazz)) {
+            return BEANTYPE.MAP;
+        } else if (Encoder.class.isAssignableFrom(clazz)) {
+            return BEANTYPE.OBJECT;
+        } else if (Decoder.class.isAssignableFrom(clazz)) {
+            return BEANTYPE.OBJECT;
         } else {
-            currentBeanType =  null;
+            throw new IllegalStateException("Unhandled class " + clazz);
         }
     }
 
     public boolean allowedBeanType(BEANTYPE proposition) {
-        if (currentBeanType == BEANTYPE.MAP || currentBeanType == BEANTYPE.ARRAY) {
-            return proposition != BEANTYPE.PROCESSOR
-                   && proposition != BEANTYPE.VARIABLE_PATH_LEGACY
-                   && proposition != BEANTYPE.VARIABLE_PATH_ARRAY
-                   && proposition != BEANTYPE.IMPLICIT_OBJECT
-                   && proposition != BEANTYPE.OPTIONAL_ARRAY;
+        BEANTYPE currentBeanType = beantypes.peek();
+        return switch (currentBeanType) {
+            case BEANTYPE.MAP ->
+                    proposition != BEANTYPE.PROCESSOR && proposition != BEANTYPE.VARIABLE_PATH_LEGACY && proposition != BEANTYPE.VARIABLE_PATH_ARRAY && proposition != BEANTYPE.IMPLICIT_OBJECT && proposition != BEANTYPE.OPTIONAL_ARRAY;
+            case BEANTYPE.IMPLICIT_OBJECT -> proposition == BEANTYPE.IMPLICIT_OBJECT;
+            default -> currentBeanType == proposition || checkCompatibleType(currentBeanType, proposition);
+        };
+    }
+
+    private boolean checkCompatibleType(BEANTYPE assignationType, BEANTYPE proposition) {
+        // an Object as assignationType accepts any litteral
+        if (assignationType == BEANTYPE.OBJECT_CLASS) {
+            return proposition != BEANTYPE.IMPLICIT_OBJECT
+                   && proposition != BEANTYPE.OBJECT
+                   && proposition != BEANTYPE.LAMBDA
+                   && proposition != BEANTYPE.OPTIONAL_ARRAY
+                   && proposition != BEANTYPE.PROCESSOR;
         }
+        // The cas were the proposition matches the expected type was already checked only compatible assignations
+        // are checked here
         switch (proposition) {
+        case EXPRESSION, LAMBDA, PROCESSOR:
+            // some constructions make no sense in properties
+            return assignationType == BEANTYPE.ANY && ! inProperty;
         case INTEGER:
             // A float bean can accept integer or float values
-            return currentBeanType == null || currentBeanType == BEANTYPE.INTEGER || currentBeanType == BEANTYPE.FLOAT;
-        case OPTIONAL_ARRAY:
-            // Only allowed when explicitly required
-            return currentBeanType == proposition;
+            return assignationType == BEANTYPE.FLOAT || assignationType == BEANTYPE.ANY;
         case STRING:
-            // String is also valid for an Enum type or a VariablePath
-            return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.ENUM;
+            // String is also valid for an Enum type
+            return assignationType == BEANTYPE.ENUM || assignationType == BEANTYPE.ANY;
         case SECRET:
-            return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.STRING;
-        case EXPRESSION:
-            return currentBeanType != BEANTYPE.VARIABLE_PATH && (currentBeanType == null || currentBeanType == proposition);
-        case IMPLICIT_OBJECT:
-            return currentBeanType == BEANTYPE.IMPLICIT_OBJECT;
-        case VARIABLE_PATH:
-            return currentBeanType == BEANTYPE.VARIABLE_PATH || currentBeanType == BEANTYPE.VARIABLE_PATH_LEGACY;
-        case VARIABLE_PATH_LEGACY:
-            return currentBeanType == BEANTYPE.VARIABLE_PATH_LEGACY;
+            return assignationType == BEANTYPE.STRING || assignationType == BEANTYPE.ANY;
         case VARIABLE_PATH_ARRAY:
-            // VARIABLE_PATH_ARRAY is valid only when explicitly required
-            return currentBeanType == BEANTYPE.VARIABLE_PATH_ARRAY;
+            return assignationType == BEANTYPE.VARIABLE_PATH_ARRAY || assignationType == BEANTYPE.VARIABLE_PATH;
+        case VARIABLE_PATH:
+            return assignationType == BEANTYPE.VARIABLE_PATH_LEGACY && ! inProperty;
+        case IMPLICIT_OBJECT:
+            // implicit type is allowed only when explicitely requested
+            return false;
         default:
-            return currentBeanType == null || currentBeanType == proposition;
+            // Default is to accept only itself, already checked, so it must fail now
+            // unless if it's the jocker type
+            return assignationType == BEANTYPE.ANY;
         }
     }
 
-    public void cleanBeanType() {
-        currentBeanType = null;
+    public void exitBean(RouteParser.BeanValueContext value) {
+        BEANTYPE previousType = beantypes.pop();
+        if (previousType == BEANTYPE.IMPLICIT_OBJECT) {
+            implicitObjets.put(value, objectStack.pop());
+        }
+        currentArrayType = null;
     }
 
-    public void checkProperty(String propertyName) {
-        currentBeanType = propertiesTypes.get(propertyName);
-        if (currentBeanType == null) {
+    public void enterProperty(String propertyName) {
+        if (IMPLICIT_OBJECT.containsKey(propertyName)) {
+            beantypes.push(BEANTYPE.IMPLICIT_OBJECT);
+            enterObject(IMPLICIT_OBJECT.get(propertyName));
+        } else {
+            beantypes.push(propertiesTypes.getOrDefault(propertyName, BEANTYPE.ANY));
+            currentArrayType = propertiesArrayTypes.getOrDefault(propertyName, BEANTYPE.ANY);
+        }
+        if (! propertiesTypes.containsKey(propertyName)) {
             undeclaredProperties.add(propertyName);
+        }
+        inProperty = true;
+    }
+
+    public void exitProperty(RouteParser.BeanValueContext value) {
+        inProperty = false;
+        BEANTYPE previousType = beantypes.pop();
+        if (previousType == BEANTYPE.IMPLICIT_OBJECT) {
+            implicitObjets.put(value, objectStack.pop());
         }
     }
 
@@ -323,6 +400,22 @@ public class GrammarParserFiltering {
                   .log("Unusable plugin {}: {}", () -> tryPath, () -> Helpers.resolveThrowableException(ex));
             return null;
         }
+    }
+
+    public void enterArray() {
+        beantypes.push(Optional.ofNullable(currentArrayType).orElse(BEANTYPE.ANY));
+    }
+
+    public void exitArray() {
+        beantypes.pop();
+    }
+
+    public void enterMap() {
+        beantypes.push(BEANTYPE.ANY);
+    }
+
+    public void exitMap() {
+        beantypes.pop();
     }
 
 }
