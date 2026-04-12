@@ -35,7 +35,24 @@ public class Nsca extends Sender {
         private int timeout = -1;
         private boolean largeMessageSupport = false;
         private String encryption = null;
-        private Map<String, Object> mapping;
+        private EnumMap<FIELDS, Expression> mapping = new EnumMap<>(FIELDS.class);
+
+        public void setMappingHost(Expression mappingHost) {
+            this.mapping.put(FIELDS.HOST, mappingHost);
+        }
+
+        public void setMappingMessage(Expression mappingMessage) {
+            this.mapping.put(FIELDS.MESSAGE, mappingMessage);
+        }
+
+        public void setMappingLevel(Expression mappingLevel) {
+            this.mapping.put(FIELDS.LEVEL, mappingLevel);
+        }
+
+        public void setMappingService(Expression mappingService) {
+            this.mapping.put(FIELDS.SERVICE, mappingService);
+        }
+
         @Override
         public Nsca build() {
             return new Nsca(this);
@@ -54,11 +71,11 @@ public class Nsca extends Sender {
     private static final List<FIELDS> MAPFIELDS = Arrays.stream(FIELDS.values()).toList();
 
     private final NagiosPassiveCheckSender sender;
-    private final EnumMap<FIELDS, Expression> mappings = new EnumMap<>(FIELDS.class);
+    private final EnumMap<FIELDS, Expression> mappings;
     private final String name;
     public Nsca(Builder builder) {
         super(builder);
-        builder.mapping.forEach((k, v) -> mappings.put(FIELDS.valueOf(k.toUpperCase()), convertToExpression(v)));
+        mappings = builder.mapping;
         NagiosSettings settings = new NagiosSettings();
         if (builder.port > 0) {
             settings.setPort(builder.port);
@@ -83,14 +100,6 @@ public class Nsca extends Sender {
         logger.debug("Configuring a nagios server {}", settings);
         sender = new NagiosPassiveCheckSender(settings);
         name = "NSCA/" + builder.nagiosServer;
-    }
-
-    private Expression convertToExpression(Object v) {
-        return switch (v) {
-            case Expression e -> e;
-            case VariablePath vp -> new Expression(vp);
-            default -> new Expression(v);
-        };
     }
 
     @Override

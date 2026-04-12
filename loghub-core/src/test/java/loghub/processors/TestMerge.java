@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -17,6 +18,7 @@ import org.junit.Test;
 import loghub.AsyncProcessor;
 import loghub.DiscardedEventException;
 import loghub.Helpers;
+import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Configuration;
@@ -32,20 +34,28 @@ public class TestMerge {
     public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Merge", "loghub.EventsRepository");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Merge", "loghub.EventsRepository", "loghub.pipeline.main");
     }
 
     @SuppressWarnings("rawtypes")
     @Test
     public void test() throws Throwable {
-        String conf = "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>', \"f\": {}}, doFire: [a] >= 2, forward: false}}";
-
+        String conf = """
+        pipeline[main] {
+            merge {
+                index: "${e%s}",
+                seeds: {"a": 0, "b": ",", "d": 0.0, "e": null, "c": [], "count": 'c', "@timestamp": '>', "f": {}},
+                doFire: [a] >= 2,
+                forward: false
+            }
+        }
+        """;
         Properties p = Configuration.parse(new StringReader(conf));
         Helpers.parallelStartProcessor(p);
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
 
         List<Event> events = new ArrayList<>();
-        Assert.assertFalse(m.process(factory.newEvent()));
+        Assert.assertThrows(IgnoredEventException.class, () -> m.process(factory.newEvent()));
 
         Event e1 = factory.newEvent();
         e1.setTimestamp(new Date(0));
@@ -84,16 +94,23 @@ public class TestMerge {
         Assert.assertTrue(((Map) e.get("f")).get(".f") instanceof List);
         Assert.assertEquals(1, e.getTimestamp().getTime());
         Assert.assertEquals(7, e.getMeta("g"));
-
     }
 
     @Test(timeout = 5000)
     public void testExpiration() throws Throwable {
-        String conf = "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, expiration: 1 }}";
+        String conf = """
+        pipeline[main] {
+            merge {
+                index: "${e%s}",
+                seeds: {"a": 0, "b": ",", "e": 'c', "c": [], "@timestamp": null},
+                expiration: 1,
+            }
+        }
+        """;
 
         Properties p = Configuration.parse(new StringReader(conf));
         Helpers.parallelStartProcessor(p);
-        Merge m = (Merge) p.namedPipeLine.get("main").processors.get(0);
+        Merge m = (Merge) p.namedPipeLine.get("main").processors.getFirst();
         Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
         e.put("a", 1);
@@ -103,14 +120,23 @@ public class TestMerge {
         e.put("e", "5");
         AsyncProcessor.PausedEventException ex = Assert.assertThrows(AsyncProcessor.PausedEventException.class, () -> m.process(e));
         Assert.assertNull(ex.getFuture());
-        Thread.sleep(2000);
         // Will throw exception if event was not fired
-        p.mainQueue.element();
+        p.mainQueue.poll(5, TimeUnit.SECONDS);
     }
 
     @Test
     public void testDefault() throws Throwable {
-        String conf = "pipeline[main] { merge {index: \"${e%s}\", doFire: true, default: \",\", onFire: [f] = 1, forward: true}}";
+        String conf = """
+        pipeline[main] {
+            merge {
+                index: "${e%s}",
+                doFire: true,
+                default: ",",
+                onFire: [f] = 1,
+                forward: true
+            }
+        }
+        """;
 
         Properties p = Configuration.parse(new StringReader(conf));
         Helpers.parallelStartProcessor(p);

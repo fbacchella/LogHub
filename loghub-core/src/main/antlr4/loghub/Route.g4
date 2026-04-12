@@ -270,7 +270,7 @@ arrayContent:
     ;
 
 map
-    : {filter.enterMap();} '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}' {filter.exitMap();}
+    : {filter.enterMap();} '{' ((literal | eventVariablePath) ':' beanValue ( ',' ? (literal | eventVariablePath) ':' beanValue)*)? ','? '}' {filter.exitMap();}
     | source
     ;
 

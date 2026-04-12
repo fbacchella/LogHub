@@ -1,20 +1,26 @@
 package loghub.processors;
 
+import java.lang.reflect.Array;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.function.BinaryOperator;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 import loghub.AsyncProcessor;
+import loghub.BuilderClass;
 import loghub.DiscardedEventException;
 import loghub.EventsRepository;
 import loghub.Expression;
@@ -24,34 +30,69 @@ import loghub.NullOrMissingValue;
 import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
-import lombok.Getter;
 import lombok.Setter;
 
+@BuilderClass(Merge.Builder.class)
 public class Merge extends Processor {
+
+    public static class Builder extends Processor.Builder<Merge> {
+        @Setter
+        private Expression index;
+        @Setter
+        private Expression doFire = null;
+        @Setter
+        private Object defaultSeed = new Object[]{};
+        @Setter
+        private Map<Object, Object> seeds = Collections.emptyMap();
+        @Setter
+        private Processor expirationProcessor = new Identity();
+        @Setter
+        private Processor onFire = new Identity();
+        @Setter
+        private int expiration = Integer.MAX_VALUE;
+        @Setter
+        private boolean forward = false;
+        @Setter
+        private VariablePath durationField = VariablePath.ofMeta("duration");
+
+        public void setDefault(Object defaultSeed) {
+            this.defaultSeed = defaultSeed;
+        }
+
+        public Merge build() {
+            return new Merge(this);
+        }
+    }
+
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
     private enum Cumulator {
         STRING {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 String stringSeed = seed == null ? "" : seed.toString();
                 return (last, next) -> last == null ? String.valueOf(next) : last + stringSeed + next;
             }
         },
         LIST {
             @SuppressWarnings("unchecked")
-            // This method can return the source unmodified
-            // Modifing the returned object must be done with care
             private List<Object> object2list(Object source) {
                 List<Object> newList;
                 if (source == null) {
                     return new ArrayList<>();
-                } else if (source instanceof List) {
-                    return (List<Object>) source;
+                } else if (source instanceof Collection<?> c) {
+                    return new ArrayList<>(c);
                 } else if (source.getClass().isArray()) {
-                    Object[] seedArray = (Object[]) source;
-                    newList = new ArrayList<>(Arrays.asList(seedArray));
+                    int length = Array.getLength(source);
+                    newList = new ArrayList<>(length);
+                    for (int i = 0 ; i < length ; i++) {
+                        newList.add(Array.get(source, i));
+                    }
                 } else {
                     newList = new ArrayList<>();
                     newList.add(source);
@@ -59,7 +100,7 @@ public class Merge extends Processor {
                 return newList;
             }
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 List<Object> listSeed = object2list(seed);
                 return (last, next) -> {
                     List<Object> newList = object2list(last);
@@ -67,6 +108,39 @@ public class Merge extends Processor {
                         newList.addAll(listSeed);
                     }
                     newList.addAll(object2list(next));
+                    return newList;
+                };
+            }
+        },
+        SET {
+            @SuppressWarnings("unchecked")
+            private Set<Object> object2set(Object source) {
+                Set<Object> newList;
+                if (source == null || source instanceof NullOrMissingValue) {
+                    return new LinkedHashSet<>();
+                } else if (source instanceof Collection<?> c) {
+                    return new LinkedHashSet<>(c);
+                } else if (source.getClass().isArray()) {
+                    int length = Array.getLength(source);
+                    newList = LinkedHashSet.newLinkedHashSet(length);
+                    for (int i = 0 ; i < length ; i++) {
+                        newList.add(Array.get(source, i));
+                    }
+                } else {
+                    newList = new LinkedHashSet<>();
+                    newList.add(source);
+                }
+                return newList;
+            }
+            @Override
+            BinaryOperator<Object> cumulate(Object seed) {
+                Set<Object> listSeed = object2set(seed);
+                return (last, next) -> {
+                    Set<Object> newList = object2set(last);
+                    if (last == null) {
+                        newList.addAll(listSeed);
+                    }
+                    newList.addAll(object2set(next));
                     return newList;
                 };
             }
@@ -87,7 +161,7 @@ public class Merge extends Processor {
             }
             @SuppressWarnings("unchecked")
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 final Map<Object, Object> mapseed = object2Map(seed);
                 return (last, next) -> {
                     Map<Object, Object> newmap = object2Map(last);
@@ -117,19 +191,19 @@ public class Merge extends Processor {
         },
         AND {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> last == null ? toBoolean(next) : Boolean.logicalAnd((boolean) last, toBoolean(next));
             }
         },
         OR {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> last == null ? toBoolean(next) :  Boolean.logicalOr((boolean) last, toBoolean(next));
             }
         },
         ADD {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> {
                     Long lnext = toLong(next);
                     Long llast = toLong(last);
@@ -140,7 +214,7 @@ public class Merge extends Processor {
         },
         MULTIPLY {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> {
                     Long lnext = toLong(next);
                     Long llast = toLong(last);
@@ -151,7 +225,7 @@ public class Merge extends Processor {
         },
         ADDFLOAT {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> {
                     Double dnext = toDouble(next);
                     Double dlast = toDouble(last);
@@ -162,7 +236,7 @@ public class Merge extends Processor {
         },
         MULTIPLYFLOAT {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> {
                     Double dnext = toDouble(next);
                     Double dlast = toDouble(last);
@@ -173,25 +247,25 @@ public class Merge extends Processor {
         },
         LAST {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> next != null ? next : last;
             }
         },
         FIRST {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> last != null ? last : next;
             }
         },
         DROP {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> null;
             }
         },
         COUNT {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> {
                     Long llast = toLong(last);
                     return llast != null ? llast + 1 : 1;
@@ -200,18 +274,18 @@ public class Merge extends Processor {
         },
         DEFAULT {
             @Override
-            BiFunction<Object, Object, Object> cumulate(Object seed) {
+            BinaryOperator<Object> cumulate(Object seed) {
                 return (last, next) -> {
-                    if (next == null) {
+                    if (next == null || next instanceof NullOrMissingValue) {
                         return last;
-                    } else if (last == null) {
+                    } else if (last == null || last instanceof NullOrMissingValue) {
                         return next;
                     } else if (last instanceof String) {
                         return new StringBuilder(last.toString()).append(next);
-                    } else if (last instanceof StringBuilder) {
-                        return ((StringBuilder) last).append(next);
-                    } else if (last instanceof Number && next instanceof Number) {
-                        return ((Number) last).longValue() + ((Number) next).longValue();
+                    } else if (last instanceof StringBuilder sb) {
+                        return sb.append(next);
+                    } else if (last instanceof Number nl && next instanceof Number nn) {
+                        return nl.longValue() + nn.longValue();
                     } else if (last instanceof Date || next instanceof Date) {
                         return new Date();
                     } else {
@@ -222,31 +296,31 @@ public class Merge extends Processor {
         },
         ;
 
-        abstract BiFunction<Object, Object, Object> cumulate(Object seed);
+        abstract BinaryOperator<Object> cumulate(Object seed);
         private static boolean toBoolean(Object o) {
-            if (o == null) {
+            if (o == null || o == NullOrMissingValue.NULL) {
                 return false;
-            } else if (o instanceof Boolean) {
-                return (Boolean) o;
+            } else if (o instanceof Boolean b) {
+                return b;
             } else if (o instanceof String) {
                 return Boolean.parseBoolean(o.toString());
             } else if (o instanceof Integer || o instanceof Long) {
                 return ((Number) o).intValue() != 0;
-            } else if (o instanceof Number) {
-                return ((Number) o).doubleValue() != 0;
+            } else if (o instanceof Number n) {
+                return n.doubleValue() != 0;
             } else {
                 return false;
             }
         }
         private static Long toLong(Object o) {
-            if (o == null) {
+            if (o == null || o == NullOrMissingValue.NULL) {
                 return null;
-            } else if (o instanceof Long) {
-                return (Long) o;
-            } else if (o instanceof Number) {
-                return ((Number) o).longValue();
+            } else if (o instanceof Long l) {
+                return l;
+            } else if (o instanceof Number n) {
+                return n.longValue();
             } else if (o instanceof Boolean) {
-                return (long) (Boolean.TRUE.equals(o) ? 1 : 0);
+                return Boolean.TRUE.equals(o) ? 1L : 0L;
             } else if (o instanceof String) {
                 try {
                     return Long.parseLong(o.toString());
@@ -258,12 +332,12 @@ public class Merge extends Processor {
             }
         }
         private static Double toDouble(Object o) {
-            if (o == null) {
+            if (o == null || o == NullOrMissingValue.NULL) {
                 return null;
-            } else if (o instanceof Double) {
-                return (Double) o;
-            } else if (o instanceof Number) {
-                return ((Number) o).doubleValue();
+            } else if (o instanceof Double d) {
+                return d;
+            } else if (o instanceof Number n) {
+                return n.doubleValue();
             } else if (o instanceof Boolean) {
                 return Boolean.TRUE.equals(o) ? 1.0 : 0.0;
             } else if (o instanceof String) {
@@ -276,26 +350,21 @@ public class Merge extends Processor {
                 return null;
             }
         }
-        static BiFunction<Object, Object, Object> getCumulator(Object o) {
+        static BinaryOperator<Object> getCumulator(Object o) {
             if (o == null || o instanceof NullOrMissingValue) {
                 return Cumulator.DROP.cumulate(o);
             } else if (o instanceof String) {
                 return Cumulator.STRING.cumulate(o);
-            } else if (o instanceof Character) {
-                Character c = (Character) o;
-                switch(c) {
-                case '<':
-                    return Cumulator.FIRST.cumulate(o);
-                case '>':
-                    return Cumulator.LAST.cumulate(o);
-                case 'c':
-                    return Cumulator.COUNT.cumulate(o);
-                default:
-                    return Cumulator.LIST.cumulate(o);
-                }
+            } else if (o instanceof Character c) {
+                return switch (c) {
+                    case '<' -> Cumulator.FIRST.cumulate(o);
+                    case '>' -> Cumulator.LAST.cumulate(o);
+                    case 'c' -> Cumulator.COUNT.cumulate(o);
+                    default -> Cumulator.LIST.cumulate(o);
+                };
             } else if (o instanceof Boolean && Boolean.TRUE.equals(o)) {
                 return Cumulator.AND.cumulate(o);
-            } else if (o instanceof Boolean && Boolean.TRUE.equals(! (Boolean) o)) {
+            } else if (o instanceof Boolean b && Boolean.TRUE.equals(! b)) {
                 return Cumulator.OR.cumulate(o);
             } else if ((o instanceof Integer || o instanceof Long) && ((Number) o).longValue() == 0) {
                 return Cumulator.ADD.cumulate(o);
@@ -305,8 +374,10 @@ public class Merge extends Processor {
                 return Cumulator.ADDFLOAT.cumulate(o);
             } else if ((o instanceof Float || o instanceof Double) && ((Number) o).longValue() == 1) {
                 return Cumulator.MULTIPLYFLOAT.cumulate(o);
-            } else if (o instanceof Collection || o.getClass().isArray()) {
+            } else if (o instanceof List || o.getClass().isArray()) {
                 return Cumulator.LIST.cumulate(o);
+            } else if (o instanceof Set) {
+                return Cumulator.SET.cumulate(o);
             } else if (o instanceof Map) {
                 return Cumulator.MAP.cumulate(o);
             } else if (o instanceof Expression ex) {
@@ -321,7 +392,7 @@ public class Merge extends Processor {
         }
     }
 
-    private static final Function<Event, Event> prepareEvent = i -> {
+    private static final UnaryOperator<Event> prepareEvent = i -> {
         i.forEach((key, value) -> {
             if (value instanceof StringBuilder)
                 i.put(key, value.toString());
@@ -329,35 +400,57 @@ public class Merge extends Processor {
         return i;
     };
 
-    @Getter @Setter
-    private Expression index;
-
-    private Expression fire = null;
-
-    private Object defaultSeedType = new Object[]{};
-
-    @Setter
-    @Getter
-    private Map<String, Object> seeds = Collections.emptyMap();
-    private Map<String, BiFunction<Object, Object, Object>> cumulators;
+    private final Expression index;
+    private final Expression fire;
+    private final BinaryOperator<Object> defaultCumulator;
+    private final Map<VariablePath, Object> seeds;
+    private final Map<VariablePath, BinaryOperator<Object>> cumulators;
     private EventsRepository<Object> repository = null;
-    private Processor expirationProcessor = new Identity();
-    private Processor fireProcessor = new Identity();
-    private int expiration = Integer.MAX_VALUE;
-    private boolean forward = false;
+    private final Processor expirationProcessor;
+    private final Processor fireProcessor;
+    private final int expiration;
+    private final boolean forward;
+    private final VariablePath durationField;
+
+    public Merge(Builder builder) {
+        super(builder);
+        this.index = builder.index;
+        if (index == null) {
+            throw new IllegalArgumentException("Index setting is mandatory");
+        }
+
+        this.fire = builder.doFire;
+        this.defaultCumulator = Cumulator.getCumulator(builder.defaultSeed);
+        this.seeds = builder.seeds.entrySet()
+                                  .stream()
+                                  .collect(Collectors.toMap(
+                                          e -> convertVariablePath(e.getKey()),
+                                          Entry::getValue)
+                                  );
+        cumulators = new ConcurrentHashMap<>(seeds.size() + 1);
+        this.expirationProcessor = builder.expirationProcessor;
+        this.fireProcessor = builder.onFire;
+        this.expiration = builder.expiration;
+        this.forward = builder.forward;
+        // Default to timestamp is to keep the first
+        cumulators.put(VariablePath.TIMESTAMP, Cumulator.FIRST.cumulate(null));
+        for (Entry<VariablePath, Object> i : seeds.entrySet()) {
+            cumulators.put(i.getKey(), Cumulator.getCumulator(i.getValue()));
+        }
+        this.durationField = builder.durationField;
+    }
+
+    private VariablePath convertVariablePath(Object o) {
+        if (o instanceof VariablePath vp) {
+            return vp;
+        } else {
+            return VariablePath.parse(o.toString());
+        }
+    }
 
     @Override
     public boolean configure(Properties properties) {
-        if (index == null) {
-            return false;
-        }
         repository = new EventsRepository<>(properties);
-        cumulators = new ConcurrentHashMap<>(seeds.size() + 1);
-        // Default to timestamp is to keep the first
-        cumulators.put("@timestamp", Cumulator.FIRST.cumulate(null));
-        for (Entry<String, Object> i : seeds.entrySet()) {
-            cumulators.put(i.getKey(), Cumulator.getCumulator(i.getValue()));
-        }
         // Prepare fire only if test and processor given for that
         if (fire != null && fireProcessor != null && ! fireProcessor.configure(properties)) {
             return false;
@@ -373,13 +466,13 @@ public class Merge extends Processor {
         Object eventKey;
         try {
             eventKey = index.eval(event);
-        } catch (IllegalArgumentException | ProcessorException | IgnoredEventException e) {
-            // index key not found or expression failed, not to be merged
+        } catch (ProcessorException e) {
+            // Expression failed, not to be merged
             return false;
         }
         // If the key is null, can't use the event
         if (eventKey == null) {
-            return false;
+            throw IgnoredEventException.INSTANCE;
         }
         logger.trace("key: {} for {}", eventKey, event);
         PausedEvent<Object> current = repository.getOrPause(eventKey, i -> getPausedEvent(event, i));
@@ -387,21 +480,17 @@ public class Merge extends Processor {
         if (event != current.event) {
             synchronized (current) {
                 logger.trace("merging {} in {}", event, current.event);
-                for (Map.Entry<String, Object> i : event.entrySet()) {
-                    String key = i.getKey();
-                    Object last = current.event.get(key) instanceof NullOrMissingValue ? null : current.event.get(key);
-                    Object next = i.getValue() instanceof NullOrMissingValue ? null : i.getValue();
-                    BiFunction<Object, Object, Object> m =  cumulators.computeIfAbsent(key, j -> Cumulator.getCumulator(defaultSeedType));
-                    Object newValue = m.apply(last, next);
-                    if (newValue != null && ! (newValue instanceof NullOrMissingValue)) {
-                        current.event.put(key, newValue);
-                    }
-                }
-                // And don't forget the date, look for the @timestamp cumulator
+                // Ensure that the timestamp is not forgotten
                 Date lastTimestamp = current.event.getTimestamp();
                 Date nextTimestamp = event.getTimestamp();
-                Object newTimestamp = cumulators.get(Event.TIMESTAMPKEY).apply(lastTimestamp, nextTimestamp);
+                Object newTimestamp = cumulators.getOrDefault(VariablePath.TIMESTAMP, (o1, o2) -> o1).apply(lastTimestamp, nextTimestamp);
                 current.event.setTimestamp(newTimestamp);
+                current.event.putAtPath(durationField, Duration.ofMillis(nextTimestamp.getTime() - lastTimestamp.getTime()));
+                event.enumerateAllPaths()
+                     .forEach(vp -> doCumulate(current, event, vp, true));
+                event.getMetaAsStream()
+                     .map(e -> VariablePath.ofMeta(e.getKey()))
+                     .forEach(vp -> doCumulate(current, event, vp, false));
                 if (fire != null) {
                     Object dofire = fire.eval(current.event);
                     if (Boolean.TRUE.equals(dofire)) {
@@ -421,19 +510,23 @@ public class Merge extends Processor {
         }
     }
 
+    private void doCumulate(PausedEvent<Object> current, Event ev, VariablePath vp, boolean useDefault) {
+        Object last = Optional.ofNullable(current.event.getAtPath(vp)).filter(o -> ! (o instanceof NullOrMissingValue)).orElse(null);
+        Object next = Optional.ofNullable(ev.getAtPath(vp)).filter(o -> ! (o instanceof NullOrMissingValue)).orElse(null);
+        if (useDefault || cumulators.containsKey(vp)) {
+            BinaryOperator<Object> m = cumulators.getOrDefault(vp, defaultCumulator);
+            Object newValue = m.apply(last, next);
+            if (newValue != null && ! (newValue instanceof NullOrMissingValue)) {
+                current.event.putAtPath(vp, newValue);
+            }
+        }
+    }
+
     private PausedEvent<Object> getPausedEvent(Event event, Object key) {
         PausedEvent.Builder<Object> builder = PausedEvent.builder(event, key);
-        PausedEvent<Object> pe = builder
-                        .expiration(expiration, TimeUnit.SECONDS).onExpiration(expirationProcessor, prepareEvent)
-                        .onSuccess(fireProcessor, prepareEvent)
-                        .build();
-        // If the cumulators return a value, use it to initialize the new event time stamp
-        // A null seed will keep it the new event timestamp all way long
-        // '<' will keep the initial event timestamp
-        // '>' will use the last event timestamp
-        Object newTimestamp = cumulators.get(Event.TIMESTAMPKEY).apply(event.getTimestamp(), pe.event.getTimestamp());
-        pe.event.setTimestamp(newTimestamp);
-        return pe;
+        return builder.expiration(expiration, TimeUnit.SECONDS).onExpiration(expirationProcessor, prepareEvent)
+                      .onSuccess(fireProcessor, prepareEvent)
+                      .build();
     }
 
     @Override
@@ -445,24 +538,12 @@ public class Merge extends Processor {
         return expirationProcessor;
     }
 
-    public void setOnExpiration(Processor expirationProcessor) {
-        this.expirationProcessor = expirationProcessor;
-    }
-
     public Processor getOnFire() {
         return fireProcessor;
     }
 
-    public void setOnFire(Processor continueProcessor) {
-        this.fireProcessor = continueProcessor;
-    }
-
     public Expression getDoFire() {
         return fire;
-    }
-
-    public void setDoFire(Expression fire) {
-        this.fire = fire;
     }
 
     /**
@@ -473,45 +554,10 @@ public class Merge extends Processor {
     }
 
     /**
-     * @param expiration the expiration duration
-     */
-    public void setExpiration(Integer expiration) {
-        this.expiration = expiration;
-    }
-
-    /**
      * @return the forward
      */
     public Boolean isForward() {
         return forward;
-    }
-
-    /**
-     * @param forward the forward to set
-     */
-    public void setForward(Boolean forward) {
-        this.forward = forward;
-    }
-
-    /**
-     * @return the defaultSeed
-     */
-    public Object getDefault() {
-        return defaultSeedType;
-    }
-
-    /**
-     * @param defaultSeed the defaultSeed to set
-     */
-    public void setDefault(Object defaultSeed) {
-        this.defaultSeedType = defaultSeed;
-    }
-
-    /**
-     * @return the defaultSeed
-     */
-    public Object getDefaultMeta() {
-        return defaultSeedType;
     }
 
 }
