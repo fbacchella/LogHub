@@ -14,6 +14,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
+import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
@@ -77,7 +78,10 @@ public class TestNsca {
                 , BeanChecks.BeanInfo.build("timeout", Integer.TYPE)
                 , BeanChecks.BeanInfo.build("largeMessageSupport", Boolean.TYPE)
                 , BeanChecks.BeanInfo.build("encryption", String.class)
-                , BeanChecks.BeanInfo.build("mapping", Map.class)
+                , BeanChecks.BeanInfo.build("mappingLevel", Expression.class)
+                , BeanChecks.BeanInfo.build("mappingService", Expression.class)
+                , BeanChecks.BeanInfo.build("mappingMessage", Expression.class)
+                , BeanChecks.BeanInfo.build("mappingHost", Expression.class)
         );
     }
 

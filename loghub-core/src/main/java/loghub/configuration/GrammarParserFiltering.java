@@ -36,8 +36,6 @@ import loghub.Processor;
 import loghub.RouteParser;
 import loghub.RouteParser.BeanNameContext;
 import loghub.VariablePath;
-import loghub.decoders.Decoder;
-import loghub.encoders.Encoder;
 import loghub.security.ssl.SslContextBuilder;
 import lombok.Getter;
 
@@ -254,12 +252,8 @@ public class GrammarParserFiltering {
             return BEANTYPE.PROCESSOR;
         } else if (Map.class.isAssignableFrom(clazz)) {
             return BEANTYPE.MAP;
-        } else if (Encoder.class.isAssignableFrom(clazz)) {
-            return BEANTYPE.OBJECT;
-        } else if (Decoder.class.isAssignableFrom(clazz)) {
-            return BEANTYPE.OBJECT;
         } else {
-            throw new IllegalStateException("Unhandled class " + clazz);
+            return BEANTYPE.OBJECT;
         }
     }
 
