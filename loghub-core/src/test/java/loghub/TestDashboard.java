@@ -5,6 +5,7 @@ import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,9 @@ import javax.management.ReflectionException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
@@ -44,7 +48,7 @@ class TestDashboard extends AbstractDashboard {
 
     @Test
     void testJmx() throws IOException, JMException {
-        new URL(String.format("http://localhost:%d/", getPort())).getContent();
+        URI.create(String.format("http://localhost:%d/", getPort())).toURL().getContent();
         SimplifiedMbean status200 = Tools.testMBean(ManagementFactory.getPlatformMBeanServer(), "loghub:type=Dashboard,level=HTTPStatus,code=200");
         long count = ((Number)(status200.values().get("Count"))).longValue();
         Assertions.assertTrue(count > 0 && count < 10);
@@ -90,6 +94,21 @@ class TestDashboard extends AbstractDashboard {
             String on = m.get("url").replace("/jmx/", "");
             Assertions.assertNotNull(server.getMBeanInfo(new ObjectName(on)));
         }
+    }
+
+    @ParameterizedTest
+    @EnumSource(HttpClient.Version.class)
+    @Timeout(5)
+    void getIndexWithHttps(HttpClient.Version version)
+            throws IllegalArgumentException, IOException, InterruptedException {
+        URI theurl = URI.create(String.format("https://localhost:%d/static/index.html", getPort()));
+        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                                                    .uri(theurl)
+                                                    .version(version)
+                                                    .build();
+        java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+        Assertions.assertEquals(200, response.statusCode());
+        Assertions.assertTrue(response.body().startsWith("<!DOCTYPE html>"));
     }
 
 }

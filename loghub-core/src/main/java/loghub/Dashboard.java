@@ -128,14 +128,14 @@ public class Dashboard {
 
         if (builder.withSSL) {
             transportBuilder.setWithSsl(true);
-            transportBuilder.setSslContext(builder.sslContext);
-            transportBuilder.setSslParams(builder.sslParams);
-            transportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
-            transportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
-            transportBuilder.setSslKeyAlias(builder.sslKeyAlias);
-            transportBuilder.setSslClientAuthentication(builder.sslClientAuthentication);
-            transportBuilder.setAlpnSelector(consumer.getAlpnSelector());
         }
+        transportBuilder.setSslContext(builder.sslContext);
+        transportBuilder.setSslParams(builder.sslParams);
+        transportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_2);
+        transportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
+        transportBuilder.setSslKeyAlias(builder.sslKeyAlias);
+        transportBuilder.setSslClientAuthentication(builder.sslClientAuthentication);
+        transportBuilder.setAlpnSelector(consumer.getAlpnSelector());
         return transportBuilder.build();
     }
 
