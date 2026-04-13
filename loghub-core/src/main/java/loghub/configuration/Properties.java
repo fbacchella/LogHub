@@ -314,10 +314,10 @@ public class Properties extends HashMap<String, Object> {
         Dashboard.Builder builder = Dashboard.getBuilder();
         builder.setClassLoader(classloader);
         int port = Optional.ofNullable(collect.remove("port")).map(j -> {
-            if (!(j instanceof Number)) {
-                throw new IllegalArgumentException("HTTP dashboard port is not an integer");
+            if (j instanceof Number n) {
+                return n;
             } else {
-                return (Number) j;
+                throw new IllegalArgumentException("HTTP dashboard port is not an integer");
             }
         }).orElse(-1).intValue();
         if (port < 0) {
@@ -325,22 +325,19 @@ public class Properties extends HashMap<String, Object> {
         }
         builder.setPort(port);
         Optional.ofNullable(collect.remove("listen")).ifPresent(p -> builder.setListen(p.toString()));
-        if (Boolean.TRUE.equals(Optional.ofNullable(collect.remove("withSSL")).orElse(Boolean.FALSE))) {
-            builder.setWithSSL(true);
-            builder.setSslContext(Optional.ofNullable(collect.remove("sslContext")).map(SSLContext.class::cast).orElse(ssl));
-            builder.setSslParams(Optional.ofNullable(collect.remove("sslParams")).map(SSLParameters.class::cast).orElse(null));
-            String clientAuthentication = Optional.ofNullable(collect.remove("SSLClientAuthentication")).orElse(ClientAuthentication.NOTNEEDED).toString();
-            String sslKeyAlias = (String) collect.remove("SSLKeyAlias");
-            builder.setSslKeyAlias(sslKeyAlias)
-                   .setSslClientAuthentication(ClientAuthentication.valueOf(clientAuthentication.toUpperCase(Locale.ENGLISH)));
-            builder.setHstsDuration(Optional.ofNullable(collect.remove("hstsDuration"))
-                                            .map(String.class::cast)
-                                            .map(Duration::parse)
-                                            .orElse(null)
-            );
-        } else {
-            builder.setWithSSL(false);
-        }
+        builder.setSslContext(Optional.ofNullable(collect.remove("sslContext")).map(SSLContext.class::cast).orElse(ssl));
+        builder.setSslParams(Optional.ofNullable(collect.remove("sslParams")).map(SSLParameters.class::cast).orElse(null));
+        String clientAuthentication = Optional.ofNullable(collect.remove("SSLClientAuthentication")).orElse(ClientAuthentication.NOTNEEDED).toString();
+        String sslKeyAlias = (String) collect.remove("SSLKeyAlias");
+        builder.setSslKeyAlias(sslKeyAlias)
+               .setSslClientAuthentication(ClientAuthentication.valueOf(clientAuthentication.toUpperCase(Locale.ENGLISH)));
+        builder.setHstsDuration(
+                Optional.ofNullable(collect.remove("hstsDuration"))
+                        .map(String.class::cast)
+                        .map(Duration::parse)
+                        .orElse(null)
+        );
+        builder.setWithSSL(Boolean.TRUE.equals(Optional.ofNullable(collect.remove("withSSL")).orElse(Boolean.FALSE)));
         if (Boolean.TRUE.equals(Optional.ofNullable(collect.remove("jwt")).orElse(Boolean.FALSE))) {
             builder.setWithJwtUrl(true).setJwtHandlerUrl(jwtHandler);
         } else {
