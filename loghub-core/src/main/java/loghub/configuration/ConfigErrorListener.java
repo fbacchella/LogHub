@@ -27,7 +27,7 @@ public class ConfigErrorListener extends BaseErrorListener {
         } else {
             sourceFileName = "UNKNOWN FILE";
         }
-        logger.error("File {}, line {}@{}: {}", sourceFileName, line, charPositionInLine, msg);
+        logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("File {}, line {}@{}: {}", sourceFileName, line, charPositionInLine, msg);
         throw new ConfigException(msg, sourceFileName, line, charPositionInLine);
     }
 }

@@ -140,7 +140,7 @@ public class Configuration {
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         //Passing the tokens to the parser to create the parse tree.
         RouteParser parser = new RouteParser(tokens);
-        parser.filter = filter;
+        parser.filter = new GrammarParserFiltering(filter);
         parser.removeErrorListeners();
         parser.addErrorListener(errListener);
         RouteParser.ConfigurationContext configurationContext = parser.configuration();

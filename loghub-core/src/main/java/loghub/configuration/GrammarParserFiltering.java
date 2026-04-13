@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLParameters;
@@ -98,32 +99,41 @@ public class GrammarParserFiltering {
 
     private static final Set<String> LEGACY_FIELDS = Set.of("field", "destination", "path");
 
-    private final Map<String, BEANTYPE> propertiesTypes = new HashMap<>();
-    private final Map<String, BEANTYPE> propertiesArrayTypes = new HashMap<>();
+    private final Map<String, BEANTYPE> propertiesTypes;
+    private final Map<String, BEANTYPE> propertiesArrayTypes;
+    private final AtomicReference<ClassLoader> classLoaderHolder;
+    @Getter
+    private final BeansManager manager;
+    @Getter
+    private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets;
+    private final Set<String> undeclaredProperties;
+
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();
     private final ArrayDeque<BEANTYPE> beantypes = new ArrayDeque<>();
-    private BEANTYPE currentArrayType = null;
-    @Getter
-    private ClassLoader classLoader;
-    @Getter
-    private final BeansManager manager = new BeansManager();
-    @Getter
-    private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets = new HashMap<>();
-    private final Set<String> undeclaredProperties = new HashSet<>();
-
     private boolean inProperty = false;
-    private boolean inMap = false;
+    private BEANTYPE currentArrayType = null;
 
     public GrammarParserFiltering() {
-        classLoader = GrammarParserFiltering.class.getClassLoader();
+        classLoaderHolder = new AtomicReference<>(GrammarParserFiltering.class.getClassLoader());
+        undeclaredProperties = new HashSet<>();
+        implicitObjets = new HashMap<>();
+        propertiesTypes = new HashMap<>();
+        propertiesArrayTypes = new HashMap<>();
+        manager = new BeansManager();
         refreshPropertiesTypes();
     }
 
+    public GrammarParserFiltering(GrammarParserFiltering parent) {
+        classLoaderHolder = parent.classLoaderHolder;
+        undeclaredProperties = parent.undeclaredProperties;
+        implicitObjets = parent.implicitObjets;
+        propertiesTypes = parent.propertiesTypes;
+        propertiesArrayTypes = parent.propertiesArrayTypes;
+        manager = parent.manager;
+    }
+
     private void refreshPropertiesTypes() {
-        undeclaredProperties.clear();
-        propertiesTypes.clear();
-        propertiesArrayTypes.clear();
-        classLoader.resources("propertiestype.properties").forEach(this::readProperties);
+        classLoaderHolder.get().resources("propertiestype.properties").forEach(this::readProperties);
     }
 
     private void readProperties(URL p) {
@@ -166,8 +176,9 @@ public class GrammarParserFiltering {
     }
 
     public void enterObject(String objectIdentifier) {
+        logger.debug("Entering object {}", objectIdentifier);
         try {
-            Class<?> objectClass = classLoader.loadClass(objectIdentifier);
+            Class<?> objectClass = classLoaderHolder.get().loadClass(objectIdentifier);
             BuilderClass bca = objectClass.getAnnotation(BuilderClass.class);
             if (bca != null) {
                 objectClass = bca.value();
@@ -184,6 +195,7 @@ public class GrammarParserFiltering {
     }
 
     public void enterBean(Parser parser, BeanNameContext ctx, String beanName) {
+        logger.debug("Enter bean {} in object stack {}", beanName, objectStack);
         if (IMPLICIT_OBJECT.containsKey(beanName)) {
             beantypes.push(BEANTYPE.IMPLICIT_OBJECT);
             enterObject(IMPLICIT_OBJECT.get(beanName));
@@ -343,17 +355,19 @@ public class GrammarParserFiltering {
     public void refreshIncludes(RouteParser.BeanValueContext value) {
         try {
             RouteParser.ArrayContext arrayContext = value.array();
+            ClassLoader newClassLoader;
             if (arrayContext == null) {
-                classLoader = doClassLoader(new String[]{value.getText()}, classLoader);
+                newClassLoader = doClassLoader(new String[]{value.getText()}, classLoaderHolder.get());
             } else {
                 String[] paths = arrayContext.arrayContent()
                                              .beanValue()
                                              .stream()
                                              .map(RuleContext::getText)
                                              .toArray(String[]::new);
-                classLoader = doClassLoader(paths, classLoader);
+                newClassLoader = doClassLoader(paths, classLoaderHolder.get());
             }
-            Thread.currentThread().setContextClassLoader(classLoader);
+            classLoaderHolder.set(newClassLoader);
+            Thread.currentThread().setContextClassLoader(newClassLoader);
             refreshPropertiesTypes();
         } catch (IOException ex) {
             throw new ConfigException("Not valid includes path: " + Helpers.resolveThrowableException(ex), ex);
@@ -410,6 +424,10 @@ public class GrammarParserFiltering {
 
     public void exitMap() {
         beantypes.pop();
+    }
+
+    public ClassLoader getClassLoader() {
+        return classLoaderHolder.get();
     }
 
 }
