@@ -1,85 +1,100 @@
 package loghub.processors;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.Map;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.ConfigException;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 
-public class TestScanBinary {
+class TestScanBinary {
 
     private final EventsFactory factory = new EventsFactory();
 
     @Test
-    public void simpleTestWithNames() throws ProcessorException {
-        ScanBinary fs = new ScanBinary();
-        fs.setBitsNames(new String[] {"PF_PROT", "PF_WRITE", "PF_USER", "PF_RSVD", "PF_INSTR"});
+    void simpleTestWithNames() throws ProcessorException {
+        ScanBinary.Builder builder = ScanBinary.getBuilder();
+        builder.setBitsNames(new String[] {"PF_PROT", "PF_WRITE", "PF_USER", "PF_RSVD", "PF_INSTR"});
+        builder.setField(VariablePath.of("binary"));
+        ScanBinary fs = builder.build();
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField(VariablePath.of("binary"));
 
         Event e = factory.newEvent();
         e.put("binary", "13");
-        Assert.assertTrue(fs.process(e));
+        Assertions.assertTrue(fs.process(e));
         String[] processed = (String[]) e.get("binary");
-        Assert.assertArrayEquals("Bad decoding of bitfield", new String[] {"PF_PROT", "PF_USER", "PF_RSVD"}, processed);
+        Assertions.assertArrayEquals(new String[] {"PF_PROT", "PF_USER", "PF_RSVD"}, processed, "Bad decoding of bitfield");
     }
 
     @Test
-    public void simpleTestWithVariableLengthNames() throws ProcessorException {
-        ScanBinary fs = new ScanBinary();
-        fs.setBitsNames(new String[] {"a", "b", "c"});
-        fs.setAsMap(true);
+    void simpleTestWithVariableLengthNames() throws ProcessorException {
+        ScanBinary.Builder builder = ScanBinary.getBuilder();
+        builder.setBitsNames(new String[] {"a", "b", "c"});
+        builder.setAsMap(true);
+        builder.setField(VariablePath.of("binary"));
+        ScanBinary fs = builder.build();
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField(VariablePath.of("binary"));
 
         Event e = factory.newEvent();
         e.put("binary", 0b101);
-        Assert.assertTrue(fs.process(e));
+        Assertions.assertTrue(fs.process(e));
         @SuppressWarnings("unchecked")
         Map<String, Number> value = (Map<String, Number>) fs.fieldFunction(e, 0b101);
-        Assert.assertEquals(1, value.get("a").intValue());
-        Assert.assertEquals(0, value.get("b").intValue());
-        Assert.assertEquals(1, value.get("c").intValue());
+        Assertions.assertEquals(1, value.get("a").intValue());
+        Assertions.assertEquals(0, value.get("b").intValue());
+        Assertions.assertEquals(1, value.get("c").intValue());
     }
 
     @Test
-    public void simpleTestWithVariableLengthName2s() throws ProcessorException {
-        ScanBinary fs = new ScanBinary();
-        fs.setBitsNames(new String[] {"a", "b", "c"});
-        fs.setFieldsLength(new Integer[] {3, 2, 1});
+    void simpleTestWithVariableLengthName2s() throws ProcessorException {
+        ScanBinary.Builder builder = ScanBinary.getBuilder();
+        builder.setBitsNames(new String[] {"a", "b", "c"});
+        builder.setFieldsLength(new Integer[] {3, 2, 1});
+        builder.setField(VariablePath.of("binary"));
+        builder.setDestination(VariablePath.parse("value"));
+        ScanBinary fs = builder.build();
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField(VariablePath.of("binary"));
-        fs.setDestination(VariablePath.parse("value"));
 
         Event e = factory.newEvent();
         e.put("binary", 0b110101);
-        Assert.assertTrue(fs.process(e));
+        Assertions.assertTrue(fs.process(e));
         @SuppressWarnings("unchecked")
         Map<String, Number> value = (Map<String, Number>) e.get("value");
-        Assert.assertEquals(0b101, value.get("a").intValue());
-        Assert.assertEquals(0b10, value.get("b").intValue());
-        Assert.assertEquals(0b1, value.get("c").intValue());
+        Assertions.assertEquals(0b101, value.get("a").intValue());
+        Assertions.assertEquals(0b10, value.get("b").intValue());
+        Assertions.assertEquals(0b1, value.get("c").intValue());
     }
 
     @Test
-    public void simpleTestNoName() {
-        ScanBinary fs = new ScanBinary();
-        Assert.assertFalse(fs.configure(new Properties(Collections.emptyMap())));
+    void simpleTestNoName() {
+        IllegalArgumentException ex = Assertions.assertThrows(IllegalArgumentException.class,
+                                                              () -> ScanBinary.getBuilder().build());
+        Assertions.assertEquals("Missing mandatory attribute bitsNames", ex.getMessage());
     }
 
     @Test
-    public void testConfigFile() throws ConfigException, IOException {
-        Properties conf = Tools.loadConf("scanbinary.conf");
+    void testConfigFile() throws ConfigException, IOException {
+        String confSource = """
+            pipeline[main] {
+                loghub.processors.ScanBinary {
+                    fieldsLength: [3, 2, 1],
+                    bitsNames: ["a", "b", "c"],
+                    field: "binary"
+                }
+            }
+        """;
+        Properties conf = Configuration.parse(new StringReader(confSource));
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
         sent.put("binary", 0b110101);
@@ -87,9 +102,9 @@ public class TestScanBinary {
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
         @SuppressWarnings("unchecked")
         Map<String, Number> value = (Map<String, Number>) sent.get("binary");
-        Assert.assertEquals(0b101, value.get("a").intValue());
-        Assert.assertEquals(0b10, value.get("b").intValue());
-        Assert.assertEquals(0b1, value.get("c").intValue());
+        Assertions.assertEquals(0b101, value.get("a").intValue());
+        Assertions.assertEquals(0b10, value.get("b").intValue());
+        Assertions.assertEquals(0b1, value.get("c").intValue());
     }
 
 }

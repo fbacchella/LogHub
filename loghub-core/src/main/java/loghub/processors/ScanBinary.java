@@ -10,49 +10,73 @@ import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.stream.IntStream;
 
+import loghub.BuilderClass;
 import loghub.ProcessorException;
-import loghub.configuration.Properties;
 import loghub.events.Event;
-import lombok.Getter;
 import lombok.Setter;
 
+@BuilderClass(ScanBinary.Builder.class)
 public class ScanBinary extends FieldsProcessor {
 
     @Setter
-    @Getter
-    private Object[] bitsNames = new Object[0];
-    private int[] fieldsLength = null;
-    @Setter
-    @Getter
-    private boolean asMap = false;
+    public static class Builder extends FieldsProcessor.Builder<ScanBinary> {
+        private Object[] bitsNames = new Object[0];
+        private int[] fieldsLength = null;
+        private boolean asMap = false;
+        public void setFieldsLength(Object[] lengths) {
+            this.fieldsLength = new int[lengths.length];
+            IntStream.range(0, lengths.length)
+                     .forEach(i -> {
+                         try {
+                             this.fieldsLength[i] = ((Number) lengths[i]).intValue();
+                         } catch (NumberFormatException e) {
+                             this.fieldsLength[i] = 0;
+                         }
+                     });
+        }
+        public ScanBinary build() {
+            return new ScanBinary(this);
+        }
+    }
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
-    @Override
-    public boolean configure(Properties properties) {
+    private final Object[] bitsNames;
+    private final int[] fieldsLength;
+    private final boolean asMap;
+
+    public ScanBinary(Builder builder) {
+        super(builder);
+        this.bitsNames = builder.bitsNames;
+        this.asMap = builder.asMap;
+        if (builder.fieldsLength != null) {
+            this.fieldsLength = builder.fieldsLength;
+        } else if (asMap) {
+            this.fieldsLength = new int[bitsNames.length];
+            Arrays.fill(this.fieldsLength, 1);
+        } else {
+            this.fieldsLength = null;
+        }
         if (bitsNames == null || bitsNames.length == 0) {
-            logger.error("Missing mandatory attribute bitsNames");
-            return false;
+            throw new IllegalArgumentException("Missing mandatory attribute bitsNames");
         }
-        if (asMap) {
-            fieldsLength = new int[bitsNames.length];
-            Arrays.fill(fieldsLength, 1);
-        }
-        return super.configure(properties);
     }
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         long nvalue = 0;
-        if (value instanceof Number) {
+        if (value instanceof Number n) {
             if (value instanceof BigDecimal || value instanceof Double || value instanceof DoubleAccumulator || value instanceof DoubleAdder || value instanceof Float) {
                 // not bit field for floating point values
                 throw event.buildException("Can't parse as floating point value:  " + value);
             }
             else {
-                nvalue = ((Number) value).longValue();
+                nvalue = n.longValue();
             }
-        } else if (value instanceof String) {
+        } else if (value instanceof String s) {
             try {
-                nvalue = Long.decode((String) value);
+                nvalue = Long.decode(s);
             } catch (NumberFormatException e) {
                 throw event.buildException("Can't parse as number " + value, e);
             }
@@ -70,7 +94,7 @@ public class ScanBinary extends FieldsProcessor {
             }
             return parsed.toArray(new String[0]);
         } else {
-            Map<String, Number> values = new HashMap<>(fieldsLength.length);
+            Map<String, Number> values = HashMap.newHashMap(fieldsLength.length);
             for (int i = 0; i < fieldsLength.length; i++) {
                 int mask = (1 << fieldsLength[i]) - 1;
                 values.put(bitsNames[i].toString(), nvalue & mask);
@@ -89,23 +113,8 @@ public class ScanBinary extends FieldsProcessor {
             IntStream.range(0, fieldsLength.length).forEach(i -> returned[i] = fieldsLength[i]);
             return returned;
         } else {
-            return null;
+            return new Object[0];
         }
-    }
-
-    /**
-     * @param lengths the fieldsLength to set
-     */
-    public void setFieldsLength(Object[] lengths) {
-        this.fieldsLength = new int[lengths.length];
-        IntStream.range(0, lengths.length)
-        .forEach(i -> {
-            try {
-                this.fieldsLength[i] = ((Number) lengths[i]).intValue();
-            } catch (NumberFormatException e) {
-                this.fieldsLength[i] = 0;
-            }
-        });
     }
 
 }
