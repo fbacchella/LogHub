@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLParameters;
 
-import org.antlr.v4.runtime.NoViableAltException;
 import org.antlr.v4.runtime.Parser;
+import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.RuleContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,7 +35,6 @@ import loghub.Helpers;
 import loghub.Lambda;
 import loghub.Processor;
 import loghub.RouteParser;
-import loghub.RouteParser.BeanNameContext;
 import loghub.VariablePath;
 import loghub.security.ssl.SslContextBuilder;
 import lombok.Getter;
@@ -44,7 +43,7 @@ public class GrammarParserFiltering {
 
     private static final Logger logger = LogManager.getLogger();
 
-    static final class LogHubClassloader extends URLClassLoader {
+    static class LogHubClassloader extends URLClassLoader {
         public LogHubClassloader(URL[] urls, ClassLoader parent) {
             super(urls, parent);
         }
@@ -54,6 +53,13 @@ public class GrammarParserFiltering {
         @Override
         public String toString() {
             return "Loghub's class loader";
+        }
+    }
+
+    static class LogHubRecognitionException extends RecognitionException {
+        public LogHubRecognitionException(String message, Parser recognizer) {
+            super(message, recognizer, recognizer.getInputStream(), recognizer.getContext());
+            setOffendingToken(recognizer.getContext().getStart());
         }
     }
 
@@ -107,6 +113,7 @@ public class GrammarParserFiltering {
     @Getter
     private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets;
     private final Set<String> undeclaredProperties;
+    private final Parser parser;
 
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();
     private final ArrayDeque<BEANTYPE> beantypes = new ArrayDeque<>();
@@ -120,16 +127,18 @@ public class GrammarParserFiltering {
         propertiesTypes = new HashMap<>();
         propertiesArrayTypes = new HashMap<>();
         manager = new BeansManager();
+        this.parser = null;
         refreshPropertiesTypes();
     }
 
-    public GrammarParserFiltering(GrammarParserFiltering parent) {
+    public GrammarParserFiltering(Parser parser, GrammarParserFiltering parent) {
         classLoaderHolder = parent.classLoaderHolder;
         undeclaredProperties = parent.undeclaredProperties;
         implicitObjets = parent.implicitObjets;
         propertiesTypes = parent.propertiesTypes;
         propertiesArrayTypes = parent.propertiesArrayTypes;
         manager = parent.manager;
+        this.parser = parser;
     }
 
     private void refreshPropertiesTypes() {
@@ -185,8 +194,8 @@ public class GrammarParserFiltering {
             }
             objectStack.push(objectClass);
         } catch (ClassNotFoundException e) {
-            // A generic class, the class is not found, will not try to resolve bean type
-            objectStack.push(Object.class);
+            RecognitionException rex = new LogHubRecognitionException("Unknown object identifier '%s'".formatted(objectIdentifier), parser);
+            parser.notifyErrorListeners(rex.getOffendingToken(), rex.getMessage(), rex);
         }
     }
 
@@ -194,7 +203,7 @@ public class GrammarParserFiltering {
         objectStack.pop();
     }
 
-    public void enterBean(Parser parser, BeanNameContext ctx, String beanName) {
+    public void enterBean(String beanName) {
         logger.debug("Enter bean {} in object stack {}", beanName, objectStack);
         if (IMPLICIT_OBJECT.containsKey(beanName)) {
             beantypes.push(BEANTYPE.IMPLICIT_OBJECT);
@@ -217,10 +226,8 @@ public class GrammarParserFiltering {
                 }
             } else {
                 beantypes.clear();
-                NoViableAltException ex = new NoViableAltException(parser) {{
-                    this.setOffendingToken(ctx.getStart());
-                }};
-                parser.notifyErrorListeners(ctx.getStart(), "Unknown bean '%s'".formatted(beanName), ex);
+                RecognitionException rex = new LogHubRecognitionException("Unknown bean '%s'".formatted(beanName), parser);
+                parser.notifyErrorListeners(rex.getOffendingToken(), rex.getMessage(), rex);
             }
         }
     }

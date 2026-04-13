@@ -22,11 +22,12 @@ public class ConfigurationTools {
     }
 
     public static <T extends ParserRuleContext> Object parseFragment(CharStream fragment, Function<RouteParser, T> extractor) {
+        GrammarParserFiltering rootFilter = new GrammarParserFiltering();
         RouteLexer lexer = new RouteLexer(fragment);
 
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         RouteParser parser = new RouteParser(tokens);
-        parser.filter = new GrammarParserFiltering();
+        parser.filter = new GrammarParserFiltering(parser, rootFilter);
         parser.removeErrorListeners();
         ConfigErrorListener errListener = new ConfigErrorListener();
         parser.addErrorListener(errListener);

@@ -81,7 +81,7 @@ bean
     ;
 
 beanName
-    : identifier {filter.enterBean(this, $ctx, $identifier.text);}
+    : identifier {filter.enterBean($identifier.text);}
     ;
 
 beanValue

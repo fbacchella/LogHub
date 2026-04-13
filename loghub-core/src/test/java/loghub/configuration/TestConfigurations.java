@@ -293,6 +293,17 @@ public class TestConfigurations {
     }
 
     @Test
+    public void testBadObject() throws ConfigException {
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
+            String confile = "pipeline[bad] {\n" +
+                                     "   loghub.processors.NotExistant {bad: true}\n" +
+                                     "}\n";
+            Configuration.parse(new StringReader(confile));
+        });
+        Assert.assertEquals("Unknown object identifier 'loghub.processors.NotExistant'", ex.getMessage());
+    }
+
+    @Test
     public void testComplexPattern() throws ConfigException, IOException, InterruptedException {
         String confile = "pipeline[pattern] {\n" +
                         "   [b] ==~ /a\\\n" +
