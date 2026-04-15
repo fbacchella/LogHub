@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLParameters;
@@ -77,6 +78,7 @@ public class GrammarParserFiltering {
         BOOLEAN,
         CHARACTER,
         STRING,
+        PATTERN,
         OBJECT,       // A loghub object
         OBJECT_CLASS, // An Object class
         IMPLICIT_OBJECT,
@@ -271,6 +273,8 @@ public class GrammarParserFiltering {
             return BEANTYPE.PROCESSOR;
         } else if (Map.class.isAssignableFrom(clazz)) {
             return BEANTYPE.MAP;
+        } else if (Pattern.class.isAssignableFrom(clazz)) {
+            return BEANTYPE.PATTERN;
         } else {
             return BEANTYPE.OBJECT;
         }
@@ -306,7 +310,7 @@ public class GrammarParserFiltering {
             return assignationType == BEANTYPE.FLOAT || assignationType == BEANTYPE.ANY;
         case STRING:
             // String is also valid for an Enum type
-            return assignationType == BEANTYPE.ENUM || assignationType == BEANTYPE.ANY;
+            return assignationType == BEANTYPE.ENUM || assignationType == BEANTYPE.PATTERN || assignationType == BEANTYPE.ANY;
         case SECRET:
             return assignationType == BEANTYPE.STRING || assignationType == BEANTYPE.ANY;
         case VARIABLE_PATH_ARRAY:

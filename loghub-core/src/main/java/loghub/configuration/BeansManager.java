@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -97,9 +98,12 @@ public class BeansManager {
         if (setMethod == null) {
             throw new IntrospectionException("Unknown bean '" + beanName + "' for " + beanObject.getClass().getName().replace("$Builder", ""));
         }
-        if (setMethod.getParameterTypes()[0] == Expression.class) {
-            // If it's not already an expression, it's a constant value that was not detected by the parser
-            beanValue = beanValue instanceof Expression ? (Expression) beanValue : new Expression(beanValue);
+        if (setMethod.getParameterTypes()[0] == Expression.class && ! (beanValue instanceof Expression)) {
+            // If it's not already an expression, it's a constant value not detected by the parser
+            beanValue = new Expression(beanValue);
+        } else if (setMethod.getParameterTypes()[0] == Pattern.class && beanValue instanceof String bs) {
+            // If it's not already a Pattern, convert it
+            beanValue = Pattern.compile(bs);
         }
         beanSetter(beanName, beanObject, beanObject.getClass().getName().replace("$Builder", ""), setMethod, beanValue, classLoader);
     }
@@ -124,15 +128,15 @@ public class BeansManager {
                 setMethod.invoke(object, newValue);
             } else if (beanValue == null || setArgType.isAssignableFrom(beanValue.getClass())) {
                 setMethod.invoke(object, beanValue);
-            } else if (beanValue instanceof String && setMethod.getParameterTypes()[0] == Class.class) {
+            } else if (beanValue instanceof String bs && setMethod.getParameterTypes()[0] == Class.class) {
                 try {
-                    Object argInstance = classLoader.loadClass((String) beanValue);
+                    Object argInstance = classLoader.loadClass(bs);
                     setMethod.invoke(object, argInstance);
                 } catch (ClassNotFoundException e) {
                     throw new IllegalArgumentException("Class '" + beanValue + "' not found");
                 }
-            } else if (beanValue instanceof String) {
-                Object argInstance = constructFromString(setArgType, (String) beanValue);
+            } else if (beanValue instanceof String bs) {
+                Object argInstance = constructFromString(setArgType, bs);
                 setMethod.invoke(object, argInstance);
             } else if (beanValue instanceof Number || beanValue instanceof Character) {
                 setMethod.invoke(object, beanValue);

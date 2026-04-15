@@ -14,7 +14,7 @@ public class DurationParser extends FieldsProcessor {
 
     @Setter
     public static class Builder extends FieldsProcessor.Builder<DurationParser> {
-        private String pattern;
+        private Pattern pattern;
         public DurationParser build() {
             return new DurationParser(this);
         }
@@ -28,7 +28,7 @@ public class DurationParser extends FieldsProcessor {
 
     private DurationParser(Builder builder) {
         super(builder);
-        this.pattern = Pattern.compile(builder.pattern);
+        this.pattern = builder.pattern;
     }
 
     @Override
@@ -38,7 +38,7 @@ public class DurationParser extends FieldsProcessor {
         }
         String input = value.toString();
         Matcher matcher = pattern.matcher(input);
-        if (matcher.find()) {
+        if (matcher.matches()) {
             long days = getGroupAsLong(matcher, "days");
             long hours = getGroupAsLong(matcher, "hours");
             long minutes = getGroupAsLong(matcher, "minutes");

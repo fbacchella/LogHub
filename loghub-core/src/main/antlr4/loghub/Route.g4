@@ -92,6 +92,7 @@ beanValue
     | {filter.allowedBeanType(BEANTYPE.STRING)}? stringLiteral
     | {filter.allowedBeanType(BEANTYPE.BOOLEAN)}? booleanLiteral
     | {filter.allowedBeanType(BEANTYPE.SECRET)}? secret
+    | {filter.allowedBeanType(BEANTYPE.PATTERN)}? pattern
     | {filter.allowedBeanType(BEANTYPE.ARRAY)}? array
     | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
     | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH)}? eventVariablePath

@@ -1,15 +1,22 @@
 package loghub.processors;
 
+import java.io.StringReader;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -23,89 +30,52 @@ class TestDurationParser {
         Tools.configure();
     }
 
-    @Test
-    void testFull() throws ProcessorException {
+    @ParameterizedTest
+    @MethodSource("provideSimpleDurations")
+    void testDurations(String regex, String input, Duration expected) throws ProcessorException {
         DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<days>\\d+)d(?<hours>\\d+)h(?<minutes>\\d+)m(?<seconds>\\d+)s");
+        builder.setPattern(Pattern.compile(regex));
         builder.setField(VariablePath.parse("field"));
         DurationParser parse = builder.build();
         Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
         Event event = factory.newEvent();
-        event.put("field", "1d2h3m4s");
+        event.put("field", input);
         parse.process(event);
         Duration duration = (Duration) event.get("field");
-        Assertions.assertEquals(Duration.ofDays(1).plusHours(2).plusMinutes(3).plusSeconds(4), duration);
+        Assertions.assertEquals(expected, duration);
     }
 
-    @Test
-    void testPartial() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        // Only minute and second
-        builder.setPattern("(?<minutes>\\d+)m(?<seconds>\\d+)s");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        event.put("field", "3m4s");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        Assertions.assertEquals(Duration.ofMinutes(3).plusSeconds(4), duration);
-    }
-
-    @Test
-    void testOptionalGroups() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        // Groups are present in regex but maybe not in input
-        builder.setPattern("((?<days>\\d+)d)?((?<hours>\\d+)h)?((?<minutes>\\d+)m)?((?<seconds>\\d+)s)?");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        event.put("field", "2h4s");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        Assertions.assertEquals(Duration.ofHours(2).plusSeconds(4), duration);
-    }
-
-    @Test
-    void testFloatSeconds() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<seconds>\\d+\\.\\d+)s");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        event.put("field", "1.5s");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        Assertions.assertEquals(Duration.ofSeconds(1, 500_000_000), duration);
-    }
-
-    @Test
-    void testHighPrecisionFloat() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<seconds>\\d+\\.\\d+)s");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        // 1.23456789123 seconds -> rounded to nanos
-        event.put("field", "1.123456789123s");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        Assertions.assertEquals(Duration.ofSeconds(1, 123_456_789), duration);
+    static Stream<Arguments> provideSimpleDurations() {
+        return Stream.of(
+            // Full
+            Arguments.of("(?<days>\\d+)d(?<hours>\\d+)h(?<minutes>\\d+)m(?<seconds>\\d+)s", "1d2h3m4s", Duration.ofDays(1).plusHours(2).plusMinutes(3).plusSeconds(4)),
+            // Partial
+            Arguments.of("(?<minutes>\\d+)m(?<seconds>\\d+)s", "3m4s", Duration.ofMinutes(3).plusSeconds(4)),
+            // Optional groups
+            Arguments.of("((?<days>\\d+)d)?((?<hours>\\d+)h)?((?<minutes>\\d+)m)?((?<seconds>\\d+)s)?", "2h4s", Duration.ofHours(2).plusSeconds(4)),
+            // Float seconds
+            Arguments.of("(?<seconds>\\d+\\.\\d+)s", "1.5s", Duration.ofSeconds(1, 500_000_000)),
+            // High precision
+            Arguments.of("(?<seconds>\\d+\\.\\d+)s", "1.123456789123s", Duration.ofSeconds(1, 123_456_789)),
+            // Milliseconds
+            Arguments.of("(?<seconds>\\d+)s(?<milliseconds>\\d+)ms", "1s500ms", Duration.ofSeconds(1, 500_000_000)),
+            // Milliseconds only
+            Arguments.of("(?<milliseconds>\\d+)ms", "1234ms", Duration.ofMillis(1234)),
+            // Float and milliseconds
+            Arguments.of("(?<seconds>\\d+\\.\\d+)s(?<milliseconds>\\d+)ms", "1.5s500ms", Duration.ofSeconds(2)),
+            // Negative seconds
+            Arguments.of("(?<seconds>-?\\d+\\.\\d+)s", "-1.5s", Duration.ofMillis(-1500)),
+            // Negative and positive groups
+            Arguments.of("(?<hours>-?\\d+)h(?<minutes>-?\\d+)m", "-1h30m", Duration.ofMinutes(-30))
+        );
     }
 
     @Test
     void testSecondKeyInPatternButNotInput() throws ProcessorException {
         DurationParser.Builder builder = DurationParser.getBuilder();
         // Pattern defines "seconds" but it's optional and not in input
-        builder.setPattern("((?<minutes>\\d+)m)?((?<seconds>\\d+)s)?");
+        builder.setPattern(Pattern.compile("((?<minutes>\\d+)m)?((?<seconds>\\d+)s)?"));
         builder.setField(VariablePath.parse("field"));
         DurationParser parse = builder.build();
         Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
@@ -121,7 +91,7 @@ class TestDurationParser {
     void testSecondKeyNotInPattern() throws ProcessorException {
         DurationParser.Builder builder = DurationParser.getBuilder();
         // Pattern does NOT define "seconds"
-        builder.setPattern("(?<minutes>\\d+)m");
+        builder.setPattern(Pattern.compile("(?<minutes>\\d+)m"));
         builder.setField(VariablePath.parse("field"));
         DurationParser parse = builder.build();
         Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
@@ -134,56 +104,9 @@ class TestDurationParser {
     }
 
     @Test
-    void testMilliseconds() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<seconds>\\d+)s(?<milliseconds>\\d+)ms");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        event.put("field", "1s500ms");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        Assertions.assertEquals(Duration.ofSeconds(1, 500_000_000), duration);
-    }
-
-    @Test
-    void testMillisecondsOnly() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<milliseconds>\\d+)ms");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        event.put("field", "1234ms");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        Assertions.assertEquals(Duration.ofMillis(1234), duration);
-    }
-
-    @Test
-    void testFloatAndMilliseconds() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        // C'est un cas un peu étrange mais supporté par le code : les deux s'additionnent
-        builder.setPattern("(?<seconds>\\d+\\.\\d+)s(?<milliseconds>\\d+)ms");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        event.put("field", "1.5s500ms");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        // 1.5s = 1s 500ms, + 500ms = 2s
-        Assertions.assertEquals(Duration.ofSeconds(2), duration);
-    }
-
-    @Test
     void testNoMatch() throws ProcessorException {
         DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<days>\\d+)d");
+        builder.setPattern(Pattern.compile("(?<days>\\d+)d"));
         builder.setField(VariablePath.parse("field"));
         DurationParser parse = builder.build();
         Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
@@ -198,7 +121,7 @@ class TestDurationParser {
     @Test
     void testNullInput() throws ProcessorException {
         DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<days>\\d+)d");
+        builder.setPattern(Pattern.compile("(?<days>\\d+)d"));
         builder.setField(VariablePath.parse("field"));
         DurationParser parse = builder.build();
         Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
@@ -209,37 +132,33 @@ class TestDurationParser {
         Assertions.assertNull(event.get("field"));
     }
 
-    @Test
-    void testNegativeSeconds() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<seconds>-?\\d+\\.\\d+)s");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+    @ParameterizedTest
+    @MethodSource("providePatterns")
+    void parsing(String patternPart) throws Throwable {
+        String conf = """
+            pipeline[main] {
+                loghub.processors.DurationParser {
+                    pattern: %s,
+                    field: [message],
+                }
+            }
+        """.formatted(patternPart);
+        StringReader reader = new StringReader(conf);
+        Properties p = Configuration.parse(reader);
+        DurationParser m = (DurationParser) p.namedPipeLine.get("main").processors.stream().findFirst().get();
 
         Event event = factory.newEvent();
-        event.put("field", "-1.5s");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        // -1.5s = -1s -500ms = -2s + 500ms (en termes de seconds/nanos dans java.time.Duration)
-        // Duration.ofSeconds(-1, -500_000_000) ou Duration.ofSeconds(-2, 500_000_000) sont équivalents
-        Assertions.assertEquals(Duration.ofMillis(-1500), duration);
+        event.put("message", "1+2:3:4");
+        m.process(event);
+        Duration duration = (Duration) event.get("message");
+        Assertions.assertEquals(Duration.ofDays(1).plusHours(2).plusMinutes(3).plusSeconds(4), duration);
     }
 
-    @Test
-    void testNegativeAndPositiveGroups() throws ProcessorException {
-        DurationParser.Builder builder = DurationParser.getBuilder();
-        builder.setPattern("(?<hours>-?\\d+)h(?<minutes>-?\\d+)m");
-        builder.setField(VariablePath.parse("field"));
-        DurationParser parse = builder.build();
-        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        event.put("field", "-1h30m");
-        parse.process(event);
-        Duration duration = (Duration) event.get("field");
-        // -1h + 30m = -30m
-        Assertions.assertEquals(Duration.ofMinutes(-30), duration);
+    static Stream<Arguments> providePatterns() {
+        return Stream.of(
+            Arguments.of("\"(?<days>\\\\d+)\\\\+(?<hours>\\\\d+):(?<minutes>\\\\d+):(?<seconds>\\\\d+)\""),
+            Arguments.of("/((?<days>\\d+)\\+)(?<hours>\\d+):(?<minutes>\\d+):(?<seconds>\\d+)/")
+        );
     }
 
 }
