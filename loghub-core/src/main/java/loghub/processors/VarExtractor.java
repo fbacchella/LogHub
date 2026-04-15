@@ -29,7 +29,7 @@ public class VarExtractor extends FieldsProcessor {
 
     @Setter
     public static class Builder extends FieldsProcessor.Builder<VarExtractor> {
-        private String parser = "(?<name>\\p{Alnum}+)\\s?[=:]\\s?(?<value>[^;,:]+)[;,:]?";
+        private Pattern parser = Pattern.compile("(?<name>\\p{Alnum}+)\\s?[=:]\\s?(?<value>[^;,:]+)[;,:]?");
         private Collision_handling collision = Collision_handling.KEEP_LAST;
         public VarExtractor build() {
             return new VarExtractor(this);
@@ -44,7 +44,7 @@ public class VarExtractor extends FieldsProcessor {
 
     public VarExtractor(Builder builder) {
         super(builder);
-        Pattern parser = Pattern.compile(builder.parser);
+        Pattern parser = builder.parser;
         matchersGenerator = ThreadLocal.withInitial(() -> parser.matcher(""));
         collision = builder.collision;
     }
@@ -82,7 +82,7 @@ public class VarExtractor extends FieldsProcessor {
         skipped.append(after);
         if (! parsed) {
             return FieldsProcessor.RUNSTATUS.FAILED;
-        } else if (skipped.length() != 0) {
+        } else if (!skipped.isEmpty()) {
             return skipped.toString();
         } else {
             return FieldsProcessor.RUNSTATUS.REMOVE;

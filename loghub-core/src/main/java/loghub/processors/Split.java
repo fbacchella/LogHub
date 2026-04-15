@@ -17,7 +17,7 @@ public class Split extends FieldsProcessor {
 
     @Setter
     public static class Builder extends FieldsProcessor.Builder<Split> {
-        private String pattern = "\n";
+        private Pattern pattern = Pattern.compile("\n");
         private boolean keepempty = true;
         public Split build() {
             return new Split(this);
@@ -34,7 +34,7 @@ public class Split extends FieldsProcessor {
     private Split(Split.Builder builder) {
         super(builder);
         keepempty = builder.keepempty;
-        Pattern pattern = Pattern.compile(builder.pattern);
+        Pattern pattern = builder.pattern;
         matchers = ThreadLocal.withInitial(() -> pattern.matcher(""));
     }
 
