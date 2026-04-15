@@ -1,6 +1,7 @@
 package loghub.processors;
 
 import java.beans.IntrospectionException;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+
 import loghub.BeanChecks;
 import loghub.Expression;
 import loghub.LogUtils;
@@ -20,9 +24,11 @@ import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.jackson.JacksonBuilder;
 
 public class TestGrok {
 
@@ -206,6 +212,41 @@ public class TestGrok {
         IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, builder::build);
         Assert.assertTrue(ex.getMessage().startsWith("Unable to load patterns: Dangling meta character '*' near index 0"));
     }
+
+    @Test
+    public void parsingIteration() throws Throwable {
+        String conf = """
+            pipeline[main] {
+                loghub.processors.Grok {
+                    pattern: "submessage %{INT:.}",
+                    field: [message],
+                }
+            }
+        """;
+        Properties p = Configuration.parse(new StringReader(conf));
+        Processor m = p.namedPipeLine.get("main").processors.stream().findFirst().get();
+        m.configure(p);
+
+        ObjectReader reader = JacksonBuilder.get(JsonMapper.class).getReader();
+
+        String evSource = """
+            {
+                "message": [
+                  "submessage1",
+                  "submessage2",
+                  "submessage 3"
+                ]
+            }
+        """;
+        Map<String, Object> evMap = reader.readValue(evSource);
+        Event ev = factory.newEvent();
+        ev.putAll(evMap);
+        Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);
+        @SuppressWarnings("unchecked")
+        List<String> messages = (List<String>) ev.get("message");
+        Assert.assertEquals(List.of("submessage1", "submessage2", "3"), messages);
+    }
+
 
     @Test
     public void testBeans() throws IntrospectionException, ReflectiveOperationException {

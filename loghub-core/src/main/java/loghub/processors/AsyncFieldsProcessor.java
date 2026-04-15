@@ -31,7 +31,11 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
         public boolean processCallback(Event event, FI content) throws ProcessorException {
             Supplier<Object> resolver = () -> AsyncFieldsProcessor.this.asyncProcess(event, content);
             try {
-                return processField(event, toprocess, resolver, r -> event.putAtPath(resolveDestination(toprocess), r));
+                return processField(event, toprocess, resolver, r -> {
+                    if (! (r instanceof RUNSTATUS)) {
+                        event.putAtPath(resolveDestination(toprocess), r);
+                    }
+                });
             } catch (UncheckedProcessorException ex) {
                 throw ex.getProcessorException();
             }

@@ -17,10 +17,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import loghub.DiscardedEventException;
 import loghub.Helpers;
@@ -167,10 +169,11 @@ public abstract class FieldsProcessor extends Processor {
                 }
                 Collections.reverse(values);
                 Collection<Object> results = value instanceof Set ?
-                                                     new LinkedHashSet<>((values).size() * 2) :
-                                                     new ArrayList<>((values).size() * 2);
+                                                     LinkedHashSet.newLinkedHashSet(values.size()) :
+                                                     new ArrayList<>(values.size());
                 ProcessEvent pe = ev -> {
-                    ev.putAtPath(resolveDestination(toprocess), results);
+                    Collections.reverse(values);
+                    ev.putAtPath(resolveDestination(toprocess), zipCollections(results, values, (r, v) -> r instanceof RUNSTATUS ? v : r));
                     if (FieldsProcessor.this instanceof Filter) {
                         Filter f = (Filter) FieldsProcessor.this;
                         return FieldsProcessor.this.filterField(ev, toprocess, ev.getAtPath(toprocess), r -> {
@@ -190,8 +193,21 @@ public abstract class FieldsProcessor extends Processor {
                 addCollectionsProcessing(values, event, toprocess, results);
                 throw IgnoredEventException.INSTANCE;
             } else {
-                return FieldsProcessor.this.filterField(event, toprocess, event.getAtPath(toprocess), r -> event.putAtPath(resolveDestination(toprocess), r));
+                return FieldsProcessor.this.filterField(event, toprocess, event.getAtPath(toprocess), r -> {
+                    if (! (r instanceof RUNSTATUS)) {
+                        event.putAtPath(resolveDestination(toprocess), r);
+                    }
+                });
             }
+        }
+
+        private <T, C extends Collection<T>> C zipCollections(Collection<T> a, Collection<T>  b, BinaryOperator<T> transformer) {
+            List<T> la = a instanceof List<T> l ? l : new ArrayList<>(a);
+            List<T> lb = b instanceof List<T> l ? l : new ArrayList<>(b);
+            Supplier<C> collectionFactory = a instanceof Set ? () -> (C) LinkedHashSet.newLinkedHashSet(la.size()) : () -> (C) new ArrayList<>(la.size());
+            return IntStream.range(0, Math.min(la.size(), lb.size()))
+                            .mapToObj(i -> transformer.apply(la.get(i), lb.get(i)))
+                            .collect(Collectors.toCollection(collectionFactory));
         }
 
         @Override
@@ -326,7 +342,11 @@ public abstract class FieldsProcessor extends Processor {
     }
 
     boolean doExecution(Event event, VariablePath currentField) throws ProcessorException {
-        return filterField(event, currentField, event.getAtPath(currentField), v -> event.putAtPath(resolveDestination(currentField), v));
+        return filterField(event, currentField, event.getAtPath(currentField), v -> {
+            if (! (v instanceof RUNSTATUS)) {
+                event.putAtPath(resolveDestination(currentField), v);
+            }
+        });
     }
 
     boolean filterField(Event event, VariablePath currentField, Object value, Consumer<Object> postProcess) throws ProcessorException {
@@ -352,10 +372,10 @@ public abstract class FieldsProcessor extends Processor {
                 @SuppressWarnings("unchecked")
                 Map<String, ?> pr = (Map<String, ?>) processed;
                 event.putAll(pr);
-            } else if (! (processed instanceof RUNSTATUS)) {
-                postProcess.accept(processed);
             } else if (processed == RUNSTATUS.REMOVE) {
                 event.removeAtPath(currentField);
+            } else {
+                postProcess.accept(processed);
             }
             return processed != RUNSTATUS.FAILED;
         } catch (UncheckedProcessorException ex) {
