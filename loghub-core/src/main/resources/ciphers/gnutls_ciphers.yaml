@@ -1,4 +1,29 @@
 - model: directory.GnutlsCipher
+  pk: 'TLS_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x01'
+- model: directory.GnutlsCipher
+  pk: 'TLS_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x02'
+- model: directory.GnutlsCipher
+  pk: 'TLS_CHACHA20_POLY1305_SHA256'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x03'
+- model: directory.GnutlsCipher
+  pk: 'TLS_AES_128_CCM_SHA256'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x04'
+- model: directory.GnutlsCipher
+  pk: 'TLS_AES_128_CCM_8_SHA256'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x05'
+- model: directory.GnutlsCipher
   pk: 'TLS_RSA_NULL_MD5'
   fields:
     hex_byte_1: '0x00'
@@ -908,3 +933,8 @@
   fields:
     hex_byte_1: '0xc0'
     hex_byte_2: '0x21'
+- model: directory.GnutlsCipher
+  pk: 'TLS_GOSTR341112_256_28147_CNT_IMIT'
+  fields:
+    hex_byte_1: '0xc1'
+    hex_byte_2: '0x02'

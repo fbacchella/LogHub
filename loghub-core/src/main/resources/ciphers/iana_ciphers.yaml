@@ -1,4 +1,14 @@
 - model: directory.IanaCipher
+  pk: 'TLS_NULL_WITH_NULL_NULL'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x00'
+- model: directory.IanaCipher
+  pk: 'TLS_RSA_WITH_NULL_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x01'
+- model: directory.IanaCipher
   pk: 'TLS_DH_anon_WITH_AES_128_GCM_SHA256'
   fields:
     hex_byte_1: '0x00'
