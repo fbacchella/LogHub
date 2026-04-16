@@ -5,10 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import loghub.BuilderClass;
 import loghub.events.Event;
@@ -17,13 +16,16 @@ import lombok.Setter;
 @BuilderClass(TlsCiphers.Builder.class)
 public class TlsCiphers extends FieldsProcessor {
 
-    private static final Pattern HEX_PATTERN = Pattern.compile("0x([0-9A-Fa-f]{1,2})");
+    public enum Context {
+        IANA,
+        OPENSSL,
+        GNUTLS,
+        JAVA,
+    }
 
     public static class Builder extends FieldsProcessor.Builder<TlsCiphers> {
         @Setter
-        private String sourceContext = "iana";
-        @Setter
-        private String destinationContext = "openssl";
+        private Context destinationContext = Context.IANA;
 
         @Override
         public TlsCiphers build() {
@@ -35,61 +37,74 @@ public class TlsCiphers extends FieldsProcessor {
         return new Builder();
     }
 
-    private final String sourceContext;
-    private final String destinationContext;
-    private final Map<Integer, Map<String, String>> idToNames = new HashMap<>();
-    private final Map<String, Map<String, Integer>> contextToNameToId = new HashMap<>();
+    private final Map<String, String> translationMap;
+
+    private record CipherId(byte byte1, byte byte2) {}
 
     private TlsCiphers(Builder builder) {
         super(builder);
-        this.sourceContext = builder.sourceContext.toLowerCase();
-        this.destinationContext = builder.destinationContext.toLowerCase();
-        loadResources();
+        Map<CipherId, Map<Context, String>> idToNames = new HashMap<>();
+        Map<Context, Map<String, CipherId>> contextToNameToId = new EnumMap<>(Context.class);
+        loadResources(idToNames, contextToNameToId);
+        Map<String, String> localTranslationMap = new HashMap<>();
+        buildTranslationMap(builder.destinationContext, idToNames, localTranslationMap);
+        this.translationMap = Map.copyOf(localTranslationMap);
     }
 
-    private void loadResources() {
-        String[] resources = {
-            "01_iana_ciphers.yaml",
-            "02_openssl_ciphers.yaml",
-            "03_gnutls_ciphers.yaml",
-            "04_java_ciphers.yaml"
-        };
-        String[] contexts = {"iana", "openssl", "gnutls", "java"};
+    private void buildTranslationMap(Context destinationContext, Map<CipherId, Map<Context, String>> idToNames, Map<String, String> localTranslationMap) {
+        idToNames.values().forEach(names -> {
+            String targetName = names.get(destinationContext);
+            if (targetName != null) {
+                names.values().forEach(sourceName -> localTranslationMap.put(sourceName, targetName));
+            }
+        });
+    }
 
-        for (int i = 0; i < resources.length; i++) {
-            String resource = "/ciphers/" + resources[i];
-            String context = contexts[i];
+    private void loadResources(Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
+        Map<String, Context> resources = new HashMap<>();
+        resources.put("iana_ciphers.yaml", Context.IANA);
+        resources.put("openssl_ciphers.yaml", Context.OPENSSL);
+        resources.put("gnutls_ciphers.yaml", Context.GNUTLS);
+        resources.put("java_ciphers.yaml", Context.JAVA);
+
+        for (Map.Entry<String, Context> entry : resources.entrySet()) {
+            String resource = "/ciphers/" + entry.getKey();
+            Context context = entry.getValue();
             try (InputStream is = getClass().getResourceAsStream(resource)) {
                 if (is == null) {
                     logger.error("Resource not found: {}", resource);
                     continue;
                 }
-                parseManualYaml(is, context);
+                parseManualYaml(is, context, idToNames, contextToNameToId);
             } catch (IOException e) {
                 logger.error("Failed to load cipher resource {}: {}", resource, e.getMessage());
             }
         }
     }
 
-    private void parseManualYaml(InputStream is, String context) throws IOException {
+    private void parseManualYaml(InputStream is, Context context, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
             String line;
             String currentPk = null;
-            String currentHex = null;
+            String hexByte1 = null;
+            String hexByte2 = null;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.startsWith("pk:")) {
-                    if (currentPk != null && currentHex != null) {
-                        store(context, currentPk, currentHex);
+                    if (currentPk != null && hexByte1 != null && hexByte2 != null) {
+                        store(context, currentPk, hexByte1, hexByte2, idToNames, contextToNameToId);
                     }
                     currentPk = extractValue(line);
-                    currentHex = null;
-                } else if (line.startsWith("hex_int:")) {
-                    currentHex = extractValue(line);
+                    hexByte1 = null;
+                    hexByte2 = null;
+                } else if (line.startsWith("hex_byte_1:")) {
+                    hexByte1 = extractValue(line);
+                } else if (line.startsWith("hex_byte_2:")) {
+                    hexByte2 = extractValue(line);
                 }
             }
-            if (currentPk != null && currentHex != null) {
-                store(context, currentPk, currentHex);
+            if (currentPk != null && hexByte1 != null && hexByte2 != null) {
+                store(context, currentPk, hexByte1, hexByte2, idToNames, contextToNameToId);
             }
         }
     }
@@ -104,9 +119,11 @@ public class TlsCiphers extends FieldsProcessor {
         return val;
     }
 
-    private void store(String context, String name, String hexStr) {
-        int id = parseHex(hexStr);
-        idToNames.computeIfAbsent(id, k -> new HashMap<>()).put(context, name);
+    private void store(Context context, String name, String hexStr1, String hexStr2, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
+        byte id1 = (byte) parseHex(hexStr1);
+        byte id2 = (byte) parseHex(hexStr2);
+        CipherId id = new CipherId(id1, id2);
+        idToNames.computeIfAbsent(id, k -> new EnumMap<>(Context.class)).put(context, name);
         contextToNameToId.computeIfAbsent(context, k -> new HashMap<>()).put(name, id);
     }
 
@@ -128,23 +145,7 @@ public class TlsCiphers extends FieldsProcessor {
         if (value == null) {
             return RUNSTATUS.FAILED;
         }
-        String cipherName = value.toString();
-        Map<String, Integer> nameToId = contextToNameToId.get(sourceContext);
-        if (nameToId == null) {
-            return RUNSTATUS.FAILED;
-        }
-
-        Integer id = nameToId.get(cipherName);
-        if (id == null) {
-            return RUNSTATUS.FAILED;
-        }
-
-        Map<String, String> names = idToNames.get(id);
-        if (names == null) {
-            return RUNSTATUS.FAILED;
-        }
-
-        String translated = names.get(destinationContext);
+        String translated = translationMap.get(value.toString());
         return translated != null ? translated : RUNSTATUS.FAILED;
     }
 }
