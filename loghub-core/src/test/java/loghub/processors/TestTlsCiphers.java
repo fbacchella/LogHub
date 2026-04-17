@@ -1,7 +1,13 @@
 package loghub.processors;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -17,11 +23,13 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -134,6 +142,7 @@ class TestTlsCiphers {
     void testJavaCiphers() throws Exception {
         SSLContext context = SSLContext.getDefault();
         String[] cipherSuites = context.getSupportedSSLParameters().getCipherSuites();
+        Arrays.toString(cipherSuites);
 
         TlsCiphers.Builder builder = TlsCiphers.getBuilder();
         builder.setDestinationContext(TlsCiphers.Context.IANA);
@@ -200,6 +209,31 @@ class TestTlsCiphers {
                 logger.warn("Missing {} for {}/{}", missing, currentIdToName.get(Context.IANA), id);
             }
         }
+    }
+
+    @Test
+    void parsingExtention(@TempDir Path dir) throws IOException {
+        Path destination = dir.resolve("custom.yaml");
+        Files.writeString(destination, """
+- pk: 'BROKEN_TLS_RSA_AES_256_CCM'
+  model: 'directory.Custom'
+  fields:
+    hex_byte_1: '0xc0'
+    hex_byte_2: '0x9d'
+        """);
+        String conf = """
+            pipeline[main] {
+                loghub.processors.TlsCiphers {
+                    destinationContext: "IANA",
+                    extensions: ["%s"],
+                }
+            }
+        """.formatted(destination);
+        Properties p = Configuration.parse(new StringReader(conf));
+        TlsCiphers m = (TlsCiphers) p.namedPipeLine.get("main").processors.stream().findFirst().get();
+        Event event = factory.newEvent();
+        Object realName = m.fieldFunction(event, "BROKEN_TLS_RSA_AES_256_CCM");
+        Assertions.assertEquals("TLS_RSA_WITH_AES_256_CCM", realName);
     }
 
 }

@@ -4,16 +4,23 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import loghub.BuilderClass;
+import loghub.Helpers;
 import loghub.events.Event;
+import lombok.Getter;
 import lombok.Setter;
 
 /**
@@ -31,18 +38,53 @@ import lombok.Setter;
  * <p>
  *     The GnuTLS ciphers name can be found at <a href="https://www.gnutls.org/manual/html_node/Supported-ciphersuites.html">Appendix D Supported Ciphersuites</a>
  * </p>
+ * <p>
+ *     The Java ciphers were extracted from the Enum sun.security.ssl.CipherSuite
+ * </p>
  */
 @BuilderClass(TlsCiphers.Builder.class)
 public class TlsCiphers extends FieldsProcessor {
 
     public enum Context {
-        IANA,
-        OPENSSL,
-        GNUTLS,
-        JAVA,
+        IANA("directory.IanaCipher"),
+        OPENSSL("directory.OpensslCipher"),
+        GNUTLS("directory.GnutlsCipher"),
+        JAVA("directory.JavaCipher"),
+        CUSTOM("directory.Custom"),
+        ;
+        @Getter
+        private final String modelName;
+
+        Context(String modelName) {
+            this.modelName = modelName;
+        }
+
+        static Context resolve(String context) {
+            switch (context) {
+                case "directory.GnutlsCipher" -> {
+                return Context.GNUTLS;
+            }
+            case "directory.JavaCipher" -> {
+                return Context.JAVA;
+            }
+            case "directory.OpensslCipher" -> {
+                return Context.OPENSSL;
+            }
+            case "directory.IanaCipher" -> {
+                return Context.IANA;
+            }
+            case "directory.Custom" -> {
+                return Context.CUSTOM;
+            }
+            default -> throw new IllegalArgumentException(context);
+            }
+
+        }
     }
 
     public static class Builder extends FieldsProcessor.Builder<TlsCiphers> {
+        @Setter
+        private Object[] extensions = new URI[0];
         @Setter
         private Context destinationContext = Context.IANA;
 
@@ -73,6 +115,14 @@ public class TlsCiphers extends FieldsProcessor {
         Map<CipherId, Map<Context, String>> idToNames = new HashMap<>();
         Map<Context, Map<String, CipherId>> contextToNameToId = new EnumMap<>(Context.class);
         loadResources(idToNames, contextToNameToId);
+        for (Object u: builder.extensions) {
+            try {
+                readYamlUrl(Helpers.fileUri(u.toString()).toURL(), idToNames, contextToNameToId);
+            } catch (MalformedURLException e) {
+                logger.error("Unusable ciphers names URI \"{}\"", u);
+            }
+        }
+
         Map<String, String> localTranslationMap = new HashMap<>();
         buildTranslationMap(builder.destinationContext, idToNames, localTranslationMap);
         this.translationMap = Map.copyOf(localTranslationMap);
@@ -88,28 +138,23 @@ public class TlsCiphers extends FieldsProcessor {
     }
 
     private void loadResources(Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
-        Map<String, Context> resources = new HashMap<>();
-        resources.put("iana_ciphers.yaml", Context.IANA);
-        resources.put("openssl_ciphers.yaml", Context.OPENSSL);
-        resources.put("gnutls_ciphers.yaml", Context.GNUTLS);
-        resources.put("java_ciphers.yaml", Context.JAVA);
-
-        for (Map.Entry<String, Context> entry : resources.entrySet()) {
-            String resource = "/ciphers/" + entry.getKey();
-            Context context = entry.getValue();
-            try (InputStream is = getClass().getResourceAsStream(resource)) {
-                if (is == null) {
-                    logger.error("Resource not found: {}", resource);
-                    continue;
-                }
-                parseManualYaml(is, context, idToNames, contextToNameToId);
-            } catch (IOException e) {
-                logger.error("Failed to load cipher resource {}: {}", resource, e.getMessage());
-            }
+        for (String yaml: List.of("openssl_ciphers.yaml", "gnutls_ciphers.yaml", "java_ciphers.yaml")) {
+            String resource = "/ciphers/" + yaml;
+            readYamlUrl(getClass().getResource(resource), idToNames, contextToNameToId);
         }
-
         loadIanaCsvResource(idToNames, contextToNameToId);
         loadOpenSslDumpResource(idToNames, contextToNameToId);
+    }
+
+    private void readYamlUrl(URL yaml, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
+        try (InputStream is = yaml.openStream()) {
+            if (is == null) {
+                logger.error("Resource not found: {}", yaml);
+            }
+            parseManualYaml(is, idToNames, contextToNameToId);
+        } catch (IOException e) {
+            logger.error("Failed to load cipher resource {}: {}", yaml, e.getMessage());
+        }
     }
 
     private void loadIanaCsvResource(Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
@@ -133,7 +178,7 @@ public class TlsCiphers extends FieldsProcessor {
                         if (keywords.contains(name)) {
                             continue;
                         }
-                        store(Context.IANA, name, hex1, hex2, idToNames, contextToNameToId);
+                        store(Context.IANA.getModelName(), name, hex1, hex2, idToNames, contextToNameToId);
                     }
                 }
             }
@@ -157,7 +202,7 @@ public class TlsCiphers extends FieldsProcessor {
                         String hex1 = m.group("hex1");
                         String hex2 = m.group("hex2");
                         String name = m.group("name");
-                        store(Context.OPENSSL, name, hex1, hex2, idToNames, contextToNameToId);
+                        store(Context.OPENSSL.getModelName(), name, hex1, hex2, idToNames, contextToNameToId);
                     }
                 }
             }
@@ -166,29 +211,38 @@ public class TlsCiphers extends FieldsProcessor {
         }
     }
 
-    private void parseManualYaml(InputStream is, Context context, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) throws IOException {
+    private void parseManualYaml(InputStream is, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
             String line;
+            String model = null;
             String currentPk = null;
             String hexByte1 = null;
             String hexByte2 = null;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
-                if (line.startsWith("pk:")) {
-                    if (currentPk != null && hexByte1 != null && hexByte2 != null) {
-                        store(context, currentPk, hexByte1, hexByte2, idToNames, contextToNameToId);
+                if (line.startsWith("- ")) {
+                    if (model != null && currentPk != null && hexByte1 != null && hexByte2 != null) {
+                        store(model, currentPk, hexByte1, hexByte2, idToNames, contextToNameToId);
                     }
-                    currentPk = extractValue(line);
+                    model = null;
+                    currentPk = null;
                     hexByte1 = null;
                     hexByte2 = null;
+                    line = line.substring(2);
+                }
+                if (line.startsWith("pk:")) {
+                    currentPk = extractValue(line);
                 } else if (line.startsWith("hex_byte_1:")) {
                     hexByte1 = extractValue(line);
                 } else if (line.startsWith("hex_byte_2:")) {
                     hexByte2 = extractValue(line);
+                } else if (line.startsWith("model:")) {
+                    model = extractValue(line);
                 }
             }
-            if (currentPk != null && hexByte1 != null && hexByte2 != null) {
-                store(context, currentPk, hexByte1, hexByte2, idToNames, contextToNameToId);
+            // Handle the last entry
+            if (model != null && currentPk != null && hexByte1 != null && hexByte2 != null) {
+                store(model, currentPk, hexByte1, hexByte2, idToNames, contextToNameToId);
             }
         }
     }
@@ -203,24 +257,30 @@ public class TlsCiphers extends FieldsProcessor {
         return val;
     }
 
-    private void store(Context context, String name, String hexStr1, String hexStr2, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
-        byte id1 = (byte) parseHex(hexStr1);
-        byte id2 = (byte) parseHex(hexStr2);
+    private void store(String model, String name, String hexStr1, String hexStr2, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
+        byte id1 = Optional.ofNullable(hexStr1).map(this::parseHex).orElseThrow(() -> new IllegalArgumentException("Missing byte1"));
+        byte id2 = Optional.ofNullable(hexStr2).map(this::parseHex).orElseThrow(() -> new IllegalArgumentException("Missing byte2"));
         CipherId id = new CipherId(id1, id2);
+        Context context = Context.resolve(model);
         idToNames.computeIfAbsent(id, k -> new EnumMap<>(Context.class)).put(context, name);
-        contextToNameToId.computeIfAbsent(context, k -> new HashMap<>()).put(name, id);
+        contextToNameToId.computeIfAbsent(Context.resolve(model), k -> new HashMap<>()).put(name, id);
     }
 
-    private int parseHex(String hex) {
-        if (hex == null) return 0;
+    private byte parseHex(String hex) {
+        int value;
         try {
             if (hex.startsWith("0x")) {
-                return Integer.parseInt(hex.substring(2), 16);
+                value = Integer.parseInt(hex.substring(2), 16);
             } else {
-                return Integer.parseInt(hex, 16);
+                value = Integer.parseInt(hex, 16);
+            }
+            if ((value & ~0xFF) != 0) {
+                throw new ArithmeticException("Overflow of value %s".formatted(hex));
+            } else {
+                return (byte) value;
             }
         } catch (NumberFormatException e) {
-            return 0;
+            throw new IllegalArgumentException(hex, e);
         }
     }
 
@@ -228,9 +288,10 @@ public class TlsCiphers extends FieldsProcessor {
     public Object fieldFunction(Event event, Object value) {
         if (value == null) {
             return RUNSTATUS.FAILED;
+        } else {
+            String translated = translationMap.get(value.toString());
+            return translated != null ? translated : RUNSTATUS.FAILED;
         }
-        String translated = translationMap.get(value.toString());
-        return translated != null ? translated : RUNSTATUS.FAILED;
     }
 
     /**
