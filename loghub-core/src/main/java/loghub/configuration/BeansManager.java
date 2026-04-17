@@ -17,7 +17,6 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -193,8 +192,6 @@ public class BeansManager {
                 return (T) Character.valueOf(value.charAt(0));
             } else if (Enum.class.isAssignableFrom(clazz)) {
                 return (T) resolveEnum((Class<? extends Enum>) clazz, value);
-            } else if (clazz == Duration.class) {
-                return (T) Duration.parse(value);
             } else if (clazz == URI.class) {
                 return (T) Helpers.fileUri(value);
             } else {

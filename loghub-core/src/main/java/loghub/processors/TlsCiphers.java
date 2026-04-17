@@ -18,7 +18,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import loghub.BuilderClass;
-import loghub.Helpers;
 import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
@@ -84,7 +83,7 @@ public class TlsCiphers extends FieldsProcessor {
 
     public static class Builder extends FieldsProcessor.Builder<TlsCiphers> {
         @Setter
-        private Object[] extensions = new URI[0];
+        private URI[] extensions = new URI[0];
         @Setter
         private Context destinationContext = Context.IANA;
 
@@ -115,9 +114,9 @@ public class TlsCiphers extends FieldsProcessor {
         Map<CipherId, Map<Context, String>> idToNames = new HashMap<>();
         Map<Context, Map<String, CipherId>> contextToNameToId = new EnumMap<>(Context.class);
         loadResources(idToNames, contextToNameToId);
-        for (Object u: builder.extensions) {
+        for (URI u: builder.extensions) {
             try {
-                readYamlUrl(Helpers.fileUri(u.toString()).toURL(), idToNames, contextToNameToId);
+                readYamlUrl(u.toURL(), idToNames, contextToNameToId);
             } catch (MalformedURLException e) {
                 logger.error("Unusable ciphers names URI \"{}\"", u);
             }

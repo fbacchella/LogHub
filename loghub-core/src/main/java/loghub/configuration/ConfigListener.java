@@ -1,7 +1,9 @@
 package loghub.configuration;
 
 import java.beans.IntrospectionException;
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
 import java.net.InetAddress;
@@ -204,6 +206,19 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
+    static class Bean<T> {
+        final String beanName;
+        final Class<T> beanType;
+        Bean(String beanName, Class<T> beanType) {
+            this.beanName = beanName;
+            this.beanType = beanType;
+        }
+        @Override
+        public String toString() {
+            return "Bean(%s = %s)".formatted(beanName, beanType);
+        }
+    }
+
     static class ProcessorInstance extends ObjectWrapped<Processor> implements Pipenode {
         ProcessorInstance(ObjectWrapped<Processor> wrapper) {
             super(wrapper.wrapped);
@@ -352,15 +367,24 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
-    public void exitBean(BeanContext ctx) {
+    public void enterBean(BeanContext ctx) {
         String beanName;
-        Object beanValue = stack.popWrapped();
         if (ctx.bn != null) {
             beanName = ctx.bn.getText();
         } else {
             beanName = ctx.beanName().getText();
         }
-        doBean(beanName, beanValue, ctx);
+        if (stack.peek() instanceof ObjectWrapped<?> ow) {
+            Method m = beansManager.getBean(ow.wrapped.getClass(), beanName);
+            stack.push(new Bean(beanName, m.getParameterTypes()[0]));
+        }
+    }
+
+    @Override
+    public void exitBean(BeanContext ctx) {
+        Object beanValue = stack.popWrapped();
+        Bean bean = stack.popTyped();
+        doBean(bean.beanName, beanValue, ctx);
     }
 
     private void doBean(String beanName, Object beanValue, ParserRuleContext ctx) {
@@ -825,7 +849,33 @@ class ConfigListener extends RouteBaseListener {
         }
         Collections.reverse(array);
         stack.pop();
-        stack.pushWrapped(array.toArray());
+        if (stack.peek() instanceof Bean) {
+            Bean<?> bean = stack.peekTyped();
+            Class<?> arrayType = bean.beanType.getComponentType();
+            try {
+                Object finalArray = Array.newInstance(bean.beanType.getComponentType(), array.size());
+                for (int i = 0; i < array.size(); i++) {
+                    Object val = array.get(i);
+                    if (!arrayType.isAssignableFrom(val.getClass())) {
+                        if (val instanceof String s) {
+                            val = BeansManager.constructFromString(arrayType, s);
+                        } else if (arrayType == Expression.class) {
+                            val = new Expression(val);
+                        } else if (arrayType == String.class) {
+                            val = val.toString();
+                        }
+                    }
+                    Array.set(finalArray, i, val);
+                }
+                stack.pushWrapped(finalArray);
+            } catch (InvocationTargetException e) {
+                throw new RecognitionException("Failed handling array for %s: %s".formatted(bean.beanName, Helpers.resolveThrowableException(e.getCause())), parser, stream, ctx);
+            } catch (RuntimeException e) {
+                throw new RecognitionException("Failed handling array for %s: %s".formatted(bean.beanName, Helpers.resolveThrowableException(e)), parser, stream, ctx);
+            }
+        } else {
+            stack.pushWrapped(array.toArray());
+        }
     }
 
     @Override
@@ -1061,7 +1111,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitEventVariablePath(RouteParser.EventVariablePathContext ctx) {
-        VariablePath vp = convertEventVariable(ctx.eventVariable());;
+        VariablePath vp = convertEventVariable(ctx.eventVariable());
         stack.pushWrapped(vp);
     }
 
