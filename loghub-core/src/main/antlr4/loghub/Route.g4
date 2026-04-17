@@ -103,7 +103,6 @@ beanValue
     | {filter.allowedBeanType(BEANTYPE.OPTIONAL_ARRAY)}? (stringLiteral | array)
     | {filter.allowedBeanType(BEANTYPE.IMPLICIT_OBJECT)}? implicitObject
     | {filter.allowedBeanType(BEANTYPE.MAP)}? map
-    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH_ARRAY)}? vparray
     ;
 
 eventVariablePath
@@ -253,11 +252,6 @@ expressionMap
 matchOperator
     :   '=~'
     |   '==~'
-    ;
-
-vparray
-    : '[' (eventVariable ( ',' eventVariable)* ','?) ?']'
-    | '[' (stringLiteral ( ',' stringLiteral)* ','?) ?']'
     ;
 
 array

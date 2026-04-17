@@ -256,8 +256,6 @@ public class GrammarParserFiltering {
             return BEANTYPE.STRING;
         } else if (URI.class.equals(clazz)) {
             return BEANTYPE.STRING;
-        } else if (VariablePath[].class.equals(clazz)) {
-            return BEANTYPE.VARIABLE_PATH_ARRAY;
         } else if (clazz.isArray() && currentArrayType == null) {
             // Array can't be nested
             currentArrayType = resolveType(clazz.getComponentType());
@@ -313,7 +311,12 @@ public class GrammarParserFiltering {
             return assignationType == BEANTYPE.FLOAT || assignationType == BEANTYPE.ANY;
         case STRING:
             // String is also valid for an Enum type
-            return assignationType == BEANTYPE.ENUM || assignationType == BEANTYPE.PATTERN || assignationType == BEANTYPE.ANY;
+            // If currently in an array of VariablePath, a String is also accepted, for comptability for previous version
+            // Pattern was previously defined using String, keep comptability
+            return (currentArrayType == BEANTYPE.VARIABLE_PATH && assignationType == BEANTYPE.VARIABLE_PATH) ||
+                    assignationType == BEANTYPE.ENUM ||
+                    assignationType == BEANTYPE.PATTERN ||
+                    assignationType == BEANTYPE.ANY;
         case SECRET:
             return assignationType == BEANTYPE.STRING || assignationType == BEANTYPE.ANY;
         case VARIABLE_PATH_ARRAY:

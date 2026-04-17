@@ -92,7 +92,6 @@ import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.RouteParser.VarPathContext;
-import loghub.RouteParser.VparrayContext;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.ExpressionBuilder.ExpressionType;
@@ -124,7 +123,7 @@ class ConfigListener extends RouteBaseListener {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private static final Class[] INJECTED_BEANS_CLASSES = new Class[] {
+    private static final Class<?>[] INJECTED_BEANS_CLASSES = new Class<?>[] {
             SSLContext.class,
             SslContextBuilder.class,
             javax.security.auth.login.Configuration.class,
@@ -276,7 +275,7 @@ class ConfigListener extends RouteBaseListener {
     private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets;
     private final EventsFactory eventsFactory;
     private final Map<Class<?>, Object> configurationObjects;
-    private final Set<Class> injectionClasses;
+    private final Set<Class<?>> injectionClasses;
     final ConfigurationProperties properties;
 
     private Parser parser;
@@ -298,7 +297,7 @@ class ConfigListener extends RouteBaseListener {
         this.implicitObjets = Optional.ofNullable(implicitObjets).filter(Objects::nonNull).orElseGet(Map::of);
         this.eventsFactory = eventsFactory;
         this.configurationObjects = configurationObjects != null ? configurationObjects : Map.of();
-        List<Class> workInjectionClasses = new ArrayList<>(Arrays.asList(INJECTED_BEANS_CLASSES));
+        List<Class<?>> workInjectionClasses = (List<Class<?>>) Arrays.stream(INJECTED_BEANS_CLASSES).collect(Collectors.toList());
         if (configurationObjects != null) {
             workInjectionClasses.addAll(configurationObjects.keySet());
         }
@@ -376,14 +375,14 @@ class ConfigListener extends RouteBaseListener {
         }
         if (stack.peek() instanceof ObjectWrapped<?> ow) {
             Method m = beansManager.getBean(ow.wrapped.getClass(), beanName);
-            stack.push(new Bean(beanName, m.getParameterTypes()[0]));
+            stack.push(new Bean<>(beanName, m.getParameterTypes()[0]));
         }
     }
 
     @Override
     public void exitBean(BeanContext ctx) {
         Object beanValue = stack.popWrapped();
-        Bean bean = stack.popTyped();
+        Bean<?> bean = stack.popTyped();
         doBean(bean.beanName, beanValue, ctx);
     }
 
@@ -806,32 +805,6 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
-    public void enterVparray(VparrayContext ctx) {
-        stack.push(StackMarker.ARRAY);
-    }
-
-    @Override
-    public void exitVparray(VparrayContext ctx) {
-        if (ctx.eventVariable().isEmpty() && ctx.stringLiteral().isEmpty()) {
-            stack.pushWrapped(new VariablePath[0]);
-        } else {
-            List<VariablePath> array = new ArrayList<>(ctx.eventVariable().size() + ctx.stringLiteral().size());
-            // Don't try to be rigorous here, it's already filtered by antlr parsing
-            for (EventVariableContext evc: ctx.eventVariable()) {
-                array.add(convertEventVariable(evc));
-            }
-            for (StringLiteralContext evc: ctx.stringLiteral()) {
-                array.add(VariablePath.of(evc.getText()));
-            }
-            while (StackMarker.ARRAY != stack.pop()) {
-                // Cleaning the stack
-            }
-
-            stack.pushWrapped(array.toArray(VariablePath[]::new));
-        }
-    }
-
-    @Override
     public void enterArray(ArrayContext ctx) {
         stack.push(StackMarker.ARRAY);
     }
@@ -954,6 +927,7 @@ class ConfigListener extends RouteBaseListener {
         if (vp.QualifiedIdentifier() != null) {
             return VariablePath.pathElements(vp.QualifiedIdentifier().getText());
         } else {
+            // Keep a modifiable list
             return vp.pathElement().stream().map(this::filterpathElement).collect(Collectors.toList());
         }
     }

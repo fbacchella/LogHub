@@ -37,6 +37,7 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.Expression;
 import loghub.Helpers;
+import loghub.VariablePath;
 
 public class BeansManager {
 
@@ -194,6 +195,9 @@ public class BeansManager {
                 return (T) resolveEnum((Class<? extends Enum>) clazz, value);
             } else if (clazz == URI.class) {
                 return (T) Helpers.fileUri(value);
+            } else if (clazz == VariablePath.class) {
+                // Explicit handling of VariablePath because auto-detection of string constructor fails
+                return (T) VariablePath.parse(value);
             } else {
                 return (T) constructCache.computeIfAbsent(clazz, BeansManager::stringConstructor).get().create(value);
             }
