@@ -14,6 +14,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.InetAddress;
+import java.net.URI;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -36,6 +37,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Expression;
+import loghub.Helpers;
 
 public class BeansManager {
 
@@ -193,6 +195,8 @@ public class BeansManager {
                 return (T) resolveEnum((Class<? extends Enum>) clazz, value);
             } else if (clazz == Duration.class) {
                 return (T) Duration.parse(value);
+            } else if (clazz == URI.class) {
+                return (T) Helpers.fileUri(value);
             } else {
                 return (T) constructCache.computeIfAbsent(clazz, BeansManager::stringConstructor).get().create(value);
             }

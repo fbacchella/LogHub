@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -252,6 +253,8 @@ public class GrammarParserFiltering {
         } else if (clazz == Character.TYPE || Character.class.equals(clazz)) {
             return BEANTYPE.CHARACTER;
         } else if (String.class.equals(clazz)) {
+            return BEANTYPE.STRING;
+        } else if (URI.class.equals(clazz)) {
             return BEANTYPE.STRING;
         } else if (VariablePath[].class.equals(clazz)) {
             return BEANTYPE.VARIABLE_PATH_ARRAY;
