@@ -32,10 +32,10 @@ import lombok.Setter;
  *     It also use the content of https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4
  * </p>
  * <p>
- *     The file openssldump.txtopenssldump.txt was generated using the command {@code openssl ciphers -V 'ALL:@SECLEVEL=0'}
+ *     The GnuTLS ciphers name can be found at <a href="https://www.gnutls.org/manual/html_node/Supported-ciphersuites.html">Appendix D Supported Ciphersuites</a>
  * </p>
  * <p>
- *     The GnuTLS ciphers name can be found at <a href="https://www.gnutls.org/manual/html_node/Supported-ciphersuites.html">Appendix D Supported Ciphersuites</a>
+ *     The OpenSSL ciphers name can be found at <a href="https://github.com/openssl/openssl/blob/master/include/openssl/tls1.h">openssl/include/openssl/tls1.h</a>
  * </p>
  * <p>
  *     The Java ciphers were extracted from the Enum sun.security.ssl.CipherSuite
@@ -98,7 +98,6 @@ public class TlsCiphers extends FieldsProcessor {
     }
 
     private static final Pattern CSV_PATTERN = Pattern.compile("^\"(0x[0-9A-Fa-f]{2}),(0x[0-9A-Fa-f]{2})\",(?<name>[^,]+),.*$");
-    private static final Pattern OPENSSLDUMP_PATTERN = Pattern.compile("^\\s*(?<hex1>0x[0-9A-Fa-f]{2}),(?<hex2>0x[0-9A-Fa-f]{2})\\s*-\\s*(?<name>\\S+)\\s+.*$");
 
     private final Map<String, String> translationMap;
 
@@ -142,7 +141,6 @@ public class TlsCiphers extends FieldsProcessor {
             readYamlUrl(getClass().getResource(resource), idToNames, contextToNameToId);
         }
         loadIanaCsvResource(idToNames, contextToNameToId);
-        loadOpenSslDumpResource(idToNames, contextToNameToId);
     }
 
     private void readYamlUrl(URL yaml, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
@@ -178,30 +176,6 @@ public class TlsCiphers extends FieldsProcessor {
                             continue;
                         }
                         store(Context.IANA.getModelName(), name, hex1, hex2, idToNames, contextToNameToId);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            logger.error("Failed to load cipher resource {}: {}", resource, e.getMessage());
-        }
-    }
-
-    private void loadOpenSslDumpResource(Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
-        String resource = "/ciphers/openssldump.txt";
-        try (InputStream is = getClass().getResourceAsStream(resource)) {
-            if (is == null) {
-                logger.error("Resource not found: {}", resource);
-                return;
-            }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    Matcher m = OPENSSLDUMP_PATTERN.matcher(line);
-                    if (m.matches()) {
-                        String hex1 = m.group("hex1");
-                        String hex2 = m.group("hex2");
-                        String name = m.group("name");
-                        store(Context.OPENSSL.getModelName(), name, hex1, hex2, idToNames, contextToNameToId);
                     }
                 }
             }
