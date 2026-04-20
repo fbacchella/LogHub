@@ -8,7 +8,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.EnumMap;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,13 +29,18 @@ import lombok.Setter;
  * The underlying YAML resource files are derived from
  * <a href="https://github.com/hcrudolph/ciphersuite.info/">https://github.com/hcrudolph/ciphersuite.info/</a>.
  * <p>
- *     It also use the content of https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4
+ *     It also uses the content of https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4
  * </p>
  * <p>
  *     The GnuTLS ciphers name can be found at <a href="https://www.gnutls.org/manual/html_node/Supported-ciphersuites.html">Appendix D Supported Ciphersuites</a>
  * </p>
  * <p>
- *     The OpenSSL ciphers name can be found at <a href="https://github.com/openssl/openssl/blob/master/include/openssl/tls1.h">openssl/include/openssl/tls1.h</a>
+ *     To identify all the known cipher suits known to OpenSSL, one need to look at
+ *     <ul>
+ *         <li><a href="https://github.com/openssl/openssl/blob/master/include/openssl/tls1.h">include/openssl/tls1.h</a></li>
+ *         <li><a href="https://github.com/openssl/openssl/blob/master/doc/man1/openssl-ciphers.pod.in">doc/man1/openssl-ciphers.pod.in</a></li>
+ *         <li><a href="https://github.com/openssl/openssl/blob/master/ssl/t1_trce.c">ssl/t1_trce.c</a></li>
+ *     </ul>
  * </p>
  * <p>
  *     The Java ciphers were extracted from the Enum sun.security.ssl.CipherSuite
@@ -77,15 +82,14 @@ public class TlsCiphers extends FieldsProcessor {
             }
             default -> throw new IllegalArgumentException(context);
             }
-
         }
     }
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<TlsCiphers> {
-        @Setter
         private URI[] extensions = new URI[0];
-        @Setter
         private Context destinationContext = Context.IANA;
+        private ClassLoader classLoader = Builder.class.getClassLoader();
 
         @Override
         public TlsCiphers build() {
@@ -108,53 +112,64 @@ public class TlsCiphers extends FieldsProcessor {
         }
     }
 
+    record CipherEntry(String name, Context context, CipherId id) {
+    }
+
     private TlsCiphers(Builder builder) {
         super(builder);
-        Map<CipherId, Map<Context, String>> idToNames = new HashMap<>();
-        Map<Context, Map<String, CipherId>> contextToNameToId = new EnumMap<>(Context.class);
-        loadResources(idToNames, contextToNameToId);
+        Map<CipherId, List<CipherEntry>> idToNames = new HashMap<>();
+        loadResources(builder.classLoader, idToNames);
         for (URI u: builder.extensions) {
             try {
-                readYamlUrl(u.toURL(), idToNames, contextToNameToId);
+                readYamlUrl(u.toURL(), idToNames);
             } catch (MalformedURLException e) {
                 logger.error("Unusable ciphers names URI \"{}\"", u);
             }
         }
 
+        this.translationMap = buildTranslationMap(builder.destinationContext, idToNames);
+    }
+
+    private Map<String, String> buildTranslationMap(Context destinationContext, Map<CipherId, List<CipherEntry>> idToNames) {
         Map<String, String> localTranslationMap = new HashMap<>();
-        buildTranslationMap(builder.destinationContext, idToNames, localTranslationMap);
-        this.translationMap = Map.copyOf(localTranslationMap);
-    }
-
-    private void buildTranslationMap(Context destinationContext, Map<CipherId, Map<Context, String>> idToNames, Map<String, String> localTranslationMap) {
-        idToNames.values().forEach(names -> {
-            String targetName = names.get(destinationContext);
-            if (targetName != null) {
-                names.values().forEach(sourceName -> localTranslationMap.put(sourceName, targetName));
+        for (List<CipherEntry> le: idToNames.values()) {
+            String destinationName = le.stream()
+                                       .filter(ce -> ce.context == destinationContext)
+                                       .map(ce -> ce.name)
+                                       .findFirst()
+                                       .orElse(null);
+            if (destinationName != null) {
+                for (CipherEntry e: le) {
+                    if (e.context != destinationContext) {
+                        localTranslationMap.put(e.name, destinationName);
+                    }
+                }
             }
-        });
-    }
-
-    private void loadResources(Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
-        for (String yaml: List.of("openssl_ciphers.yaml", "gnutls_ciphers.yaml", "java_ciphers.yaml")) {
-            String resource = "/ciphers/" + yaml;
-            readYamlUrl(getClass().getResource(resource), idToNames, contextToNameToId);
         }
-        loadIanaCsvResource(idToNames, contextToNameToId);
+        return Map.copyOf(localTranslationMap);
     }
 
-    private void readYamlUrl(URL yaml, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
+    private void loadResources(ClassLoader classLoader, Map<CipherId, List<CipherEntry>> idToNames) {
+        for (String yaml: List.of("openssl_ciphers.yaml", "openssl_ciphers_t1_trce.yaml", "openssl_ciphers_tls1.yaml", "openssl_ciphers_man.yaml",
+                                  "gnutls_ciphers.yaml", "java_ciphers.yaml")) {
+            String resource = "ciphers/" + yaml;
+            readYamlUrl(classLoader.getResource(resource), idToNames);
+        }
+        loadIanaCsvResource(idToNames);
+    }
+
+    private void readYamlUrl(URL yaml, Map<CipherId, List<CipherEntry>> idToNames) {
         try (InputStream is = yaml.openStream()) {
             if (is == null) {
                 logger.error("Resource not found: {}", yaml);
             }
-            parseManualYaml(is, idToNames, contextToNameToId);
+            parseManualYaml(is, idToNames);
         } catch (IOException e) {
             logger.error("Failed to load cipher resource {}: {}", yaml, e.getMessage());
         }
     }
 
-    private void loadIanaCsvResource(Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
+    private void loadIanaCsvResource(Map<CipherId, List<CipherEntry>> idToNames) {
         String resource = "/ciphers/tls-parameters-4.csv";
         try (InputStream is = getClass().getResourceAsStream(resource)) {
             if (is == null) {
@@ -175,7 +190,7 @@ public class TlsCiphers extends FieldsProcessor {
                         if (keywords.contains(name)) {
                             continue;
                         }
-                        store(Context.IANA.getModelName(), name, hex1, hex2, idToNames, contextToNameToId);
+                        store(Context.IANA.getModelName(), name, hex1, hex2, idToNames);
                     }
                 }
             }
@@ -184,7 +199,7 @@ public class TlsCiphers extends FieldsProcessor {
         }
     }
 
-    private void parseManualYaml(InputStream is, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) throws IOException {
+    private void parseManualYaml(InputStream is, Map<CipherId, List<CipherEntry>> idToNames) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
             String line;
             String model = null;
@@ -195,7 +210,7 @@ public class TlsCiphers extends FieldsProcessor {
                 line = line.trim();
                 if (line.startsWith("- ")) {
                     if (model != null && currentPk != null && hexByte1 != null && hexByte2 != null) {
-                        store(model, currentPk, hexByte1, hexByte2, idToNames, contextToNameToId);
+                        store(model, currentPk, hexByte1, hexByte2, idToNames);
                     }
                     model = null;
                     currentPk = null;
@@ -215,7 +230,7 @@ public class TlsCiphers extends FieldsProcessor {
             }
             // Handle the last entry
             if (model != null && currentPk != null && hexByte1 != null && hexByte2 != null) {
-                store(model, currentPk, hexByte1, hexByte2, idToNames, contextToNameToId);
+                store(model, currentPk, hexByte1, hexByte2, idToNames);
             }
         }
     }
@@ -230,13 +245,12 @@ public class TlsCiphers extends FieldsProcessor {
         return val;
     }
 
-    private void store(String model, String name, String hexStr1, String hexStr2, Map<CipherId, Map<Context, String>> idToNames, Map<Context, Map<String, CipherId>> contextToNameToId) {
+    private void store(String model, String name, String hexStr1, String hexStr2, Map<CipherId, List<CipherEntry>> idToNames) {
         byte id1 = Optional.ofNullable(hexStr1).map(this::parseHex).orElseThrow(() -> new IllegalArgumentException("Missing byte1"));
         byte id2 = Optional.ofNullable(hexStr2).map(this::parseHex).orElseThrow(() -> new IllegalArgumentException("Missing byte2"));
         CipherId id = new CipherId(id1, id2);
         Context context = Context.resolve(model);
-        idToNames.computeIfAbsent(id, k -> new EnumMap<>(Context.class)).put(context, name);
-        contextToNameToId.computeIfAbsent(Context.resolve(model), k -> new HashMap<>()).put(name, id);
+        idToNames.computeIfAbsent(id, k -> new ArrayList<>()).add(new CipherEntry(name, context, id));
     }
 
     private byte parseHex(String hex) {
@@ -271,11 +285,10 @@ public class TlsCiphers extends FieldsProcessor {
      * Used for test, not for generic use
      * @return
      */
-    static Map<CipherId, Map<Context, String>> resolveId() {
+    static Map<CipherId, List<CipherEntry>> resolveId() {
         TlsCiphers cipher = getBuilder().build();
-        Map<CipherId, Map<Context, String>> idToNames = new HashMap<>();
-        Map<Context, Map<String, CipherId>> contextToNameToId = new EnumMap<>(Context.class);
-        cipher.loadResources(idToNames, contextToNameToId);
+        Map<CipherId, List<CipherEntry>> idToNames = new HashMap<>();
+        cipher.loadResources(TlsCiphers.class.getClassLoader(), idToNames);
         return idToNames;
     }
 

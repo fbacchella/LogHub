@@ -1,0 +1,1700 @@
+- model: directory.OpensslCipher
+  pk: 'TLS_NULL_WITH_NULL_NULL'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x00'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_RSA_NULL_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x01'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_RSA_NULL_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x02'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_EXPORT_WITH_RC4_40_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x03'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_RSA_RC4_128_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x04'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_RSA_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x05'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x06'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_RSA_IDEA_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x07'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_EXPORT_WITH_DES40_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x08'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_WITH_DES_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x09'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_RSA_DES_192_CBC3_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x0A'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_EXPORT_WITH_DES40_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x0B'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_DES_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x0C'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x0D'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_EXPORT_WITH_DES40_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x0E'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_DES_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x0F'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x10'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x11'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_DSS_WITH_DES_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x12'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_DHE_DSS_DES_192_CBC3_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x13'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x14'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_RSA_WITH_DES_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x15'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_DHE_RSA_DES_192_CBC3_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x16'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_anon_EXPORT_WITH_RC4_40_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x17'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_ADH_RC4_128_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x18'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x19'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_anon_WITH_DES_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x1A'
+- model: directory.OpensslCipher
+  pk: 'SSL3_RFC_ADH_DES_192_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x1B'
+- model: directory.OpensslCipher
+  pk: 'SSL_FORTEZZA_KEA_WITH_FORTEZZA_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x1D'
+- model: directory.OpensslCipher
+  pk: 'SSL_FORTEZZA_KEA_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x1E'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x1F'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x20'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_WITH_IDEA_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x21'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_WITH_DES_CBC_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x22'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_WITH_3DES_EDE_CBC_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x23'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_WITH_RC4_128_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x24'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_WITH_IDEA_CBC_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x25'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x26'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_EXPORT_WITH_RC2_CBC_40_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x27'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_EXPORT_WITH_RC4_40_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x28'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x29'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_EXPORT_WITH_RC2_CBC_40_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x2A'
+- model: directory.OpensslCipher
+  pk: 'TLS_KRB5_EXPORT_WITH_RC4_40_MD5'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x2B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x2C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x2D'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x2E'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x2F'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x30'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x31'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_AES_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x32'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x33'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_AES_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x34'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_256_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x35'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x36'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x37'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_AES_256_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x38'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_256_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x39'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_AES_256_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x3A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_NULL_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x3B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_128_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x3C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_256_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x3D'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_AES_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x3E'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_AES_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x3F'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_AES_128_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x40'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_CAMELLIA_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x41'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x42'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x43'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x44'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x45'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_CAMELLIA_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x46'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_128_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x67'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_AES_256_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x68'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_AES_256_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x69'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_AES_256_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x6A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_256_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x6B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_AES_128_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x6C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_AES_256_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x6D'
+- model: directory.OpensslCipher
+  pk: 'TLS_GOSTR341001_WITH_28147_CNT_IMIT'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x81'
+- model: directory.OpensslCipher
+  pk: 'TLS_GOSTR341001_WITH_NULL_GOSTR3411'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x83'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_CAMELLIA_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x84'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x85'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x86'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x87'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x88'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_CAMELLIA_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x89'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x8A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x8B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x8C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x8D'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x8E'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x8F'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x90'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x91'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x92'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x93'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x94'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x95'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_SEED_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x96'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_SEED_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x97'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_SEED_CBC_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x98'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_SEED_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x99'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_SEED_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x9A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_SEED_SHA'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x9B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x9C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x9D'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x9E'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0x9F'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA0'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA1'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA2'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA3'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA4'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA5'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA6'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA7'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA8'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xA9'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xAA'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xAB'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xAC'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xAD'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xAE'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xAF'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_NULL_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB0'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_NULL_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB1'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB2'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB3'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_NULL_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB4'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_NULL_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB5'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_AES_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB6'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_AES_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB7'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_NULL_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB8'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_NULL_SHA384'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xB9'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xBA'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xBB'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xBC'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xBD'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xBE'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xBF'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_CAMELLIA_256_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xC0'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xC1'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xC2'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xC3'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xC4'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ADH_WITH_CAMELLIA_256_CBC_SHA256'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xC5'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_SM4_GCM_SM3'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xC6'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_SM4_CCM_SM3'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xC7'
+- model: directory.OpensslCipher
+  pk: 'TLS_EMPTY_RENEGOTIATION_INFO_SCSV'
+  fields:
+    hex_byte_1: '0x00'
+    hex_byte_2: '0xFF'
+- model: directory.OpensslCipher
+  pk: 'TLS_FALLBACK_SCSV'
+  fields:
+    hex_byte_1: '0x56'
+    hex_byte_2: '0x00'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x01'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x02'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x03'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x04'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x05'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x06'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x07'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_DES_192_CBC3_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x08'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x09'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x0A'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x0B'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x0C'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x0D'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x0E'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x0F'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x10'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x11'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_DES_192_CBC3_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x12'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x13'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x14'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_anon_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x15'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_anon_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x16'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_anon_WITH_DES_192_CBC3_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x17'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_anon_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x18'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_anon_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x19'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x1A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x1B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x1C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x1D'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_RSA_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x1E'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_DSS_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x1F'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x20'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_RSA_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x21'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_SRP_SHA_DSS_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x22'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_128_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x23'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_256_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x24'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x25'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x26'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_AES_128_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x27'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_AES_256_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x28'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x29'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x2A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x2B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x2C'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x2D'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x2E'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x2F'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x30'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x31'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x32'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_RC4_128_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x33'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x34'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_AES_128_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x35'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_AES_256_CBC_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x36'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_AES_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x37'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_AES_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x38'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_NULL_SHA'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x39'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_NULL_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x3A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_NULL_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x3B'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x3C'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x3D'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x3E'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x3F'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x40'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x41'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_DSS_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x42'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_DSS_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x43'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_RSA_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x44'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_RSA_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x45'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_anon_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x46'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_anon_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x47'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_ECDSA_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x48'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_ECDSA_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x49'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x4A'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x4B'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_RSA_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x4C'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_RSA_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x4D'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x4E'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x4F'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x50'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x51'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x52'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x53'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DH_RSA_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x54'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DH_RSA_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x55'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x56'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_DSS_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x57'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DH_DSS_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x58'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DH_DSS_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x59'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DH_anon_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x5A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DH_anon_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x5B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x5C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x5D'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_ECDSA_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x5E'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_ECDSA_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x5F'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x60'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x61'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_RSA_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x62'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDH_RSA_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x63'
+- model: directory.OpensslCipher
+  pk: 'TLS_PSK_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x64'
+- model: directory.OpensslCipher
+  pk: 'TLS_PSK_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x65'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_PSK_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x66'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_PSK_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x67'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_PSK_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x68'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_PSK_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x69'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x6A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x6B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x6C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x6D'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_ARIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x6E'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_ARIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x6F'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x70'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_PSK_WITH_ARIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x71'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x72'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x73'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x74'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x75'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x76'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x77'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x78'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_CAMELLIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x79'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x7A'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x7B'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_RSA_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x7C'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_RSA_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x7D'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x7E'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_RSA_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x7F'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_DSS_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x80'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_DSS_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x81'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x82'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_DSS_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x83'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_anon_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x84'
+- model: directory.OpensslCipher
+  pk: 'TLS_DH_anon_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x85'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x86'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x87'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x88'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_ECDSA_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x89'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x8A'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDHE_RSA_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x8B'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x8C'
+- model: directory.OpensslCipher
+  pk: 'TLS_ECDH_RSA_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x8D'
+- model: directory.OpensslCipher
+  pk: 'TLS_PSK_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x8E'
+- model: directory.OpensslCipher
+  pk: 'TLS_PSK_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x8F'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_PSK_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x90'
+- model: directory.OpensslCipher
+  pk: 'TLS_DHE_PSK_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x91'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_PSK_WITH_CAMELLIA_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x92'
+- model: directory.OpensslCipher
+  pk: 'TLS_RSA_PSK_WITH_CAMELLIA_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x93'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x94'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_CAMELLIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x95'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x96'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_CAMELLIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x97'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x98'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_CAMELLIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x99'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_CAMELLIA_128_CBC_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x9A'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_CAMELLIA_256_CBC_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x9B'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_128_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x9C'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_256_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x9D'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_128_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x9E'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_256_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0x9F'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_128_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA0'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_WITH_AES_256_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA1'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_128_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA2'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_AES_256_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA3'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_128_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA4'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_256_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA5'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_128_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA6'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_256_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA7'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_128_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA8'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_AES_256_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xA9'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_128_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xAA'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_AES_256_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xAB'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_128_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xAC'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_256_CCM'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xAD'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_128_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xAE'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_AES_256_CCM_8'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xAF'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_RSA_WITH_CHACHA20_POLY1305'
+  fields:
+    hex_byte_1: '0xCC'
+    hex_byte_2: '0xA8'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_ECDSA_WITH_CHACHA20_POLY1305'
+  fields:
+    hex_byte_1: '0xCC'
+    hex_byte_2: '0xA9'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_RSA_WITH_CHACHA20_POLY1305'
+  fields:
+    hex_byte_1: '0xCC'
+    hex_byte_2: '0xAA'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_PSK_WITH_CHACHA20_POLY1305'
+  fields:
+    hex_byte_1: '0xCC'
+    hex_byte_2: '0xAB'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_ECDHE_PSK_WITH_CHACHA20_POLY1305'
+  fields:
+    hex_byte_1: '0xCC'
+    hex_byte_2: '0xAC'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_DHE_PSK_WITH_CHACHA20_POLY1305'
+  fields:
+    hex_byte_1: '0xCC'
+    hex_byte_2: '0xAD'
+- model: directory.OpensslCipher
+  pk: 'TLS1_RFC_RSA_PSK_WITH_CHACHA20_POLY1305'
+  fields:
+    hex_byte_1: '0xCC'
+    hex_byte_2: '0xAE'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_AES_128_GCM_SHA256'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x01'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_AES_256_GCM_SHA384'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x02'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_CHACHA20_POLY1305_SHA256'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x03'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_AES_128_CCM_SHA256'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x04'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_AES_128_CCM_8_SHA256'
+  fields:
+    hex_byte_1: '0x13'
+    hex_byte_2: '0x05'
+- model: directory.OpensslCipher
+  pk: 'SSL_RSA_FIPS_WITH_DES_CBC_SHA'
+  fields:
+    hex_byte_1: '0xFE'
+    hex_byte_2: '0xFE'
+- model: directory.OpensslCipher
+  pk: 'SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA'
+  fields:
+    hex_byte_1: '0xFE'
+    hex_byte_2: '0xFF'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_SHA256_SHA256'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xB4'
+- model: directory.OpensslCipher
+  pk: 'TLS1_3_RFC_SHA384_SHA384'
+  fields:
+    hex_byte_1: '0xC0'
+    hex_byte_2: '0xB5'

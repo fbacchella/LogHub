@@ -8,9 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,8 +29,6 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.processors.TlsCiphers.CipherId;
-import loghub.processors.TlsCiphers.Context;
 
 class TestTlsCiphers {
 
@@ -184,30 +179,6 @@ class TestTlsCiphers {
         event.put("cipher", "ECDHE-RSA-AES256-GCM-SHA384");
         processor.process(event);
         Assertions.assertEquals("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", event.get("cipher"));
-    }
-
-    @Test
-    void testYamlConsistency() {
-        Map<CipherId, Map<Context, String>> contextToIdToName = TlsCiphers.resolveId();
-
-        for (Map.Entry<CipherId, Map<Context, String>> entry : contextToIdToName.entrySet()) {
-            if (entry.getValue().size() == 4) {
-                continue;
-            }
-            CipherId id = entry.getKey();
-            Map<Context, String> currentIdToName = entry.getValue();
-            if (!currentIdToName.containsKey(Context.IANA)) {
-                logger.warn("Missing IANA key {} with names {}", id, currentIdToName);
-            } else {
-                Set<Context> missing = HashSet.newHashSet(4);
-                for (Context c: Context.values()) {
-                    if (! entry.getValue().containsKey(c)) {
-                        missing.add(c);
-                    }
-                }
-                logger.warn("Missing {} for {}/{}", missing, currentIdToName.get(Context.IANA), id);
-            }
-        }
     }
 
     @Test
