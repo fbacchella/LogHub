@@ -6,8 +6,6 @@ import java.text.DateFormatSymbols;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
-import java.text.Format;
-import java.text.ParsePosition;
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -38,12 +36,10 @@ import java.util.Optional;
 import java.util.TimeZone;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.Version;
@@ -72,28 +68,21 @@ public class VarFormatter {
         }
     }
 
-    private abstract static class NonParsingFormat extends Format {
+    private abstract static class AbstractFormat implements BiConsumer<StringBuffer, Object> {
         @Override
-        public Object parseObject(String source, ParsePosition pos) {
-            throw new UnsupportedOperationException("Can't parse an object");
-        }
-
-        @Override
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+        public void accept(StringBuffer toAppendTo, Object obj) {
             if (obj == NullOrMissingValue.NULL) {
-                return toAppendTo.append("null");
+                toAppendTo.append("null");
             } else if (obj == NullOrMissingValue.MISSING) {
                 throw IgnoredEventException.INSTANCE;
             } else {
-                return filteredFormat(obj, toAppendTo, pos);
+                filteredFormat(toAppendTo, obj);
             }
         }
-        protected StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            return toAppendTo;
-        }
+        protected abstract void filteredFormat(StringBuffer toAppendTo, Object obj);
     }
 
-    private static final class JsonFormat extends NonParsingFormat {
+    private static final class JsonFormat extends AbstractFormat {
         private static final ObjectWriter writer;
         static {
             SimpleModule module = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "EventToJson"));
@@ -104,18 +93,19 @@ public class VarFormatter {
                                    .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false))
                                    .getWriter();
         }
+        private static final JsonFormat INSTANCE = new JsonFormat();
 
         @Override
-        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
             try {
-                return toAppendTo.append(writer.writeValueAsString(obj));
+                toAppendTo.append(writer.writeValueAsString(obj));
             } catch (JsonProcessingException e) {
                 throw new UncheckedIOException("Can't serialized value: " + Helpers.resolveThrowableException(e), e);
             }
         }
     }
 
-    private static final class FunctionFormat extends NonParsingFormat {
+    private static final class FunctionFormat extends AbstractFormat {
         private final Locale l;
         private final boolean toUpper;
         private final Function<Object, String> f;
@@ -128,36 +118,23 @@ public class VarFormatter {
         }
 
         @Override
-        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo,
-                                         FieldPosition pos) {
+        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
             String formatted = f.apply(obj);
             if (toUpper) {
                 formatted = formatted.toUpperCase(l);
             }
-            return toAppendTo.append(formatted);
+            toAppendTo.append(formatted);
         }
 
     }
 
-    private static final class LitteralFormat extends NonParsingFormat {
-        private final String litteral;
-        private LitteralFormat(String litteral) {
-            this.litteral = litteral;
-        }
-
-        @Override
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            return toAppendTo.append(litteral);
-        }
-    }
-
-    private abstract static class JustifyFormat extends NonParsingFormat {
-        protected final DecimalFormat f;
+    private abstract static class JustifyFormat extends AbstractFormat {
+        protected final ThreadLocal<DecimalFormat> f;
         protected final int size;
         protected final String padding;
 
-        private JustifyFormat(DecimalFormat f, int size) {
-            this.f = f;
+        private JustifyFormat(Supplier<DecimalFormat> f, int size) {
+            this.f = ThreadLocal.withInitial(f);
             this.size = size;
             if (size > 0) {
                 char[] paddingContent = new char[size];
@@ -169,20 +146,19 @@ public class VarFormatter {
         }
 
         @Override
-        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
             toAppendTo.ensureCapacity(toAppendTo.length() + size);
             int oldLength = toAppendTo.length();
-            f.format(obj, toAppendTo, pos);
+            f.get().format(obj, toAppendTo, new FieldPosition(0));
             if ((oldLength + size) > toAppendTo.length()) {
                 doPadding(toAppendTo, padding, oldLength, oldLength + size - toAppendTo.length());
             }
-            return toAppendTo;
         }
         abstract void doPadding(StringBuffer toAppendTo, String padding, int oldLength, int newLenght);
     }
 
     private static class RightJustifyNumberFormat extends JustifyFormat {
-        RightJustifyNumberFormat(DecimalFormat f, int size) {
+        RightJustifyNumberFormat(Supplier<DecimalFormat> f, int size) {
             super(f, size);
         }
         @Override
@@ -192,7 +168,7 @@ public class VarFormatter {
     }
 
     private static class LeftJustifyNumberFormat extends JustifyFormat {
-        LeftJustifyNumberFormat(DecimalFormat f, int size) {
+        LeftJustifyNumberFormat(Supplier<DecimalFormat> f, int size) {
             super(f, size);
         }
         @Override
@@ -201,7 +177,7 @@ public class VarFormatter {
         }
     }
 
-    private static final class NonDecimalNumberFormat extends NonParsingFormat {
+    private static final class NonDecimalNumberFormat extends AbstractFormat {
         private final Locale l;
         private final int base;
         private final boolean toUpper;
@@ -216,7 +192,7 @@ public class VarFormatter {
         }
 
         @Override
-        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
             Number n = (Number) obj;
             String formatted;
             String prefix;
@@ -259,11 +235,11 @@ public class VarFormatter {
                 toAppendTo.append(paddingprefix);
             }
 
-            return toAppendTo.append(formatted);
+            toAppendTo.append(formatted);
         }
     }
 
-    private static final class ExtendedDateFormat extends NonParsingFormat {
+    private static final class ExtendedDateFormat extends AbstractFormat {
         private final ZoneId tz;
         private final ZoneId etz;
         private final boolean chronologyCheck;
@@ -339,13 +315,13 @@ public class VarFormatter {
                 }
                 case 'z' -> {
                     // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time.
+                    ThreadLocal<DecimalFormat> tlDf = ThreadLocal.withInitial(() -> new DecimalFormat("0000", DecimalFormatSymbols.getInstance(locale)));
                     taToStr = (sb, ta) -> {
                         int offsetS = getTemporalAccessor(ta).get(ChronoField.OFFSET_SECONDS);
                         sb.append(offsetS < 0 ? '-' : '+');
                         int minutes = Math.abs(offsetS) / 60;
                         int offset = (minutes / 60) * 100 + (minutes % 60);
-                        DecimalFormat df = new DecimalFormat("0000", DecimalFormatSymbols.getInstance(locale));
-                        df.format(offset, sb, new FieldPosition(0));
+                        tlDf.get().format(offset, sb, new FieldPosition(0));
                     };
                     zoned = true;
                     chronologyCheck = false;
@@ -500,13 +476,13 @@ public class VarFormatter {
         }
 
         private BiConsumer<StringBuffer, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalField field) {
-            DecimalFormat df = new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale));
-            return (sb, ta) -> df.format(ta.get(field), sb, new FieldPosition(0));
+            ThreadLocal<DecimalFormat> df = ThreadLocal.withInitial(() -> new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale)));
+            return (sb, ta) -> df.get().format(ta.get(field), sb, new FieldPosition(0));
         }
 
         private BiConsumer<StringBuffer, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalQuery<Long> transformd) {
-            DecimalFormat df = new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale));
-            return (sb, ta) -> df.format(transformd.queryFrom(ta), sb, new FieldPosition(0));
+            ThreadLocal<DecimalFormat> df = ThreadLocal.withInitial(() -> new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale)));
+            return (sb, ta) -> df.get().format(transformd.queryFrom(ta), sb, new FieldPosition(0));
         }
 
         private TemporalAccessor withCalendarSystem(ZonedDateTime timePoint) {
@@ -528,10 +504,10 @@ public class VarFormatter {
         }
 
         @Override
-        public StringBuffer filteredFormat(Object obj, StringBuffer toAppendTo,
-                                   FieldPosition pos) {
+        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
             if (! (obj instanceof Date) && ! (obj instanceof TemporalAccessor)) {
-                return toAppendTo.append(obj);
+                toAppendTo.append(obj);
+                return;
             }
             try {
                 if (isUpper) {
@@ -541,14 +517,13 @@ public class VarFormatter {
                 } else {
                     taToStr.accept(toAppendTo, getTemporalAccessor(obj));
                 }
-                return toAppendTo;
             } catch (DateTimeException e) {
                 throw new IllegalArgumentException("Can't format the given time data: " + e.getMessage(), e);
             }
         }
     }
 
-    private static final class BooleanFormat extends NonParsingFormat {
+    private static final class BooleanFormat implements BiConsumer<StringBuffer, Object> {
         private final boolean toUpper;
         private final Locale l;
         private BooleanFormat(boolean toUpper, Locale l) {
@@ -556,7 +531,7 @@ public class VarFormatter {
             this.l = l;
         }
         @Override
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+        public void accept(StringBuffer toAppendTo, Object obj) {
             String formatted;
             if (obj == null || obj == NullOrMissingValue.NULL) {
                 formatted = "false";
@@ -570,7 +545,7 @@ public class VarFormatter {
             if (toUpper) {
                 formatted = formatted.toUpperCase(l);
             }
-            return toAppendTo.append(formatted);
+            toAppendTo.append(formatted);
         }
     }
 
@@ -578,10 +553,9 @@ public class VarFormatter {
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:<(?<tz>.*)>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.+))?$", Pattern.DOTALL);
     private static final Pattern arrayIndex = Pattern.compile("#(?<index>\\d+)");
 
-    private record FormatEntry(int index, Format formatter) {
-        private static final FieldPosition FIELD_POSITION = new FieldPosition(0);
+    private record FormatEntry(int index, BiConsumer<StringBuffer, Object> formatter) {
         StringBuffer format(Object[] resolved, StringBuffer toAppendTo) {
-            formatter.format(resolved[index], toAppendTo, FIELD_POSITION);
+            formatter.accept(toAppendTo, resolved[index]);
             return toAppendTo;
         }
     }
@@ -789,7 +763,7 @@ public class VarFormatter {
         }
     }
 
-    private Format resolveFormat(String format) {
+    private BiConsumer<StringBuffer, Object> resolveFormat(String format) {
         Matcher m = formatSpecifier.matcher(format);
         if (m.matches()) {
             String localeStr = m.group("locale");
@@ -832,16 +806,20 @@ public class VarFormatter {
                 case 's' -> new FunctionFormat(Locale.getDefault(), isUpper, o -> cut.apply(o.toString()));
                 case 'h' -> new FunctionFormat(Locale.getDefault(), isUpper, o -> Integer.toHexString(o.hashCode()));
                 case 'c' -> {
-                    Function<Object, String> f = o -> (o instanceof Character) ? o.toString() : "null";
+                    Function<Object, String> f = o -> (o instanceof Character ) ? o.toString() :
+                                                              String.valueOf(o.toString().charAt(0));
                     yield new FunctionFormat(Locale.getDefault(), isUpper, f);
                 }
                 case 'd' -> numberFormat(locale, conversion, flags, true, length, precision, isUpper);
                 case 'o', 'x' -> new NonDecimalNumberFormat(locale, conversion == 'o' ? 8 : 16, isUpper, flags, length);
                 case 'e', 'f', 'g', 'a' -> numberFormat(locale, conversion, flags, false, length, precision, isUpper);
                 case 't' -> new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
-                case '%' -> new LitteralFormat("%");
-                case 'n' -> new LitteralFormat(System.lineSeparator());
-                case 'j' -> new JsonFormat();
+                case '%' -> (sb, o) -> sb.append("%");
+                case 'n' -> {
+                    String ls = System.lineSeparator();
+                    yield (sb, o) -> sb.append(ls);
+                }
+                case 'j' -> JsonFormat.INSTANCE;
                 default -> throw new IllegalArgumentException("Invalid format specifier: " + format);
             };
         } else {
@@ -849,38 +827,41 @@ public class VarFormatter {
         }
     }
 
-    private Format numberFormat(Locale l, char conversion, Flags flags, boolean integer, int length, int precision, boolean isUpper) {
+    private BiConsumer<StringBuffer, Object> numberFormat(Locale l, char conversion, Flags flags, boolean integer, int length, int precision, boolean isUpper) {
         // Default precision for %f is exactly 6 digits
-        precision = (precision == -1 ? 6 : precision);
-        DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(l);
-        symbols.setExponentSeparator(isUpper ? "E" : "e");
-        symbols.setDigit(flags.zeropadded ? '0' : '#');
-        int fixed = (integer ? length : length - precision - 1);
-        DecimalFormat df = new DecimalFormat("#" + (conversion == 'e' ? "E00" : ""), symbols);
-        if (flags.grouping) {
-            df.setGroupingUsed(true);
-            df.setGroupingSize(3);
-        }
-        if (flags.parenthesis) {
-            df.setNegativePrefix("(");
-            df.setNegativeSuffix(")");
-        }
-        if (flags.withsign) {
-            df.setPositivePrefix("+");
-        }
-        if (! integer && precision >= 0) {
-            df.setMinimumFractionDigits(precision);
-            df.setMaximumFractionDigits(precision);
-        }
-        if (symbols.getDigit() == '0') {
-            df.setMinimumIntegerDigits(fixed);
-        }
+        final int effectivePrecision = (precision == -1 ? 6 : precision);
+        final int fixed = (integer ? length : length - effectivePrecision - 1);
+        Supplier<DecimalFormat> dfSupplier = () -> {
+            DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(l);
+            symbols.setExponentSeparator(isUpper ? "E" : "e");
+            symbols.setDigit(flags.zeropadded ? '0' : '#');
+            DecimalFormat df = new DecimalFormat("#" + (conversion == 'e' ? "E00" : ""), symbols);
+            if (flags.grouping) {
+                df.setGroupingUsed(true);
+                df.setGroupingSize(3);
+            }
+            if (flags.parenthesis) {
+                df.setNegativePrefix("(");
+                df.setNegativeSuffix(")");
+            }
+            if (flags.withsign) {
+                df.setPositivePrefix("+");
+            }
+            if (! integer && effectivePrecision >= 0) {
+                df.setMinimumFractionDigits(effectivePrecision);
+                df.setMaximumFractionDigits(effectivePrecision);
+            }
+            if (symbols.getDigit() == '0') {
+                df.setMinimumIntegerDigits(fixed);
+            }
+            return df;
+        };
         if (length < 0) {
-            return new FunctionFormat(l, false, df::format);
+            return new FunctionFormat(l, false, dfSupplier.get()::format);
         } else if (flags.leftjustified) {
-            return new LeftJustifyNumberFormat(df, length);
+            return new LeftJustifyNumberFormat(dfSupplier, length);
         } else {
-            return new RightJustifyNumberFormat(df, length);
+            return new RightJustifyNumberFormat(dfSupplier, length);
         }
     }
 
