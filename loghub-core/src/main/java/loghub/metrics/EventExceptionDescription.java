@@ -21,14 +21,16 @@ import loghub.senders.Sender;
 
 public record EventExceptionDescription(String eventJson, CONTEXT context, String contextName, String message) {
     private static final Logger logger = LogManager.getLogger();
+    private static final int MAX_EVENT_JSON_LENGTH = 4096;
 
     private static final VarFormatter JSON_FORMATER = new VarFormatter("${%j}");
     private static final Function<Event, String> FORMATER = e -> {
         try {
-            return JSON_FORMATER.format(e);
+            String json = JSON_FORMATER.format(e);
+            return json.length() > MAX_EVENT_JSON_LENGTH ? json.substring(0, MAX_EVENT_JSON_LENGTH) + "…" : json;
         } catch (RuntimeException ex) {
             logger.atError().withThrowable(ex).log("Unformattable event: {}", Helpers.resolveThrowableException(ex));
-            return "Unformatable event :" + Helpers.resolveThrowableException(ex);
+            return "Unformattable event :" + Helpers.resolveThrowableException(ex);
         }
     };
 
