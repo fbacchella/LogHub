@@ -583,7 +583,6 @@ public class VarFormatter {
 
     private class FormatDelegated {
         private final MessageFormat mf;
-        private final StringBuffer buffer = new StringBuffer();
         FormatDelegated(String pattern, List<String> formats) {
             try {
                 mf = new MessageFormat(pattern, locale);
@@ -595,12 +594,7 @@ public class VarFormatter {
             }
         }
         public String format(Object[] resolved) throws IllegalArgumentException {
-            buffer.setLength(0);
-            try {
-                return mf.format(resolved, buffer, new FieldPosition(0)).toString();
-            } finally {
-                buffer.setLength(0);
-            }
+            return mf.format(resolved, new StringBuffer(), new FieldPosition(0)).toString();
         }
     }
 
