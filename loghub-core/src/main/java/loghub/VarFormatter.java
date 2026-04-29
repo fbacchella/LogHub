@@ -197,17 +197,11 @@ public class VarFormatter {
             String formatted;
             String prefix;
             long longValue;
-            if (n instanceof Byte && base != 10) {
-                byte b = (byte) n;
-                longValue = Byte.toUnsignedLong(b);
-            } else if (n instanceof Short && base != 10) {
-                short s = (short) n;
-                longValue = Short.toUnsignedLong(s);
-            } else if (n instanceof Integer && base != 10) {
-                int i = (int) n;
-                longValue = Integer.toUnsignedLong(i);
-            } else {
-                longValue = n.longValue();
+            switch (n) {
+            case Byte b when base != 10 -> longValue = Byte.toUnsignedLong(b);
+            case Short s when base != 10 -> longValue = Short.toUnsignedLong(s);
+            case Integer i when base != 10 -> longValue = Integer.toUnsignedLong(i);
+            default -> longValue = n.longValue();
             }
             switch (base) {
             case 16 -> {
@@ -486,7 +480,7 @@ public class VarFormatter {
         }
 
         private TemporalAccessor withCalendarSystem(ZonedDateTime timePoint) {
-            // Some thai and japanese locals needs special treatment because of different calendar systems
+            // Some Thai and Japanese locals need special treatment because of different calendar systems
             if (chronologyCheck) {
                 return VarFormatter.resolveWithEra(locale, timePoint);
             } else {
@@ -523,51 +517,40 @@ public class VarFormatter {
         }
     }
 
-    private static final class BooleanFormat implements BiConsumer<StringBuffer, Object> {
-        private final boolean toUpper;
-        private final Locale l;
-        private BooleanFormat(boolean toUpper, Locale l) {
-            this.toUpper = toUpper;
-            this.l = l;
-        }
+    private record BooleanFormat(boolean toUpper, Locale l) implements BiConsumer<StringBuffer, Object> {
         @Override
-        public void accept(StringBuffer toAppendTo, Object obj) {
-            String formatted;
-            if (obj == null || obj == NullOrMissingValue.NULL) {
-                formatted = "false";
-            } else if (obj == NullOrMissingValue.MISSING) {
-                throw IgnoredEventException.INSTANCE;
-            } else if (obj instanceof Boolean b) {
-                formatted = b.toString();
-            } else {
-                formatted = "true";
+            public void accept(StringBuffer toAppendTo, Object obj) {
+                String formatted;
+                if (obj == null || obj == NullOrMissingValue.NULL) {
+                    formatted = "false";
+                } else if (obj == NullOrMissingValue.MISSING) {
+                    throw IgnoredEventException.INSTANCE;
+                } else if (obj instanceof Boolean b) {
+                    formatted = b.toString();
+                } else {
+                    formatted = "true";
+                }
+                if (toUpper) {
+                    formatted = formatted.toUpperCase(l);
+                }
+                toAppendTo.append(formatted);
             }
-            if (toUpper) {
-                formatted = formatted.toUpperCase(l);
-            }
-            toAppendTo.append(formatted);
         }
-    }
 
     private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=\\$\\{|\\{|'))\\$\\{(?<varname>[@#]?[\\w.-]+)?(?<format>%[^}]+)?}(?<after>.*)$", Pattern.DOTALL);
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:<(?<tz>.*)>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.+))?$", Pattern.DOTALL);
     private static final Pattern arrayIndex = Pattern.compile("#(?<index>\\d+)");
 
     private record FormatEntry(int index, BiConsumer<StringBuffer, Object> formatter) {
-        StringBuffer format(Object[] resolved, StringBuffer toAppendTo) {
+        void format(Object[] resolved, StringBuffer toAppendTo) {
             formatter.accept(toAppendTo, resolved[index]);
-            return toAppendTo;
         }
     }
 
-    private class FormatDelegated {
-        private final List<Object> parts;
-        FormatDelegated(List<Object> parts) {
-            this.parts = parts;
-        }
-        public String newFormat(Object[] resolved) throws IllegalArgumentException {
+    private record FormatDelegated(Object[] parts) {
+        public String format(Object[] resolved) throws IllegalArgumentException {
             StringBuffer buffer = new StringBuffer();
-            for (Object o: parts) {
+            for (Object o : parts) {
                 if (o instanceof String s) {
                     buffer.append(s);
                 } else if (o instanceof FormatEntry fe) {
@@ -575,6 +558,24 @@ public class VarFormatter {
                 }
             }
             return buffer.toString();
+        }
+
+        @Override
+        public String toString() {
+            return "FormatDelegated{" + Arrays.toString(parts) + '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof FormatDelegated(Object[] parts1)))
+                return false;
+
+            return Arrays.equals(parts, parts1);
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(parts);
         }
     }
 
@@ -604,7 +605,7 @@ public class VarFormatter {
         // Convert the pattern to a MessageFormat which is compiled and be reused
         findVariables(format, 0, constructMapper, parts);
         mapper = Map.copyOf(constructMapper);
-        delegated = new FormatDelegated(parts);
+        delegated = new FormatDelegated(parts.toArray());
         mapper.keySet().stream().reduce((i, j) ->  {
             if (i.getClass() != j.getClass()) {
                 throw new IllegalArgumentException("Can't mix indexed with object resolution");
@@ -624,7 +625,7 @@ public class VarFormatter {
         if (! isEmpty()) {
             resolveArgs(arg, resolved);
         }
-        return delegated.newFormat(resolved);
+        return delegated.format(resolved);
     }
 
     @SuppressWarnings("unchecked")
@@ -643,7 +644,7 @@ public class VarFormatter {
                 resolved[mapping.getValue()] = checkArgType(arg);
             } else if (mapperType instanceof Number && arg instanceof List) {
                 int i = ((Number) mapping.getKey()).intValue();
-                int j = (mapping.getValue()).intValue();
+                int j = mapping.getValue();
                 List<Object> l = (List<Object>) arg;
                 if (j > l.size()) {
                     throw new IllegalArgumentException("index out of range");
@@ -651,7 +652,7 @@ public class VarFormatter {
                 resolved[i] = checkArgType(l.get(j - 1));
             } else if (mapperType instanceof Number && arg.getClass().isArray()) {
                 int i = ((Number) mapping.getKey()).intValue();
-                int j = (mapping.getValue()).intValue();
+                int j = mapping.getValue();
                 if (j >  Array.getLength(arg)) {
                     throw new IllegalArgumentException("index out of range");
                 }
@@ -757,7 +758,7 @@ public class VarFormatter {
             }
             findVariables(after, last, constructMapper, parts);
         } else {
-            if (in != null && ! in.isEmpty()) {
+            if (! in.isEmpty()) {
                 parts.add(in);
             }
         }

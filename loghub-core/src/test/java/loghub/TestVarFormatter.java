@@ -66,9 +66,7 @@ class TestVarFormatter {
             // this chronology is not well-supported in String.format, for all versions up to 15
             return;
         }
-        Arrays.stream(Locale.getAvailableLocales()).parallel().forEach(l -> {
-            testWithLocale(l, value, format);
-        });
+        Arrays.stream(Locale.getAvailableLocales()).parallel().forEach(l -> testWithLocale(l, value, format));
     }
 
     private void testWithLocale(Locale l, Object value, String format) {
@@ -80,12 +78,11 @@ class TestVarFormatter {
         } else {
             printf = String.format(l, format, value);
         }
+        String className = value == null ? "null" : value.getClass().getSimpleName();
         try {
             String formatter = vf.format(value);
-            String className = value == null ? "null" : value.getClass().getSimpleName();
             Assertions.assertEquals(printf, formatter, () -> "mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + className);
         } catch (IllegalArgumentException e) {
-            String className = value == null ? "null" : value.getClass().getSimpleName();
             Assertions.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + className + ": " + Helpers.resolveThrowableException(e));
         }
     }
@@ -136,7 +133,7 @@ class TestVarFormatter {
         checkFormat(1.0, "%+10.2f");
         checkFormat(1.0, "%-10.2f");
         checkFormat(1.0, "%010.2f");
-        // - is a pain to check in many languages, just check for common english
+        // - is a pain to check in many languages, just check for common English
         testWithLocale(Locale.ENGLISH, -1.0, "%f");
         testWithLocale(Locale.ENGLISH, -1.0, "%10.2f");
         testWithLocale(Locale.ENGLISH, -1.0, "%+10.2f");
@@ -447,9 +444,7 @@ class TestVarFormatter {
         VarFormatter vf = new VarFormatter("${missing}", Locale.ENGLISH);
         Event ev = factory.newEvent();
         // Key "missing" is not in ev
-        Assertions.assertThrows(IgnoredEventException.class, () -> {
-            vf.format(ev);
-        });
+        Assertions.assertThrows(IgnoredEventException.class, () -> vf.format(ev));
     }
 
 }
