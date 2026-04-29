@@ -344,13 +344,13 @@ class TestVarFormatter {
 
     @Test
     void formatEvent() {
-        VarFormatter vf = new VarFormatter("${a.b%s} ${@timestamp%s}.${#meta%02d}", Locale.ENGLISH);
+        VarFormatter vf = new VarFormatter("Full details ${a.b%s} ${@timestamp%s}.${#meta%02d}", Locale.ENGLISH);
         Event ev = factory.newEvent();
         ev.setTimestamp(Instant.ofEpochSecond(0));
         ev.putAtPath(VariablePath.of("a", "b"), "c");
         ev.putMeta("meta", 1);
         String formatted = vf.format(ev);
-        Assertions.assertEquals("c 1970-01-01T00:00:00Z.01", formatted);
+        Assertions.assertEquals("Full details c 1970-01-01T00:00:00Z.01", formatted);
     }
 
     @Test

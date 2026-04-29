@@ -7,7 +7,6 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
 import java.text.Format;
-import java.text.MessageFormat;
 import java.text.ParsePosition;
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
@@ -575,31 +574,38 @@ public class VarFormatter {
         }
     }
 
-    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=\\$\\{|\\{|'))(?:\\$\\{(?<varname>[@#]?[\\w.-]+)?(?<format>%[^}]+)?}|(?:(?<curlybraces>\\{.*})|(?<quote>')))(?<after>.*)$", Pattern.DOTALL);
+    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=\\$\\{|\\{|'))\\$\\{(?<varname>[@#]?[\\w.-]+)?(?<format>%[^}]+)?}(?<after>.*)$", Pattern.DOTALL);
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:<(?<tz>.*)>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.+))?$", Pattern.DOTALL);
     private static final Pattern arrayIndex = Pattern.compile("#(?<index>\\d+)");
 
-    private static final Logger logger = LogManager.getLogger();
+    private record FormatEntry(int index, Format formatter) {
+        private static final FieldPosition FIELD_POSITION = new FieldPosition(0);
+        StringBuffer format(Object[] resolved, StringBuffer toAppendTo) {
+            formatter.format(resolved[index], toAppendTo, FIELD_POSITION);
+            return toAppendTo;
+        }
+    }
 
     private class FormatDelegated {
-        private final MessageFormat mf;
-        FormatDelegated(String pattern, List<String> formats) {
-            try {
-                mf = new MessageFormat(pattern, locale);
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException(String.format("Can't format %s, locale %s: %s", format, locale, ex.getMessage()), ex);
-            }
-            for (int i = 0; i < mf.getFormats().length; i++) {
-                mf.setFormat(i, resolveFormat(formats.get(i)));
-            }
+        private final List<Object> parts;
+        FormatDelegated(List<Object> parts) {
+            this.parts = parts;
         }
-        public String format(Object[] resolved) throws IllegalArgumentException {
-            return mf.format(resolved, new StringBuffer(), new FieldPosition(0)).toString();
+        public String newFormat(Object[] resolved) throws IllegalArgumentException {
+            StringBuffer buffer = new StringBuffer();
+            for (Object o: parts) {
+                if (o instanceof String s) {
+                    buffer.append(s);
+                } else if (o instanceof FormatEntry fe) {
+                    fe.format(resolved, buffer);
+                }
+            }
+            return buffer.toString();
         }
     }
 
     private final Map<Object, Integer> mapper;
-    private final Function<Object[], String> delegated;
+    private final FormatDelegated delegated;
 
     private Locale locale;
     @Getter
@@ -619,28 +625,20 @@ public class VarFormatter {
     public VarFormatter(String format, Locale locale) {
         this.format = format.intern();
         this.locale = locale;
-        List<String> formats = new ArrayList<>();
+        List<Object> parts = new ArrayList<>();
         Map<Object, Integer> constructMapper = new LinkedHashMap<>();
         // Convert the pattern to a MessageFormat which is compiled and be reused
-        String pattern = findVariables(new StringBuilder(), format, 0, formats, constructMapper).toString();
-        logger.trace("new format: {}, generated pattern {}", format, pattern);
-        List<String> finalFormats = List.copyOf(formats);
-        empty = constructMapper.isEmpty();
-        if (! empty) {
-            mapper = Map.copyOf(constructMapper);
-            ThreadLocal<FormatDelegated> tl = ThreadLocal.withInitial(() -> new FormatDelegated(pattern, finalFormats));
-            delegated = or -> tl.get().format(or);
-            mapper.keySet().stream().reduce((i, j) ->  {
-                if (i.getClass() != j.getClass()) {
-                    throw new IllegalArgumentException("Can't mix indexed with object resolution");
-                } else {
-                    return j;
-                }
-            });
-        } else {
-            mapper = Map.of();
-            delegated = or -> format;
-        }
+        findVariables(format, 0, constructMapper, parts);
+        mapper = Map.copyOf(constructMapper);
+        delegated = new FormatDelegated(parts);
+        mapper.keySet().stream().reduce((i, j) ->  {
+            if (i.getClass() != j.getClass()) {
+                throw new IllegalArgumentException("Can't mix indexed with object resolution");
+            } else {
+                return j;
+            }
+        });
+        empty = parts.size() == 1 && parts.getFirst() instanceof String;
     }
 
     public String argsFormat(Object... arg) throws IllegalArgumentException {
@@ -652,7 +650,7 @@ public class VarFormatter {
         if (! isEmpty()) {
             resolveArgs(arg, resolved);
         }
-        return delegated.apply(resolved);
+        return delegated.newFormat(resolved);
     }
 
     @SuppressWarnings("unchecked")
@@ -749,34 +747,26 @@ public class VarFormatter {
         };
     }
 
-    private StringBuilder findVariables(StringBuilder buffer, String in, int last, List<String> formats, Map<Object, Integer> constructMapper) {
+    private void findVariables(String in, int last, Map<Object, Integer> constructMapper, List<Object> parts) {
         Matcher m = varregexp.matcher(in);
         if (m.find()) {
             String before = m.group("before");
             String varname = m.group("varname");
-            String format = m.group("format");
-            String curlybraces = m.group("curlybraces");
-            String quote = m.group("quote");
+            String formatDefinition = m.group("format");
             String after = m.group("after");
-            buffer.append(before);
-            if (curlybraces != null) {
-                // Escape a {} pair
-                buffer.append("'").append(curlybraces).append("'");
-            } else if (quote != null) {
-                // Escape a lone '
-                buffer.append("''");
-            } else if (varname == null && format == null) {
+            if (before != null && ! before.isEmpty()) {
+                parts.add(before);
+            }
+            if (varname == null && formatDefinition == null) {
                 // Not really a find, put back and continue
-                buffer.append("$'{}'");
+                parts.add("${}");
             } else {
-                if (format == null || format.isEmpty()) {
-                    format = "%s";
+                if (formatDefinition == null || formatDefinition.isEmpty()) {
+                    formatDefinition = "%s";
                 }
                 if (varname == null || varname.isEmpty()) {
                     varname = ".";
                 }
-                // Remove the initial %
-                formats.add(format.substring(1));
                 Matcher listIndexMatch = arrayIndex.matcher(varname);
                 int index;
                 if (listIndexMatch.matches()) {
@@ -789,13 +779,14 @@ public class VarFormatter {
                 } else {
                     index = constructMapper.get(varname);
                 }
-                buffer.append("{").append(index).append("}");
+                parts.add(new FormatEntry(index, resolveFormat(formatDefinition.substring(1))));
             }
-            findVariables(buffer, after, last, formats, constructMapper);
+            findVariables(after, last, constructMapper, parts);
         } else {
-            buffer.append(in);
+            if (in != null && ! in.isEmpty()) {
+                parts.add(in);
+            }
         }
-        return buffer;
     }
 
     private Format resolveFormat(String format) {
