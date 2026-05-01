@@ -88,9 +88,16 @@ class TestVarFormatter {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"%s", "%20s", "%-20s"})
+    void testFormattedStrings(String format) {
+        checkFormat("LogHub", format);
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"%#X", "%#x", "%#o", "%-10d", "%10d", "%d", "%010d"})
     void testNumbers(String format) {
         checkFormat(65535, format);
+        checkFormat(0, format);
     }
 
     @Test

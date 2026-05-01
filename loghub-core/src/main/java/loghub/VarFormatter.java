@@ -909,10 +909,24 @@ public class VarFormatter {
                 case 'b' -> new BooleanFormat(isUpper, locale);
                 case 's' -> {
                     Function<Object, CharSequence> c;
-                    if (precision < 0) {
+                    if (length <= 0) {
                         c = Object::toString;
+                    } else if (flags.leftjustified()) {
+                        c = o -> {
+                            String s = o.toString();
+                            StringBuilder sb = new StringBuilder(s.length() + length);
+                            sb.append(s);
+                            sb.repeat(" ", Math.max(length - s.length(), 0));
+                            return sb;
+                        };
                     } else {
-                        c = o -> o.toString().substring(0, precision);
+                        c = o -> {
+                            String s = o.toString();
+                            StringBuilder sb = new StringBuilder(s.length() + length);
+                            sb.repeat(" ", Math.max(length - s.length(), 0));
+                            sb.append(s);
+                            return sb;
+                        };
                     }
                     yield new FunctionFormat(Locale.getDefault(), isUpper, c);
                 }
