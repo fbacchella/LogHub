@@ -120,7 +120,7 @@ public class TestExpressionParsing {
         Event ev =  factory.newEvent();
         ev.put("a", 1);
         ProcessorException pe = Assert.assertThrows(ProcessorException.class, () -> Tools.evalExpression("\"" + format + "\"([a])", ev));
-        Assert.assertTrue(pe.getMessage().contains("index out of range"));
+        Assert.assertTrue(pe.getMessage().contains("Not enough formatting arguments"));
     }
 
     @Test

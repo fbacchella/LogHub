@@ -79,6 +79,12 @@ public class VarFormatter {
         }
     }
 
+    private record VariablePathHolder(String string, VariablePath path) {
+        VariablePathHolder(String string) {
+            this(string, VariablePath.parse(string));
+        }
+    }
+
     private abstract static class AbstractFormat implements Function<Object, CharSequence> {
         @Override
         public CharSequence apply(Object obj) {
@@ -625,7 +631,7 @@ public class VarFormatter {
         }
     }
 
-    private final Map<Object, Integer> mapper;
+    private final Object[] mapper;
     private final FormatDelegated delegated;
     private final ARGUMENT_MODE mode;
 
@@ -648,7 +654,7 @@ public class VarFormatter {
         this.format = format.intern();
         this.locale = locale;
         List<Object> parts = new ArrayList<>();
-        Map<Object, Integer> constructMapper = new LinkedHashMap<>();
+        List<Object> constructMapper = new ArrayList<>();
         Set<ARGUMENT_MODE> varnames = new HashSet<>();
         // Convert the pattern to a MessageFormat which is compiled and be reused
         findVariables(format, 0, constructMapper, parts, varnames);
@@ -657,15 +663,8 @@ public class VarFormatter {
         } else {
             mode = varnames.stream().findAny().orElse(ARGUMENT_MODE.STATIC);
         }
-        mapper = Map.copyOf(constructMapper);
+        mapper = constructMapper.toArray();
         delegated = new FormatDelegated(parts.toArray());
-        mapper.keySet().stream().reduce((i, j) ->  {
-            if (i.getClass() != j.getClass()) {
-                throw new IllegalArgumentException("Can't mix indexed with object resolution");
-            } else {
-                return j;
-            }
-        });
         empty = parts.size() == 1 && parts.getFirst() instanceof String;
     }
 
@@ -678,7 +677,7 @@ public class VarFormatter {
     }
 
     public String format(Object arg) throws IllegalArgumentException {
-        Object[] resolved = new Object[mapper.size()];
+        Object[] resolved = new Object[mapper.length];
         if (! isEmpty()) {
             resolveArgs(arg, resolved);
         }
@@ -701,58 +700,59 @@ public class VarFormatter {
         boolean withArray = mode == ARGUMENT_MODE.POSITIONAL && arg.getClass().isArray();
         boolean withEvent = (mode == ARGUMENT_MODE.NAMED || mode == ARGUMENT_MODE.IMPLICIT) && arg instanceof Event;
         Event ev = withEvent ? (Event) arg : null;
-        for (Map.Entry<Object, Integer> mapping : mapper.entrySet()) {
-            int index = mapping.getValue();
-            switch (mapping.getKey()) {
-            case String s when ".".equals(s) ->  resolved[mapping.getValue()] = checkArgType(arg);
-            case Number n when withList -> {
-                int i = n.intValue();
-                List<Object> l = (List<Object>) arg;
-                if (index > l.size()) {
-                    throw new IllegalArgumentException("Index out of range");
-                }
-                resolved[i] = checkArgType(l.get(index - 1));
-            }
-            case Number n when withArray -> {
-                int i = n.intValue();
-                if (index >  Array.getLength(arg)) {
-                    throw new IllegalArgumentException("Index out of range");
-                }
-                resolved[i] = checkArgType(Array.get(arg, index - 1));
-            }
-            case String s when withEvent -> {
-                VariablePath vp = VariablePath.parse(s);
-                Object value = checkArgType(ev.getAtPath(vp));
-                if (value == NullOrMissingValue.MISSING) {
-                    throw IgnoredEventException.INSTANCE;
-                }
-                resolved[index] = value;
-            }
-            default -> {
-                String[] path = mapping.getKey().toString().split("\\.");
-                if (path.length == 1) {
-                    // Only one element in the key, just use it
-                    if (! variables.containsKey(mapping.getKey())) {
-                        throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
+        for (int i = 0; i < mapper.length ; i++) {
+            resolved[i] = switch (mapper[i]) {
+                case ARGUMENT_MODE.IMPLICIT -> checkArgType(arg);
+                case VariablePathHolder vph when withEvent -> {
+                    Object value = checkArgType(ev.getAtPath(vph.path));
+                    if (value == NullOrMissingValue.MISSING) {
+                        throw IgnoredEventException.INSTANCE;
                     } else {
-                        resolved[index] = checkArgType(variables.get(mapping.getKey()));
+                        yield value;
                     }
-                } else {
-                    // Recurse, variables written as "a.b.c" are paths in maps
-                    Map<String, Object> current = variables;
-                    String key = path[0];
-                    for (int i = 0; i < path.length - 1; i++) {
-                        Map<String, Object> next = (Map<String, Object>) current.get(key);
-                        if (next == null) {
-                            throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
-                        }
-                        current = next;
-                        key = path[i + 1];
-                    }
-                    resolved[index] = checkArgType(current.get(key));
                 }
-            }
-            }
+                case Number n when withList -> {
+                    int index = n.intValue();
+                    List<Object> l = (List<Object>) arg;
+                    if (index >= l.size()) {
+                        throw new IllegalArgumentException("Not enough formatting arguments");
+                    }
+                    yield checkArgType(l.get(index));
+                }
+                case Number n when withArray -> {
+                    int index = n.intValue();
+                    if (index >= Array.getLength(arg)) {
+                        throw new IllegalArgumentException("Not enough formatting arguments");
+                    }
+                    yield checkArgType(Array.get(arg, index));
+                }
+                case VariablePathHolder vph -> {
+                    String key = vph.string;
+                    String[] path = key.split("\\.");
+                    if (path.length == 1) {
+                        // Only one element in the key, just use it
+                        if (!variables.containsKey(key)) {
+                            throw new IllegalArgumentException("Invalid values for format key " + key);
+                        } else {
+                            yield checkArgType(variables.get(key));
+                        }
+                    } else {
+                        // Recurse, variables written as "a.b.c" are paths in maps
+                        Map<String, Object> current = variables;
+                        key = path[0];
+                        for (int j = 0; j < path.length - 1; j++) {
+                            Map<String, Object> next = (Map<String, Object>) current.get(key);
+                            if (next == null) {
+                                throw new IllegalArgumentException("Invalid values for format key " + mapper[i]);
+                            }
+                            current = next;
+                            key = path[i + 1];
+                        }
+                        yield checkArgType(current.get(key));
+                    }
+                }
+                default -> throw new IllegalStateException("Unexpected value: " + mapper[i]);
+            };
         }
     }
 
@@ -787,7 +787,7 @@ public class VarFormatter {
         };
     }
 
-    private void findVariables(String in, int last, Map<Object, Integer> constructMapper, List<Object> parts, Set<ARGUMENT_MODE> varnames) {
+    private void findVariables(String in, int last, List<Object> constructMapper, List<Object> parts, Set<ARGUMENT_MODE> varnames) {
         Matcher m = varregexp.matcher(in);
         if (m.find()) {
             String before = m.group("before");
@@ -809,20 +809,18 @@ public class VarFormatter {
 
                 }
                 Matcher listIndexMatch = arrayIndex.matcher(varname);
-                int index;
                 if (listIndexMatch.matches()) {
-                    index = last;
                     int i = Integer.parseInt(listIndexMatch.group("index"));
-                    constructMapper.put(last++, i);
+                    constructMapper.add(i - 1);
                     varnames.add(ARGUMENT_MODE.POSITIONAL);
-                } else if (! constructMapper.containsKey(varname)) {
-                    index = last;
-                    constructMapper.put(varname, last++);
-                    varnames.add(varname.equals(".") ? ARGUMENT_MODE.IMPLICIT : ARGUMENT_MODE.NAMED);
+                } else if (".".equals(varname)) {
+                    constructMapper.add(ARGUMENT_MODE.IMPLICIT);
+                    varnames.add(ARGUMENT_MODE.IMPLICIT);
                 } else {
-                    index = constructMapper.get(varname);
+                    constructMapper.add(new VariablePathHolder(varname));
+                    varnames.add(ARGUMENT_MODE.NAMED);
                 }
-                parts.add(new FormatEntry(index, resolveFormat(formatDefinition.substring(1))));
+                parts.add(new FormatEntry(constructMapper.size() - 1, resolveFormat(formatDefinition.substring(1))));
             }
             findVariables(after, last, constructMapper, parts, varnames);
         } else {
