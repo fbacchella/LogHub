@@ -30,9 +30,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Formatter;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -167,11 +167,11 @@ public class VarFormatter {
             StringBuilder sb = new StringBuilder(size);
             sb.append(f.get().format(obj));
             if (size > sb.length()) {
-                doPadding(sb, padding, 0, size - sb.length());
+                doPadding(sb, padding, size - sb.length());
             }
             return sb;
         }
-        abstract void doPadding(StringBuilder toAppendTo, String padding, int oldLength, int newLength);
+        abstract void doPadding(StringBuilder toAppendTo, String padding, int newLength);
     }
 
     private static class RightJustifyNumberFormat extends JustifyFormat {
@@ -179,8 +179,8 @@ public class VarFormatter {
             super(f, size);
         }
         @Override
-        void doPadding(StringBuilder toAppendTo, String padding, int oldLength, int newLength) {
-            toAppendTo.insert(oldLength, padding, 0, newLength);
+        void doPadding(StringBuilder toAppendTo, String padding, int newLength) {
+            toAppendTo.insert(0, padding, 0, newLength);
         }
     }
 
@@ -189,7 +189,7 @@ public class VarFormatter {
             super(f, size);
         }
         @Override
-        void doPadding(StringBuilder toAppendTo, String padding, int oldLength, int newLength) {
+        void doPadding(StringBuilder toAppendTo, String padding, int newLength) {
             toAppendTo.append(padding, 0, newLength);
         }
     }
@@ -270,6 +270,44 @@ public class VarFormatter {
                 Arrays.fill(paddingprefix, padder);
                 sb.append(paddingprefix);
             }
+        }
+    }
+
+    static class SingleAppendable implements Appendable {
+        StringBuilder sequence = new StringBuilder();
+        @Override
+        public Appendable append(CharSequence csq) {
+            sequence.append(csq);
+            return this;
+        }
+        @Override
+        public Appendable append(CharSequence csq, int start, int end) {
+            sequence.append(csq, start, end);
+            return this;
+        }
+        @Override
+        public Appendable append(char c) {
+            sequence.append(c);
+            return this;
+        }
+    }
+
+    private static final class StandardFormat extends AbstractFormat {
+        private final String format;
+        private final Locale locale;
+
+        private StandardFormat(Locale locale, String format) {
+            this.format = format;
+            this.locale = locale;
+        }
+
+        @Override
+        protected CharSequence filteredFormat(Object obj) {
+            SingleAppendable appendable = new SingleAppendable();
+            try (Formatter f = new Formatter(appendable)) {
+                f.format(locale, format, obj);
+            }
+            return appendable.sequence;
         }
     }
 
@@ -657,7 +695,7 @@ public class VarFormatter {
         List<Object> constructMapper = new ArrayList<>();
         Set<ARGUMENT_MODE> varnames = new HashSet<>();
         // Convert the pattern to a MessageFormat which is compiled and be reused
-        findVariables(format, 0, constructMapper, parts, varnames);
+        findVariables(format, constructMapper, parts, varnames);
         if (varnames.size() > 1) {
             throw new IllegalArgumentException("Can't mix indexed with object resolution");
         } else {
@@ -787,7 +825,7 @@ public class VarFormatter {
         };
     }
 
-    private void findVariables(String in, int last, List<Object> constructMapper, List<Object> parts, Set<ARGUMENT_MODE> varnames) {
+    private void findVariables(String in, List<Object> constructMapper, List<Object> parts, Set<ARGUMENT_MODE> varnames) {
         Matcher m = varregexp.matcher(in);
         if (m.find()) {
             String before = m.group("before");
@@ -822,7 +860,7 @@ public class VarFormatter {
                 }
                 parts.add(new FormatEntry(constructMapper.size() - 1, resolveFormat(formatDefinition.substring(1))));
             }
-            findVariables(after, last, constructMapper, parts, varnames);
+            findVariables(after, constructMapper, parts, varnames);
         } else {
             if (! in.isEmpty()) {
                 parts.add(in);
@@ -904,10 +942,10 @@ public class VarFormatter {
                     if (checkCompatibleLocale() && !flags.parenthesis) {
                         yield new NonDecimalNumberFormat(locale, 10, false, flags, length);
                     }
-                    yield numberFormat(locale, conversion, flags, true, length, precision, isUpper);
+                    yield numberFormat(locale, conversion, flags, length, isUpper);
                 }
                 case 'o', 'x' -> new NonDecimalNumberFormat(locale, conversion == 'o' ? 8 : 16, isUpper, flags, length);
-                case 'e', 'f', 'g', 'a' -> numberFormat(locale, conversion, flags, false, length, precision, isUpper);
+                case 'e', 'f', 'g', 'a' -> new StandardFormat(locale, "%" + format);
                 case 't' -> new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
                 case '%' -> o -> "%";
                 case 'n' -> {
@@ -922,10 +960,7 @@ public class VarFormatter {
         }
     }
 
-    private Function<Object, CharSequence> numberFormat(Locale l, char conversion, Flags flags, boolean integer, int length, int precision, boolean isUpper) {
-        // Default precision for %f is exactly 6 digits
-        final int effectivePrecision = (precision == -1 ? 6 : precision);
-        final int fixed = (integer ? length : length - effectivePrecision - 1);
+    private Function<Object, CharSequence> numberFormat(Locale l, char conversion, Flags flags, int length, boolean isUpper) {
         Supplier<DecimalFormat> dfSupplier = () -> {
             DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(l);
             symbols.setExponentSeparator(isUpper ? "E" : "e");
@@ -942,12 +977,8 @@ public class VarFormatter {
             if (flags.withsign) {
                 df.setPositivePrefix("+");
             }
-            if (! integer && effectivePrecision >= 0) {
-                df.setMinimumFractionDigits(effectivePrecision);
-                df.setMaximumFractionDigits(effectivePrecision);
-            }
             if (symbols.getDigit() == '0') {
-                df.setMinimumIntegerDigits(fixed);
+                df.setMinimumIntegerDigits(length);
             }
             return df;
         };

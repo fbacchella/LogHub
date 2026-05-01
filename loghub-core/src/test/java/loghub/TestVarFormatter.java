@@ -113,9 +113,12 @@ class TestVarFormatter {
         Assertions.assertEquals("null", new VarFormatter("${%h}").format(NullOrMissingValue.NULL));
     }
 
-    @Test
-    void testNegativeNumber() {
-        checkFormat(-65535, "%(d");
+    @ParameterizedTest
+    @ValueSource(strings = {"%(d", "%-10d", "%10d", "%d", "%010d"})
+    void testNegativeNumber(String format) {
+        // NumberFormat is better that printf for other locals
+        // So don't test strict compliance
+        testWithLocale(Locale.ENGLISH, -65535, format);
     }
 
     @Test
@@ -138,9 +141,7 @@ class TestVarFormatter {
         testWithLocale(Locale.ENGLISH, -1.0, "%10.2f");
         testWithLocale(Locale.ENGLISH, -1.0, "%+10.2f");
         testWithLocale(Locale.ENGLISH, -1.0, "%-10.2f");
-        // DecimalFormat and printf are unable to agree about maximum length for negative number padded with 0, too much work to fix
-        AssertionError ex = Assertions.assertThrows(AssertionError.class, () -> testWithLocale(Locale.ENGLISH, -1.0, "%010.2f"));
-        Assertions.assertEquals("mismatch for %010.2f at locale en with Double ==> expected: <-000001.00> but was: <-0000001.00>", ex.getMessage());
+        testWithLocale(Locale.ENGLISH, -1.0, "%010.2f");
     }
 
     private void checkDate(Object date) {
@@ -355,6 +356,13 @@ class TestVarFormatter {
         VarFormatter vf = new VarFormatter("${#1%s} ${#1%s} ${#3%s}", Locale.ENGLISH);
         String formatted = vf.argsFormat("1", "2", "3");
         Assertions.assertEquals("1 1 3", formatted);
+    }
+
+    @Test
+    void formatReversedArgs() {
+        VarFormatter vf = new VarFormatter("${#3%s} ${#2%s} ${#1%s}", Locale.ENGLISH);
+        String formatted = vf.argsFormat("1", "2", "3");
+        Assertions.assertEquals("3 2 1", formatted);
     }
 
     @ParameterizedTest
