@@ -2,13 +2,16 @@ package loghub;
 
 import java.io.UncheckedIOException;
 import java.lang.reflect.Array;
+import java.nio.CharBuffer;
 import java.text.DateFormatSymbols;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
+import java.text.NumberFormat;
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.chrono.JapaneseDate;
@@ -28,16 +31,17 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,6 +59,13 @@ import lombok.Getter;
 
 public class VarFormatter {
 
+    private enum ARGUMENT_MODE {
+        POSITIONAL,
+        IMPLICIT,
+        NAMED,
+        STATIC
+    }
+
     private record Flags(boolean leftjustified, boolean alternateform, boolean withsign, boolean leadingspace, boolean zeropadded, boolean grouping, boolean parenthesis) {
         private Flags(String flags) {
             this(flags.contains("-"),
@@ -68,18 +79,18 @@ public class VarFormatter {
         }
     }
 
-    private abstract static class AbstractFormat implements BiConsumer<StringBuffer, Object> {
+    private abstract static class AbstractFormat implements Function<Object, CharSequence> {
         @Override
-        public void accept(StringBuffer toAppendTo, Object obj) {
-            if (obj == NullOrMissingValue.NULL) {
-                toAppendTo.append("null");
+        public CharSequence apply(Object obj) {
+            if (obj == null || obj == NullOrMissingValue.NULL) {
+                return "null";
             } else if (obj == NullOrMissingValue.MISSING) {
                 throw IgnoredEventException.INSTANCE;
             } else {
-                filteredFormat(toAppendTo, obj);
+                return filteredFormat(obj);
             }
         }
-        protected abstract void filteredFormat(StringBuffer toAppendTo, Object obj);
+        protected abstract CharSequence filteredFormat(Object obj);
     }
 
     private static final class JsonFormat extends AbstractFormat {
@@ -96,9 +107,9 @@ public class VarFormatter {
         private static final JsonFormat INSTANCE = new JsonFormat();
 
         @Override
-        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
+        public CharSequence filteredFormat(Object obj) {
             try {
-                toAppendTo.append(writer.writeValueAsString(obj));
+                return writer.writeValueAsString(obj);
             } catch (JsonProcessingException e) {
                 throw new UncheckedIOException("Can't serialized value: " + Helpers.resolveThrowableException(e), e);
             }
@@ -108,9 +119,9 @@ public class VarFormatter {
     private static final class FunctionFormat extends AbstractFormat {
         private final Locale l;
         private final boolean toUpper;
-        private final Function<Object, String> f;
+        private final Function<Object, CharSequence> f;
 
-        private FunctionFormat(Locale l, boolean toUpper, Function<Object, String> f) {
+        private FunctionFormat(Locale l, boolean toUpper, Function<Object, CharSequence> f) {
             super();
             this.l = l;
             this.toUpper = toUpper;
@@ -118,12 +129,12 @@ public class VarFormatter {
         }
 
         @Override
-        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
-            String formatted = f.apply(obj);
+        public CharSequence filteredFormat(Object obj) {
             if (toUpper) {
-                formatted = formatted.toUpperCase(l);
+                return f.apply(obj).toString().toUpperCase(l);
+            } else {
+                return f.apply(obj);
             }
-            toAppendTo.append(formatted);
         }
 
     }
@@ -146,15 +157,15 @@ public class VarFormatter {
         }
 
         @Override
-        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
-            toAppendTo.ensureCapacity(toAppendTo.length() + size);
-            int oldLength = toAppendTo.length();
-            f.get().format(obj, toAppendTo, new FieldPosition(0));
-            if ((oldLength + size) > toAppendTo.length()) {
-                doPadding(toAppendTo, padding, oldLength, oldLength + size - toAppendTo.length());
+        public CharSequence filteredFormat(Object obj) {
+            StringBuilder sb = new StringBuilder(size);
+            sb.append(f.get().format(obj));
+            if (size > sb.length()) {
+                doPadding(sb, padding, 0, size - sb.length());
             }
+            return sb;
         }
-        abstract void doPadding(StringBuffer toAppendTo, String padding, int oldLength, int newLenght);
+        abstract void doPadding(StringBuilder toAppendTo, String padding, int oldLength, int newLength);
     }
 
     private static class RightJustifyNumberFormat extends JustifyFormat {
@@ -162,8 +173,8 @@ public class VarFormatter {
             super(f, size);
         }
         @Override
-        void doPadding(StringBuffer toAppendTo, String padding, int oldLength, int newLenght) {
-            toAppendTo.insert(oldLength, padding, 0, newLenght);
+        void doPadding(StringBuilder toAppendTo, String padding, int oldLength, int newLength) {
+            toAppendTo.insert(oldLength, padding, 0, newLength);
         }
     }
 
@@ -172,7 +183,7 @@ public class VarFormatter {
             super(f, size);
         }
         @Override
-        void doPadding(StringBuffer toAppendTo, String padding, int oldLength, int newLength) {
+        void doPadding(StringBuilder toAppendTo, String padding, int oldLength, int newLength) {
             toAppendTo.append(padding, 0, newLength);
         }
     }
@@ -192,8 +203,12 @@ public class VarFormatter {
         }
 
         @Override
-        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
+        public CharSequence filteredFormat(Object obj) {
             Number n = (Number) obj;
+            // Short path for base 10 without padding
+            if (base == 10 && ! flags.leftjustified && size == 0) {
+                return Long.toString(n.longValue());
+            }
             String formatted;
             String prefix;
             long longValue;
@@ -203,33 +218,52 @@ public class VarFormatter {
             case Integer i when base != 10 -> longValue = Integer.toUnsignedLong(i);
             default -> longValue = n.longValue();
             }
+            boolean negative = longValue < 0;
+            longValue = Math.abs(longValue);
             switch (base) {
             case 16 -> {
                 formatted = Long.toHexString(longValue);
-                prefix = "0x";
+                prefix = toUpper ? "0X" : "0x";
             }
             case 8 -> {
-                formatted = Long.toOctalString(n.longValue());
+                formatted = Long.toOctalString(longValue);
                 prefix = "0";
             }
             default -> {
-                formatted = Long.toString(n.longValue());
+                formatted = Long.toString(longValue);
                 prefix = "";
             }
             }
+            // For eventual sign and prefix
+            StringBuilder sb = new StringBuilder(Math.max(formatted.length(), size) + 2);
+            if (!flags.zeropadded && size > 0 && !flags.leftjustified) {
+                doPadding(sb, formatted, negative, ' ');
+            }
+            if (negative) {
+                sb.append('-');
+            }
             if (flags.alternateform) {
-                formatted = prefix + formatted;
+                sb.append(prefix);
             }
             if (toUpper) {
                 formatted = formatted.toUpperCase(l);
             }
-            if (formatted.length() < size && ! flags.leftjustified) {
-                char[] paddingprefix = new char[size - formatted.length()];
-                Arrays.fill(paddingprefix, '0');
-                toAppendTo.append(paddingprefix);
+            if (formatted.length() < size && ! flags.leftjustified && flags.zeropadded) {
+                doPadding(sb, formatted, negative, '0');
             }
-
-            toAppendTo.append(formatted);
+            sb.append(formatted);
+            if (formatted.length() < size && flags.leftjustified) {
+                doPadding(sb, formatted, negative, ' ');
+            }
+            return sb;
+        }
+        private void doPadding(StringBuilder sb, String formatted, boolean negative, char padder) {
+            int paddingsize = size - formatted.length() + (negative ? -1 : 0);
+            if (paddingsize > 0) {
+                char[] paddingprefix = new char[paddingsize];
+                Arrays.fill(paddingprefix, padder);
+                sb.append(paddingprefix);
+            }
         }
     }
 
@@ -239,7 +273,7 @@ public class VarFormatter {
         private final boolean chronologyCheck;
         private final boolean isUpper;
         private final Locale locale;
-        private final BiConsumer<StringBuffer, TemporalAccessor> taToStr;
+        private final BiConsumer<StringBuilder, TemporalAccessor> taToStr;
         private final boolean zoned;
 
         private ExtendedDateFormat(Locale l, char timeFormat, ZoneId tz, boolean isUpper) {
@@ -315,7 +349,7 @@ public class VarFormatter {
                         sb.append(offsetS < 0 ? '-' : '+');
                         int minutes = Math.abs(offsetS) / 60;
                         int offset = (minutes / 60) * 100 + (minutes % 60);
-                        tlDf.get().format(offset, sb, new FieldPosition(0));
+                        sb.append(tlDf.get().format(offset));
                     };
                     zoned = true;
                     chronologyCheck = false;
@@ -386,7 +420,7 @@ public class VarFormatter {
                     chronologyCheck = true;
                 }
                 case 'j' -> {
-                    // Day of year, formatted as three digits with leading zeros as necessary, e.g. 001 - 366 for the Gregorian calendar.
+                    // Day of the year, formatted as three digits with leading zeros as necessary, e.g. 001 - 366 for the Gregorian calendar.
                     taToStr = formatTemporalAccessor("000", ChronoField.DAY_OF_YEAR);
                     zoned = true;
                     chronologyCheck = false;
@@ -398,13 +432,13 @@ public class VarFormatter {
                     chronologyCheck = false;
                 }
                 case 'd' -> {
-                    // Day of month, formatted as two digits with leading zeros as necessary, i.e. 01 - 31
+                    // Day of the month, formatted as two digits with leading zeros as necessary, i.e. 01 - 31
                     taToStr = formatTemporalAccessor("00", ChronoField.DAY_OF_MONTH);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'e' -> {
-                    // Day of month, formatted as two digits, i.e. 1 - 31.
+                    // Day of the month, formatted as two digits, i.e. 1 - 31.
                     taToStr = formatTemporalAccessor("#0", ChronoField.DAY_OF_MONTH);
                     zoned = true;
                     chronologyCheck = false;
@@ -469,14 +503,14 @@ public class VarFormatter {
             }
         }
 
-        private BiConsumer<StringBuffer, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalField field) {
+        private BiConsumer<StringBuilder, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalField field) {
             ThreadLocal<DecimalFormat> df = ThreadLocal.withInitial(() -> new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale)));
-            return (sb, ta) -> df.get().format(ta.get(field), sb, new FieldPosition(0));
+            return (sb, ta) -> sb.append(df.get().format(ta.get(field)));
         }
 
-        private BiConsumer<StringBuffer, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalQuery<Long> transformd) {
+        private BiConsumer<StringBuilder, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalQuery<Long> transformd) {
             ThreadLocal<DecimalFormat> df = ThreadLocal.withInitial(() -> new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale)));
-            return (sb, ta) -> df.get().format(transformd.queryFrom(ta), sb, new FieldPosition(0));
+            return (sb, ta) -> sb.append(df.get().format(transformd.queryFrom(ta)));
         }
 
         private TemporalAccessor withCalendarSystem(ZonedDateTime timePoint) {
@@ -491,25 +525,27 @@ public class VarFormatter {
         private TemporalAccessor getTemporalAccessor(Object obj) {
             return switch (obj) {
                 case Instant i when zoned -> withCalendarSystem(i.atZone(etz));
-                case ZonedDateTime zdt when tz != null -> zdt.withZoneSameInstant(etz);
+                case ZonedDateTime zdt when tz != null -> zdt.withZoneSameInstant(tz);
+                case LocalDateTime zdt -> zdt.atZone(etz);
                 case TemporalAccessor ta -> ta;
+                case Date d when zoned -> withCalendarSystem(d.toInstant().atZone(etz));
+                case Date d -> d.toInstant();
                 default -> throw new IllegalArgumentException("Not a date/time argument");
             };
         }
 
         @Override
-        public void filteredFormat(StringBuffer toAppendTo, Object obj) {
+        public CharSequence filteredFormat(Object obj) {
             if (! (obj instanceof Date) && ! (obj instanceof TemporalAccessor)) {
-                toAppendTo.append(obj);
-                return;
+                return obj.toString();
             }
             try {
+                StringBuilder sb = new StringBuilder();
+                taToStr.accept(sb, getTemporalAccessor(obj));
                 if (isUpper) {
-                    StringBuffer sb = new StringBuffer();
-                    taToStr.accept(sb, getTemporalAccessor(obj));
-                    toAppendTo.append(sb.toString().toUpperCase(locale));
+                    return sb.toString().toUpperCase(locale);
                 } else {
-                    taToStr.accept(toAppendTo, getTemporalAccessor(obj));
+                    return sb;
                 }
             } catch (DateTimeException e) {
                 throw new IllegalArgumentException("Can't format the given time data: " + e.getMessage(), e);
@@ -517,9 +553,9 @@ public class VarFormatter {
         }
     }
 
-    private record BooleanFormat(boolean toUpper, Locale l) implements BiConsumer<StringBuffer, Object> {
+    private record BooleanFormat(boolean toUpper, Locale l) implements Function<Object, CharSequence> {
         @Override
-            public void accept(StringBuffer toAppendTo, Object obj) {
+            public CharSequence apply(Object obj) {
                 String formatted;
                 if (obj == null || obj == NullOrMissingValue.NULL) {
                     formatted = "false";
@@ -533,7 +569,7 @@ public class VarFormatter {
                 if (toUpper) {
                     formatted = formatted.toUpperCase(l);
                 }
-                toAppendTo.append(formatted);
+                return formatted;
             }
         }
 
@@ -541,21 +577,31 @@ public class VarFormatter {
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:<(?<tz>.*)>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.+))?$", Pattern.DOTALL);
     private static final Pattern arrayIndex = Pattern.compile("#(?<index>\\d+)");
 
-    private record FormatEntry(int index, BiConsumer<StringBuffer, Object> formatter) {
-        void format(Object[] resolved, StringBuffer toAppendTo) {
-            formatter.accept(toAppendTo, resolved[index]);
+    private record FormatEntry(int index, Function<Object, CharSequence> formatter) {
+        CharSequence format(Object[] resolved) {
+            return formatter.apply(resolved[index]);
         }
     }
 
     private record FormatDelegated(Object[] parts) {
+        // Buffer creation is done in two passes to avoid resizing: the first pass resolves all parts
+        // and computes the total length, then the buffer is allocated at the exact capacity needed,
+        // avoiding costly reallocations and improving performance.
         public String format(Object[] resolved) throws IllegalArgumentException {
-            StringBuffer buffer = new StringBuffer();
-            for (Object o : parts) {
-                if (o instanceof String s) {
-                    buffer.append(s);
+            int size = 0;
+            CharSequence[] elements = new CharSequence[parts.length];
+            for (int i = 0; i < elements.length; i++) {
+                Object o = parts[i];
+                if (o instanceof CharSequence s) {
+                    elements[i] = s;
                 } else if (o instanceof FormatEntry fe) {
-                    fe.format(resolved, buffer);
+                    elements[i] = fe.format(resolved);
                 }
+                size += elements[i].length();
+            }
+            StringBuilder buffer = new StringBuilder(size);
+            for (CharSequence cs: elements) {
+                buffer.append(cs);
             }
             return buffer.toString();
         }
@@ -581,6 +627,7 @@ public class VarFormatter {
 
     private final Map<Object, Integer> mapper;
     private final FormatDelegated delegated;
+    private final ARGUMENT_MODE mode;
 
     private Locale locale;
     @Getter
@@ -602,8 +649,14 @@ public class VarFormatter {
         this.locale = locale;
         List<Object> parts = new ArrayList<>();
         Map<Object, Integer> constructMapper = new LinkedHashMap<>();
+        Set<ARGUMENT_MODE> varnames = new HashSet<>();
         // Convert the pattern to a MessageFormat which is compiled and be reused
-        findVariables(format, 0, constructMapper, parts);
+        findVariables(format, 0, constructMapper, parts, varnames);
+        if (varnames.size() > 1) {
+            throw new IllegalArgumentException("Can't mix indexed with object resolution");
+        } else {
+            mode = varnames.stream().findAny().orElse(ARGUMENT_MODE.STATIC);
+        }
         mapper = Map.copyOf(constructMapper);
         delegated = new FormatDelegated(parts.toArray());
         mapper.keySet().stream().reduce((i, j) ->  {
@@ -617,7 +670,11 @@ public class VarFormatter {
     }
 
     public String argsFormat(Object... arg) throws IllegalArgumentException {
-        return format(arg);
+        if (arg.length == 1 && mode == ARGUMENT_MODE.IMPLICIT) {
+            return format(arg[0]);
+        } else {
+            return format(arg);
+        }
     }
 
     public String format(Object arg) throws IllegalArgumentException {
@@ -631,47 +688,54 @@ public class VarFormatter {
     @SuppressWarnings("unchecked")
     private void resolveArgs(Object arg, Object[] resolved) {
         Map<String, Object> variables;
-        Object mapperType = mapper.keySet().stream().findAny().orElse("");
-        if ((mapperType instanceof Number) && ! (arg instanceof List || arg.getClass().isArray())) {
+        if (mode == ARGUMENT_MODE.STATIC) {
+            return;
+        } else if (mode == ARGUMENT_MODE.POSITIONAL && ! (arg instanceof List || arg.getClass().isArray())) {
             throw new IllegalArgumentException("Given a non-list to a format expecting only a list or an array");
         } else if (arg instanceof Map) {
             variables = (Map<String, Object>) arg;
         } else {
             variables = Map.of();
         }
+        boolean withList = mode == ARGUMENT_MODE.POSITIONAL && arg instanceof List;
+        boolean withArray = mode == ARGUMENT_MODE.POSITIONAL && arg.getClass().isArray();
+        boolean withEvent = (mode == ARGUMENT_MODE.NAMED || mode == ARGUMENT_MODE.IMPLICIT) && arg instanceof Event;
+        Event ev = withEvent ? (Event) arg : null;
         for (Map.Entry<Object, Integer> mapping : mapper.entrySet()) {
-            if (".".equals(mapping.getKey())) {
-                resolved[mapping.getValue()] = checkArgType(arg);
-            } else if (mapperType instanceof Number && arg instanceof List) {
-                int i = ((Number) mapping.getKey()).intValue();
-                int j = mapping.getValue();
+            int index = mapping.getValue();
+            switch (mapping.getKey()) {
+            case String s when ".".equals(s) ->  resolved[mapping.getValue()] = checkArgType(arg);
+            case Number n when withList -> {
+                int i = n.intValue();
                 List<Object> l = (List<Object>) arg;
-                if (j > l.size()) {
-                    throw new IllegalArgumentException("index out of range");
+                if (index > l.size()) {
+                    throw new IllegalArgumentException("Index out of range");
                 }
-                resolved[i] = checkArgType(l.get(j - 1));
-            } else if (mapperType instanceof Number && arg.getClass().isArray()) {
-                int i = ((Number) mapping.getKey()).intValue();
-                int j = mapping.getValue();
-                if (j >  Array.getLength(arg)) {
-                    throw new IllegalArgumentException("index out of range");
+                resolved[i] = checkArgType(l.get(index - 1));
+            }
+            case Number n when withArray -> {
+                int i = n.intValue();
+                if (index >  Array.getLength(arg)) {
+                    throw new IllegalArgumentException("Index out of range");
                 }
-                resolved[i] = checkArgType(Array.get(arg, j - 1));
-            } else if (arg instanceof Event ev) {
-                VariablePath vp = VariablePath.parse(mapping.getKey().toString());
+                resolved[i] = checkArgType(Array.get(arg, index - 1));
+            }
+            case String s when withEvent -> {
+                VariablePath vp = VariablePath.parse(s);
                 Object value = checkArgType(ev.getAtPath(vp));
                 if (value == NullOrMissingValue.MISSING) {
                     throw IgnoredEventException.INSTANCE;
                 }
-                resolved[mapping.getValue()] = value;
-            } else {
+                resolved[index] = value;
+            }
+            default -> {
                 String[] path = mapping.getKey().toString().split("\\.");
                 if (path.length == 1) {
                     // Only one element in the key, just use it
                     if (! variables.containsKey(mapping.getKey())) {
                         throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
                     } else {
-                        resolved[mapping.getValue()] = checkArgType(variables.get(mapping.getKey()));
+                        resolved[index] = checkArgType(variables.get(mapping.getKey()));
                     }
                 } else {
                     // Recurse, variables written as "a.b.c" are paths in maps
@@ -685,8 +749,9 @@ public class VarFormatter {
                         current = next;
                         key = path[i + 1];
                     }
-                    resolved[mapping.getValue()] = checkArgType(current.get(key));
+                    resolved[index] = checkArgType(current.get(key));
                 }
+            }
             }
         }
     }
@@ -722,7 +787,7 @@ public class VarFormatter {
         };
     }
 
-    private void findVariables(String in, int last, Map<Object, Integer> constructMapper, List<Object> parts) {
+    private void findVariables(String in, int last, Map<Object, Integer> constructMapper, List<Object> parts, Set<ARGUMENT_MODE> varnames) {
         Matcher m = varregexp.matcher(in);
         if (m.find()) {
             String before = m.group("before");
@@ -741,6 +806,7 @@ public class VarFormatter {
                 }
                 if (varname == null || varname.isEmpty()) {
                     varname = ".";
+
                 }
                 Matcher listIndexMatch = arrayIndex.matcher(varname);
                 int index;
@@ -748,15 +814,17 @@ public class VarFormatter {
                     index = last;
                     int i = Integer.parseInt(listIndexMatch.group("index"));
                     constructMapper.put(last++, i);
+                    varnames.add(ARGUMENT_MODE.POSITIONAL);
                 } else if (! constructMapper.containsKey(varname)) {
                     index = last;
                     constructMapper.put(varname, last++);
+                    varnames.add(varname.equals(".") ? ARGUMENT_MODE.IMPLICIT : ARGUMENT_MODE.NAMED);
                 } else {
                     index = constructMapper.get(varname);
                 }
                 parts.add(new FormatEntry(index, resolveFormat(formatDefinition.substring(1))));
             }
-            findVariables(after, last, constructMapper, parts);
+            findVariables(after, last, constructMapper, parts, varnames);
         } else {
             if (! in.isEmpty()) {
                 parts.add(in);
@@ -764,7 +832,7 @@ public class VarFormatter {
         }
     }
 
-    private BiConsumer<StringBuffer, Object> resolveFormat(String format) {
+    private Function<Object, CharSequence> resolveFormat(String format) {
         Matcher m = formatSpecifier.matcher(format);
         if (m.matches()) {
             String localeStr = m.group("locale");
@@ -801,24 +869,52 @@ public class VarFormatter {
             boolean isUpper = conversionStr.toUpperCase(locale).equals(conversionStr);
             char conversion = conversionStr.toLowerCase(locale).charAt(0);
 
-            final UnaryOperator<String> cut = i -> precision < 0 ? i : i.substring(0, precision);
             return switch (conversion) {
                 case 'b' -> new BooleanFormat(isUpper, locale);
-                case 's' -> new FunctionFormat(Locale.getDefault(), isUpper, o -> cut.apply(o.toString()));
-                case 'h' -> new FunctionFormat(Locale.getDefault(), isUpper, o -> Integer.toHexString(o.hashCode()));
+                case 's' -> {
+                    Function<Object, CharSequence> c;
+                    if (precision < 0) {
+                        c = Object::toString;
+                    } else {
+                        c = o -> o.toString().substring(0, precision);
+                    }
+                    yield new FunctionFormat(Locale.getDefault(), isUpper, c);
+                }
+                case 'h' -> {
+                    // Can't use automatic upper case as it will transform the object
+                    Function<Object, CharSequence> c;
+                    if (isUpper) {
+                        c = o -> Integer.toHexString(o.hashCode()).toUpperCase(Locale.getDefault());
+                    } else {
+                        c = o -> Integer.toHexString(o.hashCode());
+                    }
+                    yield new FunctionFormat(Locale.getDefault(), false, c);
+                }
                 case 'c' -> {
-                    Function<Object, String> f = o -> (o instanceof Character ) ? o.toString() :
-                                                              String.valueOf(o.toString().charAt(0));
+                    Function<Object, CharSequence> f = o -> {
+                        char c;
+                        if (o instanceof Character co) {
+                            c = co;
+                        } else {
+                            c = o.toString().charAt(0);
+                        }
+                        return CharBuffer.wrap(new char[]{c});
+                    };
                     yield new FunctionFormat(Locale.getDefault(), isUpper, f);
                 }
-                case 'd' -> numberFormat(locale, conversion, flags, true, length, precision, isUpper);
+                case 'd' -> {
+                    if (checkCompatibleLocale() && !flags.parenthesis) {
+                        yield new NonDecimalNumberFormat(locale, 10, false, flags, length);
+                    }
+                    yield numberFormat(locale, conversion, flags, true, length, precision, isUpper);
+                }
                 case 'o', 'x' -> new NonDecimalNumberFormat(locale, conversion == 'o' ? 8 : 16, isUpper, flags, length);
                 case 'e', 'f', 'g', 'a' -> numberFormat(locale, conversion, flags, false, length, precision, isUpper);
                 case 't' -> new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
-                case '%' -> (sb, o) -> sb.append("%");
+                case '%' -> o -> "%";
                 case 'n' -> {
                     String ls = System.lineSeparator();
-                    yield (sb, o) -> sb.append(ls);
+                    yield o -> ls;
                 }
                 case 'j' -> JsonFormat.INSTANCE;
                 default -> throw new IllegalArgumentException("Invalid format specifier: " + format);
@@ -828,7 +924,7 @@ public class VarFormatter {
         }
     }
 
-    private BiConsumer<StringBuffer, Object> numberFormat(Locale l, char conversion, Flags flags, boolean integer, int length, int precision, boolean isUpper) {
+    private Function<Object, CharSequence> numberFormat(Locale l, char conversion, Flags flags, boolean integer, int length, int precision, boolean isUpper) {
         // Default precision for %f is exactly 6 digits
         final int effectivePrecision = (precision == -1 ? 6 : precision);
         final int fixed = (integer ? length : length - effectivePrecision - 1);
@@ -858,7 +954,11 @@ public class VarFormatter {
             return df;
         };
         if (length < 0) {
-            return new FunctionFormat(l, false, dfSupplier.get()::format);
+            return new FunctionFormat(l, false, o -> {
+                StringBuffer builder = new StringBuffer();
+                dfSupplier.get().format(o, builder, new FieldPosition(0));
+                return builder;
+            });
         } else if (flags.leftjustified) {
             return new LeftJustifyNumberFormat(dfSupplier, length);
         } else {
@@ -869,6 +969,29 @@ public class VarFormatter {
     @Override
     public String toString() {
         return this.format;
+    }
+
+    public boolean checkCompatibleLocale() {
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(locale);
+
+        char zero = symbols.getZeroDigit();
+        if ((zero != '0')) {
+            return false;
+        }
+        DecimalFormat df = (DecimalFormat) NumberFormat.getNumberInstance(locale);
+        if (! "-".equals(df.getNegativePrefix())) {
+            return false;
+        }
+        if (! "".equals(df.getNegativeSuffix())) {
+            return false;
+        }
+        if (! "".equals(df.getPositivePrefix())) {
+            return false;
+        }
+        if (! "".equals(df.getPositiveSuffix())) {
+            return false;
+        }
+        return true;
     }
 
     static TemporalAccessor resolveWithEra(Locale locale, ZonedDateTime timePoint) {
