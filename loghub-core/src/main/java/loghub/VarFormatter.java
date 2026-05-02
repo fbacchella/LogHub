@@ -320,7 +320,7 @@ public class VarFormatter {
         private final BiConsumer<StringBuilder, TemporalAccessor> taToStr;
         private final boolean zoned;
 
-        private ExtendedDateFormat(Locale l, char timeFormat, ZoneId tz, boolean isUpper) {
+        private ExtendedDateFormat(Locale l, char timeFormat, ZoneId tz, boolean isUpper, boolean compatibleLocale) {
             this.tz = tz;
             this.etz = Optional.ofNullable(tz).orElse(ZoneId.systemDefault());
             this.locale = l;
@@ -328,50 +328,50 @@ public class VarFormatter {
             switch (timeFormat) {
                 case 'H' -> {
                     // Hour of the day for the 24-hour clock, formatted as two digits with a leading zero as necessary i.e. 00 - 23.
-                    taToStr = formatTemporalAccessor("00", ChronoField.HOUR_OF_DAY);
+                    taToStr = formatTemporalAccessor("00", ChronoField.HOUR_OF_DAY, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'I' -> {
                     // Hour for the 12-hour clock, formatted as two digits with a leading zero as necessary, i.e. 01 - 12.
-                    taToStr = formatTemporalAccessor("00", ChronoField.CLOCK_HOUR_OF_AMPM);
+                    taToStr = formatTemporalAccessor("00", ChronoField.CLOCK_HOUR_OF_AMPM, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'k' -> {
                     // Hour of the day for the 24-hour clock, i.e. 0 - 23.
-                    taToStr = formatTemporalAccessor("#0", ChronoField.HOUR_OF_DAY);
+                    taToStr = formatTemporalAccessor("#0", ChronoField.HOUR_OF_DAY, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'l' -> {
                     // Hour for the 12-hour clock, i.e. 1 - 12.
-                    taToStr = formatTemporalAccessor("#0", ChronoField.CLOCK_HOUR_OF_AMPM);
+                    taToStr = formatTemporalAccessor("#0", ChronoField.CLOCK_HOUR_OF_AMPM, compatibleLocale);
                     // TZ goes to minute specifications
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'M' -> {
                     // Minute within the hour formatted as two digits with a leading zero as necessary, i.e. 00 - 59.
-                    taToStr = formatTemporalAccessor("00", ChronoField.MINUTE_OF_HOUR);
+                    taToStr = formatTemporalAccessor("00", ChronoField.MINUTE_OF_HOUR, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'S' -> {
                     // Seconds within the minute, formatted as two digits with a leading zero as necessary, i.e. 00 - 60 ("60" is a special value required to support leap seconds).
-                    taToStr = formatTemporalAccessor("00", ChronoField.SECOND_OF_MINUTE);
+                    taToStr = formatTemporalAccessor("00", ChronoField.SECOND_OF_MINUTE, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'L' -> {
                     // Millisecond within the second formatted as three digits with leading zeros as necessary, i.e. 000 - 999.
-                    taToStr = formatTemporalAccessor("000", ChronoField.MILLI_OF_SECOND);
+                    taToStr = formatTemporalAccessor("000", ChronoField.MILLI_OF_SECOND, compatibleLocale);
                     zoned = false;
                     chronologyCheck = false;
                 }
                 case 'N' -> {
                     // Nanosecond within the second, formatted as nine digits with leading zeros as necessary, i.e. 000000000 - 999999999.
-                    taToStr = formatTemporalAccessor("000000000", ChronoField.NANO_OF_SECOND);
+                    taToStr = formatTemporalAccessor("000000000", ChronoField.NANO_OF_SECOND, compatibleLocale);
                     zoned = false;
                     chronologyCheck = false;
                 }
@@ -387,14 +387,25 @@ public class VarFormatter {
                 }
                 case 'z' -> {
                     // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time.
-                    ThreadLocal<DecimalFormat> tlDf = ThreadLocal.withInitial(() -> new DecimalFormat("0000", DecimalFormatSymbols.getInstance(locale)));
-                    taToStr = (sb, ta) -> {
-                        int offsetS = getTemporalAccessor(ta).get(ChronoField.OFFSET_SECONDS);
-                        sb.append(offsetS < 0 ? '-' : '+');
-                        int minutes = Math.abs(offsetS) / 60;
-                        int offset = (minutes / 60) * 100 + (minutes % 60);
-                        sb.append(tlDf.get().format(offset));
-                    };
+                    if (compatibleLocale) {
+                        NonDecimalNumberFormat ndnf = new NonDecimalNumberFormat(locale, 10, false, new Flags("0+"), 4);
+                        taToStr = (sb, ta) -> {
+                            int offsetS = getTemporalAccessor(ta).get(ChronoField.OFFSET_SECONDS);
+                            sb.append(offsetS < 0 ? '-' : '+');
+                            int minutes = Math.abs(offsetS) / 60;
+                            int offset = (minutes / 60) * 100 + (minutes % 60);
+                            sb.append(ndnf.filteredFormat(offset));
+                        };
+                    } else {
+                        ThreadLocal<DecimalFormat> tlDf = ThreadLocal.withInitial(() -> new DecimalFormat("0000", DecimalFormatSymbols.getInstance(locale)));
+                        taToStr = (sb, ta) -> {
+                            int offsetS = getTemporalAccessor(ta).get(ChronoField.OFFSET_SECONDS);
+                            sb.append(offsetS < 0 ? '-' : '+');
+                            int minutes = Math.abs(offsetS) / 60;
+                            int offset = (minutes / 60) * 100 + (minutes % 60);
+                            sb.append(tlDf.get().format(offset));
+                        };
+                    }
                     zoned = true;
                     chronologyCheck = false;
                 }
@@ -408,13 +419,13 @@ public class VarFormatter {
                 }
                 case 's' -> {
                     // Seconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE/1000 to Long.MAX_VALUE/1000.
-                    taToStr = formatTemporalAccessor("#0", i -> Instant.from(i).getEpochSecond());
+                    taToStr = formatTemporalAccessor("#0", i -> Instant.from(i).getEpochSecond(), compatibleLocale);
                     zoned = false;
                     chronologyCheck = false;
                 }
                 case 'Q' -> {
                     // Milliseconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE to Long.MAX_VALUE.
-                    taToStr = formatTemporalAccessor("#0", i -> Instant.from(i).toEpochMilli());
+                    taToStr = formatTemporalAccessor("#0", i -> Instant.from(i).toEpochMilli(), compatibleLocale);
                     zoned = false;
                     chronologyCheck = false;
                 }
@@ -447,43 +458,43 @@ public class VarFormatter {
                 }
                 case 'C' -> {
                     // Four-digit year divided by 100, formatted as two digits with leading zero as necessary, i.e. 00 - 99
-                    taToStr = formatTemporalAccessor("00", i -> i.getLong(ChronoField.YEAR_OF_ERA) / 100);
+                    taToStr = formatTemporalAccessor("00", i -> i.getLong(ChronoField.YEAR_OF_ERA) / 100, compatibleLocale);
                     zoned = true;
                     chronologyCheck = true;
                 }
                 case 'Y' -> {
                     // Year, formatted as at least four digits with leading zeros as necessary, e.g. 0092 equals 92 CE for the Gregorian calendar.
-                    taToStr = formatTemporalAccessor("0000", ChronoField.YEAR_OF_ERA);
+                    taToStr = formatTemporalAccessor("0000", ChronoField.YEAR_OF_ERA, compatibleLocale);
                     zoned = true;
                     chronologyCheck = true;
                 }
                 case 'y' -> {
                     // Last two digits of the year, formatted with leading zeros as necessary, i.e. 00 - 99.
-                    taToStr = formatTemporalAccessor("00", i -> i.getLong(ChronoField.YEAR_OF_ERA) % 100);
+                    taToStr = formatTemporalAccessor("00", i -> i.getLong(ChronoField.YEAR_OF_ERA) % 100, compatibleLocale);
                     zoned = true;
                     chronologyCheck = true;
                 }
                 case 'j' -> {
                     // Day of the year, formatted as three digits with leading zeros as necessary, e.g. 001 - 366 for the Gregorian calendar.
-                    taToStr = formatTemporalAccessor("000", ChronoField.DAY_OF_YEAR);
+                    taToStr = formatTemporalAccessor("000", ChronoField.DAY_OF_YEAR, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'm' -> {
                     // Month, formatted as two digits with leading zeros as necessary, i.e. 01 - 13.
-                    taToStr = formatTemporalAccessor("00", ChronoField.MONTH_OF_YEAR);
+                    taToStr = formatTemporalAccessor("00", ChronoField.MONTH_OF_YEAR, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'd' -> {
                     // Day of the month, formatted as two digits with leading zeros as necessary, i.e. 01 - 31
-                    taToStr = formatTemporalAccessor("00", ChronoField.DAY_OF_MONTH);
+                    taToStr = formatTemporalAccessor("00", ChronoField.DAY_OF_MONTH, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
                 case 'e' -> {
                     // Day of the month, formatted as two digits, i.e. 1 - 31.
-                    taToStr = formatTemporalAccessor("#0", ChronoField.DAY_OF_MONTH);
+                    taToStr = formatTemporalAccessor("#0", ChronoField.DAY_OF_MONTH, compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
@@ -491,7 +502,7 @@ public class VarFormatter {
                     // The week number of the year (Monday as the first day of the week) as a decimal number (01-53).  If the week
                     // containing January 1 has four or more days in the new year, then it is week 1; otherwise it is the last week
                     // of the previous year, and the next week is week 1. Defined in ISO-8601
-                    taToStr = formatTemporalAccessor("00", WeekFields.ISO.weekOfWeekBasedYear());
+                    taToStr = formatTemporalAccessor("00", WeekFields.ISO.weekOfWeekBasedYear(), compatibleLocale);
                     zoned = true;
                     chronologyCheck = false;
                 }
@@ -543,18 +554,33 @@ public class VarFormatter {
                     zoned = true;
                     chronologyCheck = true;
                 }
-                default -> throw new IllegalArgumentException("Unreconized date/time format: '" + timeFormat + "'");
+                default -> throw new IllegalArgumentException("Unrecognized date/time format: '" + timeFormat + "'");
             }
         }
 
-        private BiConsumer<StringBuilder, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalField field) {
-            ThreadLocal<DecimalFormat> df = ThreadLocal.withInitial(() -> new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale)));
-            return (sb, ta) -> sb.append(df.get().format(ta.get(field)));
+        private BiConsumer<StringBuilder, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalField field, boolean compatibleLocale) {
+            if (compatibleLocale) {
+                Flags f = new Flags(formatPattern.replace('#', '-'));
+                int size = f.leftjustified ? -1 : formatPattern.length();
+                NonDecimalNumberFormat ndnf = new NonDecimalNumberFormat(locale, 10, false, f, size);
+                return (sb, ta) -> sb.append(ndnf.filteredFormat(ta.get(field)));
+            } else {
+                ThreadLocal<DecimalFormat> df = ThreadLocal.withInitial(() -> new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale)));
+                return (sb, ta) -> sb.append(df.get().format(ta.get(field)));
+            }
         }
 
-        private BiConsumer<StringBuilder, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalQuery<Long> transformd) {
-            ThreadLocal<DecimalFormat> df = ThreadLocal.withInitial(() -> new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale)));
-            return (sb, ta) -> sb.append(df.get().format(transformd.queryFrom(ta)));
+        private BiConsumer<StringBuilder, TemporalAccessor> formatTemporalAccessor(String formatPattern, TemporalQuery<Long> transformd, boolean compatibleLocale) {
+             if (compatibleLocale) {
+                Flags f = new Flags(formatPattern.replace('#', '-'));
+                int size = f.leftjustified ? -1 : formatPattern.length();
+                NonDecimalNumberFormat ndnf = new NonDecimalNumberFormat(locale, 10, false, f, size);
+                return (sb, ta) -> sb.append(ndnf.filteredFormat(transformd.queryFrom(ta)));
+            } else {
+                ThreadLocal<DecimalFormat> df = ThreadLocal.withInitial(() -> new DecimalFormat(formatPattern, DecimalFormatSymbols.getInstance(locale)));
+                return (sb, ta) -> sb.append(df.get().format(transformd.queryFrom(ta)));
+            }
+
         }
 
         private TemporalAccessor withCalendarSystem(ZonedDateTime timePoint) {
@@ -878,8 +904,6 @@ public class VarFormatter {
 
             String lengthStr =  m.group("length");
             int length = lengthStr == null ? -1 : Integer.parseInt(lengthStr);
-            String precisionStr =  m.group("precision");
-            int precision = precisionStr == null ? -1 : Integer.parseInt(precisionStr);
             String flagStr = m.group("flag");
             if (flagStr == null) {
                 flagStr = "";
@@ -908,26 +932,7 @@ public class VarFormatter {
             return switch (conversion) {
                 case 'b' -> new BooleanFormat(isUpper, locale);
                 case 's' -> {
-                    Function<Object, CharSequence> c;
-                    if (length <= 0) {
-                        c = Object::toString;
-                    } else if (flags.leftjustified()) {
-                        c = o -> {
-                            String s = o.toString();
-                            StringBuilder sb = new StringBuilder(s.length() + length);
-                            sb.append(s);
-                            sb.repeat(" ", Math.max(length - s.length(), 0));
-                            return sb;
-                        };
-                    } else {
-                        c = o -> {
-                            String s = o.toString();
-                            StringBuilder sb = new StringBuilder(s.length() + length);
-                            sb.repeat(" ", Math.max(length - s.length(), 0));
-                            sb.append(s);
-                            return sb;
-                        };
-                    }
+                    var c = getStringFunction(length, flags);
                     yield new FunctionFormat(Locale.getDefault(), isUpper, c);
                 }
                 case 'h' -> {
@@ -953,14 +958,17 @@ public class VarFormatter {
                     yield new FunctionFormat(Locale.getDefault(), isUpper, f);
                 }
                 case 'd' -> {
-                    if (checkCompatibleLocale() && !flags.parenthesis) {
+                    if (checkCompatibleLocale() && ! flags.leftjustified && length == 0) {
+                        yield new FunctionFormat(locale, false, o -> Long.toString(((Number) o).longValue()));
+                    } else if (checkCompatibleLocale() && !flags.parenthesis) {
                         yield new NonDecimalNumberFormat(locale, 10, false, flags, length);
+                    } else {
+                        yield numberFormat(locale, conversion, flags, length, isUpper);
                     }
-                    yield numberFormat(locale, conversion, flags, length, isUpper);
                 }
                 case 'o', 'x' -> new NonDecimalNumberFormat(locale, conversion == 'o' ? 8 : 16, isUpper, flags, length);
                 case 'e', 'f', 'g', 'a' -> new StandardFormat(locale, "%" + format);
-                case 't' -> new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
+                case 't' -> new ExtendedDateFormat(locale, timeFormat, ctz, isUpper, checkCompatibleLocale());
                 case '%' -> o -> "%";
                 case 'n' -> {
                     String ls = System.lineSeparator();
@@ -972,6 +980,30 @@ public class VarFormatter {
         } else {
             throw new IllegalArgumentException(format);
         }
+    }
+
+    private Function<Object, CharSequence> getStringFunction(int length, Flags flags) {
+        Function<Object, CharSequence> c;
+        if (length <= 0) {
+            c = Object::toString;
+        } else if (flags.leftjustified()) {
+            c = o -> {
+                String s = o.toString();
+                StringBuilder sb = new StringBuilder(s.length() + length);
+                sb.append(s);
+                sb.repeat(" ", Math.max(length - s.length(), 0));
+                return sb;
+            };
+        } else {
+            c = o -> {
+                String s = o.toString();
+                StringBuilder sb = new StringBuilder(s.length() + length);
+                sb.repeat(" ", Math.max(length - s.length(), 0));
+                sb.append(s);
+                return sb;
+            };
+        }
+        return c;
     }
 
     private Function<Object, CharSequence> numberFormat(Locale l, char conversion, Flags flags, int length, boolean isUpper) {
