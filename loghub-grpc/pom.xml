@@ -13,8 +13,8 @@
     <name>LogHub :: gRPC support</name>
 
     <properties>
-        <protobuf.version>4.34.0</protobuf.version>
-        <grpc.version>1.79.0</grpc.version>
+        <protobuf.version>4.34.1</protobuf.version>
+        <grpc.version>1.81.0</grpc.version>
     </properties>
 
     <dependencies>
