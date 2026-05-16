@@ -305,6 +305,7 @@
     </reporting>
 
     <modules>
+        <module>loghub-datetime</module>
         <module>loghub-core</module>
         <module>loghub-executable</module>
         <module>loghub-csv</module>

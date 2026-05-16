@@ -23,8 +23,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
-import loghub.VarFormatter;
-
 import static java.time.ZoneOffset.UTC;
 
 public class JacksonModule extends SimpleModule {
@@ -33,7 +31,6 @@ public class JacksonModule extends SimpleModule {
     private static final DatetimeProcessor AS_IS8601_MILLI = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     private static final BigDecimal GIGA = BigDecimal.valueOf(1_000_000_000L);
     private static final BigDecimal KILO = BigDecimal.valueOf(1_000L);
-    private static final VarFormatter ZONE_ID_FORMAT = new VarFormatter("${#1%s}[${#2%s}]");
     private static final int WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS = 1;
     private static final int WRITE_DATES_AS_TIMESTAMPS = 2;
     private static final int WRITE_DATES_WITH_CONTEXT_TIME_ZONE = 4;
@@ -77,7 +74,8 @@ public class JacksonModule extends SimpleModule {
                     if (zoneIdentifier.isEmpty()) {
                         gen.writeString(formatted);
                     } else {
-                        gen.writeString(ZONE_ID_FORMAT.argsFormat(formatted, zoneIdentifier));
+                        StringBuilder sb = new StringBuilder(formatted.length() + zoneIdentifier.length() + 2);
+                        gen.writeString(sb.append(formatted).append('[').append(zoneIdentifier).append(']').toString());
                     }
                 } else {
                     gen.writeString(asString.apply(ctxZid, iso8601Processor));

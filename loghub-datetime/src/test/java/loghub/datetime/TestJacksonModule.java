@@ -11,9 +11,6 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.function.Consumer;
 
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -26,21 +23,8 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
-
-import loghub.LogUtils;
-import loghub.Tools;
 
 public class TestJacksonModule {
-
-    private static Logger logger;
-
-    @BeforeClass
-    public static void configure() {
-        Tools.configure();
-        logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.DEBUG);
-    }
 
     private static TimeZone defaultTz;
     @BeforeClass
@@ -58,7 +42,6 @@ public class TestJacksonModule {
         builder.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
         builder.addModule(new JavaTimeModule());
         builder.addModule(new Jdk8Module());
-        builder.addModule(new AfterburnerModule());
         configurator.accept(builder);
         return builder.build();
     }
@@ -70,7 +53,6 @@ public class TestJacksonModule {
             mapperConfigurator.getValue().accept(simpleMapper);
             mapperConfigurator.getValue().accept(axibaseMapper);
             ObjectWriter axibaseWritter =  axibaseMapper.writerFor(Object.class);
-            logger.debug("  {} {}", value.getClass().getName(), axibaseWritter.writeValueAsString(value));
             Assert.assertEquals(value.getClass().getName(), expected, axibaseWritter.writeValueAsString(value));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
@@ -247,7 +229,6 @@ public class TestJacksonModule {
         );
         for (Map.Entry<String, Consumer<JsonMapper>> c : configurators) {
             for (Map.Entry<String, List<Object>> v : values) {
-                logger.debug("{}/{}", c.getKey(), v.getKey());
                 String expectedValue = expected.get(String.format("%s/%s", c.getKey(), v.getKey()));
                 for (Object o : v.getValue()) {
                     runTest(o, c, expectedValue);

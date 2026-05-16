@@ -186,6 +186,12 @@
                                     </excludes>
                                 </filter>
                                 <filter>
+                                    <artifact>fr.loghub:loghub-datetime</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
                                     <artifact>fr.loghub:loghub-core</artifact>
                                     <includes>
                                         <include>**</include>
