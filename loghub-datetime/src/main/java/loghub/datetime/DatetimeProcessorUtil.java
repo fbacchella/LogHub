@@ -25,7 +25,7 @@ public class DatetimeProcessorUtil {
     }
 
     /**
-     * Return number of digits in base-10 string representation.
+     * Return the number of digits in base-10 string representation.
      * @param number Non-negative number
      * @return number of digits
      */
@@ -88,7 +88,7 @@ public class DatetimeProcessorUtil {
     }
 
     public static StringBuilder appendNumberWithFixedPositions(StringBuilder sb, int num, int positions) {
-        sb.append("0".repeat(Math.max(0, positions - sizeInDigits(num))));
+        sb.repeat("0", Math.max(0, positions - sizeInDigits(num)));
         return sb.append(num);
     }
 

@@ -14,8 +14,8 @@ import java.util.regex.Pattern;
 import static loghub.datetime.DatetimeProcessorUtil.appendNumberWithFixedPositions;
 
 /**
- * This class resolves creates for Axibase-supported datetime syntax. Each DatetimeProcessor object is immutable,
- * so consider caching them for better performance in client application.
+ * Each DatetimeProcessor object is immutable,
+ * so consider caching them for better performance in client applications.
  */
 class PatternResolver {
     static final Set<String> VALID_ZONE_FORMATTERS = Set.of(
@@ -123,34 +123,21 @@ class PatternResolver {
         if (pattern == null) {
             return null;
         } else {
-            switch (pattern) {
-            case "Z":
-                return (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
-            case "ZZ":
-                return (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
-            case "X":
-                return (sb, zdt) -> appendFormattedSecondOffset("Z", 2, true, ' ', zdt, sb);
-            case "XX":
-                return (sb, zdt) -> appendFormattedSecondOffset("Z", 2, false, ' ', zdt, sb);
-            case "XXX":
-                return (sb, zdt) -> appendFormattedSecondOffset("Z", 2, false, ':', zdt, sb);
-            case "XXXX":
-                return (sb, zdt) -> appendFormattedSecondOffset("Z", 3, true, ' ', zdt, sb);
-            case "XXXXX":
-                return (sb, zdt) -> appendFormattedSecondOffset("Z", 3, true, ':', zdt, sb);
-            case "x":
-                return (sb, zdt) -> appendFormattedSecondOffset("+00", 2, true, ' ', zdt, sb);
-            case "xx":
-                return (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
-            case "xxx":
-                return (sb, zdt) -> appendFormattedSecondOffset("+00:00", 2, false, ':', zdt, sb);
-            case "xxxx":
-                return (sb, zdt) -> appendFormattedSecondOffset("+0000", 3, true, ' ', zdt, sb);
-            case "xxxxx":
-                return (sb, zdt) -> appendFormattedSecondOffset("+00:00", 3, true, ':', zdt, sb);
-            default:
-                return new AppendOffset.PatternAppendOffset(pattern);
-            }
+            return switch (pattern) {
+                case "Z" -> (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
+                case "ZZ" -> (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
+                case "X" -> (sb, zdt) -> appendFormattedSecondOffset("Z", 2, true, ' ', zdt, sb);
+                case "XX" -> (sb, zdt) -> appendFormattedSecondOffset("Z", 2, false, ' ', zdt, sb);
+                case "XXX" -> (sb, zdt) -> appendFormattedSecondOffset("Z", 2, false, ':', zdt, sb);
+                case "XXXX" -> (sb, zdt) -> appendFormattedSecondOffset("Z", 3, true, ' ', zdt, sb);
+                case "XXXXX" -> (sb, zdt) -> appendFormattedSecondOffset("Z", 3, true, ':', zdt, sb);
+                case "x" -> (sb, zdt) -> appendFormattedSecondOffset("+00", 2, true, ' ', zdt, sb);
+                case "xx" -> (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
+                case "xxx" -> (sb, zdt) -> appendFormattedSecondOffset("+00:00", 2, false, ':', zdt, sb);
+                case "xxxx" -> (sb, zdt) -> appendFormattedSecondOffset("+0000", 3, true, ' ', zdt, sb);
+                case "xxxxx" -> (sb, zdt) -> appendFormattedSecondOffset("+00:00", 3, true, ':', zdt, sb);
+                default -> new AppendOffset.PatternAppendOffset(pattern);
+            };
         }
     }
 
@@ -182,19 +169,13 @@ class PatternResolver {
 
     static ParseTimeZone zoneOffsetResolver(String pattern) {
         if (pattern != null && VALID_ZONE_FORMATTERS.contains(pattern)) {
-            switch (pattern) {
-            case "v":
-            case "vvvv":
-            case "z":
-            case "zz":
-            case "zzz":
-            case "zzzz": {
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern(pattern);
-                return (ctx, ot, dzid) -> dtf.parse(ctx.findWord(), TemporalQueries.zoneId());
-            }
-            default:
-                return ParsingContext::extractZoneId;
-            }
+            return switch (pattern) {
+                case "v", "vvvv", "z", "zz", "zzz", "zzzz" -> {
+                    DateTimeFormatter dtf = DateTimeFormatter.ofPattern(pattern);
+                    yield (ctx, ot, dzid) -> dtf.parse(ctx.findWord(), TemporalQueries.zoneId());
+                }
+                default -> ParsingContext::extractZoneId;
+            };
         } else {
             return (ctx, ot, dzid) -> dzid;
         }
