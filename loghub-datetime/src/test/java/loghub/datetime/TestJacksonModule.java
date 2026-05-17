@@ -4,17 +4,21 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -24,20 +28,22 @@ import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-public class TestJacksonModule {
+class TestJacksonModule {
 
     private static TimeZone defaultTz;
-    @BeforeClass
-    public static void saveTimeZone() {
+
+    @BeforeAll
+    static void saveTimeZone() {
         defaultTz = TimeZone.getDefault();
         TimeZone.setDefault(TimeZone.getTimeZone(ZoneId.of("Asia/Tokyo")));
     }
-    @AfterClass
-    public static void restoreTimeZone() {
+
+    @AfterAll
+    static void restoreTimeZone() {
         TimeZone.setDefault(defaultTz);
     }
 
-    public JsonMapper getMapper(Consumer<JsonMapper.Builder> configurator) {
+    JsonMapper getMapper(Consumer<JsonMapper.Builder> configurator) {
         JsonMapper.Builder builder = JsonMapper.builder();
         builder.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
         builder.addModule(new JavaTimeModule());
@@ -46,126 +52,84 @@ public class TestJacksonModule {
         return builder.build();
     }
 
-    public void runTest(Object value, Map.Entry<String, Consumer<JsonMapper>> mapperConfigurator, String expected) {
-        try {
-            JsonMapper simpleMapper = getMapper(m -> { });
-            JsonMapper axibaseMapper = getMapper(m -> m.addModule(new JacksonModule()));
-            mapperConfigurator.getValue().accept(simpleMapper);
-            mapperConfigurator.getValue().accept(axibaseMapper);
-            ObjectWriter axibaseWritter =  axibaseMapper.writerFor(Object.class);
-            Assert.assertEquals(value.getClass().getName(), expected, axibaseWritter.writeValueAsString(value));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    public void check(Object value, List<Map.Entry<String, Consumer<JsonMapper>>> configurators, List<String> expected) {
-        Assert.assertEquals(configurators.size(), expected.size());
-        for (int i = 0; i < configurators.size(); i++) {
-            runTest(value, configurators.get(i), expected.get(i));
-        }
-    }
-
-    private Calendar fromInstant(Instant i, ZoneId tz) {
+    private static Calendar fromInstant(Instant i, ZoneId tz) {
         return new Calendar.Builder().setCalendarType("iso8601").setInstant(i.toEpochMilli()).setTimeZone(TimeZone.getTimeZone(tz)).build();
     }
 
-    @Test
-    public void testDefaultSettigs() {
+    static Stream<Arguments> defaultSettingsProvider() {
         List<Map.Entry<String, Consumer<JsonMapper>>> configurators = List.of(
                 Map.entry("TIMESTAMPS_AS_MILLISECONDS",
-                      m -> m.disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)),
+                        m -> m.disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)),
                 Map.entry("TIMESTAMPS_AS_NANOSECONDS",
-                    m -> m.enable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)),
+                        m -> m.enable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)),
                 Map.entry("AS_STRING",
                         m -> {
-                        m.setTimeZone(TimeZone.getTimeZone("America/New_York"));
-                        m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                        m.disable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
-                        m.disable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE);
-                    }
-                ),
+                            m.setTimeZone(TimeZone.getTimeZone("America/New_York"));
+                            m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            m.disable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
+                            m.disable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE);
+                        }),
                 Map.entry("WITH_ZONE_ID",
-                    m -> {
-                        m.setTimeZone(TimeZone.getTimeZone("America/New_York"));
-                        m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                        m.enable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
-                        m.disable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE);
-                    }
-                ),
+                        m -> {
+                            m.setTimeZone(TimeZone.getTimeZone("America/New_York"));
+                            m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            m.enable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
+                            m.disable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE);
+                        }),
                 Map.entry("WITH_CONTEXT_TIME_ZONE",
-                    m -> {
-                        m.setTimeZone(TimeZone.getTimeZone("America/New_York"));
-                        m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                        m.disable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
-                        m.enable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE);
-                    }
-                ),
+                        m -> {
+                            m.setTimeZone(TimeZone.getTimeZone("America/New_York"));
+                            m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            m.disable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
+                            m.enable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE);
+                        }),
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID",
-                    m -> {
-                        m.setTimeZone(TimeZone.getTimeZone("America/New_York"));
-                        m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                        m.enable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
-                        m.enable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE);
-                    }
-                )
+                        m -> {
+                            m.setTimeZone(TimeZone.getTimeZone("America/New_York"));
+                            m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                            m.enable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID);
+                            m.enable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE);
+                        })
         );
+
         ZoneId moscow = ZoneId.of("Europe/Moscow");
         long seconds = 1714421498L;
         long withNanos = 936_155_001L;
         long withMilli = 936_000_000L;
         long withDeci = 900_000_000L;
         long withoutSubSecond = 0L;
+
         List<Map.Entry<String, List<Object>>> values = List.of(
                 Map.entry("Instant with nano",
-                        List.of(Instant.ofEpochSecond(seconds, withNanos))
-                ),
+                        List.of(Instant.ofEpochSecond(seconds, withNanos))),
                 Map.entry("Instant with milli",
                         List.of(
-                            Instant.ofEpochSecond(seconds, withMilli),
-                            Date.from(Instant.ofEpochSecond(seconds, withMilli))
-                        )
-                ),
+                                Instant.ofEpochSecond(seconds, withMilli),
+                                Date.from(Instant.ofEpochSecond(seconds, withMilli)))),
                 Map.entry("Instant with deci",
                         List.of(
-                            Instant.ofEpochSecond(seconds, withDeci),
-                            Date.from(Instant.ofEpochSecond(seconds, withDeci))
-                        )
-                ),
+                                Instant.ofEpochSecond(seconds, withDeci),
+                                Date.from(Instant.ofEpochSecond(seconds, withDeci)))),
                 Map.entry("Instant without subseconds",
                         List.of(
-                            Instant.ofEpochSecond(seconds, withoutSubSecond),
-                            Date.from(Instant.ofEpochSecond(seconds, withoutSubSecond))
-                        )
-                ),
+                                Instant.ofEpochSecond(seconds, withoutSubSecond),
+                                Date.from(Instant.ofEpochSecond(seconds, withoutSubSecond)))),
                 Map.entry("Date with nano",
-                        List.of(
-                            Instant.ofEpochSecond(seconds, withNanos).atZone(moscow)
-                        )
-                ),
+                        List.of(Instant.ofEpochSecond(seconds, withNanos).atZone(moscow))),
                 Map.entry("Date with milli",
                         List.of(
-                            Instant.ofEpochSecond(seconds, withMilli).atZone(moscow),
-                            fromInstant(Instant.ofEpochSecond(seconds, withMilli), moscow)
-                        )
-                ),
+                                Instant.ofEpochSecond(seconds, withMilli).atZone(moscow),
+                                fromInstant(Instant.ofEpochSecond(seconds, withMilli), moscow))),
                 Map.entry("Date without subseconds",
                         List.of(
-                            Instant.ofEpochSecond(seconds, withoutSubSecond).atZone(moscow),
-                            fromInstant(Instant.ofEpochSecond(seconds, withoutSubSecond), moscow)
-                        )
-                ),
+                                Instant.ofEpochSecond(seconds, withoutSubSecond).atZone(moscow),
+                                fromInstant(Instant.ofEpochSecond(seconds, withoutSubSecond), moscow))),
                 Map.entry("DateOffset with nano",
-                        List.of(
-                            OffsetDateTime.ofInstant(Instant.ofEpochSecond(seconds, withNanos), moscow)
-                        )
-                ),
+                        List.of(OffsetDateTime.ofInstant(Instant.ofEpochSecond(seconds, withNanos), moscow))),
                 Map.entry("LocalDate with nano",
-                        List.of(
-                            LocalDateTime.ofInstant(Instant.ofEpochSecond(seconds, withNanos), moscow)
-                        )
-                )
+                        List.of(LocalDateTime.ofInstant(Instant.ofEpochSecond(seconds, withNanos), moscow)))
         );
+
         Map<String, String> expected = Map.ofEntries(
                 Map.entry("TIMESTAMPS_AS_MILLISECONDS/Instant with nano", "1714421498936"),
                 Map.entry("TIMESTAMPS_AS_MILLISECONDS/Instant with milli", "1714421498936"),
@@ -227,13 +191,29 @@ public class TestJacksonModule {
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/DateOffset with nano", "\"2024-04-29T16:11:38.936155001-04:00[America/New_York]\""),
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/LocalDate with nano", "\"2024-04-29T10:11:38.936155001-04:00[America/New_York]\"")
         );
+
+        List<Arguments> args = new ArrayList<>();
         for (Map.Entry<String, Consumer<JsonMapper>> c : configurators) {
             for (Map.Entry<String, List<Object>> v : values) {
-                String expectedValue = expected.get(String.format("%s/%s", c.getKey(), v.getKey()));
+                String expectedValue = expected.get(c.getKey() + "/" + v.getKey());
                 for (Object o : v.getValue()) {
-                    runTest(o, c, expectedValue);
+                    args.add(Arguments.of(c.getKey() + "/" + v.getKey() + "/" + o.getClass().getSimpleName(), c, o, expectedValue));
                 }
             }
+        }
+        return args.stream();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("defaultSettingsProvider")
+    void testDefaultSettings(String label, Map.Entry<String, Consumer<JsonMapper>> configurator, Object value, String expectedValue) {
+        try {
+            JsonMapper axibaseMapper = getMapper(m -> m.addModule(new JacksonModule()));
+            configurator.getValue().accept(axibaseMapper);
+            ObjectWriter axibaseWriter = axibaseMapper.writerFor(Object.class);
+            Assertions.assertEquals(expectedValue, axibaseWriter.writeValueAsString(value), label);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
         }
     }
 
