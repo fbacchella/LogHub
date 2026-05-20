@@ -11,17 +11,11 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
-import java.nio.CharBuffer;
-import java.nio.channels.ClosedChannelException;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
-import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -51,7 +45,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.activation.MimetypesFileTypeMap;
-import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.logging.log4j.Logger;
 
@@ -123,111 +116,8 @@ public final class Helpers {
 
     }
 
-    private static final Collator defaultCollator = Collator.getInstance();
-
-    public static final Comparator<String> NATURALSORTSTRING = (s1, s2) -> {
-        if (s1 == null || s2 == null) {
-            throw new NullPointerException();
-        }
-
-        int result = 0;
-
-        int lengthFirstStr = s1.length();
-        int lengthSecondStr = s2.length();
-
-        int index1 = 0;
-        int index2 = 0;
-
-        CharBuffer space1 = CharBuffer.allocate(lengthFirstStr);
-        CharBuffer space2 = CharBuffer.allocate(lengthSecondStr);
-
-        while (index1 < lengthFirstStr && index2 < lengthSecondStr) {
-            space1.clear();
-            space2.clear();
-
-            char ch1 = s1.charAt(index1);
-            boolean isDigit1 = Character.isDigit(ch1);
-            char ch2 = s2.charAt(index2);
-            boolean isDigit2 = Character.isDigit(ch2);
-
-            do {
-                space1.append(ch1);
-                index1++;
-
-                if (index1 < lengthFirstStr) {
-                    ch1 = s1.charAt(index1);
-                } else {
-                    break;
-                }
-            } while (Character.isDigit(ch1) == isDigit1);
-
-            do {
-                space2.append(ch2);
-                index2++;
-
-                if (index2 < lengthSecondStr) {
-                    ch2 = s2.charAt(index2);
-                } else {
-                    break;
-                }
-            } while (Character.isDigit(ch2) == isDigit2);
-
-            String str1 = space1.flip().toString();
-            String str2 = space2.flip().toString();
-
-            if (isDigit1 && isDigit2) {
-                try {
-                    long firstNumberToCompare = Long.parseLong(str1);
-                    long secondNumberToCompare = Long.parseLong(str2);
-                    result = Long.compare(firstNumberToCompare, secondNumberToCompare);
-                    if (result == 0) {
-                        // 1 == 01 is true with a number, but not with a string, check for a string equality
-                        result = defaultCollator.compare(str1, str2);
-                    }
-                } catch (NumberFormatException e) {
-                    // Something prevent the number parsing, do a string
-                    // comparison
-                    result = defaultCollator.compare(str1, str2);
-                }
-            } else {
-                result = defaultCollator.compare(str1, str2);
-            }
-            // A difference was found, exit the loop
-            if (result != 0) {
-                break;
-            }
-        }
-        // one string might be a substring of the other, check that
-        if (result == 0) {
-            result = lengthFirstStr - lengthSecondStr;
-        }
-        return result;
-    };
-
-    public static final Comparator<Path> NATURALSORTPATH = (p1, p2) -> {
-        p1 = p1.normalize();
-        p2 = p2.normalize();
-
-        if (p1.getNameCount() == 0 || p2.getNameCount() == 0) {
-            return Integer.compare(p1.getNameCount(), p2.getNameCount());
-        }
-
-        Iterator<Path> i1 = p1.iterator();
-        Iterator<Path> i2 = p2.iterator();
-        while (i1.hasNext() && i2.hasNext()) {
-            int sort = NATURALSORTSTRING.compare(i1.next().toString(), i2.next().toString());
-            if (sort != 0) {
-                return sort;
-            }
-        }
-        if (i1.hasNext()) {
-            return 1;
-        } else if (i2.hasNext()) {
-            return -1;
-        } else {
-            return 0;
-        }
-    };
+    public static final Comparator<String> NATURALSORTSTRING = NaturalSort.NATURALSORTSTRING;
+    public static final Comparator<Path> NATURALSORTPATH = NaturalSort.NATURALSORTPATH;
 
     public static <E> Iterable<E> enumIterable(Enumeration<E> e) {
         return () -> new Iterator<>() {
@@ -395,20 +285,6 @@ public final class Helpers {
         }
     }
 
-    /**
-     * Check if a Throwable is fatal hence should never be caught.
-     * Thanks to superbaloo for the tips
-     * @param err the exception to check.
-     * @return true if the exception is fatal to the JVM and should not be caught in a plugin
-     */
-    public static boolean isFatal(Throwable err) {
-        return (
-                        // StackOverflowError is a VirtualMachineError but not critical if found in a plugin
-                        ! (err instanceof StackOverflowError) &&
-                        // VirtualMachineError includes OutOfMemoryError and other fatal errors
-                        (err instanceof VirtualMachineError || err instanceof InterruptedException || err instanceof ThreadDeath));
-    }
-
     public static String getFirstInitClass() {
         StackTraceElement[] elements = Thread.currentThread().getStackTrace();
         String last = "";
@@ -427,59 +303,22 @@ public final class Helpers {
     }
 
     /**
+     * Check if a Throwable is fatal hence should never be caught.
+     * Thanks to superbaloo for the tips
+     * @param err the exception to check.
+     * @return true if the exception is fatal to the JVM and should not be caught in a plugin
+     */
+    public static boolean isFatal(Throwable err) {
+        return ExceptionsHelpers.isFatal(err);
+    }
+
+    /**
      * It tries to extract a meaningful message for any exception
      * @param t The exception to test
      * @return The extracted message
      */
     public static String resolveThrowableException(Throwable t) {
-        StringBuilder builder = new StringBuilder();
-        String lastMessage = "";
-        while (t.getCause() != null) {
-            String message = t.getMessage();
-            if (message == null) {
-                message = t.getClass().getSimpleName();
-            }
-            if (! lastMessage.endsWith(message)) {
-                builder.append(message).append(": ");
-            }
-            lastMessage = message;
-            t = t.getCause();
-        }
-        String message = t.getMessage();
-        // Helping resolve bad exception's message
-        if (t instanceof NoSuchMethodException) {
-            message = "No such method: " + t.getMessage();
-        } else if (t instanceof java.lang.NegativeArraySizeException) {
-            message = "Negative array size: " + message;
-        } else if (t instanceof ArrayIndexOutOfBoundsException) {
-            message = "Array out of bounds: " + message;
-        } else if (t instanceof ClassNotFoundException) {
-            message = "Class not found: " + message;
-        } else if (t instanceof IllegalCharsetNameException) {
-            message = "Illegal charset name: " + t.getMessage();
-        } else if (t instanceof UnsupportedCharsetException) {
-            message = "Unsupported charset name: " + t.getMessage();
-        } else if (t instanceof AccessDeniedException) {
-            message = "Access denied to file " + t.getMessage();
-        } else if (t instanceof ClosedChannelException) {
-            message = "Closed channel";
-        } else if (t instanceof UnknownHostException) {
-            message = "Unknown host \"%s\"".formatted(t.getMessage());
-        } else if (t instanceof SSLHandshakeException) {
-            // SSLHandshakeException is a chain of the same message, keep the last one
-            builder.setLength(0);
-        } else if (t instanceof InterruptedException) {
-            builder.setLength(0);
-            message = "Interrupted";
-        } else if (message == null) {
-            message = t.getClass().getSimpleName();
-        } else if (lastMessage.endsWith(message)) {
-            message = "";
-            // Remove the last ": "
-            builder.delete(builder.length() - 2, builder.length());
-        }
-        builder.append(message);
-        return builder.toString();
+        return ExceptionsHelpers.resolveThrowableException(t);
     }
 
     public static URI[] stringsToUri(String[] destinations, int port, String scheme, Logger logger) {

@@ -4,9 +4,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.function.Supplier;
 
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -17,20 +15,20 @@ public class ThreadBuilder {
 
     private static class ThreadCustomInterrupt extends Thread {
         private final BiConsumer<Thread, Runnable> interruptHandler;
-        private volatile boolean interrupted;
+        private volatile boolean isInterrupted;
         ThreadCustomInterrupt(Runnable task, BiConsumer<Thread, Runnable> interruptHandler) {
             super(task);
             this.interruptHandler = interruptHandler;
-            interrupted = false;
+            isInterrupted = false;
         }
         @Override
         public void interrupt() {
-            interrupted = true;
+            isInterrupted = true;
             interruptHandler.accept(this, super::interrupt);
         }
         @Override
         public boolean isInterrupted() {
-            return interrupted;
+            return isInterrupted;
         }
     }
 
@@ -38,19 +36,15 @@ public class ThreadBuilder {
         return new ThreadBuilder();
     }
 
-    private static final Logger logger = LogManager.getLogger();
-
-    public static final Thread.UncaughtExceptionHandler DEFAULTUNCAUGHTEXCEPTIONHANDLER =  (t, e) -> {
-        logger.fatal("Unhandled exception in thread {}", t.getName(), e);
-        ShutdownTask.fatalException(e);
-    };
+    @Setter
+    private static Thread.UncaughtExceptionHandler defaultuncaughtexceptionhandler = null;
 
     private Runnable task;
     private BiConsumer<Thread, Runnable> interrupter = null;
     private String name = null;
     private Boolean daemon = null;
     private boolean shutdownHook = false;
-    private Thread.UncaughtExceptionHandler exceptionHandler = DEFAULTUNCAUGHTEXCEPTIONHANDLER;
+    private Thread.UncaughtExceptionHandler exceptionHandler = defaultuncaughtexceptionhandler;
     private ClassLoader contextClassLoader = null;
     private boolean virtual = false;
 
@@ -93,7 +87,6 @@ public class ThreadBuilder {
 
     public ThreadFactory getFactory(String prefix) {
         AtomicInteger threadCount = new AtomicInteger(0);
-        VarFormatter formatter = new VarFormatter("${#1%s}-${#2%d}");
         // A local ThreadBuilder, so the original ThreadBuilder can be reused
         ThreadBuilder newBuilder = new ThreadBuilder();
         newBuilder.task = null;
@@ -104,12 +97,13 @@ public class ThreadBuilder {
         newBuilder.exceptionHandler = exceptionHandler;
         newBuilder.factory = factory;
         newBuilder.contextClassLoader = contextClassLoader;
+        Supplier<String> formatter = () -> prefix + "-" + threadCount.incrementAndGet();
 
         return r -> {
             // synchronized so the ThreadFactory is thread safe
             synchronized (newBuilder) {
                 Thread t = newBuilder.setTask(r)
-                                     .setName(formatter.argsFormat(prefix, threadCount.incrementAndGet()))
+                                     .setName(formatter.get())
                                      .build();
                 // Don’t hold references to the task or the name
                 newBuilder.task = null;

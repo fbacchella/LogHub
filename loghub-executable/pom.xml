@@ -69,6 +69,12 @@
                                     </excludes>
                                 </filter>
                                 <filter>
+                                    <artifact>fr.loghub:loghub-libs</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
                                     <artifact>fr.loghub:loghub-datetime</artifact>
                                     <includes>
                                         <include>**</include>
@@ -190,6 +196,12 @@
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>fr.loghub:loghub-libs</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
                                 </filter>
                                 <filter>
                                     <artifact>fr.loghub:loghub-datetime</artifact>
@@ -321,6 +333,12 @@
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>fr.loghub:loghub-libs</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
                                 </filter>
                                 <filter>
                                     <artifact>fr.loghub:loghub-datetime</artifact>

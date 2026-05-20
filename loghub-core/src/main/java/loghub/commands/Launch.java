@@ -117,7 +117,7 @@ public class Launch implements BaseParametersRunner {
         Helpers.parallelStartProcessor(props);
 
         for (Sender s : props.senders) {
-            s.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+            s.setUncaughtExceptionHandler(ShutdownTask.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
             s.setContextClassLoader(props.classloader);
             try {
                 if (s.configure(props)) {
@@ -134,7 +134,7 @@ public class Launch implements BaseParametersRunner {
 
         if (! failed) {
             for (EventsProcessor ep : props.eventsprocessors) {
-                ep.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+                ep.setUncaughtExceptionHandler(ShutdownTask.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
                 ep.setContextClassLoader(props.classloader);
                 ep.start();
             }
@@ -142,7 +142,7 @@ public class Launch implements BaseParametersRunner {
         }
 
         for (Receiver<?, ?> r : props.receivers) {
-            r.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+            r.setUncaughtExceptionHandler(ShutdownTask.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
             r.setContextClassLoader(props.classloader);
             try {
                 if (r.configure(props)) {

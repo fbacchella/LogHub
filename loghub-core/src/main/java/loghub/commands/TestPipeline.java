@@ -32,6 +32,7 @@ import loghub.EventsProcessor;
 import loghub.Helpers;
 import loghub.NullOrMissingValue;
 import loghub.Pipeline;
+import loghub.ShutdownTask;
 import loghub.ThreadBuilder;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
@@ -180,7 +181,7 @@ public class TestPipeline implements CommandRunner {
         try {
             Helpers.parallelStartProcessor(props);
             for (EventsProcessor ep : props.eventsprocessors) {
-                ep.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+                ep.setUncaughtExceptionHandler(ShutdownTask.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
                 ep.start();
             }
             Helpers.waitAllThreads(props.eventsprocessors.stream());

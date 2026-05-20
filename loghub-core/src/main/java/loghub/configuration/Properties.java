@@ -35,6 +35,7 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
+import loghub.ShutdownTask;
 import loghub.ThreadBuilder;
 import loghub.VariablePath;
 import loghub.events.Event;
@@ -370,7 +371,7 @@ public class Properties extends HashMap<String, Object> {
                 f.factory = f.builder.build();
                 f.builder = null;
                 shutdownTasks.add(f.factory::close);
-                f.factory.setExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+                f.factory.setExceptionHandler(ShutdownTask.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
             }
             return f;
         }).factory;

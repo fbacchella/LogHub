@@ -32,6 +32,15 @@ public class ShutdownTask implements Runnable {
     private static volatile ShutdownTask shutdownAction;
     private static final Logger logger = LogManager.getLogger();
 
+    public static final Thread.UncaughtExceptionHandler DEFAULTUNCAUGHTEXCEPTIONHANDLER =  (t, e) -> {
+        logger.fatal("Unhandled exception in thread {}", t.getName(), e);
+        ShutdownTask.fatalException(e);
+    };
+
+    static {
+        ThreadBuilder.setDefaultuncaughtexceptionhandler(DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+    }
+
     private final Receiver<?, ?>[] receivers;
     private final EventsProcessor[] eventProcessors;
     private final Sender[] senders;
