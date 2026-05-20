@@ -25,12 +25,9 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
-import io.netty.util.concurrent.DefaultEventExecutorGroup;
-import io.netty.util.concurrent.EventExecutorGroup;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
-import loghub.ThreadBuilder;
 import loghub.decoders.DecodeException;
 import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
@@ -100,8 +97,6 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
     }
 
     private final IMessageListener messageListener;
-    private final EventExecutorGroup idleExecutorGroup;
-    private final EventExecutorGroup beatsHandlerExecutorGroup;
     private final ObjectReader reader;
 
     @Getter
@@ -115,8 +110,6 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
         super(builder);
         this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
         this.maxPayloadSize = builder.maxPayloadSize;
-        this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/idle"));
-        this.beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/beatsHandler"));
         this.workers = builder.workers;
         this.reader = JacksonBuilder.get(JsonMapper.class)
                                     .getReader();
@@ -184,12 +177,12 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
                 // From org.logstash.beats.Server
                 // We have set a specific executor for the idle check, because the `beatsHandler` can be
                 // blocked on the queue, this the idleStateHandler manage the `KeepAlive` signal.
-                pipe.addBefore(idleExecutorGroup, "Sender", "KeepAlive", new IdleStateHandler(clientInactivityTimeoutSeconds, 5, 0));
+                pipe.addBefore("Sender", "KeepAlive", new IdleStateHandler(clientInactivityTimeoutSeconds, 5, 0));
                 pipe.addBefore("Sender", "Acker", new AckEncoder());
                 pipe.addBefore("Sender", "ConnectionHandler", new ConnectionHandler());
-                pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsSplitter", new BeatsParser(maxPayloadSize, reader));
-                pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsStats", statsHandler);
-                pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsHandler", new BeatsHandler(messageListener));
+                pipe.addBefore("Sender", "BeatsSplitter", new BeatsParser(maxPayloadSize, reader));
+                pipe.addBefore("Sender", "BeatsStats", statsHandler);
+                pipe.addBefore("Sender", "BeatsHandler", new BeatsHandler(messageListener));
                 pipe.addAfter("Sender", "BeatsErrorHandler", errorHandler);
             }
 
@@ -206,21 +199,6 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
     @Override
     public String getReceiverName() {
         return "BeatsReceiver/" + Helpers.ListenString(getListen()) + "/" + getPort();
-    }
-
-    @Override
-    public void close() {
-        try {
-            idleExecutorGroup.shutdownGracefully().sync();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        try {
-            beatsHandlerExecutorGroup.shutdownGracefully().sync();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        super.close();
     }
 
     @Override
