@@ -34,9 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.SSLSession;
 
-import loghub.ConnectionContext;
-import loghub.NullOrMissingValue;
-
 public class DeepCloner {
 
     static final Set<Object> singlotons = new HashSet<>();
@@ -81,11 +78,8 @@ public class DeepCloner {
         singlotons.add(Collections.emptyEnumeration());
         singlotons.add(Collections.emptyIterator());
         singlotons.add(Collections.emptyNavigableMap());
-        singlotons.add(ConnectionContext.EMPTY);
         singlotons.add(Boolean.TRUE);
         singlotons.add(Boolean.FALSE);
-        singlotons.add(NullOrMissingValue.NULL);
-        singlotons.add(NullOrMissingValue.MISSING);
     }
 
     public static <T> void register(Class<T> clazz, Cloner<T> customCloner) {
@@ -93,6 +87,9 @@ public class DeepCloner {
     }
     public static void registerImmutable(Class<?> clazz) {
         immutables.add(clazz);
+    }
+    public static void registerSingloton(Object singloton) {
+        singlotons.add(singloton);
     }
 
     private static final MethodHandles.Lookup lookup = MethodHandles.publicLookup();

@@ -5,6 +5,7 @@ import java.security.Principal;
 import java.util.Map;
 import java.util.Optional;
 
+import loghub.cloners.DeepCloner;
 import loghub.cloners.Immutable;
 import loghub.decoders.Decoder;
 import lombok.Getter;
@@ -66,6 +67,9 @@ public abstract class BuildableConnectionContext<A> implements ConnectionContext
     }
 
     public static final ConnectionContext<Object> EMPTY = new EmptyConnectionContext();
+    static {
+        DeepCloner.registerSingloton(EMPTY);
+    }
 
     @Getter
     public static final class GenericConnectionContext extends BuildableConnectionContext<Object> {

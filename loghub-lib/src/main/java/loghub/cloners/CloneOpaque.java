@@ -14,8 +14,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.NullOrMissingValue;
-
 import static loghub.cloners.MapCloner.MAP_MAPPING;
 
 class CloneOpaque {
@@ -51,7 +49,7 @@ class CloneOpaque {
         public Object readObjectFast() throws IOException, ClassNotFoundException {
             TYPE type = TYPES[read()];
             return switch (type) {
-                case NULL -> NullOrMissingValue.NULL;
+                case NULL -> null;
                 case TRUE -> true;
                 case FALSE -> false;
                 case BYTE -> readByte();

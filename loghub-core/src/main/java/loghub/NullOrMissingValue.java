@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
+import loghub.cloners.DeepCloner;
+
 public abstract class NullOrMissingValue {
 
     public static class JacksonModule extends SimpleModule {
@@ -63,6 +65,11 @@ public abstract class NullOrMissingValue {
     public static final NullOrMissingValue MISSING = new Missing();
 
     public static final NullOrMissingValue NULL = new Null();
+
+    static {
+        DeepCloner.registerSingloton(MISSING);
+        DeepCloner.registerSingloton(NULL);
+    }
 
     private NullOrMissingValue() {
     }
