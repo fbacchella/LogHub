@@ -91,4 +91,11 @@ class TestMimeType {
         Assertions.assertEquals(StandardCharsets.UTF_8, protobuf.getCharset().orElseThrow());
     }
 
+    @Test
+    void testCompareType() {
+        MimeType isoText = MimeType.of("text/plain; charset=iso-8859-1");
+        MimeType mimeText = MimeType.of("text/plain; charset=UTF-8");
+        Assertions.assertTrue(isoText.typeEquals(mimeText));
+    }
+
 }

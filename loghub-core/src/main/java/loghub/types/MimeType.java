@@ -105,6 +105,10 @@ public class MimeType {
 
     @Override
     public boolean equals(Object o) {
+        return typeEquals(o) && Objects.equals(parametersString, ((MimeType)o).parametersString);
+    }
+
+    public boolean typeEquals(Object o) {
         if (!(o instanceof MimeType mimeType)) {
             return false;
         }
@@ -117,7 +121,7 @@ public class MimeType {
         if ("*".equals(subType) || "*".equals(mimeType.subType)) {
             return true;
         }
-        return Objects.equals(subType, mimeType.subType) && Objects.equals(parametersString, mimeType.parametersString);
+        return Objects.equals(subType, mimeType.subType);
     }
 
     @Override
