@@ -7,7 +7,15 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.ReferenceCounted;
 
+/**
+ *
+ * @param <R>
+ * @param <SM>
+ * @param <B>
+ * @deprecated use ContextExtractorGeneric instead
+ */
 @Sharable
+@Deprecated
 public class ContextExtractor<R extends NettyReceiver<R, SM, B>, SM, B extends NettyReceiver.Builder<R, SM, B>> extends MessageToMessageDecoder<SM> {
 
     public static final String NAME = "SourceResolver";
@@ -29,8 +37,8 @@ public class ContextExtractor<R extends NettyReceiver<R, SM, B>, SM, B extends N
         // So forward the message too for check.
         r.makeConnectionContext(ctx, msg);
         //The message is not transformed in this step, so don't decrease reference count
-        if (msg instanceof ReferenceCounted) {
-            ((ReferenceCounted) msg).retain();
+        if (msg instanceof ReferenceCounted rf) {
+            rf.retain();
         }
         out.add(msg);
     }

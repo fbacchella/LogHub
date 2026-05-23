@@ -398,7 +398,9 @@ class ConfigListener extends RouteBaseListener {
         try {
             beansManager.beanSetter(beanObject.wrapped, beanName, value, classLoader);
         } catch (IntrospectionException | InvocationTargetException | UndeclaredThrowableException e) {
-            throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+            throw new ConfigException(Helpers.resolveThrowableException(e.getCause()), stream.getSourceName(), ctx.start, e.getCause());
+        } catch (RuntimeException e) {
+            throw new ConfigException(Helpers.resolveThrowableException(e), stream.getSourceName(), ctx.start, e);
         }
     }
 

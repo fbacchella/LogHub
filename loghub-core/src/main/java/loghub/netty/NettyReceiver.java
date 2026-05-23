@@ -47,6 +47,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
         protected ConfigurationProperties properties;
     }
 
+    @Getter
     protected final NettyTransport<?, M, ?, ?> transport;
     @Getter
     private final String listen;

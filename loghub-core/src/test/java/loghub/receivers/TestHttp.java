@@ -372,21 +372,17 @@ class TestHttp {
 
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
-    void noExplicitDecoder() throws ConfigException, IOException {
-        String confile = "input {" +
-                        "    loghub.receivers.Http {" +
-                        "        decoder: loghub.decoders.Msgpack {" +
-                        "        }," +
-                        "    }" +
-                        "} | $main";
-
-        try {
-            @SuppressWarnings("unused")
-            Properties conf = Tools.loadConf(new StringReader(confile));
-        } catch (ConfigException ex) {
-            Assertions.assertEquals("Decoder loghub.decoders.Msgpack will be ignored, this receiver handle decoding", ex.getMessage());
-            Assertions.assertEquals("file <unknown>, line 1:11", ex.getLocation());
-        }
+    void noExplicitDecoder() throws ConfigException {
+        String confile = """
+                input {
+                    loghub.receivers.Http {
+                        decoder: loghub.decoders.Msgpack,
+                    }
+                } | $main
+                """;
+        ConfigException ex = Assertions.assertThrows(ConfigException.class, () -> Tools.loadConf(new StringReader(confile)));
+        Assertions.assertEquals("Decoder loghub.decoders.Msgpack will be ignored, this receiver handle decoding", ex.getMessage());
+        Assertions.assertEquals("file <unknown>, line 2:4", ex.getLocation());
     }
 
     @ParameterizedTest
