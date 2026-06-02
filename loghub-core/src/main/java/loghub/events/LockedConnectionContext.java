@@ -1,8 +1,8 @@
 package loghub.events;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.security.Principal;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -19,7 +19,7 @@ import loghub.decoders.Decoder;
 import lombok.Getter;
 
 @JsonSerialize(using = LockedConnectionContext.Serializer.class)
-class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
+public class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
 
     static {
         DeepCloner.register(LockedConnectionContext.class, o -> (LockedConnectionContext) o.clone());
@@ -71,6 +71,26 @@ class LockedConnectionContext implements ConnectionContext<Object>, Cloneable {
     @SuppressWarnings("unchecked")
     public <T> Optional<T> getProperty(String property) {
         return (Optional<T>) Optional.ofNullable(properties.get(property));
+    }
+
+    public boolean containsValue(Object value) {
+        return (principal != null && principal.equals(value))
+                       || (localAddress != null && localAddress.equals(value))
+                       || (remoteAddress != null && remoteAddress.equals(value))
+                       || properties.containsValue(value);
+    }
+
+    public int size() {
+        return properties.size() + 3;
+    }
+
+    public Map<String, Object> getProperties() {
+        Map<String, Object> newProps = HashMap.newHashMap(properties.size() + 4);
+        newProps.put("principal", principal);
+        newProps.put("localAddress", localAddress);
+        newProps.put("remoteAddress", remoteAddress);
+        newProps.putAll(properties);
+        return newProps;
     }
 
     /**

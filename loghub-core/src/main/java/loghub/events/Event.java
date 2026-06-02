@@ -261,7 +261,7 @@ public abstract class Event extends HashMap<String, Object> {
                 throw new IllegalArgumentException("No variable specified for " + f);
             }
         } else if (path.isContext()) {
-            return VariablePath.resolveContext(this, path);
+            return applyContextPath(f, path, value);
         } else if (path.isTimestamp()) {
             switch(f) {
             case GET:
@@ -333,6 +333,24 @@ public abstract class Event extends HashMap<String, Object> {
                 return keyMissing(f);
             }
             return f.action.apply(current, key, value);
+        }
+    }
+
+    private Object applyContextPath(Action f, VariablePath path, Object value) {
+        if (this.getConnectionContext() instanceof LockedConnectionContext lcc) {
+            return switch (f) {
+                case GET -> VariablePath.resolveContext(this, path);
+                case CONTAINS -> VariablePath.resolveContext(this, path) != null;
+                case CONTAINSVALUE -> lcc.containsValue(value);
+                case ISEMPTY -> false;
+                case SIZE -> lcc.size();
+                case KEYSET -> lcc.getProperties().keySet();
+                case VALUES -> lcc.getProperties().values();
+                case ENTRYSET -> lcc.getProperties().entrySet();
+                default -> throw new IllegalArgumentException("Invalid action on context: " + f);
+            };
+        } else {
+            throw new IllegalArgumentException("Not a valid context");
         }
     }
 
