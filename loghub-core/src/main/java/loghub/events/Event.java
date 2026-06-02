@@ -249,91 +249,114 @@ public abstract class Event extends HashMap<String, Object> {
                 return NullOrMissingValue.MISSING;
             }
         }
-        Map<String, Object> current = this;
         if (path.isMeta()) {
-            if (path.length() != 0 && f == Action.GET) {
-                return getMeta(path.get(0));
-            } else if (path.length() != 0) {
-                return f.action.apply(getMetas(), path.get(0), value);
-            } else if (f.mapAction) {
-                return f.action.apply(getMetas(), null, value);
-            } else {
-                throw new IllegalArgumentException("No variable specified for " + f);
-            }
+            return applyMetaPath(f, path, value);
         } else if (path.isContext()) {
             return applyContextPath(f, path, value);
         } else if (path.isTimestamp()) {
-            switch(f) {
-            case GET:
-                return getTimestamp();
-            case PUT: {
+            return applyTimestampPath(f, path, value);
+        } else if (path.isException()) {
+            return applyExceptionPath(f);
+        } else if (path == VariablePath.EMPTY) {
+            return applyEmptyPath(f, value);
+        } else if (path == VariablePath.ROOT) {
+            return applyRelativePath(getRealEvent(), f, value);
+        } else if (path == VariablePath.CURRENT) {
+            return applyCurrentPath(f, value);
+        } else {
+            return applyPlainPath(f, path, value, create);
+        }
+    }
+
+    private Object applyMetaPath(Action f, VariablePath path, Object value) {
+        if (path.length() != 0) {
+            return switch (f) {
+                case GET -> getMeta(path.get(0));
+                default -> f.action.apply(getMetas(), path.get(0), value);
+            };
+        } else if (f.mapAction) {
+            return f.action.apply(getMetas(), null, value);
+        } else {
+            throw new IllegalArgumentException("No variable specified for " + f);
+        }
+    }
+
+    private Object applyTimestampPath(Action f, VariablePath path, Object value) {
+        return switch (f) {
+            case GET -> getTimestamp();
+            case PUT -> {
                 Date oldTimestamp = getTimestamp();
                 if (!setTimestamp(value)) {
                     throw new IllegalArgumentException(value + " is not usable as a timestamp from path " + path);
                 }
-                return oldTimestamp;
+                yield oldTimestamp;
             }
-            default:
-                throw new IllegalArgumentException("Invalid action on a timestamp");
-            }
-        } else if (path.isException()) {
-            if (f == Action.GET) {
-                return Optional.ofNullable(getLastException())
-                               .map(Helpers::resolveThrowableException)
-                               .map(Object.class::cast)
-                               .orElse(NullOrMissingValue.MISSING);
-            } else {
-                throw new IllegalArgumentException("Invalid action on a last exception");
-            }
-        } else if (path == VariablePath.EMPTY) {
-            if (f.mapAction) {
-                return f.action.apply(this, null, value);
-            } else {
-                throw new IllegalArgumentException("No variable specified for " + f);
-            }
-        } else if (path == VariablePath.ROOT) {
-            return applyRelativePath(getRealEvent(), f, value);
-        } else if (path == VariablePath.CURRENT) {
-            if (! containsData()) {
-                throw IgnoredEventException.INSTANCE;
-            }
-            return applyRelativePath(this, f, value);
+            default -> throw new IllegalArgumentException("Invalid action on a timestamp");
+        };
+    }
+
+    private Object applyExceptionPath(Action f) {
+        if (f == Action.GET) {
+            return Optional.ofNullable(getLastException())
+                           .map(Helpers::resolveThrowableException)
+                           .map(Object.class::cast)
+                           .orElse(NullOrMissingValue.MISSING);
         } else {
-            String key = path.get(0);
-            for (int i = 0; i < path.length() - 1; i++) {
-                String currentkey = path.get(i);
-                if (".".equals(currentkey)) {
-                    current = getRealEvent();
-                } else {
-                    Optional<Object> peekNext = Optional.of(current)
-                                                        .filter(c -> c.containsKey(currentkey))
-                                                        .map(c -> c.get(currentkey));
-                    Map<String, Object> next;
-                    if (peekNext.isEmpty()) {
-                        if (create) {
-                            next = new HashMap<>();
-                            current.put(path.get(i), next);
-                        } else {
-                            return keyMissing(f);
-                        }
-                    } else if (!(peekNext.get() instanceof Map) && f == Action.CHECK_WRAP) {
-                        throw IgnoredEventException.INSTANCE;
-                    } else if (!(peekNext.get() instanceof Map)) {
-                        return keyMissing(f);
-                    } else {
-                        next = (Map<String, Object>) peekNext.get();
-                    }
-                    current = next;
-                }
-                key = path.get(i + 1);
-            }
-            if (create && !current.containsKey(key) && f != Action.APPEND) {
-                current.put(key, new HashMap<>());
-            } else if (!current.containsKey(key) && f != Action.PUT && f != Action.APPEND) {
-                return keyMissing(f);
-            }
-            return f.action.apply(current, key, value);
+            throw new IllegalArgumentException("Invalid action on a last exception");
         }
+    }
+
+    private Object applyEmptyPath(Action f, Object value) {
+        if (f.mapAction) {
+            return f.action.apply(this, null, value);
+        } else {
+            throw new IllegalArgumentException("No variable specified for " + f);
+        }
+    }
+
+    private Object applyCurrentPath(Action f, Object value) {
+        if (!containsData()) {
+            throw IgnoredEventException.INSTANCE;
+        }
+        return applyRelativePath(this, f, value);
+    }
+
+    private Object applyPlainPath(Action f, VariablePath path, Object value, boolean create) {
+        Map<String, Object> current = this;
+        String key = path.get(0);
+        for (int i = 0; i < path.length() - 1; i++) {
+            String currentkey = path.get(i);
+            if (".".equals(currentkey)) {
+                current = getRealEvent();
+            } else {
+                Optional<Object> peekNext = Optional.of(current)
+                                                    .filter(c -> c.containsKey(currentkey))
+                                                    .map(c -> c.get(currentkey));
+                Map<String, Object> next;
+                if (peekNext.isEmpty()) {
+                    if (create) {
+                        next = new HashMap<>();
+                        current.put(path.get(i), next);
+                    } else {
+                        return keyMissing(f);
+                    }
+                } else if (!(peekNext.get() instanceof Map) && f == Action.CHECK_WRAP) {
+                    throw IgnoredEventException.INSTANCE;
+                } else if (!(peekNext.get() instanceof Map)) {
+                    return keyMissing(f);
+                } else {
+                    next = (Map<String, Object>) peekNext.get();
+                }
+                current = next;
+            }
+            key = path.get(i + 1);
+        }
+        if (create && !current.containsKey(key) && f != Action.APPEND) {
+            current.put(key, new HashMap<>());
+        } else if (!current.containsKey(key) && f != Action.PUT && f != Action.APPEND) {
+            return keyMissing(f);
+        }
+        return f.action.apply(current, key, value);
     }
 
     private Object applyContextPath(Action f, VariablePath path, Object value) {
@@ -355,42 +378,33 @@ public abstract class Event extends HashMap<String, Object> {
     }
 
     private Object applyRelativePath(Event ev, Action f, Object value) {
-        switch (f) {
-        case GET:
-            return ev;
-        case CONTAINS:
-            return true;
-        case REMOVE:
-            Object oldValue = Expression.deepCopy(ev);
-            Action.CLEAR.action.apply(ev, null, value == NullOrMissingValue.NULL ? null : value);
-            return oldValue;
-        case PUT:
-            if (value instanceof Map<?, ?> m) {
-                m.entrySet().forEach(e -> ev.put(e.getKey().toString(), Expression.deepCopy(e.getValue())));
-                return ev;
-            } else {
-                throw IgnoredEventException.INSTANCE;
+        return switch (f) {
+            case GET -> ev;
+            case CONTAINS -> true;
+            case REMOVE -> {
+                Object oldValue = Expression.deepCopy(ev);
+                Action.CLEAR.action.apply(ev, null, value == NullOrMissingValue.NULL ? null : value);
+                yield oldValue;
             }
-        default:
-            return f.action.apply(ev, null, value == NullOrMissingValue.NULL ? null : value);
-        }
+            case PUT -> {
+                if (value instanceof Map<?, ?> m) {
+                    m.entrySet().forEach(e -> ev.put(e.getKey().toString(), Expression.deepCopy(e.getValue())));
+                    yield ev;
+                } else {
+                    throw IgnoredEventException.INSTANCE;
+                }
+            }
+            default -> f.action.apply(ev, null, value == NullOrMissingValue.NULL ? null : value);
+        };
     }
 
     private Object keyMissing(Action f) {
-        switch(f) {
-        case GET:
-        case CHECK_WRAP:
-            return NullOrMissingValue.MISSING;
-        case CONTAINSVALUE:
-        case CONTAINS:
-            return false;
-        case KEYSET:
-        case VALUES:
-        case ENTRYSET:
-            return Set.of();
-        default:
-            throw IgnoredEventException.INSTANCE;
-        }
+        return switch (f) {
+            case GET, CHECK_WRAP -> NullOrMissingValue.MISSING;
+            case CONTAINSVALUE, CONTAINS -> false;
+            case KEYSET, VALUES, ENTRYSET -> Set.of();
+            default -> throw IgnoredEventException.INSTANCE;
+        };
     }
 
     public void clearMetas() {
