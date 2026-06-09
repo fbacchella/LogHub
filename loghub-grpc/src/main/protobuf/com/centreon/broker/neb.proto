@@ -153,6 +153,7 @@ message Service {
    * here. */
   uint64 internal_id = 86;
   uint64 icon_id = 87;
+  uint64 instance_id = 88;
 }
 
 /**
@@ -345,7 +346,7 @@ message Host {
   string name = 59;
   string icon_image = 60;
   string icon_image_alt = 61;
-  int32 instance_id = 62;
+  uint64 instance_id = 62;
   double low_flap_threshold = 63;
   string notes = 64;
   string notes_url = 65;
@@ -816,7 +817,7 @@ message Tag {
   Action action = 2;
   TagType type = 3;
   string name = 4;
-  int64 poller_id = 5;
+  uint64 poller_id = 5;
 }
 /* Ignore */
 message TagInfo {
@@ -837,18 +838,38 @@ message AgentInfo {
 
 /* io::neb, neb::de_pb_agent_stats, 57 */
 message AgentStats {
-  int64 poller_id = 1;
+  uint64 poller_id = 1;
   repeated AgentInfo stats = 2;
 }
 
 /* This message is sent to broker when a cma connect to engine with an unknown hostname */
 /* io::neb, neb::de_pb_unknown_host, 58 */
 message UnknownHost {
-  int64 poller_id = 1;
+  uint64 poller_id = 1;
   string host_name = 2;
   string host_template = 3;
   string os = 4;
   string os_version = 5;
   repeated string ips = 6; /*ips of host interfaces*/
   string incoming_ip = 7; /*ip of cma host seen from engine */
+}
+
+/* io::neb, neb::de_pb_custom_variable_status, 59 */
+message CustomVariableStatus {
+  enum VarType {
+    HOST = 0;
+    SERVICE = 1;
+  }
+
+  BBDOHeader header = 1;
+  uint64 host_id = 2;
+  uint64 service_id = 3;
+  bool modified = 4;
+  string name = 5;
+  uint64 update_time = 6;
+  string value = 7;
+  string default_value = 8;
+  bool enabled = 9;
+  bool password = 10;
+  VarType type = 11;
 }

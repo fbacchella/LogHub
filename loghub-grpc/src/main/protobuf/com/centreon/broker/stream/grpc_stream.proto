@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+import "opentelemetry/proto/collector/metrics/v1/metrics_service.proto";
+import "com/centreon/broker/bam.proto";
+import "com/centreon/broker/bam_state.proto";
+import "com/centreon/broker/bbdo.proto";
+import "com/centreon/broker/extcmd.proto";
+import "com/centreon/broker/neb.proto";
+import "com/centreon/broker/rebuild_message.proto";
+import "com/centreon/broker/remove_graph_message.proto";
+import "com/centreon/broker/storage.proto";
+
+
+package com.centreon.broker.stream;
+
+
+message CentreonEvent {
+  oneof content {
+    bytes buffer = 1;
+    RebuildMessage RebuildMessage_ = 2;
+    Bench Bench_ = 3;
+    RemoveGraphMessage RemoveGraphMessage_ = 4;
+    Service Service_ = 5;
+    ServiceStatus ServiceStatus_ = 6;
+    AdaptiveService AdaptiveService_ = 7;
+    Host Host_ = 8;
+    HostStatus HostStatus_ = 9;
+    AdaptiveHost AdaptiveHost_ = 10;
+    Comment Comment_ = 11;
+    Downtime Downtime_ = 12;
+    CustomVariable CustomVariable_ = 13;
+    HostCheck HostCheck_ = 14;
+    ServiceCheck ServiceCheck_ = 15;
+    LogEntry LogEntry_ = 16;
+    InstanceStatus InstanceStatus_ = 17;
+    Instance Instance_ = 18;
+    ResponsiveInstance ResponsiveInstance_ = 19;
+    Acknowledgement Acknowledgement_ = 20;
+    HostGroup HostGroup_ = 23;
+    ServiceGroup ServiceGroup_ = 24;
+    HostGroupMember HostGroupMember_ = 25;
+    ServiceGroupMember ServiceGroupMember_ = 26;
+    HostParent HostParent_ = 27;
+    InstanceConfiguration InstanceConfiguration_ = 28;
+    Severity Severity_ = 29;
+    Tag Tag_ = 30;
+    InheritedDowntime InheritedDowntime_ = 31;
+    BaStatus BaStatus_ = 32;
+    BaEvent BaEvent_ = 33;
+    KpiEvent KpiEvent_ = 34;
+    DimensionBvEvent DimensionBvEvent_ = 35;
+    DimensionBaBvRelationEvent DimensionBaBvRelationEvent_ = 36;
+    DimensionTimeperiod DimensionTimeperiod_ = 37;
+    DimensionBaEvent DimensionBaEvent_ = 38;
+    DimensionKpiEvent DimensionKpiEvent_ = 39;
+    KpiStatus KpiStatus_ = 40;
+    BaDurationEvent BaDurationEvent_ = 41;
+    DimensionBaTimeperiodRelation DimensionBaTimeperiodRelation_ = 42;
+    DimensionTruncateTableSignal DimensionTruncateTableSignal_ = 43;
+    Metric Metric_ = 44;
+    Status Status_ = 45;
+    IndexMapping IndexMapping_ = 46;
+    MetricMapping MetricMapping_ = 47;
+    ServicesBookState ServicesBookState_ = 48;
+    Welcome Welcome_ = 49;
+    Ack Ack_ = 50;
+    Stop Stop_ = 51;
+    EngineConfiguration EngineConfiguration_ = 52;
+    AdaptiveServiceStatus AdaptiveServiceStatus_ = 53;
+    AdaptiveHostStatus AdaptiveHostStatus_ = 54;
+    AgentStats AgentStats_ = 57;
+    UnknownHost UnknownHost_ = 58;
+    CustomVariableStatus CustomVariableStatus_ = 59;
+    opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest ExportMetricsServiceRequest_ = 128;
+
+  }
+  uint32 destination_id = 126;
+  uint32 source_id = 127;
+}
+
+service centreon_bbdo {
+  //emitter connect to receiver
+  rpc exchange(stream CentreonEvent) returns (stream CentreonEvent) {}
+}

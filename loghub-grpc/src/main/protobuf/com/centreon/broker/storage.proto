@@ -38,6 +38,9 @@ message Metric {
   string name = 10;
   uint64 host_id = 11;
   uint64 service_id = 12;
+  double min = 13;
+  double max = 14;
+  string unit = 15;
 }
 
 /* io::storage, storage::de_pb_status, 45 */
