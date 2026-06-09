@@ -186,7 +186,7 @@ public class BinaryCodec {
                 for (Descriptors.FieldDescriptor d: expected) {
                     if (d.isRepeated()) {
                         values.put(d.getName(), List.of());
-                    } else {
+                    } else if (d.hasDefaultValue()) {
                         values.put(d.getName(), d.getDefaultValue());
                     }
                 }

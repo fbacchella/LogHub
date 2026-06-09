@@ -75,7 +75,7 @@ public class ProtoBuf extends Decoder {
 
     protected BinaryCodec getDecoder(Builder builder) throws DescriptorValidationException, IOException {
         if (builder.schemaUri == null) {
-            throw new IllegalStateException("Probofub schema is not provided");
+            throw new IllegalStateException("Protobuf schema is not provided");
         }
         return new BinaryCodec(Helpers.fileUri(builder.schemaUri));
     }
