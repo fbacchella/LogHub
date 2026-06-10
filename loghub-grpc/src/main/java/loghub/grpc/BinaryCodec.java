@@ -19,6 +19,7 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Duration;
 import com.google.protobuf.DynamicMessage;
@@ -186,7 +187,7 @@ public class BinaryCodec {
                 for (Descriptors.FieldDescriptor d: expected) {
                     if (d.isRepeated()) {
                         values.put(d.getName(), List.of());
-                    } else if (d.hasDefaultValue()) {
+                    } else if (d.getType().getJavaType() != JavaType.MESSAGE) {
                         values.put(d.getName(), d.getDefaultValue());
                     }
                 }
