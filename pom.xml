@@ -13,14 +13,14 @@
         <maven.compiler.release>21</maven.compiler.release>
         <log4j.version>2.26.0</log4j.version>
         <antlr>4.13.2</antlr>
-        <jackson.version>2.21.3</jackson.version>
-        <jackson.core.version>2.21</jackson.core.version>
-        <metrics>4.2.38</metrics>
+        <jackson.version>2.22.0</jackson.version>
+        <jackson.core.version>2.22</jackson.core.version>
+        <metrics>4.2.39</metrics>
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
         <jcommander.version>1.82</jcommander.version>
-        <slf4j.version>2.0.17</slf4j.version>
+        <slf4j.version>2.0.18</slf4j.version>
         <lombok.version>1.18.46</lombok.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <commonscodec.version>1.22.0</commonscodec.version>
@@ -86,12 +86,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.6.2</version>
+                    <version>3.6.3</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-report-plugin</artifactId>
-                    <version>3.5.5</version>
+                    <version>3.5.6</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -116,7 +116,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.10.0</version>
+                    <version>3.11.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -176,7 +176,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.5.5</version>
+                    <version>3.5.6</version>
                     <configuration>
                         <!-- issue https://issues.apache.org/jira/browse/SUREFIRE-1588, show only on circle-ci -->
                         <useSystemClassLoader>false</useSystemClassLoader>
@@ -191,7 +191,7 @@
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.8.14</version>
+                    <version>0.8.15</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -211,7 +211,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>3.21.0</version>
+                    <version>3.22.0</version>
                 </plugin>
                 <!-- to be upgraded when issue
                      https://sonarsource.atlassian.net/jira/software/c/projects/SCANMAVEN/issues/?selectedIssue=SCANMAVEN-268
