@@ -15,11 +15,11 @@ import java.util.stream.StreamSupport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.StackLocator;
 
 import io.netty.buffer.ByteBuf;
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
+import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventBuilder;
@@ -39,8 +39,6 @@ public abstract class Decoder {
         Object get() throws DecodeException;
     }
 
-    private static final StackLocator stacklocator = StackLocator.getInstance();
-
     protected final Logger logger;
 
     @Getter
@@ -48,7 +46,7 @@ public abstract class Decoder {
     private Receiver<?, ?> receiver;
 
     protected Decoder(Builder<?  extends Decoder> builder) {
-        logger = LogManager.getLogger(stacklocator.getCallerClass(2));
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         field = builder.field;
     }
 
