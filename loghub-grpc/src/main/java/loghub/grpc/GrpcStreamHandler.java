@@ -292,16 +292,19 @@ public class GrpcStreamHandler<I, O> extends ChannelInboundHandlerAdapter {
                 currentContext = ctx;
                 O processed = methodConsumer.doProcessing(this, request);
                 byte[] response = switch (processed) {
-                case byte[] r ->  r;
-                case Map<?, ?> m -> {
-                    Descriptor omd = method.getOutputType();
-                    yield codec.encode(omd, (Map<String, Object>) m).toByteArray();
-                }
-                default -> throw new IllegalArgumentException(
-                        "Method " + qualifiedMethodName + " returned unexpected type: " + processed.getClass()
-                                                                                                   .getName());
+                    case byte[] r ->  r;
+                    case Map<?, ?> m -> {
+                        Descriptor omd = method.getOutputType();
+                        yield codec.encode(omd, (Map<String, Object>) m).toByteArray();
+                    }
+                    case null -> null;
+                    default -> throw new IllegalArgumentException(
+                            "Method " + qualifiedMethodName + " returned unexpected type: " + processed.getClass()
+                                                                                                      .getName());
                 };
-                writeGrpcDataFrame(ctx, response);
+                if (response != null) {
+                    writeGrpcDataFrame(ctx, response);
+                }
             }
 
             if (frame.isEndStream()) {
