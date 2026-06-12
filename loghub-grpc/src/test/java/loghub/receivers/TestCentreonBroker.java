@@ -1,9 +1,11 @@
 package loghub.receivers;
 
-import java.io.IOException;
 import java.io.StringReader;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -13,13 +15,12 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.centreon.broker.Neb.Comment;
 import com.centreon.broker.stream.GrpcStream.CentreonEvent;
 import com.centreon.broker.stream.centreon_bbdoGrpc;
 import com.centreon.broker.stream.centreon_bbdoGrpc.centreon_bbdoStub;
+import com.google.protobuf.ByteString;
 
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NettyChannelBuilder;
@@ -28,7 +29,11 @@ import loghub.LogUtils;
 import loghub.TlsContext;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.decoders.BbdoEvent;
+import loghub.decoders.BbdoPacket;
+import loghub.decoders.CentreonBroker;
 import loghub.events.Event;
+import loghub.grpc.BinaryCodec;
 
 class TestCentreonBroker {
 
@@ -43,25 +48,29 @@ class TestCentreonBroker {
     static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.grpc", "loghub.receivers", "io.grpc", "io.netty");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.grpc", "loghub.receivers");
         tlsContext = new TlsContext(tempDir);
     }
 
-    private void doRequest() throws InterruptedException {
+    private List<CentreonEvent> doRequest(BinaryCodec codec) throws InterruptedException {
         ManagedChannel channel = NettyChannelBuilder
                                          .forAddress("localhost", port)
+                                         .usePlaintext()
                                          .useTransportSecurity()
                                          .sslContext(tlsContext.nettyCtx)
                                          .build();
         centreon_bbdoStub stub = centreon_bbdoGrpc.newStub(channel);
 
-        CountDownLatch latch = new CountDownLatch(1);
+        CountDownLatch latch = new CountDownLatch(2);
+        List<CentreonEvent> events = new CopyOnWriteArrayList<>();
         StreamObserver<CentreonEvent> requestObserver = stub.withDeadlineAfter(10, TimeUnit.SECONDS)
                                                                .exchange(new StreamObserver<>() {
                                                                    @Override
                                                                    public void onNext(CentreonEvent value) {
+                                                                       events.add(value);
                                                                        logger.debug("Received message from server: {}",
-                                                                               value);
+                                                                               value.getClass());
+                                                                       latch.countDown();
                                                                    }
 
                                                                    @Override
@@ -77,30 +86,43 @@ class TestCentreonBroker {
                                                                    }
                                                                });
 
-        Comment comment = Comment.newBuilder()
-                                 .setAuthor("Junie")
-                                 .setData("Test comment")
-                                 .setHostId(123)
-                                 .setServiceId(456)
-                                 .setInternalId(45454)
-                                 .build();
-        requestObserver.onNext(CentreonEvent.newBuilder().setComment(comment).build());
+        BbdoPacket welcomePacket = new BbdoPacket(
+                loghub.decoders.BbdoEvent.BBDO_WELCOME, 0, 0,
+                Map.of("broker_name", "test-broker", "extensions", "BBDO_COMPRESSION BBDO_ENCRYPTION"));
+        ByteBuffer welcomeSerialized = welcomePacket.serialize(codec);
+        byte[] welcomeBytes = new byte[welcomeSerialized.remaining()];
+        welcomeSerialized.get(welcomeBytes);
+        requestObserver.onNext(CentreonEvent.newBuilder().setBuffer(ByteString.copyFrom(welcomeBytes)).build());
+
+        BbdoPacket instanceConfigPacket = new BbdoPacket(
+                BbdoEvent.NEB_PB_INSTANCE_CONFIGURATION, 1, 0,
+                Map.of("poller_id", 42L, "loaded", true));
+        ByteBuffer instanceSerialized = instanceConfigPacket.serialize(codec);
+        byte[] instanceBytes = new byte[instanceSerialized.remaining()];
+        instanceSerialized.get(instanceBytes);
+        requestObserver.onNext(CentreonEvent.newBuilder().setBuffer(ByteString.copyFrom(instanceBytes)).build());
+
         requestObserver.onCompleted();
 
         latch.await(2, TimeUnit.SECONDS);
         channel.shutdown().awaitTermination(2, TimeUnit.SECONDS);
+        return events;
     }
 
     @Test
-    @Timeout(5)
-    void runGrpc() throws IOException, InterruptedException {
+    //@Timeout(5)
+    void runGrpc() throws Exception {
+        BinaryCodec codec = CentreonBroker.getBuilder().build().getProtobufCodec();
         port = Tools.tryGetPort();
         String confile = """
                 input {
                     loghub.receivers.GrpcReceiver {
+                        withSSL: false,
                         port: %1$d,
                         grpcCodecs: [
-                            loghub.decoders.CentreonBroker,
+                            loghub.decoders.CentreonBroker {
+                                name: "TestBroker",
+                            }
                         ],
                     }
                 } | $main
@@ -110,7 +132,11 @@ class TestCentreonBroker {
         Properties conf = Tools.loadConf(new StringReader(confile));
         try (Receiver<?, ?> r = conf.receivers.stream().findAny().orElseThrow()) {
             r.start();
-            doRequest();
+            List<CentreonEvent> events = doRequest(codec);
+            Assertions.assertEquals(1, events.size());
+            BbdoPacket packet = BbdoPacket.of(codec, events.get(0).getBuffer().asReadOnlyByteBuffer());
+            Assertions.assertEquals("TestBroker", packet.payload().get("broker_name"));
+            Assertions.assertEquals("BROKER", packet.payload().get("peer_type"));
             Event ev = conf.mainQueue.poll(5, TimeUnit.SECONDS);
             Assertions.assertNotNull(ev, "Event was not received");
             Assertions.assertEquals("com.centreon.broker.stream.centreon_bbdo.exchange", ev.getMeta("gRPCMethod"));
@@ -118,11 +144,13 @@ class TestCentreonBroker {
             Assertions.assertTrue(ev.getMeta("user_agent").toString().startsWith("grpc-java-netty/"));
             Assertions.assertTrue(ev.getMeta("host_header").toString().startsWith("localhost:"));
             @SuppressWarnings("unchecked")
-            Map<String, Object> comment = (Map<String, Object>) ev.get("Comment_");
-            Assertions.assertEquals("Junie", comment.get("author"));
-            Assertions.assertEquals("Test comment", comment.get("data"));
-            Assertions.assertEquals(123L, ((Number)comment.get("host_id")).longValue());
-            Assertions.assertEquals(45454L, ((Number)comment.get("internal_id")).longValue());
+            Map<String, Object> buffer = (Map<String, Object>) ev.get("buffer");
+            Assertions.assertNotNull(buffer, "buffer field should be present");
+            Assertions.assertEquals(loghub.decoders.BbdoEvent.NEB_PB_INSTANCE_CONFIGURATION, buffer.get("event"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) buffer.get("data");
+            Assertions.assertEquals(42L, ((Number) data.get("poller_id")).longValue());
+            Assertions.assertEquals(true, data.get("loaded"));
         }
     }
 

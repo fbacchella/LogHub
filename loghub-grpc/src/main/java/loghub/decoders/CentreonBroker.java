@@ -161,7 +161,7 @@ public class CentreonBroker extends ProtoBuf implements CodecProvider {
         );
     }
 
-    private Map<String, Object> exchange(GrpcReceiver r, GrpcStreamHandler<?, ?> handler, Map<String, Object> message) {
+    private Object exchange(GrpcReceiver r, GrpcStreamHandler<?, ?> handler, Map<String, Object> message) {
         logger.trace("Received exchange message {}", message);
         if (message.containsKey("buffer")) {
             BbdoPacket inPacket = (BbdoPacket) message.get("buffer");
@@ -204,7 +204,8 @@ public class CentreonBroker extends ProtoBuf implements CodecProvider {
         } else {
             r.publish(handler, Stream.of(message));
         }
-        return Map.of();
+        return null;
     }
+
 
 }
