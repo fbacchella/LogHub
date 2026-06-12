@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 
 import com.google.protobuf.Any;
@@ -19,6 +20,7 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Duration;
@@ -187,6 +189,9 @@ public class BinaryCodec {
                 for (Descriptors.FieldDescriptor d: expected) {
                     if (d.isRepeated()) {
                         values.put(d.getName(), List.of());
+                    } else if (d.getType().getJavaType() == JavaType.ENUM) {
+                        EnumValueDescriptor evd = (EnumValueDescriptor) d.getDefaultValue();
+                        values.put(d.getName(), evd.getName());
                     } else if (d.getType().getJavaType() != JavaType.MESSAGE) {
                         values.put(d.getName(), d.getDefaultValue());
                     }
@@ -197,7 +202,10 @@ public class BinaryCodec {
     }
 
     public Object resolveEnum(Descriptors.FieldDescriptor dfd, int enumKey) {
-        return dfd.getEnumType().findValueByNumber(enumKey).getName();
+        return Optional.ofNullable(dfd.getEnumType())
+                       .map(ed -> ed.findValueByNumber(enumKey))
+                       .map(EnumValueDescriptor::getName)
+                       .orElse("Unknown enum for " + dfd.getName());
     }
 
     @SuppressWarnings("unchecked")
