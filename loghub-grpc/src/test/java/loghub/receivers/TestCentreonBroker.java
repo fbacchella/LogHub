@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.centreon.broker.stream.GrpcStream.CentreonEvent;
@@ -29,9 +30,9 @@ import loghub.LogUtils;
 import loghub.TlsContext;
 import loghub.Tools;
 import loghub.configuration.Properties;
-import loghub.decoders.BbdoEvent;
-import loghub.decoders.BbdoPacket;
-import loghub.decoders.CentreonBroker;
+import loghub.grpc.BbdoEvent;
+import loghub.grpc.BbdoPacket;
+import loghub.grpc.CentreonBroker;
 import loghub.events.Event;
 import loghub.grpc.BinaryCodec;
 
@@ -48,34 +49,27 @@ class TestCentreonBroker {
     static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.grpc", "loghub.receivers");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.grpc", "loghub.receivers", "io.netty");
         tlsContext = new TlsContext(tempDir);
     }
 
-    private List<CentreonEvent> doRequest(BinaryCodec codec) throws InterruptedException {
-        ManagedChannel channel = NettyChannelBuilder
-                                         .forAddress("localhost", port)
-                                         .usePlaintext()
-                                         .useTransportSecurity()
-                                         .sslContext(tlsContext.nettyCtx)
-                                         .build();
+    private StreamObserver<CentreonEvent> doRequest(BinaryCodec codec, ManagedChannel channel, List<CentreonEvent> events) throws InterruptedException {
         centreon_bbdoStub stub = centreon_bbdoGrpc.newStub(channel);
 
         CountDownLatch latch = new CountDownLatch(2);
-        List<CentreonEvent> events = new CopyOnWriteArrayList<>();
         StreamObserver<CentreonEvent> requestObserver = stub.withDeadlineAfter(10, TimeUnit.SECONDS)
                                                                .exchange(new StreamObserver<>() {
                                                                    @Override
                                                                    public void onNext(CentreonEvent value) {
                                                                        events.add(value);
                                                                        logger.debug("Received message from server: {}",
-                                                                               value.getClass());
+                                                                               value);
                                                                        latch.countDown();
                                                                    }
 
                                                                    @Override
                                                                    public void onError(Throwable t) {
-                                                                       logger.error("Error from server: {}", t.getMessage());
+                                                                       logger.atError().withThrowable(t).log("Error from server: {}", t.getMessage());
                                                                        latch.countDown();
                                                                    }
 
@@ -87,8 +81,9 @@ class TestCentreonBroker {
                                                                });
 
         BbdoPacket welcomePacket = new BbdoPacket(
-                loghub.decoders.BbdoEvent.BBDO_WELCOME, 0, 0,
-                Map.of("broker_name", "test-broker", "extensions", "BBDO_COMPRESSION BBDO_ENCRYPTION"));
+                BbdoEvent.BBDO_WELCOME, 0, 0,
+                Map.of("broker_name", "test-broker", "extensions", "BBDO_COMPRESSION BBDO_ENCRYPTION")
+        );
         ByteBuffer welcomeSerialized = welcomePacket.serialize(codec);
         byte[] welcomeBytes = new byte[welcomeSerialized.remaining()];
         welcomeSerialized.get(welcomeBytes);
@@ -102,15 +97,12 @@ class TestCentreonBroker {
         instanceSerialized.get(instanceBytes);
         requestObserver.onNext(CentreonEvent.newBuilder().setBuffer(ByteString.copyFrom(instanceBytes)).build());
 
-        requestObserver.onCompleted();
-
         latch.await(2, TimeUnit.SECONDS);
-        channel.shutdown().awaitTermination(2, TimeUnit.SECONDS);
-        return events;
+        return requestObserver;
     }
 
     @Test
-    //@Timeout(5)
+    @Timeout(5)
     void runGrpc() throws Exception {
         BinaryCodec codec = CentreonBroker.getBuilder().build().getProtobufCodec();
         port = Tools.tryGetPort();
@@ -120,7 +112,7 @@ class TestCentreonBroker {
                         withSSL: false,
                         port: %1$d,
                         grpcCodecs: [
-                            loghub.decoders.CentreonBroker {
+                            loghub.grpc.CentreonBroker {
                                 name: "TestBroker",
                             }
                         ],
@@ -130,9 +122,16 @@ class TestCentreonBroker {
                 ssl.trusts: ["%2$s"]
                 """.formatted(port, tempDir.resolve("loghub.p12"));
         Properties conf = Tools.loadConf(new StringReader(confile));
+        ManagedChannel channel = NettyChannelBuilder
+                                         .forAddress("localhost", port)
+                                         .useTransportSecurity()
+                                         .sslContext(tlsContext.nettyCtx)
+                                         .build();
         try (Receiver<?, ?> r = conf.receivers.stream().findAny().orElseThrow()) {
             r.start();
-            List<CentreonEvent> events = doRequest(codec);
+            List<CentreonEvent> events = new CopyOnWriteArrayList<>();
+            StreamObserver<CentreonEvent> requestObserver = doRequest(codec, channel, events);
+            requestObserver.onCompleted();
             Assertions.assertEquals(1, events.size());
             BbdoPacket packet = BbdoPacket.of(codec, events.get(0).getBuffer().asReadOnlyByteBuffer());
             Assertions.assertEquals("TestBroker", packet.payload().get("broker_name"));
@@ -146,11 +145,14 @@ class TestCentreonBroker {
             @SuppressWarnings("unchecked")
             Map<String, Object> buffer = (Map<String, Object>) ev.get("buffer");
             Assertions.assertNotNull(buffer, "buffer field should be present");
-            Assertions.assertEquals(loghub.decoders.BbdoEvent.NEB_PB_INSTANCE_CONFIGURATION, buffer.get("event"));
+            Assertions.assertEquals(BbdoEvent.NEB_PB_INSTANCE_CONFIGURATION, buffer.get("event"));
             @SuppressWarnings("unchecked")
             Map<String, Object> data = (Map<String, Object>) buffer.get("data");
             Assertions.assertEquals(42L, ((Number) data.get("poller_id")).longValue());
             Assertions.assertEquals(true, data.get("loaded"));
+        } finally {
+            logger.warn("Will shutdown");
+            channel.shutdown().awaitTermination(2, TimeUnit.SECONDS);
         }
     }
 

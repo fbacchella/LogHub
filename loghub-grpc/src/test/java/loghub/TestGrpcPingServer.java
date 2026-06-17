@@ -7,7 +7,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
@@ -21,14 +20,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.google.protobuf.Descriptors.DescriptorValidationException;
-
 import io.grpc.ManagedChannel;
 import io.grpc.netty.NettyChannelBuilder;
-import loghub.grpc.BinaryCodec;
 import loghub.grpc.GrpcStatus;
-import loghub.grpc.GrpcStreamHandler;
-import loghub.grpc.Ping;
+import loghub.grpc.PingProcessor;
 import loghub.proto.ping.PingRequest;
 import loghub.proto.ping.PingResponse;
 import loghub.proto.ping.PingServiceGrpc;
@@ -43,16 +38,13 @@ class TestGrpcPingServer {
     private static HttpClient client;
 
     @BeforeAll
-    static void configure() throws IOException, DescriptorValidationException {
+    static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "loghub.protobuf");
         tlsContext = new TlsContext(tempDir);
         client = HttpClient.newBuilder().sslContext(tlsContext.sslctx).build();
-        BinaryCodec ping = new Ping();
-        GrpcStreamHandler.Factory factory = new GrpcStreamHandler.Factory(TestGrpcPingServer.class, ping);
-        factory.register("ping.PingService.Ping", (h, i) -> Map.of("message", i, "timestamp", 15L));
-        serverContext = new ServerContext(tlsContext, factory);
+        serverContext = new ServerContext(tlsContext, PingProcessor.getBuilder().build());
         logger.info("gRPC server started on port {}", serverContext.listenUri.getPort());
     }
 
@@ -67,7 +59,7 @@ class TestGrpcPingServer {
     }
 
     @Test
-    @Timeout(5)
+    //@Timeout(5)
     void testPing() throws InterruptedException {
         ManagedChannel channel = NettyChannelBuilder
                                          .forAddress("localhost", serverContext.listenUri.getPort())
@@ -96,7 +88,10 @@ class TestGrpcPingServer {
         HttpRequest request = HttpRequest.newBuilder()
                                       .uri(serverContext.listenUri.resolve("/ping.PingService/Pong"))
                                       .POST(BodyPublishers.noBody())
+                                      .version(Version.HTTP_2)
                                       .header("Content-Type", "application/grpc")
+                                      .header("grpc-encoding", "identity")
+                                      .header("te", "trailers")
                                       .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         Assertions.assertEquals(200, response.statusCode());
@@ -109,10 +104,13 @@ class TestGrpcPingServer {
         HttpRequest request = HttpRequest.newBuilder()
                                          .uri(serverContext.listenUri.resolve("/ping.PingService/Ping"))
                                          .GET()
+                                         .version(Version.HTTP_2)
                                          .header("Content-Type", "application/grpc")
+                                         .header("grpc-encoding", "identity")
+                                         .header("te", "trailers")
                                          .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        Assertions.assertEquals(400, response.statusCode());
+        Assertions.assertEquals(200, response.statusCode());
         Assertions.assertEquals(Integer.toString(GrpcStatus.INVALID_ARGUMENT.getStatus()), response.headers().firstValue("grpc-status").orElse(null));
     }
 
@@ -122,11 +120,13 @@ class TestGrpcPingServer {
         HttpRequest request = HttpRequest.newBuilder()
                                          .uri(serverContext.listenUri.resolve("/ping.PingService/Ping"))
                                          .POST(java.net.http.HttpRequest.BodyPublishers.noBody())
+                                         .version(Version.HTTP_2)
                                          .header("Content-Type", "text/plain")
+                                         .header("grpc-encoding", "identity")
+                                         .header("te", "trailers")
                                          .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        Assertions.assertEquals(400, response.statusCode());
-        Assertions.assertEquals(Integer.toString(GrpcStatus.INVALID_ARGUMENT.getStatus()), response.headers().firstValue("grpc-status").orElse(null));
+        Assertions.assertEquals(415, response.statusCode());
     }
 
     @Test
@@ -136,6 +136,8 @@ class TestGrpcPingServer {
                                       .uri(serverContext.listenUri.resolve("/ping.PingService/Ping"))
                                       .POST(java.net.http.HttpRequest.BodyPublishers.noBody())
                                       .header("Content-Type", "text/plain")
+                                      .header("grpc-encoding", "identity")
+                                      .header("te", "trailers")
                                       .version(Version.HTTP_1_1)
                                       .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());

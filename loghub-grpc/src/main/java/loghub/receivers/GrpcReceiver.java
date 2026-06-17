@@ -2,9 +2,10 @@ package loghub.receivers;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLEngine;
@@ -15,11 +16,12 @@ import io.netty.handler.codec.http2.Http2Headers;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
-import loghub.decoders.CodecProvider;
+import loghub.grpc.GrpcProcessor;
+import loghub.grpc.GrpcService;
+import loghub.grpc.GrpcHeaderHandler;
 import loghub.events.Event;
-import loghub.grpc.BinaryCodec;
+import loghub.grpc.GrpcStats;
 import loghub.grpc.GrpcStreamHandler;
-import loghub.grpc.GrpcStreamHandler.Factory;
 import loghub.metrics.Stats;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
@@ -30,6 +32,7 @@ import loghub.netty.http.HttpProtocolVersion;
 import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.TRANSPORT;
+import lombok.Getter;
 import lombok.Setter;
 
 import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
@@ -44,7 +47,7 @@ public class GrpcReceiver
      public static class Builder
              extends NettyReceiver.Builder<GrpcReceiver, Http2Frame, GrpcReceiver.Builder> {
          @Setter
-         CodecProvider[] grpcCodecs;
+         GrpcProcessor[] grpcCodecs;
          public Builder() {
              setTransport(TRANSPORT.TCP);
              setWithSSL(true);
@@ -60,17 +63,15 @@ public class GrpcReceiver
          return new Builder();
      }
 
-    private final GrpcStreamHandler.Factory grpcFactory;
+    @Getter
+    private final GrpcHeaderHandler<GrpcReceiver> dispatcher;
     private final ContextExtractor<GrpcReceiver, Http2Frame, GrpcReceiver.Builder> resolver;
+    private final Set<Channel> activeChannels = ConcurrentHashMap.newKeySet();
 
     protected GrpcReceiver(Builder builder) {
         super(builder);
         this.resolver = new ContextExtractor<>(Http2Frame.class, this);
-        BinaryCodec[] codecs = Arrays.stream(builder.grpcCodecs).map(CodecProvider::getProtobufCodec).toArray(BinaryCodec[]::new);
-        grpcFactory = new Factory(this, codecs);
-        for (CodecProvider cp: builder.grpcCodecs) {
-            cp.registerFastPath(grpcFactory, this);
-        }
+        dispatcher = new GrpcHeaderHandler(new GrpcStats(this), this, builder.grpcCodecs);
     }
 
     @Override
@@ -107,8 +108,11 @@ public class GrpcReceiver
     }
 
     void registerHttp2Handler(Channel ch) {
+        logger.debug("Starting new Channel {}", ch);
         ch.pipeline().addLast(resolver);
-        ch.pipeline().addLast("gRPCHandler", grpcFactory.get());
+        ch.pipeline().addLast("gRPCDispatcher", dispatcher);
+        ch.closeFuture().addListener(f -> activeChannels.remove(ch));
+        activeChannels.add(ch);
     }
 
     public void publish(GrpcStreamHandler<?, ?> handler, Stream<Map<String, Object>> content) {
@@ -131,6 +135,16 @@ public class GrpcReceiver
                 send(ev);
             }
         });
+    }
+
+    @Override
+    public void close() {
+        for (Channel c: Set.copyOf(activeChannels)) {
+            c.pipeline().fireUserEventTriggered(GrpcService.CLOSE_EVENT);
+            logger.trace("Closing active channel {}", c);
+            c.close();
+        }
+        super.close();
     }
 
     @Override

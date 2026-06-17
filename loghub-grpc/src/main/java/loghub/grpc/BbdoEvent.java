@@ -1,4 +1,4 @@
-package loghub.decoders;
+package loghub.grpc;
 
 import java.util.Map;
 

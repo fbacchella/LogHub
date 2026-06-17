@@ -63,7 +63,7 @@ public class ProtoBuf extends Decoder {
                     if (GeneratedMessage.class.isAssignableFrom(loadedClass)) {
                         Method builderMethod = loadedClass.getMethod("parseFrom", CodedInputStream.class);
                         decoder.addFastPath(clazz,
-                                (BinaryCodec.MessageFastPathFunction<? extends Object>) (s, d, u) -> parseFrom(
+                                (BinaryCodec.MessageFastPathFunction<?>) (s, d, u) -> parseFrom(
                                         builderMethod, s));
                     }
                 } catch (ClassNotFoundException | NoSuchMethodException ex) {
@@ -105,10 +105,6 @@ public class ProtoBuf extends Decoder {
         } catch (IOException ex) {
             throw new DecodeException("Failed to decode Protobuf event: " + Helpers.resolveThrowableException(ex), ex);
         }
-    }
-
-    public BinaryCodec getProtobufCodec() {
-        return decoder;
     }
 
 }

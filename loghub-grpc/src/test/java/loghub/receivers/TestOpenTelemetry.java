@@ -54,8 +54,8 @@ import loghub.Tools;
 import loghub.Tools.SimplifiedMbean;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
-import loghub.decoders.CodecProvider;
 import loghub.events.Event;
+import loghub.grpc.GrpcProcessor;
 import loghub.metrics.JmxService;
 import loghub.security.ssl.ClientAuthentication;
 
@@ -165,7 +165,7 @@ class TestOpenTelemetry {
                         port: %1$d,
                         withSSL: false,
                         grpcCodecs: [
-                            loghub.decoders.OpenTelemetry,
+                            loghub.grpc.OpenTelemetry,
                         ],
                     }
                 } | $main
@@ -205,7 +205,7 @@ class TestOpenTelemetry {
                         port: %1$d,
                         withSSL: false,
                         grpcCodecs: [
-                            loghub.decoders.OpenTelemetry,
+                            loghub.grpc.OpenTelemetry,
                         ],
                     }
                 } | $main
@@ -229,7 +229,7 @@ class TestOpenTelemetry {
                                       .version(Version.HTTP_2)
                                       .build();
             HttpResponse<?> response = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
-            Assertions.assertEquals(400, response.statusCode());
+            Assertions.assertEquals(200, response.statusCode());
         }
     }
 
@@ -279,7 +279,7 @@ class TestOpenTelemetry {
     @Test
     void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.GrpcReceiver"
-                , BeanChecks.BeanInfo.build("grpcCodecs", CodecProvider[].class)
+                , BeanChecks.BeanInfo.build("grpcCodecs", GrpcProcessor[].class)
                 , BeanInfo.build("useJwt", Boolean.TYPE)
                 , BeanInfo.build("user", String.class)
                 , BeanInfo.build("password", String.class)

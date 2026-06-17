@@ -1,5 +1,8 @@
 package loghub.grpc;
 
+import lombok.Getter;
+
+@Getter
 public class GrpcMethodException extends Exception {
     private final GrpcStatus status;
 
@@ -8,7 +11,4 @@ public class GrpcMethodException extends Exception {
         this.status = status;
     }
 
-    public GrpcStatus getStatus() {
-        return status;
-    }
 }

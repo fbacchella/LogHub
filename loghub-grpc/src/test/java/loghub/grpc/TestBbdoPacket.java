@@ -1,4 +1,4 @@
-package loghub.decoders;
+package loghub.grpc;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -7,8 +7,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import loghub.grpc.BinaryCodec;
 
 class TestBbdoPacket {
 

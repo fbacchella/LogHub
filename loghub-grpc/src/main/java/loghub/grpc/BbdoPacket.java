@@ -1,4 +1,4 @@
-package loghub.decoders;
+package loghub.grpc;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.protobuf.CodedInputStream;
-
-import loghub.grpc.BinaryCodec;
 
 public record BbdoPacket(BbdoEvent event, int sourceId, int destinationId, Map<String, Object> payload) {
 

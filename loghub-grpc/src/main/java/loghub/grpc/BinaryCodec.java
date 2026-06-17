@@ -15,6 +15,9 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.protobuf.Any;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.DescriptorProtos;
@@ -27,6 +30,8 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
 
+import loghub.Helpers;
+
 public class BinaryCodec {
 
     private final Map<String, MessageFastPathFunction<?>> messageFastPath = new HashMap<>();
@@ -34,7 +39,7 @@ public class BinaryCodec {
     private final Map<String, Descriptors.Descriptor> messages = new HashMap<>();
     private final Map<String, Descriptors.MethodDescriptor> methods = new HashMap<>();
 
-    @FunctionalInterface
+   @FunctionalInterface
     public interface MessageFastPathFunction<T> {
         T resolve(CodedInputStream stream, Descriptors.Descriptor descriptor, List<UnknownField> unknownFields) throws IOException;
     }
@@ -44,7 +49,10 @@ public class BinaryCodec {
         T resolve(CodedInputStream stream, Descriptors.FieldDescriptor descriptor, List<UnknownField> unknownFields) throws IOException;
     }
 
+    protected final Logger logger;
+
     public BinaryCodec(URI source) throws Descriptors.DescriptorValidationException, IOException {
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         try (InputStream is = source.toURL().openStream()) {
             analyseProto(is);
         }
@@ -52,6 +60,7 @@ public class BinaryCodec {
     }
 
     public BinaryCodec(List<InputStream> sources) throws Descriptors.DescriptorValidationException, IOException {
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         for (InputStream source : sources) {
             analyseProto(source);
         }
@@ -59,6 +68,7 @@ public class BinaryCodec {
     }
 
     public BinaryCodec(String name, InputStream source) throws Descriptors.DescriptorValidationException, IOException {
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         if (source == null) {
             throw new IllegalArgumentException("Not defined protobuf binpb for " + name);
         }
@@ -67,6 +77,7 @@ public class BinaryCodec {
     }
 
     public BinaryCodec(Path source) throws Descriptors.DescriptorValidationException, IOException {
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         try (InputStream is = Files.newInputStream(source)) {
             analyseProto(is);
         }
@@ -154,6 +165,10 @@ public class BinaryCodec {
         Descriptors.Descriptor outDescr = getMessageDescriptor(messageName);
         DynamicMessage encoded = encode(outDescr, values);
         return encoded.toByteArray();
+    }
+
+    public Optional<byte[]> encode(Object o) {
+        return Optional.empty();
     }
 
     @SuppressWarnings("unchecked")

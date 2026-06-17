@@ -3,10 +3,12 @@ package loghub;
 import java.net.URI;
 
 import io.netty.handler.ssl.ApplicationProtocolNames;
+import loghub.grpc.GrpcHeaderHandler;
+import loghub.grpc.GrpcProcessor;
+import loghub.grpc.GrpcStats;
 import loghub.metrics.Stats;
 import loghub.netty.transport.TcpTransport;
 import loghub.netty.transport.TcpTransport.Builder;
-import loghub.grpc.GrpcStreamHandler;
 import loghub.security.ssl.ClientAuthentication;
 
 public class ServerContext {
@@ -14,9 +16,11 @@ public class ServerContext {
     final HttpTestServer resource = new HttpTestServer();
     public final URI listenUri;
 
-    public ServerContext(TlsContext ctx, GrpcStreamHandler.Factory factory) {
+    public ServerContext(TlsContext ctx, GrpcProcessor<ServerContext, ?, ?> processors) {
+        GrpcStats stats = new GrpcStats(null);
+        GrpcHeaderHandler<ServerContext> dispatcher = new GrpcHeaderHandler<>(stats, this, processors);
         resource.setModelHandlers();
-        resource.setHttp2handler(ch -> ch.pipeline().addLast("GrpcStreamHandler", factory.get()));
+        resource.setHttp2handler(ch -> ch.pipeline().addLast("gRPCDispatcher", dispatcher));
 
         Builder transportConfig = TcpTransport.getBuilder();
         transportConfig.setEndpoint("localhost");
