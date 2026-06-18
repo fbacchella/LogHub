@@ -136,8 +136,6 @@ public class GrpcStreamHandler<I, O> extends SimpleChannelInboundHandler<Http2Da
             sendTrailers(ctx.channel(), GrpcStatus.INTERNAL.withMessage("Internal error processing gRPC request"));
         } catch (GrpcMethodException e) {
             sendTrailers(ctx.channel(), e.getStatus());
-        } finally {
-            frame.release();
         }
     }
 

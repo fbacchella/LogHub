@@ -59,7 +59,7 @@ class TestGrpcPingServer {
     }
 
     @Test
-    //@Timeout(5)
+    @Timeout(5)
     void testPing() throws InterruptedException {
         ManagedChannel channel = NettyChannelBuilder
                                          .forAddress("localhost", serverContext.listenUri.getPort())
