@@ -3,6 +3,7 @@ package loghub.grpc;
 import java.util.Objects;
 
 import io.netty.handler.codec.http2.DefaultHttp2Headers;
+import io.netty.handler.codec.http2.Http2Error;
 import io.netty.handler.codec.http2.Http2Headers;
 import loghub.Helpers;
 import lombok.Getter;
@@ -61,6 +62,16 @@ public class GrpcStatus {
             headers.add("grpc-message", message);
         }
         return headers;
+    }
+
+    public Http2Error getHttp2Error() {
+        return switch (status) {
+            case 0 -> Http2Error.NO_ERROR;
+            case 1 -> Http2Error.CANCEL;
+            case 4 -> Http2Error.SETTINGS_TIMEOUT; // Close to DEADLINE_EXCEEDED in some contexts
+            case 14 -> Http2Error.REFUSED_STREAM;
+            default -> Http2Error.INTERNAL_ERROR;
+        };
     }
 
     public GrpcStatus withMessage(String message) {

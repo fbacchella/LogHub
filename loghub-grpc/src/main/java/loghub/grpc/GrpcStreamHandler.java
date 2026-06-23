@@ -23,8 +23,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http2.DefaultHttp2DataFrame;
 import io.netty.handler.codec.http2.DefaultHttp2HeadersFrame;
+import io.netty.handler.codec.http2.DefaultHttp2ResetFrame;
 import io.netty.handler.codec.http2.Http2DataFrame;
+import io.netty.handler.codec.http2.Http2Error;
 import io.netty.handler.codec.http2.Http2Headers;
+import io.netty.handler.codec.http2.Http2ResetFrame;
 import io.netty.handler.codec.http2.ReadOnlyHttp2Headers;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
@@ -40,7 +43,7 @@ public class GrpcStreamHandler<I, O> extends SimpleChannelInboundHandler<Http2Da
     private static final byte GRPC_FRAME_NOT_COMPRESSED = 0x00;
 
     public static <S, I, O> GrpcStreamHandler<I, O> of(GrpcProcessor<S, I, O> processor, Http2Headers requestHeaders, Duration grpcTimout, String qualifiedMethodName, ChannelHandlerContext ctx, GrpcStats stats, String encoding) {
-        return new GrpcStreamHandler<>(s -> processor.getHandler(s, qualifiedMethodName, ctx), ctx, stats, encoding, requestHeaders, grpcTimout);
+        return new GrpcStreamHandler<>(s -> processor.getHandler(s, qualifiedMethodName, ctx), stats, encoding, requestHeaders, grpcTimout);
     }
 
 
@@ -53,14 +56,16 @@ public class GrpcStreamHandler<I, O> extends SimpleChannelInboundHandler<Http2Da
     private final Http2Headers requestHeaders;
     private final GrpcService<I, O> service;
     private final String encoding;
+    private GrpcStatus sentStatus;
 
-    private GrpcStreamHandler(Function<GrpcStreamHandler<I, O>, GrpcService<I, O>> getter, ChannelHandlerContext ctx, GrpcStats stats, String encoding,
+    private GrpcStreamHandler(Function<GrpcStreamHandler<I, O>, GrpcService<I, O>> getter, GrpcStats stats, String encoding,
             Http2Headers requestHeaders, Duration grpcTimout) {
         this.stats = stats;
         this.service = getter.apply(this);
-        this.currentMessage = ctx.alloc().buffer();
+        this.currentMessage = Unpooled.buffer();
         this.encoding = encoding;
         this.requestHeaders = readOnlyHeaders(requestHeaders);
+        this.sentStatus = null;
     }
 
     private Http2Headers readOnlyHeaders(Http2Headers sourceHeaders) {
@@ -83,6 +88,11 @@ public class GrpcStreamHandler<I, O> extends SimpleChannelInboundHandler<Http2Da
     }
 
     protected void channelRead0(ChannelHandlerContext ctx, Http2DataFrame frame) {
+        if (sentStatus != null) {
+            logger.error("Received data frame after trailers sent");
+            ctx.writeAndFlush(new DefaultHttp2ResetFrame(sentStatus.getHttp2Error()));
+            return;
+        }
         logger.debug("Data frame {}", frame);
         try {
             List<BinaryCodec.UnknownField> unknownFields = new ArrayList<>();
@@ -172,7 +182,8 @@ public class GrpcStreamHandler<I, O> extends SimpleChannelInboundHandler<Http2Da
     }
 
     public void sendTrailers(Channel channel, GrpcStatus status) {
-        currentMessage.release();
+        sentStatus = status;
+        currentMessage.capacity(0);
         if (status.isOk()) {
             logger.debug("{} done", requestHeaders::path);
         } else {
