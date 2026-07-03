@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import loghub.BeanChecks;
 import loghub.Expression;
@@ -29,6 +30,7 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.processors.VarExtractor.CollisionHandling;
 
 class TestVarExtractor {
 
@@ -110,7 +112,7 @@ class TestVarExtractor {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
         builder.setField(VariablePath.parse(".message"));
         builder.setParser(Pattern.compile("(?<name>[a-z]+)=(?<value>[^;]+);?"));
-        builder.setCollision(VarExtractor.Collision_handling.AS_LIST);
+        builder.setCollision(CollisionHandling.AS_LIST);
         VarExtractor t = builder.build();
 
         Event e = factory.newEvent();
@@ -126,7 +128,7 @@ class TestVarExtractor {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
         builder.setField(VariablePath.parse(".message"));
         builder.setParser(Pattern.compile("(?<name>[a-z]+)=(?<value>[^;]+);?"));
-        builder.setCollision(VarExtractor.Collision_handling.AS_LIST);
+        builder.setCollision(CollisionHandling.AS_LIST);
         VarExtractor t = builder.build();
 
         Event e = factory.newEvent();
@@ -143,7 +145,7 @@ class TestVarExtractor {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
         builder.setField(VariablePath.parse(".message"));
         builder.setParser(Pattern.compile("(?<name>[a-z]+)=(?<value>[^;]+);?"));
-        builder.setCollision(VarExtractor.Collision_handling.KEEP_FIRST);
+        builder.setCollision(CollisionHandling.KEEP_FIRST);
         VarExtractor t = builder.build();
 
         Event e = factory.newEvent();
@@ -159,7 +161,7 @@ class TestVarExtractor {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
         builder.setField(VariablePath.parse(".message"));
         builder.setParser(Pattern.compile("(?<name>[a-z]+)=(?<value>[^;]+);?"));
-        builder.setCollision(VarExtractor.Collision_handling.KEEP_LAST);
+        builder.setCollision(CollisionHandling.KEEP_LAST);
         VarExtractor t = builder.build();
 
         Event e = factory.newEvent();
@@ -173,8 +175,8 @@ class TestVarExtractor {
     @Test
     void test_loghub_processors_VarExtractor() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.VarExtractor"
-                , BeanChecks.BeanInfo.build("parser", Pattern.class)
-                , BeanChecks.BeanInfo.build("collision", VarExtractor.Collision_handling.class)
+                , BeanChecks.BeanInfo.build("parser", Object.class)
+                , BeanChecks.BeanInfo.build("collision", CollisionHandling.class)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)
                 , BeanChecks.BeanInfo.build("destinationTemplate", VarFormatter.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
@@ -212,6 +214,42 @@ class TestVarExtractor {
         return Stream.of(
             Arguments.of("\"(?<name>[a-z]+)=(?<value>[^;]+)\""),
             Arguments.of("/(?<name>[a-z]+)=(?<value>[^;]+)/")
+        );
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "(?<name>\\w+)=\\w+", // Missing value
+        "(?<value>\\w+)=\\w+", // Missing name
+        "(?<name>\\w+)=(?<value>\\w+),(?<value>\\w+),(?<other>\\w+)", // Unexpected named group
+        "(?<name>\\w+)=(?<name>\\w+):(?<value>\\w+)" // Duplicate name
+    })
+    void testInvalidGroups(String pattern) {
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setParser(pattern);
+        Assertions.assertThrows(IllegalArgumentException.class, builder::build);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideMultipleValues")
+    void testMultipleValues(CollisionHandling collision, Object expected) throws ProcessorException {
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setField(VariablePath.parse(".message"));
+        builder.setParser("(?<name>\\w+)=(?<value>\\w+),(?<value>\\w+)");
+        builder.setCollision(collision);
+        VarExtractor t = builder.build();
+
+        Event e = factory.newEvent();
+        e.put("message", "a=1,2");
+        e.process(t);
+        Assertions.assertEquals(expected, e.get("a"));
+    }
+
+    static Stream<Arguments> provideMultipleValues() {
+        return Stream.of(
+            Arguments.of(CollisionHandling.AS_LIST, List.of("1", "2")),
+            Arguments.of(CollisionHandling.KEEP_LAST, "2"),
+            Arguments.of(CollisionHandling.KEEP_FIRST, "1")
         );
     }
 
