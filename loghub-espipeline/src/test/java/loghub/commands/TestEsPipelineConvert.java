@@ -185,6 +185,25 @@ public class TestEsPipelineConvert {
     }
 
     @Test
+    public void testSplit() throws IOException {
+        String esPipeline = """
+          - split:
+              field: message
+              separator: ',\\s+'
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            loghub.processors.Split {
+                field: [message],
+                pattern: ",\\\\s+",
+            }
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
     public void testUrldecode() throws IOException {
         String esPipeline = """
           - urldecode:

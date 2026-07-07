@@ -171,7 +171,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
                 Map.entry("convert", this::convert),
                 Map.entry("grok", this::grok),
                 Map.entry("geoip", this::geoip),
-                Map.entry("split", p -> doSimpleProcessor("loghub.processors.Dissect", p, "pattern", "separator")),
+                Map.entry("split", p -> doSimpleProcessor("loghub.processors.Split", p, "separator", "pattern")),
                 Map.entry("kv", this::kv),
                 Map.entry("dissect", p -> doSimpleProcessor("loghub.processors.Dissect", p, "pattern", "pattern")),
                 Map.entry("json", this::json),
