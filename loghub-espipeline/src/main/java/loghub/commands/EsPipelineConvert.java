@@ -419,7 +419,7 @@ public class EsPipelineConvert implements BaseParametersRunner {
 
     private void grok(Map<String, Object> params) {
         Map<String, Object> attributes = defaultAttributes(params);
-        Optional.ofNullable(params.remove("patterns")).ifPresent(o -> attributes.put("patterns", o));
+        Optional.ofNullable(params.remove("patterns")).map(this::resolveValue).ifPresent(o -> attributes.put("patterns", o));
         Optional.ofNullable(params.remove("pattern_definitions")).ifPresent(o -> attributes.put("customPatterns", o));
         doProcessor("loghub.processors.Grok", filterComments(params, attributes), attributes);
     }

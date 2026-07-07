@@ -164,6 +164,27 @@ public class TestEsPipelineConvert {
     }
 
     @Test
+    public void testGrok() throws IOException {
+        String esPipeline = """
+          - grok:
+              field: message
+              patterns:
+               - "%{WORD:word}"
+               - "%{GREEDYDATA:content}"
+        """;
+
+        String expected = """
+        pipeline[apipeline] {
+            loghub.processors.Grok {
+                field: [message],
+                patterns: ["%{WORD:word}", "%{GREEDYDATA:content}"],
+            }
+        }
+        """;
+        convert(esPipeline, expected);
+    }
+
+    @Test
     public void testUrldecode() throws IOException {
         String esPipeline = """
           - urldecode:
