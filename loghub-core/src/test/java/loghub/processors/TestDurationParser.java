@@ -67,7 +67,27 @@ class TestDurationParser {
             // Negative seconds
             Arguments.of("(?<seconds>-?\\d+\\.\\d+)s", "-1.5s", Duration.ofMillis(-1500)),
             // Negative and positive groups
-            Arguments.of("(?<hours>-?\\d+)h(?<minutes>-?\\d+)m", "-1h30m", Duration.ofMinutes(-30))
+            Arguments.of("(?<hours>-?\\d+)h(?<minutes>-?\\d+)m", "-1h30m", Duration.ofMinutes(-30)),
+            // Microseconds
+            Arguments.of("(?<microseconds>\\d+)us", "1000us", Duration.ofMillis(1)),
+            // Nanoseconds
+            Arguments.of("(?<nanoseconds>\\d+)ns", "1000ns", Duration.ofNanos(1000)),
+            // Float microseconds
+            Arguments.of("(?<microseconds>\\d+\\.\\d+)us", "1.5us", Duration.ofNanos(1500)),
+            // Float nanoseconds
+            Arguments.of("(?<nanoseconds>\\d+\\.\\d+)ns", "1.5ns", Duration.ofNanos(2)),
+            // Large milliseconds (> 1000)
+            Arguments.of("(?<milliseconds>\\d+)ms", "2000ms", Duration.ofMillis(2000)),
+            // Very large milliseconds (could overflow if converted to nanos first in a long)
+            Arguments.of("(?<milliseconds>\\d+)ms", "10000000000000ms", Duration.ofMillis(10000000000000L)),
+            // Precision test: 0.1 + 0.2 != 0.3 with double, but should work with BigDecimal
+            Arguments.of("(?<seconds>\\d+\\.\\d+)s(?<milliseconds>\\d+\\.\\d+)ms", "0.1s0.2ms", Duration.ofNanos(100_200_000)),
+            // Double fails for 1.0000000000000001
+            Arguments.of("(?<seconds>\\d+\\.\\d+)s", "1.0000000000000001s", Duration.ofSeconds(1, 0)),
+            // 0.123456789123456789 seconds should correctly round to 123456789 nanos
+            Arguments.of("(?<seconds>\\d+\\.\\d+)s", "0.123456789123456789s", Duration.ofNanos(123_456_789)),
+            // Negative high precision
+            Arguments.of("(?<seconds>-?\\d+\\.\\d+)s", "-0.123456789123s", Duration.ofNanos(-123_456_789))
         );
     }
 
@@ -159,6 +179,38 @@ class TestDurationParser {
             Arguments.of("\"(?<days>\\\\d+)\\\\+(?<hours>\\\\d+):(?<minutes>\\\\d+):(?<seconds>\\\\d+)\""),
             Arguments.of("/((?<days>\\d+)\\+)(?<hours>\\d+):(?<minutes>\\d+):(?<seconds>\\d+)/")
         );
+    }
+
+    @Test
+    void testAlreadyDuration() throws ProcessorException {
+        DurationParser.Builder builder = DurationParser.getBuilder();
+        builder.setPattern(Pattern.compile("(?<days>\\d+)d"));
+        builder.setField(VariablePath.parse("field"));
+        DurationParser parse = builder.build();
+        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+
+        Event event = factory.newEvent();
+        Duration expected = Duration.ofDays(1);
+        event.put("field", expected);
+        boolean result = parse.process(event);
+        Assertions.assertTrue(result, "Processing should be successful for already Duration (no-op)");
+        Assertions.assertEquals(expected, event.get("field"), "Field should remain the same Duration");
+    }
+
+    @Test
+    void testOtherType() throws ProcessorException {
+        DurationParser.Builder builder = DurationParser.getBuilder();
+        builder.setPattern(Pattern.compile("(?<days>\\d+)d"));
+        builder.setField(VariablePath.parse("field"));
+        DurationParser parse = builder.build();
+        Assertions.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+
+        Event event = factory.newEvent();
+        Integer expected = 123;
+        event.put("field", expected);
+        boolean result = parse.process(event);
+        Assertions.assertTrue(result, "Processing should be successful for other types (no-op)");
+        Assertions.assertEquals(expected, event.get("field"), "Field should remain unchanged");
     }
 
 }
