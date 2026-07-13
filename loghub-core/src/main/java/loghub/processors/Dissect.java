@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import loghub.BuilderClass;
+import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.configuration.BeansManager;
@@ -38,12 +39,33 @@ public class Dissect extends FieldsProcessor {
         LONG(Long.TYPE),
         FLOAT(Float.TYPE),
         DOUBLE(Double.TYPE),
-        IP(InetAddress .class);
+        IP(InetAddress.class);
 
         public final Class<?> destination;
 
         Type(Class<?> destination) {
             this.destination = destination;
+        }
+
+        private static final Map<String, Class<?>> fastMapping;
+        static {
+            Map<String, Class<?>> tempMap = HashMap.newHashMap(9);
+            for (Type t: Type.values()) {
+                tempMap.put(t.name().toLowerCase(Locale.ROOT), t.destination);
+            }
+            fastMapping = Map.copyOf(tempMap);
+        }
+        public static Class<?> resolveType(String type) {
+            Class<?> resolved = fastMapping.get(type.toLowerCase(Locale.ROOT));
+            if (resolved != null) {
+                return resolved;
+            } else {
+                try {
+                    return Class.forName(type);
+                } catch (ClassNotFoundException ex) {
+                    throw new IllegalArgumentException("Unknown conversion type: " + type);
+                }
+            }
         }
     }
 
@@ -74,11 +96,7 @@ public class Dissect extends FieldsProcessor {
             if (! append && this.appendModifier >= 0) {
                 throw new IllegalArgumentException("Append order defined, without append modifier");
             }
-            try {
-                classConverter = converter != null ? Type.valueOf(converter.toUpperCase(Locale.ENGLISH)).destination : null;
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Unknown conversion type: " +  converter);
-            }
+            classConverter = converter != null ? Type.resolveType(converter) : null;
             if (classConverter != null && refName) {
                 throw new IllegalArgumentException("A type conversion can't be applied to a reference name");
             }
@@ -128,7 +146,7 @@ public class Dissect extends FieldsProcessor {
         return new Dissect.Builder();
     }
 
-    private static final Pattern keyPattern = Pattern.compile("%\\{([+?*&])?([^}:]*?)(?::([a-z]+))?((?:->|/(\\d+)){0,2})}");
+    private static final Pattern keyPattern = Pattern.compile("%\\{([+?*&])?([^}:]*?)(?::([a-z]+|\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*+(?:\\.\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*+)*+))?((?:->|/(\\d+)){0,2})}");
 
     private final String appendSeparator;
     private final List<Object> content = new ArrayList<>();
@@ -230,10 +248,10 @@ public class Dissect extends FieldsProcessor {
                                 pos += separator.length();
                             }
                         }
-                        valid = processKey(event, k, keyVal, values, references);
+                        valid = processKey(k, keyVal, values, references);
                     }
                 } else {
-                    valid = processKey(event, k, valueStr.substring(pos), values, references);
+                    valid = processKey(k, valueStr.substring(pos), values, references);
                 }
             }
             if (! valid) {
@@ -259,14 +277,16 @@ public class Dissect extends FieldsProcessor {
         }
     }
 
-    private boolean processKey(Event ev, Key key, String foundValue, Map<String, Object> values, Map<String, Reference> references)
-            throws ProcessorException {
+    private boolean processKey(Key key, String foundValue, Map<String, Object> values, Map<String, Reference> references) {
         Object value;
         if (key.classConverter != null) {
             try {
                 value = BeansManager.constructFromString(key.classConverter, foundValue);
             } catch (InvocationTargetException e) {
-                throw ev.buildException(String.format("Can not convert \"%s\" to %s", key.name, key.classConverter), e);
+                logger.atDebug()
+                      .withThrowable(logger.isDebugEnabled() ? e.getCause() : null)
+                      .log("Can't parsed expected type \"{}\": {}", key::getName, () -> Helpers.resolveThrowableException(e));
+                return false;
             }
         } else {
             value = foundValue;
