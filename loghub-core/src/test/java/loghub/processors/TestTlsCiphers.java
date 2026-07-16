@@ -19,6 +19,9 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.api.io.TempDir;
 
 import loghub.LogUtils;
@@ -109,7 +112,7 @@ class TestTlsCiphers {
         Process p = pb.start();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
             String line;
-            Pattern linePattern = Pattern.compile("\\s+0x([0-9A-F]{2}),0x([0-9A-F]{2}) - (\\S+).*");
+            Pattern linePattern = Pattern.compile("\\s++0x([0-9A-F]{2}),0x([0-9A-F]{2}) - (\\S++).*");
             TlsCiphers.Builder builder = TlsCiphers.getBuilder();
             builder.setDestinationContext(TlsCiphers.Context.IANA);
             TlsCiphers processor = builder.build();
@@ -125,10 +128,13 @@ class TestTlsCiphers {
                     Event event = factory.newEvent();
                     event.put("cipher", opensslName);
                     processor.process(event);
-                    Assertions.assertNotEquals(FieldsProcessor.RUNSTATUS.FAILED, event.get("cipher"), "Failed to translate OpenSSL cipher: " + opensslName);
+                    Assertions.assertNotEquals(FieldsProcessor.RUNSTATUS.FAILED, event.get("cipher"),
+                            "Failed to translate OpenSSL cipher: " + opensslName);
                 }
             }
             logger.info("Validated {} ciphers from openssl ciphers -V", count);
+        } finally {
+            p.destroy();
         }
     }
 
@@ -179,6 +185,41 @@ class TestTlsCiphers {
         event.put("cipher", "ECDHE-RSA-AES256-GCM-SHA384");
         processor.process(event);
         Assertions.assertEquals("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", event.get("cipher"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("numericCiphers")
+    void testNumericTranslation(Object input, Object expected) throws ProcessorException {
+        TlsCiphers.Builder builder = TlsCiphers.getBuilder();
+        builder.setDestinationContext(TlsCiphers.Context.IANA);
+        TlsCiphers processor = builder.build();
+        processor.setField(VariablePath.parse("cipher"));
+        Assertions.assertTrue(processor.configure(new Properties(Collections.emptyMap())));
+
+        Event event = factory.newEvent();
+        event.put("cipher", input);
+        boolean result = processor.process(event);
+        if (expected == FieldsProcessor.RUNSTATUS.FAILED) {
+            Assertions.assertFalse(result, "Processing should fail for value " + input);
+        } else {
+            Assertions.assertTrue(result, "Processing should succeed for value " + input);
+            Assertions.assertEquals(expected, event.get("cipher"));
+        }
+    }
+
+    static java.util.stream.Stream<Arguments> numericCiphers() {
+        return java.util.stream.Stream.of(
+                // 4865 is 0x1301 which is TLS_AES_128_GCM_SHA256
+                Arguments.of(4865, "TLS_AES_128_GCM_SHA256"),
+                // 0xC030 is 49200 which is TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+                Arguments.of(49200, "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"),
+                // Test with hex string format directly
+                Arguments.of("0x13,0x01", "TLS_AES_128_GCM_SHA256"),
+                // Test with invalid numeric value (> 65535)
+                Arguments.of(65536, FieldsProcessor.RUNSTATUS.FAILED),
+                // Test with negative numeric value
+                Arguments.of(-1, FieldsProcessor.RUNSTATUS.FAILED)
+        );
     }
 
     @Test

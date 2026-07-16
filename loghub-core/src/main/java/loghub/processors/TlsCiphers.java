@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -55,6 +56,7 @@ public class TlsCiphers extends FieldsProcessor {
         GNUTLS("directory.GnutlsCipher"),
         JAVA("directory.JavaCipher"),
         CUSTOM("directory.Custom"),
+        ID("directory.CipherId"),
         ;
         @Getter
         private final String modelName;
@@ -79,6 +81,9 @@ public class TlsCiphers extends FieldsProcessor {
             }
             case "directory.Custom" -> {
                 return Context.CUSTOM;
+            }
+            case "directory.CipherId" -> {
+                return Context.ID;
             }
             default -> throw new IllegalArgumentException(context);
             }
@@ -144,6 +149,7 @@ public class TlsCiphers extends FieldsProcessor {
                         localTranslationMap.put(e.name, destinationName);
                     }
                 }
+                localTranslationMap.put(le.getFirst().id.toString(), destinationName);
             }
         }
         return Map.copyOf(localTranslationMap);
@@ -275,9 +281,18 @@ public class TlsCiphers extends FieldsProcessor {
     public Object fieldFunction(Event event, Object value) {
         if (value == null) {
             return RUNSTATUS.FAILED;
+        } else if (value instanceof Number n) {
+            int val = n.intValue();
+            if (val < 0 || val > 65535) {
+                return RUNSTATUS.FAILED;
+            } else {
+                String key = "0x%02x,0x%02x".formatted((val >> 8) & 0xFF, val & 0xFF);
+                String translated = translationMap.get(key);
+                return Objects.requireNonNullElse(translated, RUNSTATUS.FAILED);
+            }
         } else {
             String translated = translationMap.get(value.toString());
-            return translated != null ? translated : RUNSTATUS.FAILED;
+            return Objects.requireNonNullElse(translated, RUNSTATUS.FAILED);
         }
     }
 
