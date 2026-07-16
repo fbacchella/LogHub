@@ -13,15 +13,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import loghub.datetime.DatetimeProcessor;
-import loghub.datetime.NamedPatterns;
-
 import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.datetime.DatetimeProcessor;
+import loghub.datetime.NamedPatterns;
 import loghub.events.Event;
-import lombok.Data;
 import lombok.Setter;
 
 @BuilderClass(DateParser.Builder.class)
@@ -55,11 +53,7 @@ public class DateParser extends FieldsProcessor {
         );
     }
 
-    @Data
-    private static class DatetimeProcessorKey {
-        private final String parser;
-        private final String timezone;
-        private final String locale;
+    private record DatetimeProcessorKey(String parser, String timezone, String locale) {
         private DatetimeProcessor getDatetimeProcessor() {
             if (NAMEDPATTERNS.containsKey(parser.toUpperCase(Locale.ENGLISH))) {
                 return NAMEDPATTERNS.get(parser.toUpperCase(Locale.ENGLISH)).withDefaultZone(ZoneId.of(timezone)).withLocale(Locale.forLanguageTag(locale));
@@ -116,9 +110,9 @@ public class DateParser extends FieldsProcessor {
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         if (value instanceof Date || value instanceof TemporalAccessor) {
             return value;
-        } else if (value instanceof Number) {
+        } else if (value instanceof Number n) {
             // If a number custom parsing
-            return resolveFromNumber(event, (Number) value);
+            return resolveFromNumber(event, n);
         } else {
             String dateString = value.toString();
             logger.debug("trying to parse {}", dateString);
