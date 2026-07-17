@@ -72,7 +72,10 @@ public class JolokiaEndpoint extends HttpRequestProcessing {
         }
         @Override
         public void error(String message, Throwable t) {
-            logger.error(message);
+            boolean withStack = logger.isDebugEnabled() || message.startsWith("Error 5");
+            logger.atError()
+                  .withThrowable(withStack ? t : null)
+                  .log("{}: {}", () -> message, () -> Helpers.resolveThrowableException(t));
         }
         @Override
         public boolean isDebug() {
@@ -135,12 +138,13 @@ public class JolokiaEndpoint extends HttpRequestProcessing {
             String serialized = response.toJSONString();
             ByteBuf content = Unpooled.copiedBuffer(serialized + "\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
-
         } catch (EmptyResponseException| BadRequestException e) {
             throw new HttpRequestFailure(
                     HttpResponseStatus.BAD_REQUEST, String.format("malformed object name '%s': %s", "name", e.getMessage()));
         } catch (IOException e) {
-            logger.error(e.getMessage(), e);
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? e : null)
+                  .log(Helpers.resolveThrowableException(e));
             throw new HttpRequestFailure(
                     HttpResponseStatus.BAD_REQUEST, "Invalid request body");
         }
@@ -161,7 +165,9 @@ public class JolokiaEndpoint extends HttpRequestProcessing {
     }
 
     private ParsedUri parseUri(FullHttpRequest request) {
-        String rawname = request.uri().replace("/jolokia/", "");
+        String rawname = request.uri()
+                                .replace("/jolokia/", "/")
+                                .replace("/jolokia", "/");
         return new ParsedUri(URI.create(rawname));
     }
 
