@@ -294,6 +294,26 @@ public class TestUrlParser {
     }
 
     @Test
+    public void testHiddenPath() throws ProcessorException {
+        Event event = runTest(b -> {
+                    b.setField(VariablePath.of("original"));
+                    b.setInPlace(true);
+                }, "original",
+                "/path/.git/config");
+        Assert.assertNull(event.get("extension"));
+    }
+
+    @Test
+    public void testDecode() throws ProcessorException {
+        Event event = runTest(b -> {
+                    b.setField(VariablePath.of("original"));
+                    b.setInPlace(true);
+                }, "original",
+                "cgi-bin/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh");
+        Assert.assertEquals("cgi-bin/../../../../../../../bin/sh", event.get("path"));
+    }
+
+    @Test
     public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.UrlParser"
                 , BeanChecks.BeanInfo.build("reference", String.class)

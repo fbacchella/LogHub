@@ -67,8 +67,11 @@ public class UrlParser extends FieldsProcessor {
         Optional.ofNullable(uri.getPath()).ifPresent(path -> {
             urlInformations.put("path", path);
             if (path.contains(".")) {
+                int lastSeparator = path.lastIndexOf('/');
                 int periodIndex = path.lastIndexOf('.');
-                Optional.of(path).filter(p -> periodIndex < (p.length() - 1)).ifPresent(p -> urlInformations.put("extension", p.substring(periodIndex + 1)));
+                Optional.of(path)
+                        .filter(p -> periodIndex < (p.length() - 1) && periodIndex > lastSeparator)
+                        .ifPresent(p -> urlInformations.put("extension", p.substring(periodIndex + 1)));
             }
         });
         if (uri.isOpaque()) {
