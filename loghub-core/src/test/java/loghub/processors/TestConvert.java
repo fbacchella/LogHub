@@ -15,12 +15,16 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import java.util.stream.Stream;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import loghub.BeanChecks;
 import loghub.Expression;
@@ -44,7 +48,7 @@ public class TestConvert {
     private final EventsFactory factory = new EventsFactory();
     private static Logger logger;
 
-    @BeforeClass
+    @BeforeAll
     public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
@@ -60,14 +64,14 @@ public class TestConvert {
 
         Properties props = new Properties(Collections.emptyMap());
 
-        Assert.assertTrue(cv.configure(props));
+        Assertions.assertTrue(cv.configure(props));
 
         Event e = factory.newEvent();
         e.put("message", invalue);
         e.process(cv);
-        Assert.assertTrue(reference.isAssignableFrom(e.get("message").getClass()));
-        Assert.assertTrue(e.get("message").getClass().isAssignableFrom(reference));
-        Assert.assertEquals(outvalue, e.get("message"));
+        Assertions.assertTrue(reference.isAssignableFrom(e.get("message").getClass()));
+        Assertions.assertTrue(e.get("message").getClass().isAssignableFrom(reference));
+        Assertions.assertEquals(outvalue, e.get("message"));
     }
 
     private void check(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
@@ -85,32 +89,47 @@ public class TestConvert {
         return source.apply(contentSource);
     }
 
-    @Test
-    public void testResolution() throws ProcessorException, UnknownHostException {
-        check("java.lang.Integer", Integer.class, "38", 38);
-        check("java.lang.Byte", Byte.class, "38", (byte) 38);
-        check("java.lang.Short", Short.class, "38", (short) 38);
-        check("java.lang.Long", Long.class, "38", (long) 38);
-        check("java.lang.Double", Double.class, "38", (double) 38);
-        check("java.lang.Float", Float.class, "38", (float) 38);
-        check("java.net.InetAddress", java.net.Inet4Address.class, "127.0.0.1", InetAddress.getByName("127.0.0.1"));
-        check("java.net.InetAddress", java.net.Inet6Address.class, "::1", InetAddress.getByName("::1"));
-        check("loghub.types.MacAddress", MacAddress.class, "3d:f2:c9:a6:b3:4f", new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F}));
-        check("loghub.types.Dn", Dn.class, "cn=Mango, ou=Fruits; o=Food", new Dn("cn=Mango, ou=Fruits, o=Food"));
+    @ParameterizedTest
+    @MethodSource("resolutionData")
+    public void testResolution(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
+        check(className, reference, invalue, outvalue);
     }
 
-    @Test
-    public void testResolutionBytes() throws ProcessorException, UnknownHostException {
-        check("java.lang.Integer", Integer.class, generate(b -> b.putInt(38)), 38);
-        check("java.lang.Byte", Byte.class, generate(b -> b.put((byte) 38)), (byte) 38);
-        check("java.lang.Short", Short.class, generate(b -> b.putShort((short) 38)), (short) 38);
-        check("java.lang.Long", Long.class, generate(b -> b.putLong(38)), (long) 38);
-        check("java.lang.Double", Double.class, generate(b -> b.putDouble(38)), (double) 38);
-        check("java.lang.Float", Float.class, generate(b -> b.putFloat((float) 38)), (float) 38);
-        check("java.lang.String", String.class, "message with éèœ".getBytes(StandardCharsets.UTF_8), "message with éèœ");
-        check("java.net.InetAddress", java.net.Inet4Address.class, InetAddress.getByName("127.0.0.1").getAddress(), InetAddress.getByName("127.0.0.1"));
-        check("java.net.InetAddress", java.net.Inet6Address.class, InetAddress.getByName("::1").getAddress(), InetAddress.getByName("::1"));
-        check("loghub.types.MacAddress", MacAddress.class, new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F}), new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F}));
+    static Stream<Arguments> resolutionData() throws UnknownHostException {
+        return Stream.of(
+            Arguments.of("java.lang.Integer", Integer.class, "38", 38),
+            Arguments.of("java.lang.Byte", Byte.class, "38", (byte) 38),
+            Arguments.of("java.lang.Short", Short.class, "38", (short) 38),
+            Arguments.of("java.lang.Long", Long.class, "38", (long) 38),
+            Arguments.of("java.lang.Double", Double.class, "38", (double) 38),
+            Arguments.of("java.lang.Float", Float.class, "38", (float) 38),
+            Arguments.of("java.net.InetAddress", java.net.Inet4Address.class, "127.0.0.1", InetAddress.getByName("127.0.0.1")),
+            Arguments.of("java.net.InetAddress", java.net.Inet6Address.class, "::1", InetAddress.getByName("::1")),
+            Arguments.of("loghub.types.MacAddress", MacAddress.class, "3d:f2:c9:a6:b3:4f", new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F})),
+            Arguments.of("loghub.types.Dn", Dn.class, "cn=Mango, ou=Fruits; o=Food", new Dn("cn=Mango, ou=Fruits, o=Food"))
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("resolutionBytesData")
+    public void testResolutionBytes(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
+        check(className, reference, invalue, outvalue);
+    }
+
+    static Stream<Arguments> resolutionBytesData() throws UnknownHostException {
+        TestConvert tc = new TestConvert();
+        return Stream.of(
+            Arguments.of("java.lang.Integer", Integer.class, tc.generate(b -> b.putInt(38)), 38),
+            Arguments.of("java.lang.Byte", Byte.class, tc.generate(b -> b.put((byte) 38)), (byte) 38),
+            Arguments.of("java.lang.Short", Short.class, tc.generate(b -> b.putShort((short) 38)), (short) 38),
+            Arguments.of("java.lang.Long", Long.class, tc.generate(b -> b.putLong(38)), (long) 38),
+            Arguments.of("java.lang.Double", Double.class, tc.generate(b -> b.putDouble(38)), (double) 38),
+            Arguments.of("java.lang.Float", Float.class, tc.generate(b -> b.putFloat((float) 38)), (float) 38),
+            Arguments.of("java.lang.String", String.class, "message with éèœ".getBytes(StandardCharsets.UTF_8), "message with éèœ"),
+            Arguments.of("java.net.InetAddress", java.net.Inet4Address.class, InetAddress.getByName("127.0.0.1").getAddress(), InetAddress.getByName("127.0.0.1")),
+            Arguments.of("java.net.InetAddress", java.net.Inet6Address.class, InetAddress.getByName("::1").getAddress(), InetAddress.getByName("::1")),
+            Arguments.of("loghub.types.MacAddress", MacAddress.class, new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F}), new MacAddress(new byte[]{(byte) 0x3D, (byte) 0xF2, (byte) 0xC9, (byte) 0xA6, (byte) 0xB3, (byte) 0x4F}))
+        );
     }
 
     @Test
@@ -127,28 +146,28 @@ public class TestConvert {
         Event ev = factory.newEvent();
         ev.putAtPath(VariablePath.parse("message"), List.of("1", "2", "3"));
         Tools.runProcessing(ev, p.namedPipeLine.get("convert"), p);
-        Assert.assertEquals(List.of(1, 2, 3), ev.get("message"));
+        Assertions.assertEquals(List.of(1, 2, 3), ev.get("message"));
     }
 
-    @Test(expected = loghub.ProcessorException.class)
-    public void testInvalid() throws ProcessorException, UnknownHostException {
-        check("java.util.UUID", UUID.class, "127.0.0.1", InetAddress.getByName("127.0.0.1"));
+    @Test
+    public void testInvalid() {
+        Assertions.assertThrows(loghub.ProcessorException.class, () -> check("java.util.UUID", UUID.class, "127.0.0.1", InetAddress.getByName("127.0.0.1")));
     }
 
-    @Test(expected = loghub.ProcessorException.class)
-    public void testInvalidNumber() throws ProcessorException {
-        check("java.lang.Integer", java.lang.Integer.class, "a", "");
+    @Test
+    public void testInvalidNumber() {
+        Assertions.assertThrows(loghub.ProcessorException.class, () -> check("java.lang.Integer", Integer.class, "a", ""));
     }
 
-    @Test(expected = loghub.ProcessorException.class)
-    public void testBufferTooSmall() throws ProcessorException {
-        check("java.lang.Double", Double.class, generate(4, b -> b.putFloat((float) 38)), (double) 38);
+    @Test
+    public void testBufferTooSmall() {
+        Assertions.assertThrows(loghub.ProcessorException.class, () -> check("java.lang.Double", Double.class, generate(4, b -> b.putFloat((float) 38)), (double) 38));
     }
 
     @Test
     public void testInvalidIp() {
-        ProcessorException ex = Assert.assertThrows(loghub.ProcessorException.class, () -> check("java.net.InetAddress", java.net.Inet4Address.class, "www.google.com", "www.google.com"));
-        Assert.assertEquals("Field with path \"[message]\" invalid: Unable to parse \"www.google.com\" as a java.net.InetAddress: Unknown host \"www.google.com\"", ex.getMessage());
+        ProcessorException ex = Assertions.assertThrows(loghub.ProcessorException.class, () -> check("java.net.InetAddress", java.net.Inet4Address.class, "www.google.com", "www.google.com"));
+        Assertions.assertEquals("Field with path \"[message]\" invalid: Unable to parse \"www.google.com\" as a java.net.InetAddress: Unknown host \"www.google.com\"", ex.getMessage());
     }
 
     @Test
@@ -156,6 +175,23 @@ public class TestConvert {
         byte[] content = generate(8, b -> b.putDouble(38));
         check("java.lang.Double", Double.class, b -> b.setEncoding("BASE64"), Base64.getEncoder().encodeToString(content), (double) 38);
         check("java.lang.Double", Double.class, b -> b.setEncoding("Z85"), Z85.encode(content, 8), (double) 38);
+    }
+
+    @ParameterizedTest
+    @MethodSource("numberConversionData")
+    public void testNumberConversion(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
+        check(className, reference, invalue, outvalue);
+    }
+
+    static Stream<Arguments> numberConversionData() {
+        return Stream.of(
+            Arguments.of("java.lang.Integer", Integer.class, 38.0, 38),
+            Arguments.of("java.lang.Long", Long.class, 38, 38L),
+            Arguments.of("java.lang.Double", Double.class, 38, 38.0),
+            Arguments.of("java.lang.Float", Float.class, 38L, 38.0f),
+            Arguments.of("java.lang.Byte", Byte.class, 38, (byte) 38),
+            Arguments.of("java.lang.Short", Short.class, 38, (short) 38)
+        );
     }
 
     @Test

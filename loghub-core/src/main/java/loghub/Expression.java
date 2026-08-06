@@ -84,22 +84,18 @@ public class Expression {
         registry.setMetaClassCreationHandle(new MetaClassRegistry.MetaClassCreationHandle() {
             @Override
             protected MetaClass createNormalMetaClass(Class theClass, MetaClassRegistry registry) {
-                if (metaClassFactories.containsKey(theClass)) {
-                    return doCreate(theClass, theClass);
-                } else if (Temporal.class.isAssignableFrom(theClass)) {
-                    return doCreate(Temporal.class, theClass);
-                } else if (Number.class.isAssignableFrom(theClass)) {
-                    return doCreate(Number.class, theClass);
-                } else if (Collection.class.isAssignableFrom(theClass)) {
-                    return doCreate(Collection.class, theClass);
-                } else if (CharSequence.class.isAssignableFrom(theClass)) {
-                    return doCreate(CharSequence.class, theClass);
-                } else if (theClass.isArray()) {
-                    return doCreate(Collection.class, theClass);
-                } else {
-                    logger.debug("Creating unhandled MetaClass {}", theClass::getName);
-                    return doCreate(Object.class, theClass);
-                }
+                return switch (theClass) {
+                    case Class<?> c when metaClassFactories.containsKey(c) -> doCreate(c, c);
+                    case Class<?> c when Temporal.class.isAssignableFrom(c) -> doCreate(Temporal.class, c);
+                    case Class<?> c when Number.class.isAssignableFrom(c) -> doCreate(Number.class, c);
+                    case Class<?> c when Collection.class.isAssignableFrom(c) -> doCreate(Collection.class, c);
+                    case Class<?> c when CharSequence.class.isAssignableFrom(c) -> doCreate(CharSequence.class, c);
+                    case Class<?> c when c.isArray() -> doCreate(Collection.class, c);
+                    default -> {
+                        logger.debug("Creating unhandled MetaClass {}", theClass::getName);
+                        yield doCreate(Object.class, theClass);
+                    }
+                };
             }
             MetaClass doCreate(Class<?> key, Class<?> c) {
                 logger.trace("Handling class {} with {}", c::getName, key::getName);
@@ -171,15 +167,13 @@ public class Expression {
     private final String source;
 
     public Expression(Object literal) {
-        if (literal instanceof String) {
-            this.source = String.format("\"%s\"", literal);
-        } else if (literal instanceof Character) {
-            this.source = String.format("'%s'", literal);
-        } else if (literal == null || literal == NullOrMissingValue.NULL) {
-            this.source = "null";
-        } else {
-            this.source = literal.toString();
-        }
+        this.source = switch (literal) {
+            case String s -> String.format("\"%s\"", s);
+            case Character c -> String.format("'%s'", c);
+            case null -> "null";
+            case NullOrMissingValue n when n == NullOrMissingValue.NULL -> "null";
+            default -> literal.toString();
+        };
         this.evaluator = ed -> literal;
     }
 
@@ -280,26 +274,21 @@ public class Expression {
             throw IgnoredEventException.INSTANCE;
         } else {
             boolean nullarg = arg == null || arg ==  NullOrMissingValue.NULL;
-            switch (method) {
-            case "trim":
-                return nullarg ? NullOrMissingValue.NULL : arg.toString().trim();
-            case "capitalize":
-                return nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.capitalize(arg.toString());
-            case "uncapitalize":
-                return nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.uncapitalize(arg.toString());
-            case "isBlank":
-                return nullarg || StringGroovyMethods.isAllWhitespace(arg.toString());
-            case "normalize":
-                return nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.normalize(arg.toString());
-            case "lowercase":
-                return nullarg ? NullOrMissingValue.NULL : arg.toString().toLowerCase();
-            case "uppercase":
-                return nullarg ? NullOrMissingValue.NULL : arg.toString().toUpperCase();
-            default:
-                // Can’t be reached
-                assert false : method;
-                throw IgnoredEventException.INSTANCE;
-            }
+            return switch (method) {
+                case "trim" -> nullarg ? NullOrMissingValue.NULL : arg.toString().trim();
+                case "capitalize" -> nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.capitalize(arg.toString());
+                case "uncapitalize" ->
+                        nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.uncapitalize(arg.toString());
+                case "isBlank" -> nullarg || StringGroovyMethods.isAllWhitespace(arg.toString());
+                case "normalize" -> nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.normalize(arg.toString());
+                case "lowercase" -> nullarg ? NullOrMissingValue.NULL : arg.toString().toLowerCase();
+                case "uppercase" -> nullarg ? NullOrMissingValue.NULL : arg.toString().toUpperCase();
+                default -> {
+                    // Can’t be reached
+                    assert false : method;
+                    throw IgnoredEventException.INSTANCE;
+                }
+            };
         }
     }
 
@@ -322,8 +311,7 @@ public class Expression {
             throw IgnoredEventException.INSTANCE;
         } else {
             Stream<String> strSrc = null;
-            if (arg2 instanceof Collection) {
-                Collection<?> list = (Collection<?>) arg2;
+            if (arg2 instanceof Collection<?> list) {
                 strSrc = list.stream().map(Object::toString);
             } else if (arg2.getClass().isArray()) {
                 strSrc = Arrays.stream(DefaultTypeTransformation.primitiveArrayBox(arg2)).map(Object::toString);
@@ -351,112 +339,121 @@ public class Expression {
     }
 
     public static boolean instanceOf(boolean negated, Object obj, Class<?> clazz) {
-        boolean result;
-        if (obj instanceof NullOrMissingValue || obj == null) {
-            result = false;
-        } else {
-            result = clazz.isAssignableFrom(obj.getClass());
-        }
+        boolean result = switch (obj) {
+            case null -> false;
+            case NullOrMissingValue n -> false;
+            default -> clazz.isAssignableFrom(obj.getClass());
+        };
         return negated != result;
     }
 
     public static boolean in(String cmd, Object obj1, Object obj2) {
-        boolean result;
-        if (obj1 == NullOrMissingValue.MISSING || obj2 == NullOrMissingValue.MISSING) {
-            throw IgnoredEventException.INSTANCE;
-        } else if ((obj1 == null || obj1 == NullOrMissingValue.NULL) && (obj2 == null || obj2 == NullOrMissingValue.NULL)) {
-            result = !cmd.startsWith("!");
-        } else if (obj2 instanceof Collection) {
-            result = ((Collection<?>) obj2).contains(obj1);
-        } else if (obj2.getClass().isArray()) {
-            result = DefaultTypeTransformation.primitiveArrayToList(obj2).contains(obj1);
-        } else if ((obj1 instanceof CharSequence || obj1 instanceof Character) && obj2 instanceof CharSequence) {
-            result = obj2.toString().contains(obj1.toString());
-        } else {
-            result = false;
-        }
+        boolean result = switch (obj1) {
+            case NullOrMissingValue n when n == NullOrMissingValue.MISSING -> throw IgnoredEventException.INSTANCE;
+            case null -> switch (obj2) {
+                case NullOrMissingValue n2 when n2 == NullOrMissingValue.MISSING -> throw IgnoredEventException.INSTANCE;
+                case null -> true;
+                case NullOrMissingValue n2 when n2 == NullOrMissingValue.NULL -> true;
+                default -> false;
+            };
+            case NullOrMissingValue n when n == NullOrMissingValue.NULL -> switch (obj2) {
+                case NullOrMissingValue n2 when n2 == NullOrMissingValue.MISSING -> throw IgnoredEventException.INSTANCE;
+                case null -> true;
+                case NullOrMissingValue n2 when n2 == NullOrMissingValue.NULL -> true;
+                default -> false;
+            };
+            default -> switch (obj2) {
+                case NullOrMissingValue n2 when n2 == NullOrMissingValue.MISSING -> throw IgnoredEventException.INSTANCE;
+                case Collection<?> c -> c.contains(obj1);
+                case Object arr when arr.getClass().isArray() -> DefaultTypeTransformation.primitiveArrayToList(arr).contains(obj1);
+                case CharSequence cs2 when (obj1 instanceof CharSequence || obj1 instanceof Character) -> cs2.toString().contains(obj1.toString());
+                default -> false;
+            };
+        };
         return cmd.startsWith("!") != result;
     }
 
     public static Object newCollection(String collectionType) {
-        if ("set".equals(collectionType)) {
-            return new LinkedHashSet<>();
-        } else if ("list".equals(collectionType)) {
-            return new ArrayList<>();
-        } else {
-            // Can’t be reached
-            assert false : collectionType;
-            throw IgnoredEventException.INSTANCE;
-        }
+        return switch (collectionType) {
+            case "set" -> new LinkedHashSet<>();
+            case "list" -> new ArrayList<>();
+            default -> {
+                // Can’t be reached
+                assert false : collectionType;
+                throw IgnoredEventException.INSTANCE;
+            }
+        };
     }
 
     @SuppressWarnings("unchecked")
     public static <T> Object asCollection(String collectionType, Object argument) {
-        if ("set".equals(collectionType)) {
-            if (argument instanceof Set) {
-                return argument;
-            } else if (argument instanceof Collection) {
-                return new LinkedHashSet<>((Collection<T>) argument);
-            } else if (argument.getClass().isArray()) {
-                return new LinkedHashSet<T>(DefaultTypeTransformation.primitiveArrayToList(argument));
-            } else {
-                return new LinkedHashSet<>(Set.of((T) argument));
+        return switch (collectionType) {
+            case "set" -> {
+                if (argument instanceof Set) {
+                    yield argument;
+                } else if (argument instanceof Collection) {
+                    yield new LinkedHashSet<>((Collection<T>) argument);
+                } else if (argument.getClass().isArray()) {
+                    yield new LinkedHashSet<T>(DefaultTypeTransformation.primitiveArrayToList(argument));
+                } else {
+                    yield new LinkedHashSet<>(Set.of((T) argument));
+                }
             }
-        } else if ("list".equals(collectionType)) {
-            if (argument instanceof List) {
-                return argument;
-            } else if (argument instanceof Collection) {
-                return new ArrayList<>((Collection<T>) argument);
-            } else if (argument.getClass().isArray()) {
-                return new ArrayList<T>(DefaultTypeTransformation.primitiveArrayToList(argument));
-            } else {
-                return new ArrayList<>(List.of((T) argument));
+            case "list" -> {
+                if (argument instanceof List) {
+                    yield argument;
+                } else if (argument instanceof Collection) {
+                    yield new ArrayList<>((Collection<T>) argument);
+                } else if (argument.getClass().isArray()) {
+                    yield new ArrayList<T>(DefaultTypeTransformation.primitiveArrayToList(argument));
+                } else {
+                    yield new ArrayList<>(List.of((T) argument));
+                }
             }
-        } else {
-            // Can’t be reached
-            assert false : collectionType;
-            throw IgnoredEventException.INSTANCE;
-        }
+            default -> {
+                // Can’t be reached
+                assert false : collectionType;
+                throw IgnoredEventException.INSTANCE;
+            }
+        };
     }
 
     public static Object getIterableIndex(Object iterable, int index) {
-        if (iterable == null || iterable == NullOrMissingValue.NULL) {
-            return NullOrMissingValue.NULL;
-        } else if (Object[].class.isAssignableFrom(iterable.getClass())) {
-            Object[] a = (Object[]) iterable;
-            int pos = index >= 0 ? index : (a.length + index);
-            if (a.length > pos) {
-                return a[pos];
-            } else {
-                throw IgnoredEventException.INSTANCE;
+        return switch (iterable) {
+            case null -> NullOrMissingValue.NULL;
+            case NullOrMissingValue n when n == NullOrMissingValue.NULL -> NullOrMissingValue.NULL;
+            case Object[] a -> {
+                int pos = index >= 0 ? index : (a.length + index);
+                if (a.length > pos) {
+                    yield a[pos];
+                } else {
+                    throw IgnoredEventException.INSTANCE;
+                }
             }
-        } else if (iterable instanceof List) {
-            List<?> l = (List<?>) iterable;
-            int pos = index >= 0 ? index : (l.size() + index);
-            if (l.size() > pos) {
-                return l.get(pos);
-            } else {
-                throw IgnoredEventException.INSTANCE;
+            case List<?> l -> {
+                int pos = index >= 0 ? index : (l.size() + index);
+                if (l.size() > pos) {
+                    yield l.get(pos);
+                } else {
+                    throw IgnoredEventException.INSTANCE;
+                }
             }
-        } else if (iterable == NullOrMissingValue.MISSING) {
-            throw IgnoredEventException.INSTANCE;
-        } else {
-            throw new IllegalArgumentException("Array operation on not iterable object");
-        }
+            case NullOrMissingValue n when n == NullOrMissingValue.MISSING -> throw IgnoredEventException.INSTANCE;
+            default -> throw new IllegalArgumentException("Array operation on not iterable object");
+        };
     }
 
     public static boolean isEmpty(Object arg) {
         if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
-        }
-        if (arg == null || arg == NullOrMissingValue.NULL) {
+        } else if (arg == null || arg == NullOrMissingValue.NULL) {
             return true;
-        } else if (arg instanceof String) {
-            return ((String) arg).isEmpty();
-        } else if (arg instanceof Collection) {
-            return ((Collection<?>) arg).isEmpty();
-        } else if (arg instanceof java.util.Map) {
-            return ((java.util.Map<?, ?>) arg).isEmpty();
+        } else if (arg instanceof String s) {
+            return s.isEmpty();
+        } else if (arg instanceof Collection<?> c) {
+            return c.isEmpty();
+        } else if (arg instanceof java.util.Map<?, ?> m) {
+            return m.isEmpty();
         } else if (arg.getClass().isArray()) {
             return Array.getLength(arg) == 0;
         } else {
@@ -529,14 +526,11 @@ public class Expression {
         } else if ((arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING)) {
             throw IgnoredEventException.INSTANCE;
         } else if ("!==".equals(operator) || "===".equals(operator)) {
-            switch (operator) {
-            case "===":
-                return arg1 == arg2;
-            case "!==":
-                return arg1 != arg2;
-            default:
-                throw IgnoredEventException.INSTANCE;
-            }
+            return switch (operator) {
+                case "===" -> arg1 == arg2;
+                case "!==" -> arg1 != arg2;
+                default -> throw IgnoredEventException.INSTANCE;
+            };
         } else {
             arg1 = nullfilter(arg1);
             arg2 = protect(operator, arg2);
@@ -552,14 +546,11 @@ public class Expression {
                 arg1Class = ComparaisonClass.STRING;
             }
             if (arg1Class != arg2Class) {
-                switch (operator) {
-                case "==":
-                    return false;
-                case "!=":
-                    return true;
-                default:
-                    throw IgnoredEventException.INSTANCE;
-                }
+                return switch (operator) {
+                    case "==" -> false;
+                    case "!=" -> true;
+                    default -> throw IgnoredEventException.INSTANCE;
+                };
             } else if ("==".equals(operator) || "!=".equals(operator)) {
                 return compareBoolean(operator, arg1Class, arg1, arg2);
             } else {
@@ -569,83 +560,47 @@ public class Expression {
     }
 
     private static boolean compareBoolean(String operator, ComparaisonClass argClass, Object arg1, Object arg2) {
-        boolean value;
-        switch (argClass) {
-        case NULL:
-            value = true;
-            break;
-        case STRING:
-            value = arg1.toString().equals(arg2.toString());
-            break;
-        case DATE:
-            value = dateCompare(arg1, arg2) == 0;
-            break;
-        case NUMBER:
-            value = numberCompare(arg1, arg2) == 0;
-            break;
-        case COLLECTION:
-            value = DefaultTypeTransformation.compareEqual(arg1, arg2);
-            break;
-        case COMPARABLE:
-            value = compareComparable(arg1, arg2) == 0;
-            break;
-        case IP_ADDRESS:
-            value = ipCompare(arg1, arg2);
-            break;
-        default:
-            value = arg1.equals(arg2);
-        }
+        boolean value = switch (argClass) {
+            case NULL -> true;
+            case STRING -> arg1.toString().equals(arg2.toString());
+            case DATE -> dateCompare(arg1, arg2) == 0;
+            case NUMBER -> numberCompare(arg1, arg2) == 0;
+            case COLLECTION -> DefaultTypeTransformation.compareEqual(arg1, arg2);
+            case COMPARABLE -> compareComparable(arg1, arg2) == 0;
+            case IP_ADDRESS -> ipCompare(arg1, arg2);
+            default -> arg1.equals(arg2);
+        };
         return "==".equals(operator) == value;
     }
 
     private static Object compareOrdered(String operator, ComparaisonClass argClass, Object arg1, Object arg2) {
-        int compare;
-        switch (argClass) {
-        case NULL:
-            compare = 0;
-            break;
-        case DATE:
-            compare = dateCompare(arg1, arg2);
-            break;
-        case NUMBER:
-            compare = numberCompare(arg1, arg2);
-            break;
-        case STRING:
-            compare = Helpers.NATURALSORTSTRING.compare(arg1.toString(), arg2.toString());
-            break;
-        case COMPARABLE:
-            compare = compareComparable(arg1, arg2);
-            break;
-        default:
-            throw IgnoredEventException.INSTANCE;
-        }
-        switch (operator) {
-        case "<":
-            return compare < 0;
-        case ">":
-            return compare > 0;
-        case ">=":
-            return compare >= 0;
-        case "<=":
-            return compare <= 0;
-        case "<=>":
-            return compare;
-        default:
-            assert false : operator;
-            throw IgnoredEventException.INSTANCE;
-        }
+        int compare = switch (argClass) {
+            case NULL -> 0;
+            case DATE -> dateCompare(arg1, arg2);
+            case NUMBER -> numberCompare(arg1, arg2);
+            case STRING -> Helpers.NATURALSORTSTRING.compare(arg1.toString(), arg2.toString());
+            case COMPARABLE -> compareComparable(arg1, arg2);
+            default -> throw IgnoredEventException.INSTANCE;
+        };
+        return switch (operator) {
+            case "<" -> compare < 0;
+            case ">" -> compare > 0;
+            case ">=" -> compare >= 0;
+            case "<=" -> compare <= 0;
+            case "<=>" -> compare;
+            default -> {
+                assert false : operator;
+                throw IgnoredEventException.INSTANCE;
+            }
+        };
     }
 
     private static boolean ipCompare(Object arg1, Object arg2) {
         if (arg1 instanceof InetAddress && arg2 instanceof InetAddress) {
             return arg1.equals(arg2);
-        } else if (arg1 instanceof InetAddress && arg2 instanceof InetAddress[]) {
-            InetAddress ip1 = (InetAddress) arg1;
-            InetAddress[] ip2 = (InetAddress[]) arg2;
+        } else if (arg1 instanceof InetAddress ip1 && arg2 instanceof InetAddress[] ip2) {
             return Arrays.asList(ip2).contains(ip1);
-        } else if (arg2 instanceof InetAddress && arg1 instanceof InetAddress[]) {
-            InetAddress ip1 = (InetAddress) arg2;
-            InetAddress[] ip2 = (InetAddress[]) arg1;
+        } else if (arg2 instanceof InetAddress ip1 && arg1 instanceof InetAddress[] ip2) {
             return Arrays.asList(ip2).contains(ip1);
         } else if (arg2 instanceof InetAddress[] && arg1 instanceof InetAddress[]) {
             Set<InetAddress> ip1 = Set.of((InetAddress[]) arg1);
@@ -752,12 +707,12 @@ public class Expression {
     public static boolean asBoolean(Object arg) {
         if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
-        } else if (arg instanceof Boolean) {
-            return (Boolean) arg;
+        } else if (arg instanceof Boolean b) {
+            return b;
         } else if (arg instanceof Float || arg instanceof Double || arg instanceof BigDecimal) {
             return ((Number) arg).doubleValue() != 0;
-        } else if (arg instanceof Number) {
-            return ((Number) arg).longValue() != 0;
+        } else if (arg instanceof Number n) {
+            return n.longValue() != 0;
         } else {
             return ! isEmpty(arg);
         }
@@ -800,68 +755,45 @@ public class Expression {
             } else if (value instanceof byte[]) {
                 ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
                 buffer.order(byteOrder);
-                Object o;
-                switch (clazz.getName()) {
-                case "java.lang.Character":
-                    o = buffer.getChar();
-                    break;
-                case "java.lang.Byte" :
-                    o = buffer.get();
-                    break;
-                case "java.lang.Short":
-                    o = buffer.getShort();
-                    break;
-                case "java.lang.Integer":
-                    o = buffer.getInt();
-                    break;
-                case "java.lang.Long":
-                    o = buffer.getLong();
-                    break;
-                case "java.lang.Float":
-                    o = buffer.getFloat();
-                    break;
-                case "java.lang.Double":
-                    o = buffer.getDouble();
-                    break;
-                default:
-                    throw IgnoredEventException.INSTANCE;
-                }
+                Object o = switch (clazz.getName()) {
+                    case "java.lang.Character" -> buffer.getChar();
+                    case "java.lang.Byte" -> buffer.get();
+                    case "java.lang.Short" -> buffer.getShort();
+                    case "java.lang.Integer" -> buffer.getInt();
+                    case "java.lang.Long" -> buffer.getLong();
+                    case "java.lang.Float" -> buffer.getFloat();
+                    case "java.lang.Double" -> buffer.getDouble();
+                    default -> throw IgnoredEventException.INSTANCE;
+                };
+                return (T) o;
+            } else if (value instanceof Number n && Number.class.isAssignableFrom(clazz)) {
+                Object o = switch (clazz.getName()) {
+                    case "java.lang.Integer" -> n.intValue();
+                    case "java.lang.Byte" -> n.byteValue();
+                    case "java.lang.Short" -> n.shortValue();
+                    case "java.lang.Long" -> n.longValue();
+                    case "java.lang.Float" -> n.floatValue();
+                    case "java.lang.Double" -> n.doubleValue();
+                    default -> throw IgnoredEventException.INSTANCE;
+                };
                 return (T) o;
             } else {
+                assert ! (value instanceof Number && Number.class.isAssignableFrom(clazz));
                 String valueStr = value.toString();
                 if (valueStr.isBlank()) {
                     throw IgnoredEventException.INSTANCE;
                 } else {
-                    Object o;
-                    switch (clazz.getName()) {
-                    case "java.lang.Integer":
-                        o = Integer.valueOf(valueStr);
-                        break;
-                    case "java.lang.Byte" :
-                        o = Byte.valueOf(valueStr);
-                        break;
-                    case "java.lang.Short":
-                        o = Short.valueOf(valueStr);
-                        break;
-                    case "java.lang.Long":
-                        o = Long.valueOf(valueStr);
-                        break;
-                    case "java.lang.Float":
-                        o = Float.valueOf(valueStr);
-                        break;
-                    case "java.lang.Double":
-                        o = Double.valueOf(valueStr);
-                        break;
-                    case "java.lang.Boolean":
-                        o = Boolean.valueOf(valueStr);
-                        break;
-                    case "java.net.InetAddress":
-                        o = Helpers.parseIpAddress(valueStr);
-                        break;
-                     default:
-                        o = BeansManager.constructFromString(clazz, valueStr);
-                        break;
-                    }
+                    Object o = switch (clazz.getName()) {
+                        case "java.lang.Integer" -> Integer.valueOf(valueStr);
+                        case "java.lang.Byte" -> Byte.valueOf(valueStr);
+                        case "java.lang.Short" -> Short.valueOf(valueStr);
+                        case "java.lang.Long" -> Long.valueOf(valueStr);
+                        case "java.lang.Float" -> Float.valueOf(valueStr);
+                        case "java.lang.Double" -> Double.valueOf(valueStr);
+                        case "java.lang.Boolean" -> Boolean.valueOf(valueStr);
+                        case "java.net.InetAddress" -> Helpers.parseIpAddress(valueStr);
+                        default -> BeansManager.constructFromString(clazz, valueStr);
+                    };
                     return (T) o;
                 }
             }
@@ -883,35 +815,26 @@ public class Expression {
     }
 
     public static Object deepCopy(Object v) {
-        if (v == null) {
-            return NullOrMissingValue.NULL;
-        } else if (v instanceof Event) {
-            Event e = (Event) v;
-            return copyMap(e);
-        } else if (v instanceof Map) {
-            Map<?, ?> m = (Map<?, ?>) v;
-            return copyMap(m);
-        } else if (v instanceof List) {
-            List<?> l = (List<?>) v;
-            return l.stream()
-                    .map(Expression::deepCopy)
-                    .collect(Collectors.toCollection(ArrayList::new));
-        } else if (v instanceof Set) {
-            Set<?> s = (Set<?>) v;
-            return s.stream()
-                    .map(Expression::deepCopy)
-                    .collect(Collectors.toCollection(HashSet::new));
-        } else if (v.getClass().isArray()) {
-            Class<?> c = v.getClass().getComponentType();
-            int length = Array.getLength(v);
-            Object newArray = Array.newInstance(c, length);
-            for (int i = 0; i < length; i++) {
-                Array.set(newArray, i, deepCopy(Array.get(v, i)));
+        return switch (v) {
+            case null -> NullOrMissingValue.NULL;
+            case Map<?, ?> m -> copyMap(m);
+            case List<?> l -> l.stream()
+                               .map(Expression::deepCopy)
+                               .collect(Collectors.toCollection(ArrayList::new));
+            case Set<?> s -> s.stream()
+                              .map(Expression::deepCopy)
+                              .collect(Collectors.toCollection(HashSet::new));
+            case Object arr when arr.getClass().isArray() -> {
+                Class<?> c = arr.getClass().getComponentType();
+                int length = Array.getLength(arr);
+                Object newArray = Array.newInstance(c, length);
+                for (int i = 0; i < length; i++) {
+                    Array.set(newArray, i, deepCopy(Array.get(arr, i)));
+                }
+                yield newArray;
             }
-            return newArray;
-        } else {
-            return v;
-        }
+            default -> v;
+        };
     }
 
     public static Object flatten(Object value) {
