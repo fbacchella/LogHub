@@ -37,7 +37,6 @@ public record EventExceptionDescription(String eventJson, CONTEXT context, Strin
     private static final Logger logger = LogManager.getLogger();
 
     private static class TruncatingStringSerializer extends StdSerializer<CharSequence> {
-
         private static final int MAX_BYTES = 0x1000; // 4kB
         private static final String SUFFIX = "...";
 
@@ -136,7 +135,7 @@ public record EventExceptionDescription(String eventJson, CONTEXT context, Strin
         }
     };
 
-    private enum CONTEXT {
+    public enum CONTEXT {
         PIPELINE(List.of("event", "pipeline", "message")) {
             @Override
             Map<String, Object> values(EventExceptionDescription descr) {
@@ -186,8 +185,22 @@ public record EventExceptionDescription(String eventJson, CONTEXT context, Strin
                     context.type,
                     context.values(this)
             );
-        } catch (OpenDataException e) {
-            return null;
+        } catch (OpenDataException | RuntimeException e) {
+            logger.atError()
+                  .withThrowable(e)
+                  .log("Unable to resolve exception description {}", this);
+            try {
+                String contextKey = switch (context) {
+                    case PIPELINE -> "pipeline";
+                    case SENDER -> "sender";
+                };
+                Map<String, Object> values = Map.of("event", "Unformattable event",
+                                                    contextKey, contextName,
+                                                    "message", message);
+                return new CompositeDataSupport(context.type, values);
+            } catch (OpenDataException | RuntimeException ex) {
+                throw new IllegalStateException("Should never be thrown", ex);
+            }
         }
     }
 
