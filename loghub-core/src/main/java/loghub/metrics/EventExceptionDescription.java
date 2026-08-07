@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 import javax.management.openmbean.CompositeDataSupport;
@@ -139,13 +140,13 @@ public record EventExceptionDescription(String eventJson, CONTEXT context, Strin
         PIPELINE(List.of("event", "pipeline", "message")) {
             @Override
             Map<String, Object> values(EventExceptionDescription descr) {
-                return Map.of("event", descr.eventJson, "pipeline", descr.contextName(), "message", descr.message);
+                return Map.of("event", descr.eventJson(), "pipeline", descr.contextName(), "message", descr.message());
             }
         },
         SENDER(List.of("event", "sender", "message")) {
             @Override
             Map<String, Object> values(EventExceptionDescription descr) {
-                return Map.of("event", descr.eventJson, "sender", descr.contextName(), "message", descr.message);
+                return Map.of("event", descr.eventJson(), "sender", descr.contextName(), "message", descr.message());
             }
         },
         ;
@@ -196,12 +197,15 @@ public record EventExceptionDescription(String eventJson, CONTEXT context, Strin
                 };
                 Map<String, Object> values = Map.of("event", "Unformattable event",
                                                     contextKey, contextName,
-                                                    "message", message);
+                                                    "message", message());
                 return new CompositeDataSupport(context.type, values);
             } catch (OpenDataException | RuntimeException ex) {
                 throw new IllegalStateException("Should never be thrown", ex);
             }
         }
+    }
+    public String message() {
+        return Optional.ofNullable(message).orElse("");
     }
 
 }
