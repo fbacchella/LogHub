@@ -52,21 +52,21 @@ public class Geoip2 extends FieldsProcessor {
 
     private static final Set<String> ALL = HashSet.newHashSet(0);
 
-    private record LogHubNodeCache(Cache<CacheKey, DecodedValue> cache) implements NodeCache {
+    private record LogHubNodeCache(Cache<CacheKey<?>, DecodedValue> cache) implements NodeCache {
         @Override
-            public DecodedValue get(CacheKey key, Loader loader) {
-                return cache.invoke(key, this::extractValue, loader);
-            }
+        public DecodedValue get(CacheKey<?> key, NodeCache.Loader loader) {
+            return cache.invoke(key, LogHubNodeCache::extractValue, loader);
+        }
 
         public void reset() {
-                cache.removeAll();
-            }
+            cache.removeAll();
+        }
 
-        private DecodedValue extractValue(MutableEntry<CacheKey, DecodedValue> i, Object... j) {
+        private static DecodedValue extractValue(MutableEntry<CacheKey<?>, DecodedValue> i, Object... j) {
             try {
                 DecodedValue node;
                 if (!i.exists()) {
-                    Loader loader = (Loader) j[0];
+                    NodeCache.Loader loader = (NodeCache.Loader) j[0];
                     node = loader.load(i.getKey());
                     i.setValue(node);
                 } else {
@@ -123,7 +123,7 @@ public class Geoip2 extends FieldsProcessor {
     private final ReadWriteLock dbProtectionLock = new ReentrantReadWriteLock();
     private volatile long lastBuildDate = 0;
     private final InetAddressLockRegistry lockRegistry = new InetAddressLockRegistry();
-    private final Cache<InetAddress, Map> ipCache;
+    private final Cache<InetAddress, Map<String, Object>> ipCache;
 
     public Geoip2(Builder builder) {
         super(builder);
@@ -158,20 +158,22 @@ public class Geoip2 extends FieldsProcessor {
         } else {
             this.delay = null;
         }
-        @SuppressWarnings("rawtypes")
-        Cache<CacheKey, DecodedValue> cache = builder.cacheManager
-                                                     .getBuilder(CacheKey.class, DecodedValue.class)
+        @SuppressWarnings("unchecked")
+        Cache<CacheKey<?>, DecodedValue> cache = builder.cacheManager
+                                                     .getBuilder((Class<CacheKey<?>>) (Class<?>) CacheKey.class, DecodedValue.class)
                                                      .setCacheSize(builder.cacheSize)
                                                      .setName("Geoip2", this)
                                                      .setExpiry(Policy.ETERNAL)
                                                      .build();
         this.geoipCache = new LogHubNodeCache(cache);
         this.required = builder.required;
-        ipCache = builder.cacheManager
-                         .getBuilder(InetAddress.class, Map.class)
+        @SuppressWarnings("unchecked")
+        Cache<InetAddress, Map<String, Object>> bufferIpCache = builder.cacheManager
+                         .getBuilder(InetAddress.class, (Class<Map<String, Object>>) (Class<?>) Map.class)
                          .setName("IPGeoCache", this)
                          .setCacheSize(builder.ipCacheSize)
                          .build();
+        ipCache = bufferIpCache;
     }
 
     @Override
@@ -196,7 +198,7 @@ public class Geoip2 extends FieldsProcessor {
     private Object resolution(Event event, Object addr) throws ProcessorException {
         InetAddress ipInfo;
         switch (addr) {
-        case InetAddress inetAddres -> ipInfo = inetAddres;
+        case InetAddress inetAddress -> ipInfo = inetAddress;
         case String s -> {
             try {
                 ipInfo = Helpers.parseIpAddress(s);
@@ -213,7 +215,7 @@ public class Geoip2 extends FieldsProcessor {
             return RUNSTATUS.FAILED;
         }
 
-        Map information = ipCache.invoke(ipInfo, this::resolveGeoloc, event);
+        Map<String, Object> information = ipCache.invoke(ipInfo, this::resolveGeoloc, event);
         if (! information.isEmpty()) {
             return information;
         } else {
@@ -221,28 +223,32 @@ public class Geoip2 extends FieldsProcessor {
         }
     }
 
-    private Map resolveGeoloc(MutableEntry<InetAddress, Map> me, Object[] args) {
+    private Map<String, Object> resolveGeoloc(MutableEntry<InetAddress, Map<String, Object>> me, Object[] args) {
         Event event = (Event) args[0];
-        Map<String, Object> information = Map.of();
-        if (!me.exists()) {
-            InetAddress ipInfo = me.getKey();
-            try {
-                lockRegistry.acquire(ipInfo);
-                information = reader.getRecord(ipInfo, Map.class).data();
-            } catch (IOException e) {
-                throw new EntryProcessorException(event.buildException("Can't read GeoIP database", e));
-            } finally {
-                lockRegistry.release(ipInfo);
-            }
-            information = filterMap(information);
-            me.setValue(Map.copyOf(information));
-        } else {
-            information = me.getValue();
-        }
+        InetAddress ipInfo = me.getKey();
         try {
-            return DeepCloner.clone(information);
-        } catch (NotClonableException e) {
-            throw new EntryProcessorException(event.buildException("Can't clone IP geoloc information", e));
+            lockRegistry.acquire(ipInfo);
+            Map<String, Object> information;
+            if (!me.exists()) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> data = reader.getRecord(ipInfo, Map.class).data();
+                    information = data;
+                } catch (IOException e) {
+                    throw new EntryProcessorException(event.buildException("Can't read GeoIP database", e));
+                }
+                information = filterMap(information);
+                me.setValue(Map.copyOf(information));
+            } else {
+                information = me.getValue();
+            }
+            try {
+                return DeepCloner.clone(information);
+            } catch (NotClonableException e) {
+                throw new EntryProcessorException(event.buildException("Can't clone IP geoloc information", e));
+            }
+        } finally {
+            lockRegistry.release(ipInfo);
         }
     }
 
@@ -260,37 +266,39 @@ public class Geoip2 extends FieldsProcessor {
     private Optional<Map.Entry<String, Object>> filterRecordEntry(Map.Entry<String, Object> e) {
         if (e.getValue() == null) {
             return Optional.empty();
-        } else if (e.getKey().equals("names") && checkKey("name")) {
+        } else if (e.getKey().equals("names") && checkKey("name") && e.getValue() instanceof Map<?, ?> m) {
             @SuppressWarnings("unchecked")
-            Map<String, String> langs = (Map<String, String>) e.getValue();
+            Map<String, String> langs = (Map<String, String>) m;
             return Optional.of(Map.entry("name", langs.get(locale)));
         } else if (e.getKey().equals("iso_code") && checkKey(isoCodeKey)){
             return Optional.of(Map.entry(isoCodeKey, e.getValue()));
         } else if (e.getKey().equals("time_zone") && checkKey(isoCodeKey)){
             return Optional.of(Map.entry("timezone", e.getValue()));
-        } else if (withLocalizedName.contains(e.getKey()) && checkKey(e.getKey()) && e.getValue() instanceof Map m) {
+        } else if (withLocalizedName.contains(e.getKey()) && checkKey(e.getKey()) && e.getValue() instanceof Map<?, ?> m) {
             @SuppressWarnings("unchecked")
-            Map<String, Object> filtered = filterMap(m);
+            Map<String, Object> filtered = filterMap((Map<String, Object>) m);
             if (filtered.size() == 1 && filtered.containsKey("name")) {
                 return Optional.of(Map.entry(e.getKey(), filtered.get("name")));
             } else {
                 return Optional.of(Map.entry(e.getKey(), filtered));
             }
-        } else if (e.getKey().equals("postal") && checkKey(isoCodeKey) && keepOld) {
+        } else if (e.getKey().equals("postal") && checkKey(isoCodeKey) && keepOld && e.getValue() instanceof Map<?, ?> m) {
             @SuppressWarnings("unchecked")
-            Map<String, Object> filtered = filterMap((Map<String, Object>) e.getValue());
+            Map<String, Object> filtered = filterMap((Map<String, Object>) m);
             return filtered.containsKey("code") ? Optional.of(Map.entry("postal", filtered.get("code"))) : Optional.empty();
         } else if (e.getKey().equals("location") && checkKey("location")) {
-            if (e.getValue() instanceof Map m && keepOld) {
-                Object tz = m.remove("time_zone");
+            if (e.getValue() instanceof Map<?, ?> m && keepOld) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> mm = (Map<String, Object>) m;
+                Object tz = mm.remove("time_zone");
                 if (tz != null) {
-                    m.put("timezone", tz);
+                    mm.put("timezone", tz);
                 }
             }
             return Optional.of(Map.entry("location", e.getValue()));
-        } else if (e.getValue() instanceof Map && checkKey(e.getKey())){
+        } else if (e.getValue() instanceof Map<?, ?> m && checkKey(e.getKey())){
             @SuppressWarnings("unchecked")
-            Map<String, Object> submap = (Map<String, Object>) e.getValue();
+            Map<String, Object> submap = (Map<String, Object>) m;
             Map<String, Object> filtered = filterMap(submap);
             return filtered.isEmpty() ? Optional.empty() : Optional.of(Map.entry(e.getKey(), filtered));
         } else if (e.getValue() instanceof List<?> l && checkKey(e.getKey())) {
