@@ -11,7 +11,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
-        <log4j.version>2.26.0</log4j.version>
+        <log4j.version>2.26.1</log4j.version>
         <antlr>4.13.2</antlr>
         <jackson.version>2.22.0</jackson.version>
         <jackson.core.version>2.22</jackson.core.version>
