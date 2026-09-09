@@ -4,7 +4,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -29,8 +30,8 @@ import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
-import loghub.kafka.KafkaProperties;
 import loghub.kafka.HeadersTypes;
+import loghub.kafka.KafkaProperties;
 import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.AccessLevel;
@@ -39,6 +40,7 @@ import lombok.Setter;
 
 @BuilderClass(Kafka.Builder.class)
 @CanBatch
+@AsyncSender
 public class Kafka extends Sender {
 
     private static final Serializer<byte[]> PASSTHROUGH_SERIALIZER = new ByteArraySerializer();
@@ -74,6 +76,7 @@ public class Kafka extends Sender {
     private Supplier<Producer<byte[], byte[]>> producerSupplier;
     private Producer<byte[], byte[]> producer;
     private final String senderName;
+    private final Executor executor;
 
     public Kafka(Builder builder) {
         super(builder);
@@ -94,6 +97,7 @@ public class Kafka extends Sender {
                     );
         }
         senderName = String.format("Kafka.%s@%08x", topic, hash);
+        executor = isWithBatch() ? null : Executors.newVirtualThreadPerTaskExecutor();
     }
 
     @Override
@@ -122,17 +126,8 @@ public class Kafka extends Sender {
         ProducerRecord<byte[], byte[]> kRecord = getProducerRecord(event);
         EventFuture ef = new EventFuture(event);
         producer.send(kRecord, (m, ex) -> documentCallback(ex, ef));
-        try {
-            return ef.get();
-        } catch (InterruptedException | ExecutionException ex) {
-            if (ex.getCause() instanceof InterruptException ie) {
-                // Manual detection of the Kafka’s custom InterruptException
-                doInterrupt(ie);
-            } else {
-                handleException(ex.getCause(), event);
-            }
-            return false;
-        }
+        ef.whenCompleteAsync((s, ex) -> processStatus(ef), executor);
+        return true;
     }
 
     @Override
