@@ -6,7 +6,7 @@ import java.io.StringReader;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -68,7 +68,7 @@ public class TestKafka {
 
     @Test
     public void testone() throws InterruptedException {
-        Properties props = new Properties(Collections.emptyMap());
+        Properties props = new Properties(new HashMap<>(Map.of("__QUEUESDEPTH", 100 )));
         Kafka.Builder builder = Kafka.getBuilder();
         builder.setEncoder(ToJson.getBuilder().build());
         builder.setBrokers(new String[] {"192.168.0.13"});

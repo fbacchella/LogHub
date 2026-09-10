@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -28,6 +29,7 @@ import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
+import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
 import loghub.kafka.HeadersTypes;
@@ -77,6 +79,7 @@ public class Kafka extends Sender {
     private Producer<byte[], byte[]> producer;
     private final String senderName;
     private final Executor executor;
+    private Semaphore waiting;
 
     public Kafka(Builder builder) {
         super(builder);
@@ -101,6 +104,12 @@ public class Kafka extends Sender {
     }
 
     @Override
+    public boolean configure(Properties properties) {
+        waiting = isWithBatch() ? null : new Semaphore(properties.queuesDepth);
+        return super.configure(properties);
+    }
+
+    @Override
     public void run() {
         try {
             producer = producerSupplier.get();
@@ -122,12 +131,30 @@ public class Kafka extends Sender {
     }
 
     @Override
-    protected boolean send(Event event) throws EncodeException {
-        ProducerRecord<byte[], byte[]> kRecord = getProducerRecord(event);
+    protected boolean send(Event event) {
+        try {
+            waiting.acquire();
+            executor.execute(() -> asyncSend(event));
+            return true;
+        } catch (InterruptedException e) {
+            doInterrupt(e);
+            return false;
+        }
+    }
+
+    private void asyncSend(Event event) {
         EventFuture ef = new EventFuture(event);
-        producer.send(kRecord, (m, ex) -> documentCallback(ex, ef));
-        ef.whenCompleteAsync((s, ex) -> processStatus(ef), executor);
-        return true;
+        try {
+            ProducerRecord<byte[], byte[]> kRecord = getProducerRecord(event);
+            producer.send(kRecord, (m, ex) -> {
+                documentCallback(ex, ef);
+                processStatus(ef);
+            });
+        } catch (Throwable t) {
+            handleException(t, event);
+        } finally {
+            waiting.release();
+        }
     }
 
     @Override
@@ -149,8 +176,8 @@ public class Kafka extends Sender {
      */
     private void doInterrupt(Exception ex) {
         logger.atWarn()
-                .withThrowable(logger.isDebugEnabled() ? ex : null)
-                .log("Interrupted");
+              .withThrowable(logger.isDebugEnabled() ? ex : null)
+              .log("Interrupted");
         Thread.currentThread().interrupt();
     }
 
