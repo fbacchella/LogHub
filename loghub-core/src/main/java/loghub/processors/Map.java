@@ -26,7 +26,7 @@ public class Map extends TreeWalkProcessor {
 
     private Map(Builder builder) {
         super(builder);
-        filter = builder.lambda.getExpression();
+        filter = builder.lambda.expression();
     }
 
     @Override

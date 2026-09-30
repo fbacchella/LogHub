@@ -32,7 +32,7 @@ public class Filter extends TreeWalkProcessor {
 
     private Filter(Builder builder) {
         super(builder);
-        filter = builder.lambda.getExpression();
+        filter = builder.lambda.expression();
     }
 
     @Override
