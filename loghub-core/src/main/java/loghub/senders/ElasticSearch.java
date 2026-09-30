@@ -44,6 +44,7 @@ import loghub.CanBatch;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
+import loghub.Lambda;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
@@ -80,6 +81,8 @@ public class ElasticSearch extends AbstractHttpSender {
         private boolean statusCheck = true;
         private String clusterName = "";
         private Map<Object, Object> elasticArguments = Map.of();
+        private Lambda withIlm = null;
+        private Lambda isDataStream = null;
 
         public Builder() {
             this.setPort(9200);
@@ -118,6 +121,8 @@ public class ElasticSearch extends AbstractHttpSender {
     private final boolean statusCheck;
     private final String nameSuffix;
     private final Map<String, Object> elasticArguments;
+    private final Lambda withIlm;
+    private final Lambda isDataStream;
 
     private final ThreadLocal<DateFormat> esIndexFormat;
 
@@ -138,7 +143,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 }
             }
         }
-        // If an index date format was given use it
+        // If an index date format was given, use it
         // If neither index date format nor index expression is given, uses a default value: 'loghub-'yyyy.MM.dd
         if (builder.dateformat != null || builder.index == null) {
             esIndexFormat = ThreadLocal.withInitial(() -> {
@@ -154,6 +159,8 @@ public class ElasticSearch extends AbstractHttpSender {
         index = builder.index;
         typeHandling = builder.typeHandling;
         ilm = builder.ilm;
+        withIlm = builder.withIlm;
+        isDataStream = builder.isDataStream;
         pipeline = builder.pipeline;
         statusCheck = builder.statusCheck;
         nameSuffix = Objects.toString(builder.clusterName, "").isBlank() ? "" : ("/" + builder.clusterName);
@@ -219,7 +226,7 @@ public class ElasticSearch extends AbstractHttpSender {
             checkIndices(indices);
         }
 
-        // We can go on with the documents creations
+        // We can go on with the document creations
         request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> putContent(documents, tosend, os));
         request.setVerb("POST");
         Function<JsonNode, Map<String, ?>> reader = node -> {
@@ -389,7 +396,7 @@ public class ElasticSearch extends AbstractHttpSender {
         }
         if (ilm && ! missing.isEmpty()) {
             logger.debug("Creating indices {}", missing);
-            createIndicesWithIML(missing);
+            createIndicesWithILM(missing);
         }
     }
 
@@ -418,12 +425,34 @@ public class ElasticSearch extends AbstractHttpSender {
         }
     }
 
+    private boolean indexWithIlm(String index) {
+        try {
+            return withIlm == null || Boolean.TRUE.equals(withIlm.expression().eval(null, index));
+        } catch (ProcessorException e) {
+            return false;
+        }
+    }
+
+    private boolean indexIsDataStream(String index) {
+        try {
+            return isDataStream != null && Boolean.TRUE.equals(isDataStream.expression().eval(null, index));
+        } catch (ProcessorException e) {
+            return false;
+        }
+    }
+
     /**
      * If ILM is activated, missing indices will be created. <p>
-     * Always append -000001 at creation, no other values make sense
+     * Regular indices are always created with a -000001 suffix, no other values make sense. <p>
+     * Indices for which {@code isDataStream} evaluates to {@code true} are created as data streams
+     * using {@code PUT _data_stream/<name>} instead.
      * @param indices The indices to create
      */
-    private synchronized void createIndicesWithIML(Set<String> indices) {
+    private synchronized void createIndicesWithILM(Set<String> indices) {
+        indices = indices.stream().filter(this::indexWithIlm).collect(Collectors.toUnmodifiableSet());
+        if (indices.isEmpty()) {
+            return;
+        }
         Set<String> missing = new HashSet<>();
         Set<String> readonly = new HashSet<>();
         doCheckIndices(indices, missing, readonly);
@@ -436,21 +465,34 @@ public class ElasticSearch extends AbstractHttpSender {
         // Creating the missing indices
         for (String i : missing) {
             filePart.setLength(0);
-            filePart.append(i);
-            filePart.append("-000001");
+            if (indexIsDataStream(i)) {
+                filePart.append("_data_stream/");
+                filePart.append(i);
 
-            HttpRequest<JsonNode> request = httpClient.getRequest();
-            request.setVerb("PUT");
-            request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> {
-                Map<String, Object> index = Collections.singletonMap(i, Collections.emptyMap());
-                Map<String, Object> body = Collections.singletonMap("aliases", index);
-                os.write(json.writeValueAsBytes(body));
-            });
-            Map<Integer, Function<JsonNode, Boolean>> onfailures = Map.of(400, j -> {
-                logger.error("Failed creation of index '{}': {}", i, j.get("error"));
-                return false;
-            });
-            doquery(request, filePart.toString(), transform, onfailures, null);
+                HttpRequest<JsonNode> request = httpClient.getRequest();
+                request.setVerb("PUT");
+                Map<Integer, Function<JsonNode, Boolean>> onfailures = Map.of(400, j -> {
+                    logger.error("Failed creation of data stream '{}': {}", i, j.get("error"));
+                    return false;
+                });
+                doquery(request, filePart.toString(), transform, onfailures, null);
+            } else {
+                filePart.append(i);
+                filePart.append("-000001");
+
+                HttpRequest<JsonNode> request = httpClient.getRequest();
+                request.setVerb("PUT");
+                request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> {
+                    Map<String, Object> index = Collections.singletonMap(i, Collections.emptyMap());
+                    Map<String, Object> body = Collections.singletonMap("aliases", index);
+                    os.write(json.writeValueAsBytes(body));
+                });
+                Map<Integer, Function<JsonNode, Boolean>> onfailures = Map.of(400, j -> {
+                    logger.error("Failed creation of index '{}': {}", i, j.get("error"));
+                    return false;
+                });
+                doquery(request, filePart.toString(), transform, onfailures, null);
+            }
         }
     }
 
@@ -514,7 +556,7 @@ public class ElasticSearch extends AbstractHttpSender {
                                                                            .map(JsonNode::asBoolean)
                                                                            .orElse(false)
                                                );
-            if (status.isPresent() && Boolean.TRUE.equals(status.get())) {
+            if (status.orElse(false)) {
                 readonly.add(e.getKey());
             }
         }
@@ -525,7 +567,7 @@ public class ElasticSearch extends AbstractHttpSender {
         if (templatePath == null) {
             templatePath = getClass().getResource("/estemplate." + major + (typeHandling == TYPEHANDLING.DEPRECATED ? ".notype" : "") + ".json");
         }
-        // Lets check for a template
+        // Let's check for a template
         Map<Object, Object> wantedtemplate;
         try {
             wantedtemplate = Stream.of(templatePath)
@@ -615,8 +657,8 @@ public class ElasticSearch extends AbstractHttpSender {
                     JsonNode node = response.getParsedResponse();
                     return transform.apply(node);
                 } else if ((status - status % 100) == 200 || (status - status % 100) == 500) {
-                    // This node return 200 but not an application/json, or a 500
-                    // Looks like this node is broken try another one
+                    // This node returns 200 but not an application/json, or a 500
+                    // it Looks like this node is broken try another one
                     logger.warn("Broken node: {}, returned '{} {}' {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
                 } else if (failureHandlers.containsKey(status) && ContentType.APPLICATION_JSON.equals(responseMimeType)) {
                     JsonNode node = response.getParsedResponse();

@@ -3,6 +3,7 @@ package loghub.senders;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.ZonedDateTime;
@@ -51,9 +52,11 @@ import loghub.BeanChecks.BeanInfo;
 import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
 import loghub.Expression;
+import loghub.Lambda;
 import loghub.LogUtils;
 import loghub.MockHttpClient;
 import loghub.MockHttpClient.MockHttpRequest;
+import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
@@ -82,10 +85,10 @@ class TestElasticSearch {
         HttpDialogElement(String verb) {
             this.verb = verb;
         }
-        abstract boolean match(MockHttpClient.MockHttpRequest req);
-        abstract HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException;
+        abstract boolean match(MockHttpClient.MockHttpRequest<?> req);
+        abstract HttpResponse<?> doResponse(MockHttpClient.MockHttpRequest<?> req) throws IOException;
 
-        boolean matchVerb(HttpRequest req) {
+        boolean matchVerb(HttpRequest<?> req) {
             return verb.equalsIgnoreCase(req.getVerb());
         }
     }
@@ -95,15 +98,15 @@ class TestElasticSearch {
             super("GET");
         }
         @Override
-        public boolean match(MockHttpClient.MockHttpRequest req) {
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
             return matchVerb(req) && "/".equals(req.getUri().getPath());
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
             Assertions.assertNull(req.content);
             try {
-                return new MockHttpClient.ResponseBuilder()
+                return new MockHttpClient.ResponseBuilder<JsonNode>()
                                .setMimeType(ContentType.APPLICATION_JSON)
                                .setParsedResponse(jsonMapper.reader().readTree("""
                                                  {
@@ -138,16 +141,16 @@ class TestElasticSearch {
             this.template = template;
         }
         @Override
-        public boolean match(MockHttpClient.MockHttpRequest req) {
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
             return matchVerb(req) && ("/_template/" + template).equals(req.getUri().getPath());
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
             Assertions.assertNull(req.content);
             Map<String, Object> responseContent = Map.of("loghub", Map.of());
             JsonNode node = jsonMapper.valueToTree(responseContent);
-            return new MockHttpClient.ResponseBuilder()
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
                                      .setMimeType(ContentType.APPLICATION_JSON)
                                      .setParsedResponse(node)
                                      .build();
@@ -161,19 +164,19 @@ class TestElasticSearch {
             this.template = template;
         }
         @Override
-        public boolean match(MockHttpClient.MockHttpRequest req) {
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
             return matchVerb(req) && ("/_template/" + template).equals(req.getUri().getPath());
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) throws IOException {
             Map<?, ?> details = jsonMapper.readerFor(Map.class).readValue(req.getContent());
             Assertions.assertTrue(details.containsKey("mappings"));
             Assertions.assertTrue(details.containsKey("index_patterns"));
             Assertions.assertTrue(details.containsKey("settings"));
             Map<String, Object> responseContent = Map.of("loghub", Map.of());
             JsonNode node = jsonMapper.valueToTree(responseContent);
-            return new MockHttpClient.ResponseBuilder()
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setParsedResponse(node)
                            .build();
@@ -190,18 +193,18 @@ class TestElasticSearch {
         }
 
         @Override
-        public boolean match(MockHttpClient.MockHttpRequest req) {
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
             return matchVerb(req) && comparePath(index, "/_alias", req.getUri());
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
             Assertions.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
             Assertions.assertNull(req.content);
             Map<String, Map<String, Map<?, ?>>> responseContent = new HashMap<>();
             aliases.forEach((key, value) -> responseContent.put(value, Map.of("aliases", Map.of(key, Map.of()))));
             JsonNode node = jsonMapper.valueToTree(responseContent);
-            return new MockHttpClient.ResponseBuilder()
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setParsedResponse(node)
                            .build();
@@ -217,15 +220,15 @@ class TestElasticSearch {
             this.settings = settings;
         }
         @Override
-        public boolean match(MockHttpClient.MockHttpRequest req) {
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
             return matchVerb(req) && comparePath(index, "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete", req.getUri());
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
             Assertions.assertEquals("allow_no_indices=true&ignore_unavailable=true&flat_settings=true", req.getUri().getQuery());
             JsonNode node = jsonMapper.valueToTree(settings);
-            return new MockHttpClient.ResponseBuilder()
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
                            .setParsedResponse(node)
@@ -242,15 +245,36 @@ class TestElasticSearch {
             this.alias = alias;
         }
         @Override
-        public boolean match(MockHttpClient.MockHttpRequest req) {
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
             return matchVerb(req) && comparePath(index, "", req.getUri()) || comparePath(index + "-000001", "", req.getUri());
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) throws IOException {
             Map<?, ?> details = jsonMapper.readerFor(Map.class).readValue(req.getContent());
             Assertions.assertEquals(Map.of(alias, Map.of()), details.get("aliases"));
-            return new MockHttpClient.ResponseBuilder()
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setStatus(200)
+                           .build();
+        }
+    }
+
+    private static class HttpPutDataStream extends HttpDialogElement {
+        private final String index;
+        HttpPutDataStream(String index) {
+            super("PUT");
+            this.index = index;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
+            return matchVerb(req) && ("/_data_stream/" + index).equals(req.getUri().getPath());
+        }
+
+        @Override
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
+            Assertions.assertNull(req.content);
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
                            .build();
@@ -269,12 +293,12 @@ class TestElasticSearch {
 
         }
         @Override
-        public boolean match(MockHttpClient.MockHttpRequest req) {
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
             return matchVerb(req) && "/_bulk".equals(req.getUri().getPath());
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) throws IOException {
             List<Map<String, ?>> details;
             try (MappingIterator<Map<String, ?>> iter = jsonMapper.readerFor(Map.class).readValues(req.getContent())) {
                 details = iter.readAll();
@@ -283,6 +307,7 @@ class TestElasticSearch {
             response.put("errors", ! errors.isEmpty());
             List<Map<String, Object>> items = new ArrayList<>(details.size());
             for (int i = 0; i < details.size(); i += 2) {
+                @SuppressWarnings("unchecked")
                 Map<String, Map<String, Object>> meta = (Map<String, Map<String, Object>>) details.get(i);
                 Map<String, Object> entryResult = new HashMap<>(Map.of("_index", meta.get("index").get("_index"), "status", 200));
                 if (! errors.isEmpty() && errors.get(i / 2) != null) {
@@ -293,7 +318,7 @@ class TestElasticSearch {
             }
             response.put("items", items);
             JsonNode node = jsonMapper.valueToTree(response);
-            return new MockHttpClient.ResponseBuilder()
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
                            .setParsedResponse(node)
@@ -341,9 +366,9 @@ class TestElasticSearch {
         httpOps = null;
     }
 
-    private HttpResponse elasticMockDialog(HttpRequest req, Deque<HttpDialogElement> steps) {
+    private HttpResponse<?> elasticMockDialog(HttpRequest<?> req, Deque<HttpDialogElement> steps) {
         try {
-            MockHttpClient.MockHttpRequest r = (MockHttpClient.MockHttpRequest) req;
+            MockHttpClient.MockHttpRequest<?> r = (MockHttpClient.MockHttpRequest<?>) req;
             Assertions.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
             Assertions.assertEquals("localhost", req.getUri().getHost());
             if (steps.getFirst().match(r)) {
@@ -360,9 +385,9 @@ class TestElasticSearch {
         }
     }
 
-    private HttpResponse elasticMockDialog(String index, HttpRequest req, Function<MappingIterator<Map<String, ?>>, Map<String, Object>> bulkHandling) {
+    private HttpResponse<?> elasticMockDialog(String index, HttpRequest<?> req, Function<MappingIterator<Map<String, ?>>, Map<String, Object>> bulkHandling) {
         try {
-            MockHttpClient.MockHttpRequest r = (MockHttpClient.MockHttpRequest) req;
+            MockHttpClient.MockHttpRequest<?> r = (MockHttpClient.MockHttpRequest<?>) req;
             Assertions.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
             Assertions.assertEquals("localhost", req.getUri().getHost());
             String path = req.getUri().getPath();
@@ -370,7 +395,7 @@ class TestElasticSearch {
             case "GET":
                 if ("/".equals(path)) {
                     Assertions.assertNull(r.content);
-                    return new MockHttpClient.ResponseBuilder()
+                    return new MockHttpClient.ResponseBuilder<JsonNode>()
                                    .setMimeType(ContentType.APPLICATION_JSON)
                                    .setParsedResponse(jsonMapper.reader().readTree("""
                                                      {
@@ -397,20 +422,20 @@ class TestElasticSearch {
                     Assertions.assertNull(r.content);
                     Map<String, ?> responseContent = Map.of(index + "-000001", Map.of("aliases", Map.of(index, Map.of())));
                     JsonNode node = jsonMapper.valueToTree(responseContent);
-                    return new MockHttpClient.ResponseBuilder()
+                    return new MockHttpClient.ResponseBuilder<JsonNode>()
                                    .setMimeType(ContentType.APPLICATION_JSON)
                                    .setParsedResponse(node)
                                    .build();
                 } else if (comparePath(index, "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete", req.getUri())) {
                     Map<String, Object> responseContent = Map.of("settings", Map.of());
-                    return new MockHttpClient.ResponseBuilder()
+                    return new MockHttpClient.ResponseBuilder<JsonNode>()
                                    .setMimeType(ContentType.APPLICATION_JSON)
                                    .setParsedResponse(jsonMapper.reader().readTree(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
                                    .build();
                 } else if (comparePath("", "_template/loghub", req.getUri())) {
                     Map<String, Object> responseContent = Map.of("loghub", Map.of());
                     JsonNode node = jsonMapper.valueToTree(responseContent);
-                    return new MockHttpClient.ResponseBuilder()
+                    return new MockHttpClient.ResponseBuilder<JsonNode>()
                                    .setMimeType(ContentType.APPLICATION_JSON)
                                    .setParsedResponse(node)
                                    .build();
@@ -422,7 +447,7 @@ class TestElasticSearch {
                     try (MappingIterator<Map<String, ?>> mi = jsonMapper.readerFor(Object.class).readValues(r.content)) {
                         Map<String, Object> responseContent = bulkHandling.apply(mi);
                         JsonNode node = jsonMapper.valueToTree(responseContent);
-                        return new MockHttpClient.ResponseBuilder()
+                        return new MockHttpClient.ResponseBuilder<JsonNode>()
                                        .setMimeType(ContentType.APPLICATION_JSON)
                                        .setParsedResponse(node)
                                        .build();
@@ -434,14 +459,14 @@ class TestElasticSearch {
                 if (comparePath(index, "", req.getUri()) || comparePath(index + "-000001", "", req.getUri())) {
                     Map<String, Object> responseContent = new HashMap<>();
                     JsonNode node = jsonMapper.getNodeFactory().pojoNode(responseContent);
-                    return new MockHttpClient.ResponseBuilder()
+                    return new MockHttpClient.ResponseBuilder<JsonNode>()
                                    .setMimeType(ContentType.APPLICATION_JSON)
                                    .setParsedResponse(node)
                                    .build();
                 } else if (comparePath("", "_template/loghub", req.getUri())) {
                     Map<String, Object> responseContent = Map.of("loghub", Map.of());
                     JsonNode node = jsonMapper.getNodeFactory().pojoNode(responseContent);
-                    return new MockHttpClient.ResponseBuilder()
+                    return new MockHttpClient.ResponseBuilder<JsonNode>()
                                    .setMimeType(ContentType.APPLICATION_JSON)
                                    .setParsedResponse(node)
                                    .build();
@@ -507,6 +532,74 @@ class TestElasticSearch {
         Properties conf = Tools.loadConf(new StringReader(confile));
         ElasticSearch es = (ElasticSearch) conf.senders.stream().findFirst().orElseThrow();
         Assertions.assertEquals("ElasticSearch/testCluster", es.getSenderName());
+    }
+
+    @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    void testConfigurationParsingWithIlmLambda() throws IOException, ReflectiveOperationException, ProcessorException {
+        int count = 20;
+        String confile = """
+             pipeline[main] {}
+             output $main | {
+                loghub.senders.ElasticSearch {
+                    destinations: [
+                        "http://localhost:9200",
+                    ],
+                    clientService: "%s",
+                    timeout: 1,
+                    batchSize: %d,
+                    flushInterval: 500,
+                    index: [#index],
+                    withTemplate: false,
+                    ilm: true,
+                    withIlm: ix -> ix == "index1",
+                }
+            }
+            """.formatted(MockElasticClient.class.getName(), count * 2);
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetAlias("index1,index2", Map.of()),
+                new HttpGetSettings("index1,index2", Map.of()),
+                new HttpGetAlias("index1", Map.of()),
+                new HttpGetSettings("index1", Map.of()),
+                new HttpPutIndex("index1-000001", "index1"),
+                new HttpPostBulk()
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        ElasticSearch es = (ElasticSearch) conf.senders.stream().findFirst().orElseThrow();
+        Field withIlmField = ElasticSearch.class.getDeclaredField("withIlm");
+        withIlmField.setAccessible(true);
+        Lambda withIlm = (Lambda) withIlmField.get(es);
+        Assertions.assertNotNull(withIlm);
+        Assertions.assertEquals(true, withIlm.expression().eval(null, "index1"));
+        Assertions.assertEquals(false, withIlm.expression().eval(null, "index2"));
+
+        Properties props = new Properties(Collections.emptyMap());
+        try {
+            es.setInQueue(new ArrayBlockingQueue<>(count));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+            for (int i = 0; i < count; i++) {
+                Event ev = factory.newEvent();
+                ev.put("type", "junit");
+                ev.put("value", new Date(0));
+                ev.setTimestamp(new Date(0));
+                ev.putMeta("index", "index" + (i % 2 + 1));
+                Assertions.assertTrue(es.queue(ev));
+            }
+            es.stopSending();
+        } finally {
+            es.close();
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(count, Stats.getReceived());
+        Assertions.assertEquals(0, Stats.getFailed());
+        Assertions.assertEquals(count, Stats.getSent());
+        Assertions.assertEquals(0, Stats.getSenderError().size());
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
     }
 
     @Test
@@ -787,6 +880,71 @@ class TestElasticSearch {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    void testWithIlmDataStream() throws IOException, ReflectiveOperationException {
+        int count = 20;
+        String confile = """
+             pipeline[main] {}
+             output $main | {
+                loghub.senders.ElasticSearch {
+                    destinations: [
+                        "http://localhost:9200",
+                    ],
+                    clientService: "%s",
+                    timeout: 1,
+                    batchSize: %d,
+                    flushInterval: 500,
+                    index: [#index],
+                    withTemplate: false,
+                    ilm: true,
+                    isDataStream: ix -> ix == "index2",
+                }
+            }
+            """.formatted(MockElasticClient.class.getName(), count * 2);
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetAlias("index1,index2", Map.of("index1", "index1-00002")),
+                new HttpGetSettings("index1,index2", Map.of("index1-00002", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
+                new HttpGetAlias("index2", Map.of()),
+                new HttpGetSettings("index2", Map.of()),
+                new HttpPutDataStream("index2"), new HttpPostBulk()
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        ElasticSearch es = (ElasticSearch) conf.senders.stream().findFirst().orElseThrow();
+        Field isDataStreamField = ElasticSearch.class.getDeclaredField("isDataStream");
+        isDataStreamField.setAccessible(true);
+        Lambda isDataStream = (Lambda) isDataStreamField.get(es);
+        Assertions.assertNotNull(isDataStream);
+
+        Properties props = new Properties(Collections.emptyMap());
+        try {
+            es.setInQueue(new ArrayBlockingQueue<>(count));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+            for (int i = 0; i < count; i++) {
+                Event ev = factory.newEvent();
+                ev.put("type", "junit");
+                ev.put("value", new Date(0));
+                ev.setTimestamp(new Date(0));
+                ev.putMeta("index", "index" + (i % 2 + 1));
+                Assertions.assertTrue(es.queue(ev));
+            }
+            es.stopSending();
+        } finally {
+            es.close();
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(count, Stats.getReceived());
+        Assertions.assertEquals(0, Stats.getFailed());
+        Assertions.assertEquals(count, Stats.getSent());
+        Assertions.assertEquals(0, Stats.getSenderError().size());
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
+    }
+
+    @Test
     void testParse() throws URISyntaxException {
         String[] destinations  = new String[] {"//localhost", "//truc:9301", "truc", "truc:9300"};
         URI[] uris  = new URI[] {new URI("thrift://localhost:9300"), new URI("thrift://truc:9301"), new URI("thrift://localhost:9300"), new URI("truc://localhost:9300")};
@@ -816,7 +974,7 @@ class TestElasticSearch {
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
                 new HttpPostBulk() {
                     @Override
-                    public boolean match(MockHttpRequest req) {
+                    public boolean match(MockHttpRequest<?> req) {
                         try {
                             QueryStringDecoder decoder = new QueryStringDecoder(req.getUri());
                             Assertions.assertEquals(List.of("@timestamp"), decoder.parameters().get("_time_field"));
