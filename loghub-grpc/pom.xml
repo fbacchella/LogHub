@@ -14,7 +14,7 @@
 
     <properties>
         <protobuf.version>4.35.1</protobuf.version>
-        <grpc.version>1.82.0</grpc.version>
+        <grpc.version>1.85.1</grpc.version>
     </properties>
 
     <dependencies>
@@ -151,7 +151,7 @@
             <plugin>
                 <groupId>io.github.ascopes</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
-                <version>5.1.4</version>
+                <version>5.1.11</version>
                 <configuration>
                     <protoc>${protobuf.version}</protoc>
                     <plugins>
