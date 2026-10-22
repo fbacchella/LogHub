@@ -36,6 +36,7 @@ import loghub.CanBatch;
 import loghub.Filter;
 import loghub.FilterException;
 import loghub.Helpers;
+import loghub.ProcessorException;
 import loghub.ShutdownTask;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
@@ -480,7 +481,7 @@ public abstract class Sender extends Thread implements Closeable, CustomStats {
                   .withThrowable(logger.isDebugEnabled() ? e : null)
                   .log("Interrupted");
             Thread.currentThread().interrupt();
-        } catch (SendException | EncodeException | IOException | UncheckedIOException ex) {
+        } catch (SendException | ProcessorException | EncodeException | IOException | UncheckedIOException ex) {
             Stats.failedSentEvent(this, ex, event);
             logger.atError()
                   .withThrowable(logger.isDebugEnabled() ? ex : null)

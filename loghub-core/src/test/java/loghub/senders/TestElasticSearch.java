@@ -13,18 +13,19 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-
-import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -67,6 +68,7 @@ import loghub.httpclient.ContentType;
 import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
 import loghub.jackson.JacksonBuilder;
+import loghub.metrics.EventExceptionDescription;
 import loghub.metrics.Stats;
 import loghub.senders.ElasticSearch.TYPEHANDLING;
 
@@ -281,16 +283,53 @@ class TestElasticSearch {
         }
     }
 
+    private static class HttpGetDataStream extends HttpDialogElement {
+        private final String index;
+        private final Set<String> existing;
+        HttpGetDataStream(String index, Set<String> existing) {
+            super("GET");
+            this.index = index;
+            this.existing = existing;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
+            return matchVerb(req) && ("/_data_stream/" + index).equals(req.getUri().getPath());
+        }
+
+        @Override
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
+            Assertions.assertEquals("ignore_unavailable=true&filter_path=data_streams.name", req.getUri().getQuery());
+            Assertions.assertNull(req.content);
+            List<Map<String, Object>> dataStreams = existing.stream()
+                                                             .map(s -> Map.<String, Object>of("name", s))
+                                                             .toList();
+            Map<String, Object> responseContent = Map.of("data_streams", dataStreams);
+            JsonNode node = jsonMapper.valueToTree(responseContent);
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setStatus(200)
+                           .setParsedResponse(node)
+                           .build();
+        }
+    }
+
     private static class HttpPostBulk extends HttpDialogElement {
         private final List<Map<String, ?>> errors;
+        private final Function<String, Boolean> isDataStream;
         HttpPostBulk() {
             super("POST");
             errors = List.of();
+            isDataStream = null;
         }
         HttpPostBulk(List<Map<String, ?>> errors) {
             super("POST");
             this.errors = errors;
-
+            isDataStream = null;
+        }
+        HttpPostBulk(Function<String, Boolean> isDataStream) {
+            super("POST");
+            errors = List.of();
+            this.isDataStream = isDataStream;
         }
         @Override
         public boolean match(MockHttpClient.MockHttpRequest<?> req) {
@@ -309,12 +348,18 @@ class TestElasticSearch {
             for (int i = 0; i < details.size(); i += 2) {
                 @SuppressWarnings("unchecked")
                 Map<String, Map<String, Object>> meta = (Map<String, Map<String, Object>>) details.get(i);
-                Map<String, Object> entryResult = new HashMap<>(Map.of("_index", meta.get("index").get("_index"), "status", 200));
+                Map.Entry<String, Map<String, Object>> actionEntry = meta.entrySet().iterator().next();
+                String indexName = (String) actionEntry.getValue().get("_index");
+                if (isDataStream != null) {
+                    String expectedAction = Boolean.TRUE.equals(isDataStream.apply(indexName)) ? "create" : "index";
+                    Assertions.assertEquals(expectedAction, actionEntry.getKey(), "Unexpected bulk action for index " + indexName);
+                }
+                Map<String, Object> entryResult = new HashMap<>(Map.of("_index", indexName, "status", 200));
                 if (! errors.isEmpty() && errors.get(i / 2) != null) {
                     entryResult.put("error", errors.get(i / 2));
                     entryResult.put("status", 400);
                 }
-                items.add(Map.of("index", entryResult));
+                items.add(Map.of(actionEntry.getKey(), entryResult));
             }
             response.put("items", items);
             JsonNode node = jsonMapper.valueToTree(response);
@@ -366,18 +411,24 @@ class TestElasticSearch {
         httpOps = null;
     }
 
-    private HttpResponse<?> elasticMockDialog(HttpRequest<?> req, Deque<HttpDialogElement> steps) {
+    private synchronized HttpResponse<?> elasticMockDialog(HttpRequest<?> req, Deque<HttpDialogElement> steps) {
         try {
             MockHttpClient.MockHttpRequest<?> r = (MockHttpClient.MockHttpRequest<?>) req;
             Assertions.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
             Assertions.assertEquals("localhost", req.getUri().getHost());
-            if (steps.getFirst().match(r)) {
-                return steps.removeFirst().doResponse(r);
-            } else {
-                Assertions.fail("Unhandled request " + req);
-                // Never reached
-                return null;
+            // Some requests (like aliases and data streams checks) are now sent in parallel from virtual
+            // threads, so the next matching step is looked up anywhere in the deque, not only at its head.
+            Iterator<HttpDialogElement> it = steps.iterator();
+            while (it.hasNext()) {
+                HttpDialogElement step = it.next();
+                if (step.match(r)) {
+                    it.remove();
+                    return step.doResponse(r);
+                }
             }
+            Assertions.fail("Unhandled request " + req);
+            // Never reached
+            return null;
         } catch (IOException ex) {
             Assertions.fail("Got Exception " + ex);
             // Never reached
@@ -831,6 +882,196 @@ class TestElasticSearch {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testTwoEventsOneFailing() {
+        // Only the second document of the bulk fails on the Elasticsearch side; the first one must be
+        // reported as sent and the second one as failed, with the exact error carried by the mocked
+        // response, so this test catches any regression that would misattribute a bulk response item to
+        // the wrong event or detect the failure too late (e.g. after a following flush).
+        List<Map<String, ?>> errors = new ArrayList<>(2);
+        errors.add(null);
+        errors.add(Map.of("type", "mapper_parsing_exception",
+                "reason", "failed to parse field [value] of type [date] in document with id 'id'. Preview of field's value: 'a'",
+                "caused_by", Map.of(
+                        "type", "illegal_argument_exception",
+                        "reason", "For input string: \"a\""
+                )));
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetAlias("default", Map.of()),
+                new HttpGetSettings("default", Map.of("default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
+                new HttpPostBulk(errors)
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties props = new Properties(Collections.emptyMap());
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(2);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(new Expression("default"));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(2));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+
+            // First event: nothing wrong with it, the mocked bulk response reports it as succeeding.
+            Event ok = factory.newEvent();
+            ok.put("type", "junit");
+            ok.put("value", "atest-ok");
+            ok.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(ok));
+
+            // Second event: the mocked bulk response reports it as failing with a mapper_parsing_exception.
+            Event failing = factory.newEvent();
+            failing.put("type", "junit");
+            failing.put("value", "atest-failing");
+            failing.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(failing));
+
+            es.stopSending();
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(2, Stats.getReceived());
+        Assertions.assertEquals(1, Stats.getFailed());
+        Assertions.assertEquals(1, Stats.getSent());
+        // The failure must be detected right when the single bulk response is processed: exactly one
+        // sender error is recorded, and it carries the exact reason attached to the second event, proving
+        // it was not misattributed to the first (successful) one.
+        List<EventExceptionDescription> senderErrors = new ArrayList<>(Stats.getSenderError());
+        Assertions.assertEquals(1, senderErrors.size());
+        Assertions.assertTrue(senderErrors.get(0).message().contains("mapper_parsing_exception"));
+        Assertions.assertTrue(senderErrors.get(0).message().contains("For input string: \"a\""));
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testUnresolvableIndex() {
+        // The second event has an empty index name, which resolveIndex must detect and report as a
+        // failure before any HTTP call is made; only the first event (with a usable index name) must
+        // trigger the usual alias/settings check and bulk request.
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetAlias("default", Map.of()),
+                new HttpGetSettings("default", Map.of("default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
+                new HttpPostBulk()
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties props = new Properties(Collections.emptyMap());
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(2);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(Tools.parseExpression("[index]"));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(2));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+
+            // First event: a usable index name, the mocked bulk response reports it as succeeding.
+            Event ok = factory.newEvent();
+            ok.put("type", "junit");
+            ok.put("value", "atest-ok");
+            ok.put("index", "default");
+            ok.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(ok));
+
+            // Second event: an empty index name, its index can't be resolved.
+            Event unresolvable = factory.newEvent();
+            unresolvable.put("type", "junit");
+            unresolvable.put("value", "atest-unresolvable");
+            unresolvable.put("index", "");
+            unresolvable.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(unresolvable));
+
+            es.stopSending();
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(2, Stats.getReceived());
+        Assertions.assertEquals(1, Stats.getFailed());
+        Assertions.assertEquals(1, Stats.getSent());
+        // The unresolvable index must be detected right away in resolveIndex, not after a failed HTTP
+        // call: exactly one sender error is recorded, carrying the dedicated message for this case.
+        List<EventExceptionDescription> senderErrors = new ArrayList<>(Stats.getSenderError());
+        Assertions.assertEquals(1, senderErrors.size());
+        Assertions.assertTrue(senderErrors.get(0).message().contains("No usable index name for event"));
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testMissingIndexKey() {
+        // The second event has no "index" key at all in its map, so evaluating the "[index]" expression
+        // throws an IgnoredEventException instead of returning an empty string. resolveIndex must detect
+        // this and simply complete the event as failed (not exceptionally, since this case is not
+        // considered an actual error) without hanging or leaking it as permanently in flight; only the
+        // first event (with a usable index name) must trigger the usual alias/settings check and bulk
+        // request.
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetAlias("default", Map.of()),
+                new HttpGetSettings("default", Map.of("default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
+                new HttpPostBulk()
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties props = new Properties(Collections.emptyMap());
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(2);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(Tools.parseExpression("[index]"));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(2));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+
+            // First event: a usable index name, the mocked bulk response reports it as succeeding.
+            Event ok = factory.newEvent();
+            ok.put("type", "junit");
+            ok.put("value", "atest-ok");
+            ok.put("index", "default");
+            ok.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(ok));
+
+            // Second event: no "index" key at all, so its index can't be resolved.
+            Event missingKey = factory.newEvent();
+            missingKey.put("type", "junit");
+            missingKey.put("value", "atest-missing-key");
+            missingKey.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(missingKey));
+
+            es.stopSending();
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(2, Stats.getReceived());
+        Assertions.assertEquals(1, Stats.getFailed());
+        Assertions.assertEquals(1, Stats.getSent());
+        // The missing index key must be detected right away in resolveIndex, not after a failed HTTP
+        // call, and must not hang: the event is simply completed as failed (not exceptionally, since this
+        // case is not considered an actual error), so exactly one sender error is recorded, but without
+        // any message attached.
+        List<EventExceptionDescription> senderErrors = new ArrayList<>(Stats.getSenderError());
+        Assertions.assertEquals(1, senderErrors.size());
+        Assertions.assertTrue(senderErrors.get(0).message().isEmpty());
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
+    }
+
+    @Test
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testWithIlm() {
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
@@ -881,7 +1122,7 @@ class TestElasticSearch {
 
     @Test
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
-    void testWithIlmDataStream() throws IOException, ReflectiveOperationException {
+    void testWithDataStream() throws IOException, ReflectiveOperationException {
         int count = 20;
         String confile = """
              pipeline[main] {}
@@ -901,12 +1142,16 @@ class TestElasticSearch {
                 }
             }
             """.formatted(MockElasticClient.class.getName(), count * 2);
+        // Since index1 and index2 are now classified ahead of time (regular index vs data stream), aliases
+        // are only checked for index1 and data stream existence is only checked for index2, instead of
+        // querying both endpoints for the combined set of names as before.
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
-                new HttpGetAlias("index1,index2", Map.of("index1", "index1-00002")),
+                new HttpGetAlias("index1", Map.of("index1", "index1-00002")),
+                new HttpGetDataStream("index2", Set.of()),
                 new HttpGetSettings("index1,index2", Map.of("index1-00002", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
-                new HttpGetAlias("index2", Map.of()),
+                new HttpGetDataStream("index2", Set.of()),
                 new HttpGetSettings("index2", Map.of()),
-                new HttpPutDataStream("index2"), new HttpPostBulk()
+                new HttpPutDataStream("index2"), new HttpPostBulk("index2"::equals)
         ));
         httpOps = r -> elasticMockDialog(r, steps);
         Properties conf = Tools.loadConf(new StringReader(confile));
