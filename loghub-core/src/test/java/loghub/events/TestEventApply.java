@@ -259,7 +259,7 @@ class TestEventApply {
                 Arguments.of(Event.Action.CONTAINSVALUE, VariablePath.ALLMETAS, "mval", true, "CONTAINSVALUE ALLMETAS failed"),
                 Arguments.of(Event.Action.SIZE, VariablePath.ALLMETAS, null, 1, "SIZE ALLMETAS failed"),
                 Arguments.of(Event.Action.ISEMPTY, VariablePath.ALLMETAS, null, false, "ISEMPTY ALLMETAS failed"),
-                Arguments.of(Event.Action.GET, VariablePath.ALLMETAS, null, IllegalArgumentException.class, "GET ALLMETAS should fail"),
+                Arguments.of(Event.Action.GET, VariablePath.ALLMETAS, null, Map.of("mkey", "mval"), "GET ALLMETAS failed"),
                 Arguments.of(Event.Action.PUT, VariablePath.ALLMETAS, 1, IllegalArgumentException.class, "PUT ALLMETAS should fail"),
                 Arguments.of(Event.Action.APPEND, VariablePath.ALLMETAS, 1, IllegalArgumentException.class, "APPEND ALLMETAS should fail"),
                 Arguments.of(Event.Action.REMOVE, VariablePath.ALLMETAS, null, IllegalArgumentException.class, "REMOVE ALLMETAS should fail"),

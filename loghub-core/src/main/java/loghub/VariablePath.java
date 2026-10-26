@@ -613,6 +613,10 @@ public abstract class VariablePath {
             return LASTEXCEPTION;
         } else if (path.startsWith("#")) {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofMeta(s.substring(1)));
+        } else if ("@meta".equals(path)) {
+            return ALLMETAS;
+        } else if (path.startsWith("@meta.")) {
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofMeta(s.substring("@meta.".length())));
         } else if (path.startsWith(Event.CONTEXTKEY)) {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> {
                 List<String> contextStream = switch (s) {

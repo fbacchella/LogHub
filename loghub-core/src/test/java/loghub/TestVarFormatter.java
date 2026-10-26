@@ -359,6 +359,24 @@ class TestVarFormatter {
     }
 
     @Test
+    void formatEventMeta() {
+        VarFormatter vf = new VarFormatter("${@meta.meta%02d}", Locale.ENGLISH);
+        Event ev = factory.newEvent();
+        ev.putMeta("meta", 1);
+        String formatted = vf.format(ev);
+        Assertions.assertEquals("01", formatted);
+    }
+
+    @Test
+    void formatEventAllMeta() {
+        VarFormatter vf = new VarFormatter("${@meta}", Locale.ENGLISH);
+        Event ev = factory.newEvent();
+        ev.putMeta("meta", 1);
+        String formatted = vf.format(ev);
+        Assertions.assertEquals("{meta=1}", formatted);
+    }
+
+    @Test
     void formatArgs() {
         VarFormatter vf = new VarFormatter("${#1%s} ${#1%s} ${#3%s}", Locale.ENGLISH);
         String formatted = vf.argsFormat("1", "2", "3");

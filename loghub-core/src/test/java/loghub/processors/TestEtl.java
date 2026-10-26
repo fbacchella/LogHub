@@ -409,6 +409,20 @@ public class TestEtl {
     }
 
     @Test
+    public void testMetaAtSyntax() throws ProcessorException {
+        Event ev =  runEtl("[@meta a] = 1", i -> {});
+        Assert.assertEquals(1, ev.getMeta("a"));
+    }
+
+    @Test
+    public void testMetaAllSyntax() throws ProcessorException {
+        Event ev =  runEtl("[a] = [@meta]", i -> i.putMeta("b", 1));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metas = (Map<String, Object>) ev.get("a");
+        Assert.assertEquals(1, metas.get("b"));
+    }
+
+    @Test
     public void testMetaToValueMove() throws ProcessorException {
         Event ev =  runEtl("[a] < [#b]", i -> i.putMeta("b", 1));
         Assert.assertEquals(1, ev.get("a"));

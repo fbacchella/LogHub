@@ -274,6 +274,8 @@ public abstract class Event extends HashMap<String, Object> {
                 case GET -> getMeta(path.get(0));
                 default -> f.action.apply(getMetas(), path.get(0), value);
             };
+        } else if (f == Action.GET) {
+            return getMetas();
         } else if (f.mapAction) {
             return f.action.apply(getMetas(), null, value);
         } else {
