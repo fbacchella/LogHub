@@ -3,10 +3,13 @@ package loghub.senders;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -75,7 +78,7 @@ public class TestKafka {
         builder.setTopic("test");
         builder.setKeySerializer(new Expression("source", VariablePath.ofMeta("kafka_key")));
         MockProducer<byte[], byte[]> mockProducer = getMockProducer();
-        builder.setProducer(mockProducer);
+        builder.setProducerSupplier(() -> mockProducer);
 
         try (Kafka r = builder.build()) {
             PriorityBlockingQueue queue = new PriorityBlockingQueue();
@@ -104,6 +107,54 @@ public class TestKafka {
     private MockProducer<byte[], byte[]> getMockProducer() {
         Serializer<byte[]> passThrough = new ByteArraySerializer();
         return new MockProducer<>(true, null, passThrough, passThrough);
+    }
+
+    @Test
+    public void testBatchUsesOneProducerPerWorker() throws Exception {
+        Properties props = new Properties(new HashMap<>(Map.of("__QUEUESDEPTH", 100)));
+        Kafka.Builder builder = Kafka.getBuilder();
+        builder.setEncoder(ToJson.getBuilder().build());
+        builder.setBrokers(new String[] {"192.168.0.13"});
+        builder.setTopic("test");
+        builder.setBatchSize(5);
+        builder.setWorkers(2);
+        List<MockProducer<byte[], byte[]>> createdProducers = new ArrayList<>();
+        builder.setProducerSupplier(() -> {
+            MockProducer<byte[], byte[]> newProducer = getMockProducer();
+            synchronized (createdProducers) {
+                createdProducers.add(newProducer);
+            }
+            return newProducer;
+        });
+
+        Method flushMethod = Kafka.class.getDeclaredMethod("flush", Sender.Batch.class);
+        flushMethod.setAccessible(true);
+        try (Kafka r = builder.build()) {
+            r.setInQueue(new PriorityBlockingQueue());
+            Assert.assertTrue(r.configure(props));
+            // Simulate two distinct batch worker threads, each flushing its own batch
+            for (int i = 0; i < 2; i++) {
+                Event ev = factory.newEvent();
+                ev.putAtPath(VariablePath.of("a", "b"), i);
+                ev.setTimestamp(Instant.ofEpochMilli(i));
+                Sender.Batch batch = new Sender.Batch(r);
+                batch.add(ev);
+                Thread worker = new Thread(() -> {
+                    try {
+                        flushMethod.invoke(r, batch);
+                    } catch (ReflectiveOperationException e) {
+                        throw new AssertionError(e);
+                    }
+                });
+                worker.start();
+                worker.join(TimeUnit.SECONDS.toMillis(5));
+            }
+        }
+        // Each of the two simulated worker threads must resolve and keep its own producer
+        Assert.assertEquals(2, createdProducers.size());
+        Assert.assertNotSame(createdProducers.get(0), createdProducers.get(1));
+        Assert.assertEquals(1, createdProducers.get(0).history().size());
+        Assert.assertEquals(1, createdProducers.get(1).history().size());
     }
 
     @Test

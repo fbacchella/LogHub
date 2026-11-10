@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -60,9 +61,9 @@ public class Kafka extends Sender {
         private Expression keySerializer = new Expression(NullOrMissingValue.NULL);
         private Map<String, Object> kafkaProperties = Map.of();
 
-        // Only used for tests
+        // Only used for tests, allows injecting a custom producer, possibly a different one for each batch worker thread
         @Setter(AccessLevel.PACKAGE)
-        private Producer<byte[], byte[]> producer;
+        private Supplier<Producer<byte[], byte[]>> producerSupplier;
         @Override
         public Kafka build() {
             return new Kafka(this);
@@ -77,6 +78,7 @@ public class Kafka extends Sender {
     private final Expression keySerializer;
     private Supplier<Producer<byte[], byte[]>> producerSupplier;
     private Producer<byte[], byte[]> producer;
+    private final Map<Thread, Producer<byte[], byte[]>> batchProducers;
     private final String senderName;
     private final Executor executor;
     private Semaphore waiting;
@@ -86,9 +88,9 @@ public class Kafka extends Sender {
         this.topic = builder.topic;
         this.keySerializer = builder.keySerializer;
         int hash;
-        if (builder.producer != null) {
-            producerSupplier = () -> builder.producer;
-            hash = builder.producer.hashCode();
+        if (builder.producerSupplier != null) {
+            producerSupplier = builder.producerSupplier;
+            hash = System.identityHashCode(builder.producerSupplier);
         } else {
             Map<String, Object> props = builder.configureKafka(logger);
             producerSupplier = () -> new KafkaProducer<>(props, PASSTHROUGH_SERIALIZER, PASSTHROUGH_SERIALIZER);
@@ -101,6 +103,11 @@ public class Kafka extends Sender {
         }
         senderName = String.format("Kafka.%s@%08x", topic, hash);
         executor = isWithBatch() ? null : Executors.newVirtualThreadPerTaskExecutor();
+        // In batch mode, each publishing thread gets its own producer, instead of sharing a single one,
+        // so a producer.send() blocking on a single thread does not freeze all the other batch workers.
+        // The map can never hold more entries than the number of batch workers, so its initial capacity
+        // is set accordingly (with extra room) to avoid unnecessary resizing.
+        batchProducers = isWithBatch() ? new ConcurrentHashMap<>(getWorkersCount() * 2) : null;
     }
 
     @Override
@@ -112,8 +119,11 @@ public class Kafka extends Sender {
     @Override
     public void run() {
         try {
-            producer = producerSupplier.get();
-            producerSupplier = null;
+            if (! isWithBatch()) {
+                producer = producerSupplier.get();
+                // Not needed anymore in non-batch mode, allows the closure (and whatever it captures) to be garbage collected
+                producerSupplier = null;
+            }
             super.run();
         } catch (InterruptException ex) {
             doInterrupt(ex);
@@ -123,7 +133,12 @@ public class Kafka extends Sender {
                   .log("Kafka sender failed: {}", () -> Helpers.resolveThrowableException(ex));
         } finally {
             try {
-                Optional.ofNullable(producer).ifPresent(Producer::close);
+                if (isWithBatch()) {
+                    batchProducers.values().forEach(Producer::close);
+                    batchProducers.clear();
+                } else {
+                    Optional.ofNullable(producer).ifPresent(Producer::close);
+                }
             } catch (org.apache.kafka.common.KafkaException ex) {
                 logger.atWarn().withThrowable(logger.isDebugEnabled() ? ex : null).log("Kafka stop failed: {}", Helpers.resolveThrowableException(ex));
             }
@@ -159,11 +174,18 @@ public class Kafka extends Sender {
 
     @Override
     protected void flush(Batch documents) {
+        // Each batch worker thread resolves (and keeps) its own producer instance, so a slow or
+        // blocking send on one worker does not prevent the other workers from making progress.
+        // This relies on batch worker threads being platform threads, bound in number and long-lived;
+        // virtual threads would break that assumption (a new, short-lived thread per task, so a new
+        // producer per task, never reused and never closed), hence this safety check.
+        assert ! Thread.currentThread().isVirtual() : "Batch flush must not run on a virtual thread";
+        Producer<byte[], byte[]> batchProducer = batchProducers.computeIfAbsent(Thread.currentThread(), t -> producerSupplier.get());
         documents.forEach(ef -> {
             Event event = ef.getEvent();
             try {
                 ProducerRecord<byte[], byte[]> kRecord = getProducerRecord(event);
-                producer.send(kRecord, (m, kex) -> documentCallback(kex, ef));
+                batchProducer.send(kRecord, (m, kex) -> documentCallback(kex, ef));
             } catch (EncodeException ex) {
                 ef.completeExceptionally(ex);
             }
@@ -183,17 +205,16 @@ public class Kafka extends Sender {
 
     private void documentCallback(Exception ex, EventFuture ef) {
         Event event = ef.getEvent();
-        if (ex instanceof InterruptException) {
-            doInterrupt(ex);
-        } else if (ex instanceof KafkaException) {
-            Stats.failedSentEvent(this, ex, event);
+        switch (ex) {
+        case null -> ef.complete(true);
+        case InterruptException ie -> doInterrupt(ie);
+        case KafkaException ke -> {
+            Stats.failedSentEvent(this, ke, event);
             logger.atError()
-                  .withThrowable(logger.isDebugEnabled() ? ex : null)
-                  .log("Sending exception: {}", () -> Helpers.resolveThrowableException(ex));
-        } else if (ex != null) {
-            ef.completeExceptionally(ex);
-        } else {
-            ef.complete(true);
+                  .withThrowable(logger.isDebugEnabled() ? ke : null)
+                  .log("Sending exception: {}", () -> Helpers.resolveThrowableException(ke));
+        }
+        default -> ef.completeExceptionally(ex);
         }
     }
 
