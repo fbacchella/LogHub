@@ -1,6 +1,7 @@
 package loghub.senders;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -8,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
@@ -93,7 +95,16 @@ public class Kafka extends Sender {
             hash = System.identityHashCode(builder.producerSupplier);
         } else {
             Map<String, Object> props = builder.configureKafka(logger);
-            producerSupplier = () -> new KafkaProducer<>(props, PASSTHROUGH_SERIALIZER, PASSTHROUGH_SERIALIZER);
+            // Several producers can be created from these same props (one per batch worker thread), so
+            // each one needs a distinct client.id, otherwise Kafka's internal app-info/metrics registration
+            // conflicts between them.
+            String baseClientId = String.valueOf(props.get(CommonClientConfigs.CLIENT_ID_CONFIG));
+            AtomicInteger producerCount = new AtomicInteger(0);
+            producerSupplier = () -> {
+                Map<String, Object> instanceProps = new HashMap<>(props);
+                instanceProps.put(CommonClientConfigs.CLIENT_ID_CONFIG, baseClientId + "-" + producerCount.getAndIncrement());
+                return new KafkaProducer<>(instanceProps, PASSTHROUGH_SERIALIZER, PASSTHROUGH_SERIALIZER);
+            };
             hash = Objects.hash(
                     topic,
                     props.get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG),
