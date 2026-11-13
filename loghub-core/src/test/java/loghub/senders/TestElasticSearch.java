@@ -185,6 +185,32 @@ class TestElasticSearch {
         }
     }
 
+    private static class HttpGetClusterHealth extends HttpDialogElement {
+        private final String status;
+        HttpGetClusterHealth() {
+            this("green");
+        }
+        HttpGetClusterHealth(String status) {
+            super("GET");
+            this.status = status;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
+            return matchVerb(req) && "/_cluster/health".equals(req.getUri().getPath());
+        }
+
+        @Override
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
+            Assertions.assertNull(req.content);
+            Map<String, Object> responseContent = Map.of("status", status);
+            JsonNode node = jsonMapper.valueToTree(responseContent);
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setParsedResponse(node)
+                           .build();
+        }
+    }
+
     private class HttpGetAlias extends HttpDialogElement {
         private final String index;
         private final Map<String, String> aliases;
@@ -233,6 +259,39 @@ class TestElasticSearch {
             return new MockHttpClient.ResponseBuilder<JsonNode>()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
+                           .setParsedResponse(node)
+                           .build();
+        }
+    }
+
+    private class HttpGetSettingsFailure extends HttpDialogElement {
+        private final String index;
+        private final int status;
+        private final String statusMessage;
+        private final String errorType;
+        private final String errorReason;
+        HttpGetSettingsFailure(String index, int status, String statusMessage, String errorType, String errorReason) {
+            super("GET");
+            this.index = index;
+            this.status = status;
+            this.statusMessage = statusMessage;
+            this.errorType = errorType;
+            this.errorReason = errorReason;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
+            return matchVerb(req) && comparePath(index, "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete", req.getUri());
+        }
+
+        @Override
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
+            Assertions.assertEquals("allow_no_indices=true&ignore_unavailable=true&flat_settings=true", req.getUri().getQuery());
+            Map<String, Object> responseContent = Map.of("error", Map.of("type", errorType, "reason", errorReason), "status", status);
+            JsonNode node = jsonMapper.valueToTree(responseContent);
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setStatus(status)
+                           .setStatusMessage(statusMessage)
                            .setParsedResponse(node)
                            .build();
         }
@@ -305,6 +364,7 @@ class TestElasticSearch {
                                                              .toList();
             Map<String, Object> responseContent = Map.of("data_streams", dataStreams);
             JsonNode node = jsonMapper.valueToTree(responseContent);
+            System.err.println("theorical node is " + node);
             return new MockHttpClient.ResponseBuilder<JsonNode>()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
@@ -366,6 +426,36 @@ class TestElasticSearch {
             return new MockHttpClient.ResponseBuilder<JsonNode>()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
+                           .setParsedResponse(node)
+                           .build();
+        }
+    }
+
+    private static class HttpPostBulkFailure extends HttpDialogElement {
+        private final int status;
+        private final String statusMessage;
+        private final String errorType;
+        private final String errorReason;
+        HttpPostBulkFailure(int status, String statusMessage, String errorType, String errorReason) {
+            super("POST");
+            this.status = status;
+            this.statusMessage = statusMessage;
+            this.errorType = errorType;
+            this.errorReason = errorReason;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest<?> req) {
+            return matchVerb(req) && "/_bulk".equals(req.getUri().getPath());
+        }
+
+        @Override
+        public HttpResponse<JsonNode> doResponse(MockHttpClient.MockHttpRequest<?> req) {
+            Map<String, Object> responseContent = Map.of("error", Map.of("type", errorType, "reason", errorReason), "status", status);
+            JsonNode node = jsonMapper.valueToTree(responseContent);
+            return new MockHttpClient.ResponseBuilder<JsonNode>()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setStatus(status)
+                           .setStatusMessage(statusMessage)
                            .setParsedResponse(node)
                            .build();
         }
@@ -490,6 +580,13 @@ class TestElasticSearch {
                                    .setMimeType(ContentType.APPLICATION_JSON)
                                    .setParsedResponse(node)
                                    .build();
+                } else if ("/_cluster/health".equals(path)) {
+                    Map<String, Object> responseContent = Map.of("status", "green");
+                    JsonNode node = jsonMapper.valueToTree(responseContent);
+                    return new MockHttpClient.ResponseBuilder<JsonNode>()
+                                   .setMimeType(ContentType.APPLICATION_JSON)
+                                   .setParsedResponse(node)
+                                   .build();
                 } else {
                     throw new IllegalStateException("Not handled : " + req.getUri());
                 }
@@ -608,6 +705,7 @@ class TestElasticSearch {
             }
             """.formatted(MockElasticClient.class.getName(), count * 2);
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetClusterHealth(),
                 new HttpGetAlias("index1,index2", Map.of()),
                 new HttpGetSettings("index1,index2", Map.of()),
                 new HttpGetAlias("index1", Map.of()),
@@ -825,6 +923,7 @@ class TestElasticSearch {
                 "index", "BADINDEX"
                 ));
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(new HttpRoot(), new HttpGetTemplate("loghub"), new HttpPutTemplate("loghub"),
+                new HttpGetClusterHealth(),
                 new HttpGetAlias("default,BADINDEX", Map.of()),
                 new HttpGetSettings("default,BADINDEX", Map.of(
                         "default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))),
@@ -897,6 +996,7 @@ class TestElasticSearch {
                         "reason", "For input string: \"a\""
                 )));
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetClusterHealth(),
                 new HttpGetAlias("default", Map.of()),
                 new HttpGetSettings("default", Map.of("default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
                 new HttpPostBulk(errors)
@@ -951,11 +1051,168 @@ class TestElasticSearch {
 
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testAuthenticationFailure() {
+        // Two destinations are configured, but an authentication (401) or authorization (403) failure is
+        // the same whatever node is tried, since they all share the same credentials: only one attempt
+        // must be made, the second endpoint must never be contacted, and the event must be reported as
+        // failed, not left hanging or completed as if nothing had happened.
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpPostBulkFailure(401, "Unauthorized", "security_exception", "unable to authenticate user")
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties props = new Properties(Collections.emptyMap());
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", "http://localhost:9201", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(1);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(new Expression("default"));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setStatusCheck(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(1));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+
+            Event ev = factory.newEvent();
+            ev.put("type", "junit");
+            ev.put("value", "atest");
+            ev.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(ev));
+
+            es.stopSending();
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(1, Stats.getReceived());
+        Assertions.assertEquals(1, Stats.getFailed());
+        Assertions.assertEquals(0, Stats.getSent());
+        // Only a single bulk request is expected: the step is consumed exactly once, proving the loop
+        // stopped right after the authentication failure instead of silently trying the other node too.
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testNotFoundKeepsTryingOtherNodes() {
+        // A 404 is also a definitive failure for the attempted resource, but unlike an authentication
+        // failure it must not stop the retry loop right away, since a fix (e.g. the missing index being
+        // created) might happen in parallel on the Elastic side: the second node must still be tried, and
+        // the event must end up being sent successfully.
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpPostBulkFailure(404, "Not Found", "index_not_found_exception", "no such index [default]"),
+                new HttpPostBulk()
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties props = new Properties(Collections.emptyMap());
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", "http://localhost:9201", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(1);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(new Expression("default"));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setStatusCheck(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(1));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+
+            Event ev = factory.newEvent();
+            ev.put("type", "junit");
+            ev.put("value", "atest");
+            ev.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(ev));
+
+            es.stopSending();
+            // The 404 failure is still tracked by status, so it remains visible even though it didn't
+            // block the batch from being delivered.
+            Assertions.assertEquals(1, es.getHttpStatusCount(404));
+            // The successful bulk request on the second node is counted too: 200 responses are tracked
+            // by status just like failures are.
+            Assertions.assertEquals(1, es.getHttpStatusCount(200));
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(1, Stats.getReceived());
+        Assertions.assertEquals(0, Stats.getFailed());
+        // The event is sent despite the first node returning a 404, proving the retry loop went on to
+        // the second node instead of giving up right away.
+        Assertions.assertEquals(1, Stats.getSent());
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testIndexCheckAuthenticationFailureIsRetried() {
+        // The indices status check (GET _settings) can fail with a 401/403 too, exactly like the bulk
+        // request. But unlike the bulk request, this must not fail the whole batch right away: the
+        // credentials might be fixed in parallel on the Elastic side, so the check keeps retrying with an
+        // exponential back off until it succeeds, and the batch is then sent normally.
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetClusterHealth(),
+                new HttpGetAlias("default", Map.of()),
+                new HttpGetSettingsFailure("default", 401, "Unauthorized", "security_exception", "unable to authenticate user"),
+                new HttpGetAlias("default", Map.of()),
+                new HttpGetSettings("default", Map.of("default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
+                new HttpPostBulk()
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties props = new Properties(Collections.emptyMap());
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(1);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(new Expression("default"));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(1));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+
+            Event ev = factory.newEvent();
+            ev.put("type", "junit");
+            ev.put("value", "atest");
+            ev.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(ev));
+
+            es.stopSending();
+            // The 401 failure is still tracked by status, even though it didn't stop the check from
+            // being retried until it succeeded.
+            Assertions.assertEquals(1, es.getHttpStatusCount(401));
+            // The successful cluster health check, alias checks, settings check and bulk request (5
+            // successful calls across both rounds) are all counted as 200 responses, alongside the
+            // earlier 401 failure.
+            Assertions.assertEquals(5, es.getHttpStatusCount(200));
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(1, Stats.getReceived());
+        Assertions.assertEquals(0, Stats.getFailed());
+        // The event is sent once the check succeeds on the second round, proving the first authentication
+        // failure did not fail the batch, and that the check kept retrying instead.
+        Assertions.assertEquals(1, Stats.getSent());
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testUnresolvableIndex() {
         // The second event has an empty index name, which resolveIndex must detect and report as a
         // failure before any HTTP call is made; only the first event (with a usable index name) must
         // trigger the usual alias/settings check and bulk request.
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetClusterHealth(),
                 new HttpGetAlias("default", Map.of()),
                 new HttpGetSettings("default", Map.of("default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
                 new HttpPostBulk()
@@ -1018,6 +1275,7 @@ class TestElasticSearch {
         // first event (with a usable index name) must trigger the usual alias/settings check and bulk
         // request.
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetClusterHealth(),
                 new HttpGetAlias("default", Map.of()),
                 new HttpGetSettings("default", Map.of("default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
                 new HttpPostBulk()
@@ -1072,9 +1330,85 @@ class TestElasticSearch {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testClusterHealthRedBlocksPublication() {
+        // A red cluster health status must prevent any publication attempt (no index check, no bulk
+        // request) as long as it stays red: the check keeps retrying with an exponential back off instead,
+        // until the cluster health recovers, at which point the batch is sent normally.
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetClusterHealth("red"),
+                new HttpGetClusterHealth(),
+                new HttpGetAlias("default", Map.of()),
+                new HttpGetSettings("default", Map.of("default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
+                new HttpPostBulk()
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Properties props = new Properties(Collections.emptyMap());
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(1);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(new Expression("default"));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(1));
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            es.start();
+
+            Event ev = factory.newEvent();
+            ev.put("type", "junit");
+            ev.put("value", "atest");
+            ev.setTimestamp(new Date(0));
+            Assertions.assertTrue(es.queue(ev));
+
+            es.stopSending();
+            // The red cluster health status is tracked by its own dedicated counter.
+            Assertions.assertEquals(1, es.getClusterStatusCount("red"));
+        }
+        Assertions.assertEquals(0, Stats.getDropped());
+        Assertions.assertEquals(0, Stats.getExceptionsCount());
+        Assertions.assertEquals(0, Stats.getInflight());
+        Assertions.assertEquals(1, Stats.getReceived());
+        Assertions.assertEquals(0, Stats.getFailed());
+        // The event is only sent once the cluster health recovers, proving the index check and bulk
+        // request were never attempted while the cluster was red.
+        Assertions.assertEquals(1, Stats.getSent());
+        Assertions.assertTrue(steps.isEmpty(), "Not all expected HTTP requests were sent");
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testMonitoredStatusCountersAreAlwaysDefined() {
+        // All the HTTP statuses and Elastic cluster health statuses expected in this context must always
+        // be readable as 0 as soon as the sender is configured, instead of only appearing in the metrics
+        // once first encountered: this lets monitoring read a stable, complete set of counters.
+        Properties props = new Properties(Collections.emptyMap());
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setIndex(new Expression("default"));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        try (ElasticSearch es = esbuilder.build()) {
+            Assertions.assertTrue(es.configure(props), "Elastic configuration failed");
+            Stats.registerSender(es);
+            for (int status : new int[]{200, 400, 401, 403, 404, 409, 413, 429, 500, 503}) {
+                Assertions.assertEquals(0, es.getHttpStatusCount(status), "HTTP status " + status + " not pre-registered");
+            }
+            for (String status : new String[]{"red", "yellow", "green"}) {
+                Assertions.assertEquals(0, es.getClusterStatusCount(status), "Cluster status " + status + " not pre-registered");
+            }
+        }
+    }
+
+    @Test
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testWithIlm() {
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetClusterHealth(),
                 new HttpGetAlias("index1,index2", Map.of("index1", "index1-00002")),
                 new HttpGetSettings("index1,index2", Map.of("index1-00002", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
                 new HttpGetAlias("index2", Map.of()),
@@ -1146,6 +1480,7 @@ class TestElasticSearch {
         // are only checked for index1 and data stream existence is only checked for index2, instead of
         // querying both endpoints for the combined set of names as before.
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetClusterHealth(),
                 new HttpGetAlias("index1", Map.of("index1", "index1-00002")),
                 new HttpGetDataStream("index2", Set.of()),
                 new HttpGetSettings("index1,index2", Map.of("index1-00002", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),

@@ -30,11 +30,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.codahale.metrics.Meter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -64,6 +66,12 @@ import lombok.Setter;
 @SelfEncoder
 @BuilderClass(ElasticSearch.Builder.class)
 public class ElasticSearch extends AbstractHttpSender {
+
+    /**
+     * Prefix used to build the name of the per-status Elastic cluster health counter registered through
+     * {@link Stats}.
+     */
+    private static final String CLUSTERSTATUS_METRIC_PREFIX = "ClusterStatus.";
 
     enum TYPEHANDLING {
         USING,
@@ -259,7 +267,7 @@ public class ElasticSearch extends AbstractHttpSender {
             Set<Index> indices = resolvedEvents.stream()
                                                .map(ResolvedIndex::index)
                                                .collect(Collectors.toUnmodifiableSet());
-            // First pass to check that all necessary indices will be present and usable
+            // First pass to check that all necessary indices will be present and usable.
             checkIndices(indices);
         }
 
@@ -451,20 +459,10 @@ public class ElasticSearch extends AbstractHttpSender {
      * @throws SendException if send was interrupted
      */
     private void checkIndices(Set<Index> indices) throws SendException {
+        waitForClusterHealth();
         Set<Index> missing = new HashSet<>();
         Set<String> readonly = new HashSet<>();
-        int wait = 1;
-        while (! doCheckIndices(indices, missing, readonly)) {
-            try {
-                // An exponential back off, that double on each step
-                // and wait one hour max between each try
-                Thread.sleep(wait);
-                wait = Math.min(2 * wait, 3600 * 1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new SendException(e);
-            }
-        }
+        retryWithExponentialBackOff(() -> ! doCheckIndices(indices, missing, readonly));
         if (! readonly.isEmpty()) {
             waitIndices(indices);
         }
@@ -836,7 +834,9 @@ public class ElasticSearch extends AbstractHttpSender {
                 }
                 int status = response.getStatus();
                 ContentType responseMimeType = response.getMimeType();
-                if ((status - status % 100) == 200 && ContentType.APPLICATION_JSON.equals(responseMimeType)) {
+                boolean success = (status - status % 100) == 200 && ContentType.APPLICATION_JSON.equals(responseMimeType);
+                countHttpStatus(status);
+                if (success) {
                     JsonNode node = response.getParsedResponse();
                     return transform.apply(node);
                 } else if ((status - status % 100) == 200 || (status - status % 100) == 500) {
@@ -847,13 +847,32 @@ public class ElasticSearch extends AbstractHttpSender {
                     JsonNode node = response.getParsedResponse();
                     // Only ES failures can be handled
                     return failureHandlers.get(status).apply(node);
+                } else if (status == 401 || status == 403) {
+                    // Authentication (401) or authorization (403) failures are the same whatever endpoint
+                    // is tried, as they all share the same credentials: retrying another node would just
+                    // fail the same way, so the loop is stopped right away instead of failing silently.
+                    JsonNode node = ContentType.APPLICATION_JSON.equals(responseMimeType) ? response.getParsedResponse() : null;
+                    logger.warn("Authentication failure: {} {}, returned '{} {}'{}",
+                                 request.getVerb(), newEndPoint, status, response.getStatusMessage(),
+                                 node != null ? ", error: " + node.get("error") : "");
+                    break;
+                } else if (status == 404) {
+                    // A 404 is not necessarily a definitive failure for the attempted resource: it is
+                    // hard to tell whether it really means the resource is missing, or whether the node
+                    // behind this endpoint is simply not fully started yet and wrongly answers with a
+                    // 404 in the meantime. Either way, a fix might come in parallel on the Elastic side
+                    // (e.g. a missing index being created, or the node finishing its startup): events
+                    // must not be lost, so the retry loop is kept going instead of giving up immediately.
+                    JsonNode node = ContentType.APPLICATION_JSON.equals(responseMimeType) ? response.getParsedResponse() : null;
+                    logger.warn("Resource not found: {} {}, returned '{} {}'{}",
+                                 request.getVerb(), newEndPoint, status, response.getStatusMessage(),
+                                 node != null ? ", error: " + node.get("error") : "");
                 } else if (ContentType.APPLICATION_JSON.equals(responseMimeType)) {
                     JsonNode node = response.getParsedResponse();
-                    logger.error("Invalid query: {} {}, return '{} {}'", request.getVerb(), newEndPoint, status, response.getStatusMessage());
-                    logger.debug("Error body: {}", node);
+                    logger.warn("Invalid query: {} {}, return '{} {}', error: {}", request.getVerb(), newEndPoint, status, response.getStatusMessage(), node.get("error"));
                 } else {
                     // Valid, but not good request, useless to try something else
-                    logger.error("Invalid query: {} {}, return '{} {}', {}", request.getVerb(), newEndPoint, status, response.getStatusMessage(), responseMimeType);
+                    logger.warn("Invalid query: {} {}, return '{} {}', {}", request.getVerb(), newEndPoint, status, response.getStatusMessage(), responseMimeType);
                     break;
                 }
             } catch (IOException | UncheckedIOException e) {
@@ -863,6 +882,94 @@ public class ElasticSearch extends AbstractHttpSender {
             }
         }
         return onFailure;
+    }
+
+    /**
+     * Waits for the Elastic cluster health to be anything but red, retrying {@link #checkClusterHealth()}
+     * with an exponential back off as long as it stays red: a fix might happen in parallel on the Elastic
+     * side, but no publication attempt should be made while the cluster is still unhealthy.
+     * @throws SendException if send was interrupted
+     */
+    private void waitForClusterHealth() throws SendException {
+        retryWithExponentialBackOff(this::checkClusterHealth);
+    }
+
+    /**
+     * Calls {@code shouldRetry} repeatedly, sleeping an exponential back off (starting at 1 ms, doubling
+     * on each step and capped at one hour) between each attempt, until it reports that no further retry is
+     * needed ({@code false}). This is shared by every Elastic check that must be retried indefinitely
+     * instead of failing right away, since a fix might happen in parallel on the Elastic side.
+     * @param shouldRetry a supplier returning {@code true} while another attempt is needed
+     * @throws SendException if the wait was interrupted
+     */
+    private void retryWithExponentialBackOff(BooleanSupplier shouldRetry) throws SendException {
+        int wait = 1;
+        while (shouldRetry.getAsBoolean()) {
+            try {
+                Thread.sleep(wait);
+                wait = Math.min(2 * wait, 3600 * 1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new SendException(e);
+            }
+        }
+    }
+
+    /**
+     * Queries the Elastic cluster health ({@code GET _cluster/health}) and counts the returned status
+     * (red, yellow or green). When the status is red, an error is also logged, as no publication attempt
+     * is allowed to proceed while the cluster stays in that state.
+     * @return {@code true} if the cluster health status is red, {@code false} otherwise
+     */
+    private boolean checkClusterHealth() {
+        Function<JsonNode, String> transform = node -> Optional.ofNullable(node.get("status")).map(JsonNode::asText).orElse(null);
+        String clusterStatus = doquery(null, "_cluster/health", transform, Map.of(), null);
+        if (clusterStatus != null) {
+            countClusterStatus(clusterStatus);
+        }
+        if ("red".equalsIgnoreCase(clusterStatus)) {
+            logger.error("Elastic cluster health status is red, no publication attempt will be made until it recovers");
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Counts an occurrence of the given Elastic cluster health status (red, yellow or green). This is a
+     * counter specific to {@link ElasticSearch}, built on top of the generic {@link Stats} API instead of
+     * extending it.
+     * @param status the cluster health status returned by Elastic
+     */
+    private void countClusterStatus(String status) {
+        Stats.getMetric(this, CLUSTERSTATUS_METRIC_PREFIX + status, Meter.class).mark();
+    }
+
+    /**
+     * Returns the number of times the Elastic cluster health status was found to be the given value, for
+     * monitoring and testing purposes.
+     * @param status the cluster health status to look up
+     * @return the number of times the cluster health status was {@code status}
+     */
+    long getClusterStatusCount(String status) {
+        return Stats.getMetric(this, CLUSTERSTATUS_METRIC_PREFIX + status, Meter.class).getCount();
+    }
+
+    /**
+     * In addition to the default sender metrics (including the generic HTTP status counters registered by
+     * {@link AbstractHttpSender}), pre-registers the counters for the Elastic cluster health statuses
+     * expected in this context, so they are always defined (reading
+     * as 0) instead of only appearing once first encountered.
+     */
+    @Override
+    public void registerCustomStats() {
+        super.registerCustomStats();
+        /*
+         * The possible Elastic cluster health statuses, whose counter is always defined (even at 0) as soon as
+         * this sender is configured, instead of only appearing once first encountered.
+         */
+        List<String> monitoredClusterStatuses = List.of("red", "yellow", "green");
+        monitoredClusterStatuses.forEach(status -> Stats.getMetric(this, CLUSTERSTATUS_METRIC_PREFIX + status, Meter.class));
     }
 
     @Override
