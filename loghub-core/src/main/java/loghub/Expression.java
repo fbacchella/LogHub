@@ -55,6 +55,7 @@ import loghub.groovy.ObjectMetaClass;
 import loghub.groovy.StringMetaClass;
 import loghub.groovy.TemporalMetaClass;
 import loghub.types.MacAddress;
+import loghub.types.NetworkMask;
 import lombok.Getter;
 
 /**
@@ -367,6 +368,7 @@ public class Expression {
                 case Collection<?> c -> c.contains(obj1);
                 case Object arr when arr.getClass().isArray() -> DefaultTypeTransformation.primitiveArrayToList(arr).contains(obj1);
                 case CharSequence cs2 when (obj1 instanceof CharSequence || obj1 instanceof Character) -> cs2.toString().contains(obj1.toString());
+                case NetworkMask nm when obj1 instanceof InetAddress addr -> nm.inNetwork(addr);
                 default -> false;
             };
         };

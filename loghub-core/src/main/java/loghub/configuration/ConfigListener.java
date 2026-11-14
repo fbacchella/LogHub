@@ -6,6 +6,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteOrder;
@@ -116,6 +118,7 @@ import loghub.security.JWTHandler;
 import loghub.security.ssl.SslContextBuilder;
 import loghub.senders.Sender;
 import loghub.sources.Source;
+import loghub.types.NetworkMask;
 import lombok.Builder;
 import lombok.Data;
 
@@ -1348,6 +1351,26 @@ class ConfigListener extends RouteBaseListener {
                 mapEntries.put(identifier, subexpression.build(emc.expression(i).getText()));
             }
             expression = ExpressionBuilder.of(mapEntries);
+        } else if (ctx.ip() != null) {
+            try {
+                InetAddress addr = InetAddress.getByName(ctx.ip().baseip.getText());
+                if (ctx.ip().cidr != null) {
+                    short mask = Short.parseShort(ctx.ip().cidr.getText().substring(1));
+                    if (mask < 0 ||
+                        (addr instanceof Inet4Address && mask > 32) ||
+                        (addr instanceof Inet6Address && mask > 128)
+                    ) {
+                        throw new NumberFormatException();
+                    }
+                    expression = ExpressionBuilder.of(new NetworkMask(addr, mask));
+                } else {
+                    expression = ExpressionBuilder.of(addr);
+                }
+            } catch (NumberFormatException e) {
+                throw new RecognitionException("Invalid CIDR netmask " + ctx.ip().getText(), parser, stream, ctx);
+            } catch (UnknownHostException e) {
+                throw new IllegalStateException("Valid but unresolved IP: " + ctx.ip().getText(), e);
+            }
         } else {
             throw new IllegalStateException("Unreachable code");
         }

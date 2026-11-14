@@ -4,6 +4,9 @@
 
 grammar Route;
 
+@lexer::header {
+import loghub.configuration.GrammarParserFiltering;
+}
 @parser::header {
 import loghub.configuration.GrammarParserFiltering;
 import loghub.configuration.GrammarParserFiltering.BEANTYPE;
@@ -228,7 +231,28 @@ expression
     |   expressionMap
     |   flatten = Flatten '(' expression ')'
     |   {inLambda()}? lambdavar=Identifier {lambdaVariable.equals($lambdavar.text)}?
+    |   ip
     ;
+
+ip:   baseip=(IPV4 | IPV6) (cidr=NETCIDR)?;
+
+IPV4: (('0' | NonZeroDigit Digit*) '.'( '0' | NonZeroDigit Digit*) '.' ('0' | NonZeroDigit Digit*) '.' ('0' | NonZeroDigit Digit*))
+        { GrammarParserFiltering.isIp(_input, 15) }?;
+
+IPV6: (
+        '::' [fF] [fF] [fF] [fF] ':' IPV4
+        | H16 (SEP H16)+ '::'?
+        | H16 '::'
+        | '::' (GROUPS '::'?)?
+    )
+    { GrammarParserFiltering.isIp(_input, 45) }?;
+
+fragment GROUPS : H16 (SEP H16)* ;
+fragment SEP    : ':' ':'? ;
+fragment H16    : HEXDIG HEXDIG? HEXDIG? HEXDIG? ;
+fragment HEXDIG : [0-9a-fA-F] ;
+
+NETCIDR: '/' NonZeroDigit Digit*;
 
 Trim: 'trim';
 Capitalize: 'capitalize';

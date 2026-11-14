@@ -25,12 +25,14 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLParameters;
 
+import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.RuleContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.netty.util.NetUtil;
 import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Helpers;
@@ -447,4 +449,21 @@ public class GrammarParserFiltering {
         return classLoaderHolder.get();
     }
 
+    private static final String IPPARTS = "0123456789.:abcdefABCDEF";
+    private static final Set<Integer> IPCODEPOINTS;
+    static {
+        IPCODEPOINTS = Set.copyOf(IPPARTS.codePoints().collect(HashSet::new, Set::add, Set::addAll));
+    }
+    public static boolean isIp(CharStream stream, int maxCount) {
+        if (IPCODEPOINTS.contains(stream.LA(1))) {
+            return false;
+        } else {
+            StringBuilder buffer = new StringBuilder(maxCount);
+            for (int i = -1 ; IPCODEPOINTS.contains(stream.LA(i)) ; i--) {
+                buffer.appendCodePoint(stream.LA(i));
+            }
+            String tryIp = buffer.reverse().toString();
+            return NetUtil.isValidIpV4Address(tryIp) || NetUtil.isValidIpV6Address(tryIp);
+        }
+    }
 }

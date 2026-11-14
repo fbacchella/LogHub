@@ -27,15 +27,19 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.antlr.v4.runtime.RecognitionException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import loghub.BuildableConnectionContext;
 import loghub.ConnectionContext;
@@ -53,12 +57,13 @@ import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.types.NetworkMask;
 
 public class TestExpressionParsing {
 
     private final EventsFactory factory = new EventsFactory();
 
-    @BeforeClass
+    @BeforeAll
     public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
@@ -67,42 +72,42 @@ public class TestExpressionParsing {
 
     @Test
     public void testSimple() {
-        Assert.assertEquals("3", Tools.resolveExpression("1 + 2").toString());
+        Assertions.assertEquals("3", Tools.resolveExpression("1 + 2").toString());
     }
 
     @Test
     public void testOr() {
-        Assert.assertEquals("3", Tools.resolveExpression("1 .| 2").toString());
+        Assertions.assertEquals("3", Tools.resolveExpression("1 .| 2").toString());
     }
 
     @Test
     public void testUnary() throws ProcessorException {
-        Assert.assertEquals(2, Tools.resolveExpression("-(-2)"));
-        Assert.assertEquals(-2, Tools.evalExpression(".~1"));
-        Assert.assertEquals(false, Tools.evalExpression("!1"));
+        Assertions.assertEquals(2, Tools.resolveExpression("-(-2)"));
+        Assertions.assertEquals(-2, Tools.evalExpression(".~1"));
+        Assertions.assertEquals(false, Tools.evalExpression("!1"));
     }
 
     @Test
     public void testSubExpression() {
-        Assert.assertEquals("12", Tools.resolveExpression("(1 + 2) * 4").toString());
+        Assertions.assertEquals("12", Tools.resolveExpression("(1 + 2) * 4").toString());
     }
 
     @Test
     public void testNew() throws ProcessorException {
-        Assert.assertEquals(new Date(3), Tools.evalExpression("new java.util.Date(1+2)", factory.newEvent()));
-        Assert.assertEquals("", Tools.evalExpression("new java.lang.String()", factory.newEvent()));
+        Assertions.assertEquals(new Date(3), Tools.evalExpression("new java.util.Date(1+2)", factory.newEvent()));
+        Assertions.assertEquals("", Tools.evalExpression("new java.lang.String()", factory.newEvent()));
         Event ev = factory.newEvent();
-        RecognitionException ex = Assert.assertThrows(RecognitionException.class, () -> Tools.evalExpression("new class.not.exist()", ev));
-        Assert.assertEquals("Unknown class: class.not.exist", ex.getMessage());
+        RecognitionException ex = Assertions.assertThrows(RecognitionException.class, () -> Tools.evalExpression("new class.not.exist()", ev));
+        Assertions.assertEquals("Unknown class: class.not.exist", ex.getMessage());
     }
 
     @Test
     public void testRoot() throws ProcessorException {
         Event ev =  factory.newEvent();
         ev.putAtPath(VariablePath.of("a", "b"), "1");
-        Assert.assertEquals(Map.copyOf(ev), Tools.evalExpression("[.]", ev.wrap(VariablePath.of("a"))));
-        Assert.assertEquals(Map.copyOf(ev), Tools.evalExpression("[.]", ev));
-        Assert.assertEquals(false, Tools.evalExpression("isEmpty([.])", ev));
+        Assertions.assertEquals(Map.copyOf(ev), Tools.evalExpression("[.]", ev.wrap(VariablePath.of("a"))));
+        Assertions.assertEquals(Map.copyOf(ev), Tools.evalExpression("[.]", ev));
+        Assertions.assertEquals(false, Tools.evalExpression("isEmpty([.])", ev));
     }
 
     @Test
@@ -111,7 +116,7 @@ public class TestExpressionParsing {
         Event ev =  factory.newEvent();
         ev.put("a", 1);
         ev.put("b", 2);
-        Assert.assertEquals("01 02", Tools.evalExpression("\"" + format + "\"([a], [b])", ev));
+        Assertions.assertEquals("01 02", Tools.evalExpression("\"" + format + "\"([a], [b])", ev));
     }
 
     @Test
@@ -119,8 +124,8 @@ public class TestExpressionParsing {
         String format = "${#2%02d}";
         Event ev =  factory.newEvent();
         ev.put("a", 1);
-        ProcessorException pe = Assert.assertThrows(ProcessorException.class, () -> Tools.evalExpression("\"" + format + "\"([a])", ev));
-        Assert.assertTrue(pe.getMessage().contains("Not enough formatting arguments"));
+        ProcessorException pe = Assertions.assertThrows(ProcessorException.class, () -> Tools.evalExpression("\"" + format + "\"([a])", ev));
+        Assertions.assertTrue(pe.getMessage().contains("Not enough formatting arguments"));
     }
 
     @Test
@@ -128,7 +133,7 @@ public class TestExpressionParsing {
         String format = "${#1%t<Europe/Paris>H}";
         Event ev =  factory.newEvent();
         ev.setTimestamp(new Date(0));
-        Assert.assertEquals("01", Tools.evalExpression("\"" + format + "\"([@timestamp])", ev));
+        Assertions.assertEquals("01", Tools.evalExpression("\"" + format + "\"([@timestamp])", ev));
     }
 
     @Test
@@ -136,14 +141,14 @@ public class TestExpressionParsing {
         String format = "${#1%s}-${#2%tY}.${#2%tm}.${#2%td}";
         Event ev =  factory.newEvent(getConnexionContext(() -> "user"));
         ev.setTimestamp(new Date(0));
-        Assert.assertEquals("user-1970.01.01", Tools.evalExpression("\"" + format + "\" ([@context principal name], [@timestamp])", ev));
+        Assertions.assertEquals("user-1970.01.01", Tools.evalExpression("\"" + format + "\" ([@context principal name], [@timestamp])", ev));
     }
 
     @Test
     public void testFormatterEvent() throws ProcessorException {
         Event ev =  factory.newEvent();
         ev.put("a", 1);
-        Assert.assertEquals("1", Tools.evalExpression("\"${a}\"", ev));
+        Assertions.assertEquals("1", Tools.evalExpression("\"${a}\"", ev));
     }
 
     @Test
@@ -162,7 +167,7 @@ public class TestExpressionParsing {
     public void testContextPattern() throws ProcessorException {
         Event ev =  factory.newEvent();
         String result = (String) Tools.evalExpression("\"${#1%s} ${#2%s}\"([@context], [@context principal]) ", ev);
-        Assert.assertTrue(Pattern.matches("loghub\\.events\\.LockedConnectionContext@[a-f0-9]+ loghub\\.([A-Za-z]+)ConnectionContext\\$EmptyPrincipal@[a-f0-9]+", result));
+        Assertions.assertTrue(Pattern.matches("loghub\\.events\\.LockedConnectionContext@[a-f0-9]+ loghub\\.([A-Za-z]+)ConnectionContext\\$EmptyPrincipal@[a-f0-9]+", result));
     }
 
     private void enumerateExpressions(Event ev, Object[] tryExpression) {
@@ -176,14 +181,14 @@ public class TestExpressionParsing {
     private void checkExpression(Event ev, String x, Object r) {
         try {
             Object o = Tools.evalExpression(x, ev);
-            Assert.assertEquals(x, r, o);
+            Assertions.assertEquals(r, o, x);
         } catch (IgnoredEventException e) {
             if (r != IgnoredEventException.class) {
-                Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
+                Assertions.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
             }
         } catch (ProcessorException e) {
             if (r != ProcessorException.class) {
-                Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
+                Assertions.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
             }
         }
     }
@@ -208,8 +213,8 @@ public class TestExpressionParsing {
 
     @Test
     public void testInstanceOfFailed() {
-        RecognitionException ex = Assert.assertThrows(RecognitionException.class, () -> Tools.evalExpression("1 instanceof not.a.class"));
-        Assert.assertEquals("Class not found: not.a.class", ex.getMessage());
+        RecognitionException ex = Assertions.assertThrows(RecognitionException.class, () -> Tools.evalExpression("1 instanceof not.a.class"));
+        Assertions.assertEquals("Class not found: not.a.class", ex.getMessage());
     }
 
     @Test
@@ -286,21 +291,21 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("badIP", "255");
         ev.put("badNumber", "NONE");
-        ProcessorException ex1 = Assert.assertThrows(
+        ProcessorException ex1 = Assertions.assertThrows(
                 ProcessorException.class,
                 () -> Tools.evalExpression("(java.net.InetAddress) [badIP]", ev)
         );
-        Assert.assertEquals("Failed expression (java.net.InetAddress) [badIP]: Unable to parse 255 as a java.net.InetAddress: Unknown host \"255\"", ex1.getMessage());
-        ProcessorException ex2 = Assert.assertThrows(
+        Assertions.assertEquals("Failed expression (java.net.InetAddress) [badIP]: Unable to parse 255 as a java.net.InetAddress: Unknown host \"255\"", ex1.getMessage());
+        ProcessorException ex2 = Assertions.assertThrows(
                 ProcessorException.class,
                 () -> Tools.evalExpression("(java.lang.Integer) [badNumber]", ev)
         );
-        Assert.assertEquals("Failed expression (java.lang.Integer) [badNumber]: Unable to parse NONE as a java.lang.Integer: For input string: \"NONE\"", ex2.getMessage());
-        RecognitionException ex3 = Assert.assertThrows(
+        Assertions.assertEquals("Failed expression (java.lang.Integer) [badNumber]: Unable to parse NONE as a java.lang.Integer: For input string: \"NONE\"", ex2.getMessage());
+        RecognitionException ex3 = Assertions.assertThrows(
                 RecognitionException.class,
                 () -> Tools.evalExpression("(java.net.InetAddress) \"255\"", ev)
         );
-        Assert.assertEquals("Unable to parse 255 as a java.net.InetAddress: Unknown host \"255\"", ex3.getMessage());
+        Assertions.assertEquals("Unable to parse 255 as a java.net.InetAddress: Unknown host \"255\"", ex3.getMessage());
     }
 
     @Test
@@ -480,7 +485,7 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.setTimestamp(new Date(0));
         Date ts = (Date) Tools.evalExpression("[@timestamp]", ev);
-        Assert.assertEquals(0L, ts.getTime());
+        Assertions.assertEquals(0L, ts.getTime());
     }
 
     @Test
@@ -489,7 +494,7 @@ public class TestExpressionParsing {
         ev.setTimestamp(new Date(0));
         ev.put("a", Instant.ofEpochMilli(0));
         Object o = Tools.evalExpression("[@timestamp] == [a]", ev);
-        Assert.assertEquals(true, o);
+        Assertions.assertEquals(true, o);
     }
 
     @Test
@@ -498,8 +503,8 @@ public class TestExpressionParsing {
         ev.setTimestamp(new Date(0));
         ev.put("a", Instant.ofEpochMilli(0));
         ev.put("b", new Date(0));
-        Assert.assertEquals(true, Tools.evalExpression("[a] == [b]", ev));
-        Assert.assertEquals(true, Tools.evalExpression("[b] == [a]", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("[a] == [b]", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("[b] == [a]", ev));
     }
 
     @Test
@@ -508,8 +513,8 @@ public class TestExpressionParsing {
         ev.setTimestamp(new Date(0));
         ev.put("a", Instant.ofEpochMilli(0));
         ev.put("b", Instant.ofEpochMilli(0).atZone(ZoneId.systemDefault()));
-        Assert.assertEquals(true, Tools.evalExpression("[a] == [b]", ev));
-        Assert.assertEquals(true, Tools.evalExpression("[b] == [a]", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("[a] == [b]", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("[b] == [a]", ev));
     }
 
     @Test
@@ -519,7 +524,7 @@ public class TestExpressionParsing {
         ev.put(Event.TIMESTAMPKEY, 1);
 
         Object v = Tools.evalExpression("[ \"@timestamp\" ]", ev);
-        Assert.assertEquals(1, v);
+        Assertions.assertEquals(1, v);
     }
 
     @Test
@@ -527,7 +532,7 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.putMeta("a", 1);
         Number i = (Number) Tools.evalExpression("[#a]", ev);
-        Assert.assertEquals(1, i.intValue());
+        Assertions.assertEquals(1, i.intValue());
     }
 
     @Test
@@ -537,7 +542,7 @@ public class TestExpressionParsing {
         ev.put("b", new int[] {4, 5, 6});
         @SuppressWarnings("unchecked")
         List<Object> i = (List<Object>) Tools.evalExpression("[a] + [b]", ev);
-        Assert.assertEquals(List.of(1, 2, 3, 4, 5, 6), i);
+        Assertions.assertEquals(List.of(1, 2, 3, 4, 5, 6), i);
     }
 
     @Test
@@ -547,18 +552,18 @@ public class TestExpressionParsing {
         ev.put("b", 2);
         @SuppressWarnings("unchecked")
         Map<String, Object> i = (Map<String, Object>) Tools.evalExpression("{c: [a], d: [b]}", ev);
-        Assert.assertEquals(1, i.get("c"));
-        Assert.assertEquals(2, i.get("d"));
+        Assertions.assertEquals(1, i.get("c"));
+        Assertions.assertEquals(2, i.get("d"));
     }
 
     @Test
     public void testCollectionsJoin() throws ProcessorException {
         Set<?> i1 = (Set<?>) Tools.evalExpression("set(1, 2, 3) + list(4,5,6)", factory.newEvent());
-        Assert.assertEquals(Set.of(1, 2, 3, 4, 5, 6), i1);
+        Assertions.assertEquals(Set.of(1, 2, 3, 4, 5, 6), i1);
         List<?> i2 = (List<?>) Tools.evalExpression("list(1, 2, 3) + set(4,5,6)", factory.newEvent());
-        Assert.assertEquals(List.of(1, 2, 3, 4, 5, 6), i2);
+        Assertions.assertEquals(List.of(1, 2, 3, 4, 5, 6), i2);
         List<?> i3 = (List<?>) Tools.evalExpression("list(1, 2, 3) + 4", factory.newEvent());
-        Assert.assertEquals(List.of(1, 2, 3, 4), i3);
+        Assertions.assertEquals(List.of(1, 2, 3, 4), i3);
     }
 
     @Test
@@ -570,19 +575,19 @@ public class TestExpressionParsing {
         ev.put("d", List.of(1, 2, 3));
         ev.put("e", new int[] {1, 2, 3});
         ev.put("f", new ArrayList<>(List.of(1, 2, 3)));
-        Assert.assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9), Tools.evalExpression("[a] + [b] + [c]", ev));
-        Assert.assertEquals(List.of(4, 5, 6, 7, 8, 9), Tools.evalExpression("[b] + [c]", ev));
-        Assert.assertEquals(Set.of(7, 8, 9, 4, 5, 6), Tools.evalExpression("[c] + [b]", ev));
-        Assert.assertEquals(List.of(1, 2, 3, 1, 2, 3), Tools.evalExpression("[a] + [d]", ev));
-        Assert.assertEquals(List.of(true, false, true), Tools.evalExpression("list(true, false) + set(true)", ev));
-        Assert.assertEquals(List.of('a', 'b', 'c'), Tools.evalExpression("list('a', 'b') + set('c')", ev));
-        Assert.assertEquals(List.of(1, 2, 3, 4), Tools.evalExpression("list(1, 2) + 3 + 4", ev));
-        Assert.assertEquals(Set.of(1, 2), Tools.evalExpression("set(1, 2) + 1 + 2", ev));
-        Assert.assertEquals(true, Tools.evalExpression("[a] == [d]", ev));
-        Assert.assertEquals(true, Tools.evalExpression("[a] == [e]", ev));
-        Assert.assertEquals(true, Tools.evalExpression("[a] == [f]", ev));
-        Assert.assertEquals(true, Tools.evalExpression("list((java.net.InetAddress)\"8.8.8.8\") == list((java.net.InetAddress)\"8.8.8.8\")", ev));
-        Assert.assertEquals(true, Tools.evalExpression("list('c') == list('c')", ev));
+        Assertions.assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9), Tools.evalExpression("[a] + [b] + [c]", ev));
+        Assertions.assertEquals(List.of(4, 5, 6, 7, 8, 9), Tools.evalExpression("[b] + [c]", ev));
+        Assertions.assertEquals(Set.of(7, 8, 9, 4, 5, 6), Tools.evalExpression("[c] + [b]", ev));
+        Assertions.assertEquals(List.of(1, 2, 3, 1, 2, 3), Tools.evalExpression("[a] + [d]", ev));
+        Assertions.assertEquals(List.of(true, false, true), Tools.evalExpression("list(true, false) + set(true)", ev));
+        Assertions.assertEquals(List.of('a', 'b', 'c'), Tools.evalExpression("list('a', 'b') + set('c')", ev));
+        Assertions.assertEquals(List.of(1, 2, 3, 4), Tools.evalExpression("list(1, 2) + 3 + 4", ev));
+        Assertions.assertEquals(Set.of(1, 2), Tools.evalExpression("set(1, 2) + 1 + 2", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("[a] == [d]", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("[a] == [e]", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("[a] == [f]", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("list((java.net.InetAddress)\"8.8.8.8\") == list((java.net.InetAddress)\"8.8.8.8\")", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("list('c') == list('c')", ev));
     }
 
     @Test
@@ -591,11 +596,11 @@ public class TestExpressionParsing {
         ev.put("a", new Integer[] {1, 2, 3});
         ev.put("b", List.of(1, 2, 3));
         ev.putMeta("a", null);
-        Assert.assertEquals(3, Tools.evalExpression("[a][2]", ev));
-        Assert.assertEquals(3, Tools.evalExpression("[b][2]", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[c][0]", ev));
-        Assert.assertNull(Tools.evalExpression("[#a][0]", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[#b][0]", ev));
+        Assertions.assertEquals(3, Tools.evalExpression("[a][2]", ev));
+        Assertions.assertEquals(3, Tools.evalExpression("[b][2]", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[c][0]", ev));
+        Assertions.assertNull(Tools.evalExpression("[#a][0]", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[#b][0]", ev));
     }
 
     @Test
@@ -603,51 +608,51 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] {1, 2, 3});
         ev.put("b", List.of(4, 5, 6));
-        Assert.assertEquals(3, Tools.evalExpression("[a][-1]", ev));
-        Assert.assertEquals(6, Tools.evalExpression("[b][-1]", ev));
+        Assertions.assertEquals(3, Tools.evalExpression("[a][-1]", ev));
+        Assertions.assertEquals(6, Tools.evalExpression("[b][-1]", ev));
     }
 
-    @Test(expected = IgnoredEventException.class)
-    public void testArrayOutOfBound() throws ProcessorException {
+    @Test
+    public void testArrayOutOfBound() {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] {1, 2, 3});
-        Tools.evalExpression("[a][3]", ev);
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[a][3]", ev));
     }
 
     @Test
     public void testList() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", List.of(1, 2, 3));
-        Assert.assertEquals(3, Tools.evalExpression("[a][2]", ev));
+        Assertions.assertEquals(3, Tools.evalExpression("[a][2]", ev));
     }
 
-    @Test(expected = IgnoredEventException.class)
-    public void testListOutOfBound() throws ProcessorException {
+    @Test
+    public void testListOutOfBound() {
         Event ev = factory.newEvent();
         ev.put("a", List.of(1, 2, 3));
-        Tools.evalExpression("[a][3]", ev);
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[a][3]", ev));
     }
 
-    @Test(expected = IgnoredEventException.class)
-    public void testMissingArray() throws ProcessorException {
+    @Test
+    public void testMissingArray() {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
-        Tools.evalExpression("[b][3]", ev);
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[b][3]", ev));
     }
 
-    @Test(expected = ProcessorException.class)
-    public void testNotArray() throws ProcessorException {
+    @Test
+    public void testNotArray() {
         Event ev = factory.newEvent();
         ev.put("a", 1);
-        Tools.evalExpression("[a][0]", ev);
+        Assertions.assertThrows(ProcessorException.class, () -> Tools.evalExpression("[a][0]", ev));
     }
 
     @Test
     public void testPatternBoolean() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] ==~ /(a.)(.)/", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] ==~ \"\"\"(a.)(.)\"\"\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[a] ==~ /(a.)(.)/", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[a] ==~ \"\"\"(a.)(.)\"\"\"", ev));
     }
 
     @Test
@@ -659,25 +664,25 @@ public class TestExpressionParsing {
         for (Object o : toTest) {
             ev.put("a", o);
             Boolean i = (Boolean) Tools.evalExpression("[a] ==~ /.*/", ev);
-            Assert.assertEquals(false, i);
+            Assertions.assertEquals(false, i);
         }
         ev.put("a", null);
         Boolean i = (Boolean) Tools.evalExpression("[a] ==~ /.*/", ev);
-        Assert.assertEquals(false, i);
+        Assertions.assertEquals(false, i);
     }
 
     @Test
     public void
     testPatternMissing() {
         Event ev = factory.newEvent();
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[a] ==~ /.*/", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("[a] ==~ /.*/", ev));
     }
 
     @Test
     public void testPatternBooleanEscaped() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", "a.c\n");
-        Assert.assertEquals(true, Tools.evalExpression("[a] ==~ /a\\.c\\n/", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("[a] ==~ /a\\.c\\n/", ev));
     }
 
     @Test
@@ -685,60 +690,60 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
         String i = (String) Tools.evalExpression("([a] =~ /(a.)(.)/)[2]", ev);
-        Assert.assertEquals("c", i);
+        Assertions.assertEquals("c", i);
     }
 
     @Test
     public void testFailedPatternArray() {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("([a] =~ /d.*/)[2]", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("([a] =~ /d.*/)[2]", ev));
     }
 
-    @Test(expected = RecognitionException.class)
-    public void testBadPattern() throws ProcessorException {
+    @Test
+    public void testBadPattern() {
         Event ev = factory.newEvent();
-        Tools.evalExpression("[a] ==~ /*/", ev);
+        Assertions.assertThrows(RecognitionException.class, () -> Tools.evalExpression("[a] ==~ /*/", ev));
     }
 
     @Test
     public void testStringLitteral() {
-        Assert.assertEquals("loghub", Tools.resolveExpression("\"loghub\""));
-        Assert.assertEquals("\0", Tools.resolveExpression("\"\\0\""));
-        Assert.assertEquals("\1", Tools.resolveExpression("\"\\01\""));
-        Assert.assertEquals("\11", Tools.resolveExpression("\"\\11\""));
-        Assert.assertEquals("\111", Tools.resolveExpression("\"\\111\""));
-        Assert.assertEquals("a\111a", Tools.resolveExpression("\"a\\111a\""));
-        Assert.assertEquals("1\1", Tools.resolveExpression("\"1\\1\""));
-        Assert.assertEquals("\1", Tools.resolveExpression("\"\\u0001\""));
-        Assert.assertEquals("α", Tools.resolveExpression("\"\\u03B1\""));
-        Assert.assertEquals("Aαa", Tools.resolveExpression("\"A\\u03B1a\""));
-        Assert.assertEquals("\uD83C\uDF09", Tools.resolveExpression("\"\\ud83c\\udf09\""));
-        Assert.assertEquals("\n", Tools.resolveExpression("\"\\n\""));
-        Assert.assertEquals("\\n", Tools.resolveExpression("\"\\\\n\""));
+        Assertions.assertEquals("loghub", Tools.resolveExpression("\"loghub\""));
+        Assertions.assertEquals("\0", Tools.resolveExpression("\"\\0\""));
+        Assertions.assertEquals("\1", Tools.resolveExpression("\"\\01\""));
+        Assertions.assertEquals("\11", Tools.resolveExpression("\"\\11\""));
+        Assertions.assertEquals("\111", Tools.resolveExpression("\"\\111\""));
+        Assertions.assertEquals("a\111a", Tools.resolveExpression("\"a\\111a\""));
+        Assertions.assertEquals("1\1", Tools.resolveExpression("\"1\\1\""));
+        Assertions.assertEquals("\1", Tools.resolveExpression("\"\\u0001\""));
+        Assertions.assertEquals("α", Tools.resolveExpression("\"\\u03B1\""));
+        Assertions.assertEquals("Aαa", Tools.resolveExpression("\"A\\u03B1a\""));
+        Assertions.assertEquals("\uD83C\uDF09", Tools.resolveExpression("\"\\ud83c\\udf09\""));
+        Assertions.assertEquals("\n", Tools.resolveExpression("\"\\n\""));
+        Assertions.assertEquals("\\n", Tools.resolveExpression("\"\\\\n\""));
     }
 
     @Test
     public void testCharacterLitteral() {
-        Assert.assertEquals('a', Tools.resolveExpression("'a'"));
-        Assert.assertEquals('\n', Tools.resolveExpression("'\n'"));
-        Assert.assertEquals('α', Tools.resolveExpression("'\u03B1'"));
+        Assertions.assertEquals('a', Tools.resolveExpression("'a'"));
+        Assertions.assertEquals('\n', Tools.resolveExpression("'\n'"));
+        Assertions.assertEquals('α', Tools.resolveExpression("'\u03B1'"));
     }
 
     @Test
     public void testIntegerLitteral() {
-        Assert.assertEquals(1, Tools.resolveExpression("1"));
-        Assert.assertEquals(100, Tools.resolveExpression("0100"));
-        Assert.assertEquals(Long.MAX_VALUE, Tools.resolveExpression("" + Long.MAX_VALUE));
-        Assert.assertEquals(new BigInteger("19223372036854775807"), Tools.resolveExpression("1" + Long.MAX_VALUE));
-        Assert.assertEquals(10, Tools.resolveExpression("0xa"));
-        Assert.assertEquals(511, Tools.resolveExpression("0o777"));
-        Assert.assertEquals(7, Tools.resolveExpression("0b111"));
+        Assertions.assertEquals(1, Tools.resolveExpression("1"));
+        Assertions.assertEquals(100, Tools.resolveExpression("0100"));
+        Assertions.assertEquals(Long.MAX_VALUE, Tools.resolveExpression("" + Long.MAX_VALUE));
+        Assertions.assertEquals(new BigInteger("19223372036854775807"), Tools.resolveExpression("1" + Long.MAX_VALUE));
+        Assertions.assertEquals(10, Tools.resolveExpression("0xa"));
+        Assertions.assertEquals(511, Tools.resolveExpression("0o777"));
+        Assertions.assertEquals(7, Tools.resolveExpression("0b111"));
     }
 
     @Test
     public void testNullLitteral() {
-        Assert.assertEquals(NullOrMissingValue.NULL, Tools.resolveExpression("null"));
+        Assertions.assertEquals(NullOrMissingValue.NULL, Tools.resolveExpression("null"));
     }
 
     @Test
@@ -747,7 +752,7 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", "a");
         Boolean b = (Boolean) Tools.evalExpression(expressionScript, ev);
-        Assert.assertTrue(b);
+        Assertions.assertTrue(b);
     }
 
     @Test
@@ -755,7 +760,7 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.putAtPath(VariablePath.of("a", "b"), 1);
         Object o = Tools.evalExpression("[a b] + \"${a.b}\"", ev);
-        Assert.assertEquals("11", o);
+        Assertions.assertEquals("11", o);
     }
 
     @Test
@@ -766,7 +771,7 @@ public class TestExpressionParsing {
         ev.put("a", "1");
         ev.put("b", 2);
         Object o = expression.eval(ev);
-        Assert.assertEquals("1 02", o);
+        Assertions.assertEquals("1 02", o);
     }
 
     @Test
@@ -788,12 +793,12 @@ public class TestExpressionParsing {
                 throw new RuntimeException(e);
             }
         });
-        Assert.assertEquals("[a] - [b]", -1.1, results.get("[a] - [b]"), 1e-3);
-        Assert.assertEquals("[b] - [c]", 1.1, results.get("[b] - [c]"), 1e-3);
-        Assert.assertEquals("[c] - [d]", -1.1, results.get("[c] - [d]"), 1e-3);
-        Assert.assertEquals("[d] - [a]", 1.1, results.get("[d] - [a]"), 1e-3);
+        Assertions.assertEquals(-1.1, results.get("[a] - [b]"), 1e-3, "[a] - [b]");
+        Assertions.assertEquals(1.1, results.get("[b] - [c]"), 1e-3, "[b] - [c]");
+        Assertions.assertEquals(-1.1, results.get("[c] - [d]"), 1e-3, "[c] - [d]");
+        Assertions.assertEquals(1.1, results.get("[d] - [a]"), 1e-3, "[d] - [a]");
         Expression exp = Tools.parseExpression("[c] - 1");
-        Assert.assertThrows(IgnoredEventException.class, () -> exp.eval(ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> exp.eval(ev));
     }
 
     @Test
@@ -803,16 +808,16 @@ public class TestExpressionParsing {
         ev.put("b", List.of(1, 2, 3));
         ev.put("c", Set.of(1, 2, 3));
         ev.put("d", new Integer[]{1, 2, 3});
-        Assert.assertEquals(List.of('a', "a", 1), Tools.evalExpression("list('a', \"a\", [a])", ev));
-        Assert.assertEquals(List.of(), Tools.evalExpression("list()", ev));
+        Assertions.assertEquals(List.of('a', "a", 1), Tools.evalExpression("list('a', \"a\", [a])", ev));
+        Assertions.assertEquals(List.of(), Tools.evalExpression("list()", ev));
     }
 
     @Test
     public void testCollectionSet() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", 1);
-        Assert.assertEquals(Set.of('a', "a", 1), Tools.evalExpression("set('a', 'a', \"a\", \"a\", [a])", ev));
-        Assert.assertEquals(Set.of(), Tools.evalExpression("set()", ev));
+        Assertions.assertEquals(Set.of('a', "a", 1), Tools.evalExpression("set('a', 'a', \"a\", \"a\", [a])", ev));
+        Assertions.assertEquals(Set.of(), Tools.evalExpression("set()", ev));
     }
 
     @Test
@@ -821,25 +826,25 @@ public class TestExpressionParsing {
         Principal p = () -> "user";
         ipctx.setPrincipal(p);
         Event ev = factory.newEvent(ipctx);
-        Assert.assertEquals(InetAddress.getByName("127.0.0.1"), Tools.evalExpression("[@context localAddress address]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[@context localAddress address] == \"127.0.0.1\"", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[@context localAddress port] == 31712", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[@context remoteAddress address] == \"www.google.com\"", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[@context remoteAddress port] == 443", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[@context principal name] == \"user\"", ev));
+        Assertions.assertEquals(InetAddress.getByName("127.0.0.1"), Tools.evalExpression("[@context localAddress address]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[@context localAddress address] == \"127.0.0.1\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[@context localAddress port] == 31712", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[@context remoteAddress address] == \"www.google.com\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[@context remoteAddress port] == 443", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[@context principal name] == \"user\"", ev));
 
         // Checking both order of expression, change the way groovy handle it
-        Assert.assertEquals(true, Tools.evalExpression("\"user\" == [@context principal name]", ev));
+        Assertions.assertEquals(true, Tools.evalExpression("\"user\" == [@context principal name]", ev));
     }
 
     @Test
     public void testContextNullOrMissing() throws ProcessorException {
         Event ev = factory.newEvent(getConnexionContext(() -> null));
-        Assert.assertTrue((boolean) Tools.evalExpression("isEmpty([@context principal name])", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("isEmpty([@context localAddress])", ev));
-        Assert.assertFalse((boolean) Tools.evalExpression("[@context localAddress port] == 443", ev));
-        Assert.assertFalse((boolean) Tools.evalExpression("[@context bad] == 443", ev));
-        Assert.assertFalse((boolean) Tools.evalExpression("[@context remoteAddress path] == 443", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("isEmpty([@context principal name])", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("isEmpty([@context localAddress])", ev));
+        Assertions.assertFalse((boolean) Tools.evalExpression("[@context localAddress port] == 443", ev));
+        Assertions.assertFalse((boolean) Tools.evalExpression("[@context bad] == 443", ev));
+        Assertions.assertFalse((boolean) Tools.evalExpression("[@context remoteAddress path] == 443", ev));
     }
 
     @Test
@@ -849,9 +854,9 @@ public class TestExpressionParsing {
         ipctxt.setPrincipal(p);
         Event ev = factory.newEvent(ipctxt);
         Object value = Tools.evalExpression("[@context.principal.name] == \"user\"", ev);
-        Assert.assertEquals(true, value);
+        Assertions.assertEquals(true, value);
         InetSocketAddress localAddr = (InetSocketAddress) Tools.evalExpression("[ @context.localAddress]", ev);
-        Assert.assertEquals(35710, localAddr.getPort());
+        Assertions.assertEquals(35710, localAddr.getPort());
     }
 
     private Object resolve(String function, String value) throws ProcessorException {
@@ -866,11 +871,11 @@ public class TestExpressionParsing {
         ev.put("a", "1 2 3");
         ev.put("b", "1/2/3");
         ev.put("c", null);
-        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\" \", [a])", ev));
-        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(/ /, [a])", ev));
-        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\"\"\"/\"\"\", [b])", ev));
-        Assert.assertNull(Tools.evalExpression("split(\" \", [c])", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split(/ /, [d])", ev));
+        Assertions.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\" \", [a])", ev));
+        Assertions.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(/ /, [a])", ev));
+        Assertions.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\"\"\"/\"\"\", [b])", ev));
+        Assertions.assertNull(Tools.evalExpression("split(\" \", [c])", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split(/ /, [d])", ev));
     }
 
     @Test
@@ -879,12 +884,12 @@ public class TestExpressionParsing {
         ev.put("a", "1 2 3");
         ev.put("b", "1/2/3");
         ev.put("c", null);
-        Assert.assertEquals("1-2-3", Tools.evalExpression("gsub([a], / /, \"-\")", ev));
-        Assert.assertEquals("1/2/3", Tools.evalExpression("gsub([b], / /, \"-\")", ev));
-        Assert.assertEquals("1-2-3", Tools.evalExpression("gsub([b], \"\"\"/\"\"\", \"-\")", ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("gsub([a], \"\"\"/\"\"\", \"-\")", ev));
-        Assert.assertNull(Tools.evalExpression("gsub([c], / /, \"-\")", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("gsub([d], / /, \"-\")", ev));
+        Assertions.assertEquals("1-2-3", Tools.evalExpression("gsub([a], / /, \"-\")", ev));
+        Assertions.assertEquals("1/2/3", Tools.evalExpression("gsub([b], / /, \"-\")", ev));
+        Assertions.assertEquals("1-2-3", Tools.evalExpression("gsub([b], \"\"\"/\"\"\", \"-\")", ev));
+        Assertions.assertEquals("1 2 3", Tools.evalExpression("gsub([a], \"\"\"/\"\"\", \"-\")", ev));
+        Assertions.assertNull(Tools.evalExpression("gsub([c], / /, \"-\")", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("gsub([d], / /, \"-\")", ev));
     }
 
     @Test
@@ -897,41 +902,41 @@ public class TestExpressionParsing {
         ev.put("b", new TreeSet<>(List.of(1, 2, 3, 1)));
         ev.put("c", ' ');
         ev.put("d", null);
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", set(1, 2, 3))", ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", list(1, 2, 3))", ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [a])", ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [aL])", ev));
-        Assert.assertEquals("1.0 2.0 3.0", Tools.evalExpression("join(\" \", [af])", ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [ac])", ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [b])", ev));
-        Assert.assertNull(Tools.evalExpression("join(\" \", [d])", ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", \"1 2 3\")", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join(\" \", [e])", ev));
+        Assertions.assertEquals("1 2 3", Tools.evalExpression("join(\" \", set(1, 2, 3))", ev));
+        Assertions.assertEquals("1 2 3", Tools.evalExpression("join(\" \", list(1, 2, 3))", ev));
+        Assertions.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [a])", ev));
+        Assertions.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [aL])", ev));
+        Assertions.assertEquals("1.0 2.0 3.0", Tools.evalExpression("join(\" \", [af])", ev));
+        Assertions.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [ac])", ev));
+        Assertions.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [b])", ev));
+        Assertions.assertNull(Tools.evalExpression("join(\" \", [d])", ev));
+        Assertions.assertEquals("1 2 3", Tools.evalExpression("join(\" \", \"1 2 3\")", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join(\" \", [e])", ev));
     }
 
     @Test
     public void testStringOperator() throws ProcessorException {
-        Assert.assertEquals("abc", resolve("trim", " abc "));
-        Assert.assertNull(resolve("trim", null));
-        Assert.assertEquals("Abc", resolve("capitalize", "abc"));
-        Assert.assertNull(resolve("capitalize", null));
-        Assert.assertEquals("abc", resolve("uncapitalize", "Abc"));
-        Assert.assertNull(resolve("uncapitalize", null));
-        Assert.assertEquals("abc", resolve("lowercase", "AbC"));
-        Assert.assertNull(resolve("lowercase", null));
-        Assert.assertEquals("ABC", resolve("uppercase", "abC"));
-        Assert.assertNull(resolve("uppercase", null));
-        Assert.assertEquals(false, resolve("isBlank", "abc"));
-        Assert.assertEquals(true, resolve("isBlank", ""));
-        Assert.assertEquals(true, resolve("isBlank", " "));
-        Assert.assertEquals(true, resolve("isBlank", null));
-        Assert.assertEquals("a\nb\nc\nd", resolve("normalize", "a\nb\r\nc\rd"));
-        Assert.assertNull(resolve("normalize", null));
+        Assertions.assertEquals("abc", resolve("trim", " abc "));
+        Assertions.assertNull(resolve("trim", null));
+        Assertions.assertEquals("Abc", resolve("capitalize", "abc"));
+        Assertions.assertNull(resolve("capitalize", null));
+        Assertions.assertEquals("abc", resolve("uncapitalize", "Abc"));
+        Assertions.assertNull(resolve("uncapitalize", null));
+        Assertions.assertEquals("abc", resolve("lowercase", "AbC"));
+        Assertions.assertNull(resolve("lowercase", null));
+        Assertions.assertEquals("ABC", resolve("uppercase", "abC"));
+        Assertions.assertNull(resolve("uppercase", null));
+        Assertions.assertEquals(false, resolve("isBlank", "abc"));
+        Assertions.assertEquals(true, resolve("isBlank", ""));
+        Assertions.assertEquals(true, resolve("isBlank", " "));
+        Assertions.assertEquals(true, resolve("isBlank", null));
+        Assertions.assertEquals("a\nb\nc\nd", resolve("normalize", "a\nb\r\nc\rd"));
+        Assertions.assertNull(resolve("normalize", null));
         Event ev = factory.newEvent();
         ev.put("a", "1");
         ev.put("b", "2");
-        Assert.assertEquals("12", Tools.evalExpression("[a] + [b]", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isBlank([c])", ev));
+        Assertions.assertEquals("12", Tools.evalExpression("[a] + [b]", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isBlank([c])", ev));
     }
 
     @Test
@@ -940,8 +945,8 @@ public class TestExpressionParsing {
         ev.put("a", ' ');
         ev.put("b", '1');
         ev.put("c", '2');
-        Assert.assertEquals("", Tools.evalExpression("trim([a])", ev));
-        Assert.assertEquals("12", Tools.evalExpression("[b] + [c]", ev));
+        Assertions.assertEquals("", Tools.evalExpression("trim([a])", ev));
+        Assertions.assertEquals("12", Tools.evalExpression("[b] + [c]", ev));
     }
 
     @Test
@@ -960,19 +965,19 @@ public class TestExpressionParsing {
             }
         }).forEach(buffer::append);
         String expression = String.format(Locale.US, "\"%s\"", buffer);
-        Assert.assertEquals(toEval, Tools.resolveExpression(expression));
+        Assertions.assertEquals(toEval, Tools.resolveExpression(expression));
     }
 
     @Test
     public void testNow() throws ProcessorException {
         Instant now = (Instant) Tools.evalExpression("now");
-        Assert.assertTrue(Math.abs(Instant.now().getEpochSecond() - now.getEpochSecond()) < 1);
+        Assertions.assertTrue(Math.abs(Instant.now().getEpochSecond() - now.getEpochSecond()) < 1);
     }
 
     @Test
     public void testHostname() throws ProcessorException, UnknownHostException {
         String hostname = InetAddress.getLocalHost().getHostName();
-        Assert.assertEquals(hostname, Tools.evalExpression("hostname"));
+        Assertions.assertEquals(hostname, Tools.evalExpression("hostname"));
     }
 
     @Test
@@ -1003,20 +1008,20 @@ public class TestExpressionParsing {
         }) {
             Event ev = factory.newEvent();
             ev.put("a", o);
-            Assert.assertTrue((boolean) Tools.evalExpression("isEmpty([a])", ev));
-            Assert.assertFalse((boolean) Tools.evalExpression("! isEmpty([a])", ev));
+            Assertions.assertTrue((boolean) Tools.evalExpression("isEmpty([a])", ev));
+            Assertions.assertFalse((boolean) Tools.evalExpression("! isEmpty([a])", ev));
         }
         Event ev = factory.newEvent();
-        Assert.assertTrue((boolean) Tools.evalExpression("isEmpty([.])", ev));
-        Assert.assertFalse((boolean) Tools.evalExpression("! isEmpty([.])", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("isEmpty([.])", ev));
+        Assertions.assertFalse((boolean) Tools.evalExpression("! isEmpty([.])", ev));
     }
 
     @Test
     public void testIsEmptyIgnore() {
         Event ev = factory.newEvent();
         ev.putAtPath(VariablePath.of("event", "type"), "debug");
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isEmpty([event start])", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isEmpty([a])", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isEmpty([event start])", ev));
+        Assertions.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isEmpty([a])", ev));
     }
 
     @Test
@@ -1034,8 +1039,8 @@ public class TestExpressionParsing {
         }) {
             Event ev = factory.newEvent();
             ev.put("a", o);
-            Assert.assertFalse((boolean) Tools.evalExpression("isEmpty([a])", ev));
-            Assert.assertTrue((boolean) Tools.evalExpression("! isEmpty([a])", ev));
+            Assertions.assertFalse((boolean) Tools.evalExpression("isEmpty([a])", ev));
+            Assertions.assertTrue((boolean) Tools.evalExpression("! isEmpty([a])", ev));
         }
     }
 
@@ -1044,82 +1049,82 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent(new IpConnectionContext(InetSocketAddress.createUnresolved("localhost", 0), InetSocketAddress.createUnresolved("localhost", 0)));
         ev.putAtPath(VariablePath.of("event", "type"), "debug");
         ev.putAtPath(VariablePath.of("empty"), null);
-        Assert.assertTrue((Boolean) Tools.evalExpression("[event type] == *", ev));
-        Assert.assertTrue((Boolean) Tools.evalExpression("[empty] == *", ev));
-        Assert.assertTrue((Boolean) Tools.evalExpression("[@context localAddress port] == *", ev));
+        Assertions.assertTrue((Boolean) Tools.evalExpression("[event type] == *", ev));
+        Assertions.assertTrue((Boolean) Tools.evalExpression("[empty] == *", ev));
+        Assertions.assertTrue((Boolean) Tools.evalExpression("[@context localAddress port] == *", ev));
     }
 
     @Test
     public void testExistsFalse() throws ProcessorException {
         Event ev = factory.newEvent();
-        Assert.assertFalse((Boolean) Tools.evalExpression("[a] == *", ev));
-        Assert.assertFalse((Boolean) Tools.evalExpression("[@context localAddress port] == *", ev));
+        Assertions.assertFalse((Boolean) Tools.evalExpression("[a] == *", ev));
+        Assertions.assertFalse((Boolean) Tools.evalExpression("[@context localAddress port] == *", ev));
     }
 
     @Test
     public void optimizeVarFormat() {
         String lambda = "\">${#1%s}<\"(1)";
-        Assert.assertEquals(">1<", ConfigurationTools.unWrap(lambda, RouteParser::expression));
+        Assertions.assertEquals(">1<", ConfigurationTools.unWrap(lambda, RouteParser::expression));
     }
 
     @Test
     public void optimizeVarFormatWithEvent() {
         String lambda = "\"${%j}\"";
-        Assert.assertEquals(Expression.class, ConfigurationTools.unWrap(lambda, RouteParser::expression).getClass());
+        Assertions.assertEquals(Expression.class, ConfigurationTools.unWrap(lambda, RouteParser::expression).getClass());
     }
 
     @Test
     public void optimizeConstantNumeric() {
         String lambda = "1";
-        Assert.assertEquals(Integer.valueOf(1), ConfigurationTools.unWrap(lambda, RouteParser::expression));
+        Assertions.assertEquals(Integer.valueOf(1), ConfigurationTools.unWrap(lambda, RouteParser::expression));
     }
 
     @Test
     public void optimizeConstantString() {
         String lambda = "\"1\"";
-        Assert.assertEquals("1", ConfigurationTools.unWrap(lambda, RouteParser::expression));
+        Assertions.assertEquals("1", ConfigurationTools.unWrap(lambda, RouteParser::expression));
     }
 
     @Test
     public void parseLambda() throws ProcessorException {
         String lambda = "x -> x + 1";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
-        Assert.assertEquals(2, l.getExpression().eval(null, 1));
+        Assertions.assertEquals(2, l.expression().eval(null, 1));
     }
 
     @Test
     public void parseLambdaConstant() throws ProcessorException {
         String lambda = "x -> 1";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
-        Assert.assertEquals(1, l.getExpression().eval(null, 1));
+        Assertions.assertEquals(1, l.expression().eval(null, 1));
     }
 
     @Test
     public void parseLambdaFormatter() throws ProcessorException {
         String lambda = "x -> \">${#1%s}<\"(x)";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
-        Assert.assertEquals(">1<", l.getExpression().eval(null, 1));
+        Assertions.assertEquals(">1<", l.expression().eval(null, 1));
     }
 
     @Test
     public void parseLambdaConstantFormatter() throws ProcessorException {
         String lambda = "x -> \">${#1%s}<\"(1)";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
-        Assert.assertEquals(">1<", l.getExpression().eval(null, null));
+        Assertions.assertEquals(">1<", l.expression().eval(null, null));
     }
 
     @Test
     public void parseLambdaIsEmpty() throws ProcessorException {
         String lambda = "x -> isEmpty(x)";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
-        Assert.assertEquals(true, l.getExpression().eval(null, List.of()));
+        Assertions.assertEquals(true, l.expression().eval(null, List.of()));
     }
 
     @Test
     public void parseBadLambda() {
         String lambda = "x -> y + 1";
-        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> ConfigurationTools.unWrap(lambda, RouteParser::lambda));
-        Assert.assertEquals("Invalid lambda definition", ex.getMessage());
+        ConfigException ex = Assertions.assertThrows(ConfigException.class, () -> ConfigurationTools.unWrap(lambda, RouteParser::lambda));
+        Assertions.assertEquals("Invalid lambda definition", ex.getMessage());
     }
 
     @Test
@@ -1132,22 +1137,22 @@ public class TestExpressionParsing {
         // Simulate a host with both IPv4 and IPv6, not always true
         ev.put("e", new InetAddress[] {InetAddress.getByName("127.0.0.1"), InetAddress.getByName("::1")});
 
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] == \"192.168.1.1\"", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] == \"/192.168.1.1\"", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[b] == \"www.google.com\"", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[c] == \"localhost\"", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[e] == \"127.0.0.1\"", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[e] == \"::1\"", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("\"192.168.1.1\" == [a]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("\"/192.168.1.1\" == [a]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("\"www.google.com\" == [b]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("\"localhost\" == [c]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("\"127.0.0.1\" == [e]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("\"::1\" == [e]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("isIP([a])", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("isIP(\"192.168.1.1\")", ev));
-        Assert.assertFalse((boolean) Tools.evalExpression("isIP(\"www.google.com\")", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("isIP(\"::1\")", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[a] == \"192.168.1.1\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[a] == \"/192.168.1.1\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[b] == \"www.google.com\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[c] == \"localhost\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[e] == \"127.0.0.1\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[e] == \"::1\"", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("\"192.168.1.1\" == [a]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("\"/192.168.1.1\" == [a]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("\"www.google.com\" == [b]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("\"localhost\" == [c]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("\"127.0.0.1\" == [e]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("\"::1\" == [e]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("isIP([a])", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("isIP(\"192.168.1.1\")", ev));
+        Assertions.assertFalse((boolean) Tools.evalExpression("isIP(\"www.google.com\")", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("isIP(\"::1\")", ev));
     }
 
     @Test
@@ -1159,15 +1164,15 @@ public class TestExpressionParsing {
         ev.put("d", false);
         ev.put("e", 0);
         ev.put("f", 0.0);
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] && [b]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] && [c]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[b] && [c]", ev));
-        Assert.assertFalse((boolean) Tools.evalExpression("[a] && [d]", ev));
-        Assert.assertFalse((boolean) Tools.evalExpression("[a] && [e]", ev));
-        Assert.assertFalse((boolean) Tools.evalExpression("[b] && [f]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] || [d]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[a] || [e]", ev));
-        Assert.assertTrue((boolean) Tools.evalExpression("[b] || [f]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[a] && [b]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[a] && [c]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[b] && [c]", ev));
+        Assertions.assertFalse((boolean) Tools.evalExpression("[a] && [d]", ev));
+        Assertions.assertFalse((boolean) Tools.evalExpression("[a] && [e]", ev));
+        Assertions.assertFalse((boolean) Tools.evalExpression("[b] && [f]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[a] || [d]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[a] || [e]", ev));
+        Assertions.assertTrue((boolean) Tools.evalExpression("[b] || [f]", ev));
     }
 
     @Test
@@ -1175,13 +1180,13 @@ public class TestExpressionParsing {
         ExpressionBuilder b1 = ExpressionBuilder.of(1);
         ExpressionBuilder b2 = ExpressionBuilder.of(2);
         ExpressionBuilder b3 = ExpressionBuilder.of(b1, "+", b2);
-        Assert.assertEquals(3, b3.build("1+2").eval());
+        Assertions.assertEquals(3, b3.build("1+2").eval());
     }
 
     @Test
     public void staticFormat() throws ProcessorException {
         ExpressionBuilder b1 = ExpressionBuilder.of(new VarFormatter("1"));
-        Assert.assertEquals("1", b1.build("1").eval());
+        Assertions.assertEquals("1", b1.build("1").eval());
     }
 
     @Test
@@ -1189,8 +1194,8 @@ public class TestExpressionParsing {
         ExpressionBuilder b1 = ExpressionBuilder.of(1);
         ExpressionBuilder b2 = ExpressionBuilder.of(b1, o -> Expression.instanceOf(false, o, Integer.class));
         ExpressionBuilder b3 = ExpressionBuilder.of(b1, o -> Expression.instanceOf(true, o, Integer.class));
-        Assert.assertEquals(true, b2.build("1 instanceof Integer").eval());
-        Assert.assertEquals(false, b3.build("1 ! instanceof Integer").eval());
+        Assertions.assertEquals(true, b2.build("1 instanceof Integer").eval());
+        Assertions.assertEquals(false, b3.build("1 ! instanceof Integer").eval());
     }
 
     @Test
@@ -1205,16 +1210,16 @@ public class TestExpressionParsing {
         Event wrapped = ev.wrap(VariablePath.of("a"));
         @SuppressWarnings("unchecked")
         Map<String, Object> map = (Map<String, Object>) Expression.deepCopy(wrapped);
-        Assert.assertEquals(1, map.get("b"));
-        Assert.assertEquals(NullOrMissingValue.NULL, map.get("c"));
-        Assert.assertEquals(List.of(NullOrMissingValue.NULL, NullOrMissingValue.NULL), map.get("d"));
+        Assertions.assertEquals(1, map.get("b"));
+        Assertions.assertEquals(NullOrMissingValue.NULL, map.get("c"));
+        Assertions.assertEquals(List.of(NullOrMissingValue.NULL, NullOrMissingValue.NULL), map.get("d"));
     }
 
     @Test
     @DisplayName("Test flatten")
     public void testFlatten() throws ProcessorException {
         Event ev = factory.newTestEvent();
-        Assert.assertEquals(Set.of(1, 2), Tools.evalExpression("flatten(set(list(1), 2, list(1)))", ev));
+        Assertions.assertEquals(Set.of(1, 2), Tools.evalExpression("flatten(set(list(1), 2, list(1)))", ev));
     }
 
     <T> ConnectionContext<T> getConnexionContext(Principal principal) {
@@ -1231,6 +1236,85 @@ public class TestExpressionParsing {
         };
         newCtxt.setPrincipal(principal);
         return newCtxt;
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @MethodSource("ipCases")
+    public void testParsingIp(String expression, Object expected) {
+        Event ev = factory.newEvent();
+        checkExpression(ev, expression, expected);
+    }
+
+    private static Stream<Arguments> ipCases() throws UnknownHostException {
+        return Stream.of(
+                Arguments.of("127.0.0.1", InetAddress.getByName("127.0.0.1")),
+                Arguments.of("127.0.0.1/8", new NetworkMask(InetAddress.getByName("127.0.0.1"), (short) 8)),
+                Arguments.of("2001:db8::ff00:42:8329", InetAddress.getByName("2001:db8::ff00:42:8329")),
+                Arguments.of("::1", InetAddress.getByName("::1")),
+                Arguments.of("::", InetAddress.getByName("::")),
+                Arguments.of("1:2:3:4:5:6:7:8", InetAddress.getByName("1:2:3:4:5:6:7:8")),
+                Arguments.of("1:2:3:4:5:6:7::", InetAddress.getByName("1:2:3:4:5:6:7::")),
+                Arguments.of("::ffff:10.0.0.1", InetAddress.getByName("10.0.0.1")),
+                Arguments.of("127.0.0.1 == \"127.0.0.1\"", true),
+                Arguments.of("127.0.0.1 in 127.0.0.1/8", true),
+                Arguments.of("192.168.1.2 in 127.0.0.1/8", false),
+                Arguments.of("127.0.0.1 !in 127.0.0.1/8", false),
+                Arguments.of("192.168.1.2 !in 127.0.0.1/8", true),
+                Arguments.of("::1 in ::1/128", true),
+                Arguments.of("2001:db8::1 in 2001:db8::/32", true),
+                Arguments.of("2001:db8::1 in 2001:db9::/32", false),
+                Arguments.of("127.0.0.1 in ::1/128", false),
+                Arguments.of("::1 in 127.0.0.1/8", false),
+                Arguments.of("\"not-an-ip\" in 127.0.0.1/8", false),
+                Arguments.of("127.0.0.1/8 in 127.0.0.1", false)
+        );
+    }
+
+    @ParameterizedTest(name = "[{index}] {0} == {1} -> {2}")
+    @MethodSource("ipEqualityCases")
+    public void testparsingIpEquality(String maskA, String maskB, boolean expected) throws ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", NetworkMask.of(maskA));
+        ev.put("b", NetworkMask.of(maskB));
+        Assertions.assertEquals(expected, Tools.evalExpression("[a] == [b]", ev));
+    }
+
+    private static Stream<Arguments> ipEqualityCases() {
+        return Stream.of(
+                Arguments.of("127.0.0.1/8", "127.0.0.1/8", true),
+                Arguments.of("127.0.0.1/8", "127.0.0.2/8", true),
+                Arguments.of("127.0.0.1/8", "127.0.0.1/16", false)
+        );
+    }
+
+    @ParameterizedTest(name = "[{index}] {0} -> {1}")
+    @MethodSource("ipToStringCases")
+    public void testParsingIpToString(String mask, String expected) throws ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", NetworkMask.of(mask));
+        Assertions.assertEquals(expected, Tools.evalExpression("\"${a}\"", ev));
+    }
+
+    private static Stream<Arguments> ipToStringCases() {
+        return Stream.of(
+                Arguments.of("127.0.0.1/8", "127.0.0.0/8"),
+                Arguments.of("192.168.1.1/24", "192.168.1.0/24")
+        );
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @MethodSource("ipInvalidMaskCases")
+    public void testParsingIpInvalidMask(String expression) {
+        RecognitionException re = Assertions.assertThrows(RecognitionException.class, () -> Tools.evalExpression(expression));
+        Assertions.assertEquals("Invalid CIDR netmask " + expression, re.getMessage());
+    }
+
+    private static Stream<Arguments> ipInvalidMaskCases() {
+        return Stream.of(
+                Arguments.of("127.0.0.1/33"),
+                Arguments.of("::1/129"),
+                Arguments.of("::1/65536")
+        );
     }
 
 }
