@@ -253,7 +253,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         if (localaddr instanceof TransportIpAddress && remoteaddr instanceof TransportIpAddress ) {
             InetSocketAddress localinetaddr = getSA((TransportIpAddress) localaddr);
             InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);
-            ctx = new SnmpConnectionContext(localinetaddr, remoteinetaddr, trap.getMessageProcessingModel());
+            ctx = new SnmpConnectionContext(localinetaddr, remoteinetaddr, trap.getMessageProcessingModel(), trap.getTransportMapping());
         } else {
             ctx = new BuildableConnectionContext.GenericConnectionContext(localaddr, remoteaddr);
         }

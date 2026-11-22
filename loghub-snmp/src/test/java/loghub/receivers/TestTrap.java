@@ -160,6 +160,7 @@ class TestTrap {
             Assertions.assertNotNull(e);
             long statBytes = Stats.getMetric(Receiver.class, "bytes", Meter.class).getCount();
             Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertEquals(protocol.toString(), e.getConnectionContext().getProperty("transport").orElse(null));
             if (pdu.getType() == PDU.NOTIFICATION) {
                 Assertions.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
                 Assertions.assertTrue(statBytes > 100 && statBytes < 110);
@@ -293,7 +294,8 @@ class TestTrap {
             Map<String, Object> index = (Map<String, Object>) udpLocalAddress.get("index");
             Assertions.assertEquals(123, index.get("udpLocalPort"));
             Assertions.assertEquals(localhost, udpLocalAddress.get("value"));
-            Assertions.assertEquals("v2c", e.getConnectionContext().getProperty("snmpVersion").orElse(null));
+            Assertions.assertEquals("v2c", e.getConnectionContext().getProperty("version").orElse(null));
+            Assertions.assertEquals("udp", e.getConnectionContext().getProperty("transport").orElse(null));
         });
     }
 
@@ -317,7 +319,8 @@ class TestTrap {
             Assertions.assertNull(e.get("specific_trap"));
             Assertions.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
             Assertions.assertEquals(addr, e.get("agent_addr"));
-            Assertions.assertEquals("v1", e.getConnectionContext().getProperty("snmpVersion").orElse(null));
+            Assertions.assertEquals("v1", e.getConnectionContext().getProperty("version").orElse(null));
+            Assertions.assertEquals("udp", e.getConnectionContext().getProperty("transport").orElse(null));
         });
     }
 
