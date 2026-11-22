@@ -9,7 +9,9 @@ import org.snmp4j.mp.MessageProcessingModel;
 
 import loghub.IpConnectionContext;
 import loghub.cloners.DeepCloner;
+import lombok.Getter;
 
+@Getter
 public class SnmpConnectionContext extends IpConnectionContext {
 
     static {
@@ -24,19 +26,12 @@ public class SnmpConnectionContext extends IpConnectionContext {
     }
 
     private static String resolveSnmpVersion(int messageProcessingModel) {
-        if (messageProcessingModel == MessageProcessingModel.MPv1) {
-            return "v1";
-        } else if (messageProcessingModel == MessageProcessingModel.MPv2c) {
-            return "v2c";
-        } else if (messageProcessingModel == MessageProcessingModel.MPv3) {
-            return "v3";
-        } else {
-            return Integer.toString(messageProcessingModel);
-        }
-    }
-
-    public String getSnmpVersion() {
-        return snmpVersion;
+        return switch (messageProcessingModel) {
+        case MessageProcessingModel.MPv1 -> "v1";
+        case MessageProcessingModel.MPv2c -> "v2c";
+        case MessageProcessingModel.MPv3 -> "v3";
+        default -> Integer.toString(messageProcessingModel);
+        };
     }
 
     @Override
@@ -48,7 +43,10 @@ public class SnmpConnectionContext extends IpConnectionContext {
 
     @Override
     public <T> Optional<T> getProperty(String property) {
-        return "snmpVersion".equals(property) ? (Optional<T>) Optional.of(snmpVersion) : super.getProperty(property);
+        return switch (property) {
+        case "snmpVersion" -> (Optional<T>) Optional.of(snmpVersion);
+        default -> super.getProperty(property);
+        };
     }
 
 }
