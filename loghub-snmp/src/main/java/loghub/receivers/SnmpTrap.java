@@ -36,6 +36,7 @@ import org.snmp4j.smi.Counter64;
 import org.snmp4j.smi.GenericAddress;
 import org.snmp4j.smi.Integer32;
 import org.snmp4j.smi.IpAddress;
+import org.snmp4j.smi.Null;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.Opaque;
@@ -55,9 +56,11 @@ import fr.jrds.snmpcodec.OIDFormatter;
 import loghub.BuildableConnectionContext;
 import loghub.BuilderClass;
 import loghub.Helpers;
-import loghub.IpConnectionContext;
 import loghub.ShutdownTask;
+import loghub.snmp.SnmpConnectionContext;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.metrics.Stats;
 import lombok.Getter;
 import lombok.Setter;
@@ -103,6 +106,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         private int worker = 1;
         protected int rcvBuf = -1;
         private OIDFormatter formatter = null;
+        private VariablePath target = null;
         @Override
         public SnmpTrap build() {
             return new SnmpTrap(this);
@@ -115,6 +119,8 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
     private final Snmp snmp;
     @Getter
     private final String receiverName;
+    @Getter
+    private final VariablePath target;
     private Supplier<TransportMapping<? extends TransportIpAddress>> transportsSuppliers;
 
     protected SnmpTrap(Builder builder) {
@@ -141,6 +147,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         receiverName = "SnmpTrap/" + builder.protocol + "/" + Helpers.ListenString(builder.listen) + "/" + builder.port;
         // To be kept to handle legacy compatibility
         formatter.updateAndGet(v -> v == null ? builder.formatter : v);
+        target = builder.target;
     }
 
     private <A extends TransportIpAddress> TransportMapping<A> generate(A listenAddress, GenerateMapping<A> generator) {
@@ -239,21 +246,21 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
 
     @Override
     public void processPdu(CommandResponderEvent trap) {
+        PDU pdu = trap.getPDU();
+        Address localaddr = trap.getTransportMapping().getListenAddress();
+        Address remoteaddr = trap.getPeerAddress();
+        BuildableConnectionContext<?> ctx;
+        if (localaddr instanceof TransportIpAddress && remoteaddr instanceof TransportIpAddress ) {
+            InetSocketAddress localinetaddr = getSA((TransportIpAddress) localaddr);
+            InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);
+            ctx = new SnmpConnectionContext(localinetaddr, remoteinetaddr, trap.getMessageProcessingModel());
+        } else {
+            ctx = new BuildableConnectionContext.GenericConnectionContext(localaddr, remoteaddr);
+        }
+        Event ev = null;
         try {
-            PDU pdu = trap.getPDU();
-            Address localaddr = trap.getTransportMapping().getListenAddress();
-            Address remoteaddr = trap.getPeerAddress();
-            BuildableConnectionContext<?> ctx;
-            if (localaddr instanceof TransportIpAddress && remoteaddr instanceof TransportIpAddress ) {
-                InetSocketAddress localinetaddr = getSA((TransportIpAddress) localaddr);
-                InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);
-                ctx = new IpConnectionContext(localinetaddr, remoteinetaddr);
-            } else {
-                ctx = new BuildableConnectionContext.GenericConnectionContext(localaddr, remoteaddr);
-            }
             Map<String, Object> eventMap = new HashMap<>();
-            if (pdu instanceof PDUv1) {
-                PDUv1 pduv1 = (PDUv1) pdu;
+            if (pdu instanceof PDUv1 pduv1) {
                 String enterprise = (String) convertVar(pduv1.getEnterprise());
                 eventMap.put("enterprise", enterprise);
                 eventMap.put("agent_addr", pduv1.getAgentAddress().getInetAddress());
@@ -263,7 +270,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                     String resolved = formatter.get().format(pduv1.getEnterprise(), new Integer32(pduv1.getSpecificTrap()), true);
                     eventMap.put("specific_trap", resolved);
                 }
-                eventMap.put("time_stamp", 1.0 * pduv1.getTimestamp() / 100.0);
+                eventMap.put("time_stamp", ticksToDuration(pduv1.getTimestamp()));
             }
             for (VariableBinding i: pdu.getVariableBindings()) {
                 OID vbOID = i.getOid();
@@ -278,9 +285,23 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                         .map(n -> (Principal) () -> n)
                         .ifPresent(ctx::setPrincipal);
             }
-            send(mapToEvent(ctx, eventMap));
+            ev = getEventsFactory().newEvent(ctx);
+            if (target == null) {
+                ev.putAll(eventMap);
+            } else {
+                ev.putAtPath(target, eventMap);
+            }
+            send(ev);
         } catch (RuntimeException ex) {
-            Stats.newUnhandledException(this, ex);
+            if (ev != null) {
+                ev.end();
+            } else {
+                getEventsFactory().deadEvent(ctx);
+            }
+            Stats.newReceivedError(this, ex);
+            logger.atError()
+                  .withThrowable(logger.isDebugEnabled() ? ex : null)
+                  .log("Invalid SNMP trap received: {}", () -> Helpers.resolveThrowableException(ex));
         } catch (Error ex) {
             logger.atError().withThrowable(ex).log("Got a critical error: {}", Helpers.resolveThrowableException(ex));
             if (Helpers.isFatal(ex)) {
@@ -318,20 +339,29 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         }
     }
 
+    /**
+     * Converts a SNMP {@code TimeTicks} value, expressed in hundredths of a second, into a {@link Duration}.
+     * <p>Since a hundredth of a second is exactly 10 milliseconds, the conversion is a single, lossless
+     * multiplication, handled directly by {@link Duration#ofMillis(long)}.
+     *
+     * @param ticks the number of hundredths of a second.
+     * @return the equivalent {@link Duration}.
+     */
+    private Duration ticksToDuration(long ticks) {
+        return Duration.ofMillis(ticks * 10L);
+    }
+
     private Object convertVar(Variable variable) {
         if (variable == null) {
             return null;
         } else {
-            switch (variable.getSyntax()) {
-            case BER.ASN_BOOLEAN:
-                return variable.toInt() != 0;
-            case BER.INTEGER:
-                return variable.toInt();
-            case BER.OCTETSTRING:
-                Variable stringVar = variable;
+            return switch (variable) {
+            case Null nullVar -> null;
+            case Opaque opaque -> resolvOpaque(opaque);
+            case OctetString octetVar -> {
                 //It might be a C string, try to remove the last 0
                 //But only if the new string is printable
-                OctetString octetVar = (OctetString) variable;
+                Variable stringVar = octetVar;
                 int length = octetVar.length();
                 if (length > 1 && octetVar.get(length - 1) == 0) {
                     OctetString newVar = octetVar.substring(0, length - 1);
@@ -340,37 +370,23 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                         logger.debug("Convertion an octet stream from {} to {}", octetVar, stringVar);
                     }
                 }
-                return stringVar.toString();
-            case BER.NULL:
-                return null;
-            case BER.OID: {
-                OID oid = (OID) variable;
+                yield stringVar.toString();
+            }
+            case OID oid -> {
                 Map<String, Object> parsed = formatter.get().store.parseIndexOID(oid.getValue());
                 // If an empty map was return or a single entry map, it's not a table entry, just format the OID
-                return parsed.size() <= 1 ? oid.format() : parsed;
+                yield parsed.size() <= 1 ? oid.format() : parsed;
             }
-            case BER.IPADDRESS:
-                return ((IpAddress)variable).getInetAddress();
-            case BER.COUNTER64:
-            case BER.COUNTER32:
-            case BER.GAUGE32:
-                return variable.toLong();
-            case BER.TIMETICKS:
-                return Duration.ofMillis(((TimeTicks)variable).toMilliseconds());
-            case BER.OPAQUE:
-                return resolvOpaque((Opaque) variable);
-            default:
-                if (variable instanceof UnsignedInteger32) {
-                    return variable.toLong();
-                } else if (variable instanceof Integer32) {
-                    return variable.toInt();
-                } else if (variable instanceof Counter64) {
-                    return variable.toLong();
-                } else {
-                    logger.warn("Unknown syntax: {}", variable::getSyntaxString);
-                    return null;
-                }
+            case IpAddress ipAddress -> ipAddress.getInetAddress();
+            case TimeTicks timeTicks -> ticksToDuration(timeTicks.getValue());
+            case Counter64 counter64 -> counter64.toLong();
+            case UnsignedInteger32 unsignedInteger32 -> unsignedInteger32.toLong();
+            case Integer32 integer32 -> integer32.toInt();
+            default -> {
+                logger.warn("Unknown syntax: {}", variable::getSyntaxString);
+                yield null;
             }
+            };
         }
     }
 

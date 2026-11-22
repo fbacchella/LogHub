@@ -33,7 +33,9 @@ import org.snmp4j.mp.MPv1;
 import org.snmp4j.mp.MPv2c;
 import org.snmp4j.mp.MessageProcessingModel;
 import org.snmp4j.mp.SnmpConstants;
+import org.snmp4j.smi.Counter32;
 import org.snmp4j.smi.Counter64;
+import org.snmp4j.smi.Gauge32;
 import org.snmp4j.smi.Integer32;
 import org.snmp4j.smi.IpAddress;
 import org.snmp4j.smi.Null;
@@ -44,6 +46,7 @@ import org.snmp4j.smi.TcpAddress;
 import org.snmp4j.smi.TimeTicks;
 import org.snmp4j.smi.TransportIpAddress;
 import org.snmp4j.smi.UdpAddress;
+import org.snmp4j.smi.UnsignedInteger32;
 import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultTcpTransportMapping;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
@@ -55,9 +58,11 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.metrics.ReceivedExceptionDescription;
 import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 
@@ -77,10 +82,18 @@ class TestTrap {
 
     private void doTest(Supplier<PDU> getPdu, Consumer<CommandResponderEvent<UdpAddress>> dosecurity, Consumer<Event> checkEvent)
             throws IOException {
+        doTest(null, getPdu, dosecurity, checkEvent);
+    }
+
+    private void doTest(VariablePath target, Supplier<PDU> getPdu, Consumer<CommandResponderEvent<UdpAddress>> dosecurity, Consumer<Event> checkEvent)
+            throws IOException {
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
         builder.setPort(0);
         builder.setEventsFactory(factory);
+        if (target != null) {
+            builder.setTarget(target);
+        }
 
         try (SnmpTrap r = builder.build()) {
             r.setOutQueue(receiver);
@@ -246,6 +259,9 @@ class TestTrap {
             pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.9.0"), new Opaque(new byte[]{(byte)0x9f, (byte)0x79, (byte)0x08, (byte)0x42, (byte)0xf6, (byte)0x00, (byte)0x00, (byte)0x42, (byte)0xf6, (byte)0x00, (byte)0x00})));
             pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.10.0"), new Integer32(4)));
             pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.11.0"), new Counter64(5)));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.12.0"), new UnsignedInteger32(6)));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.13.0"), new Gauge32(7)));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.14.0"), new Counter32(8)));
             pdu.add(new VariableBinding(new OID("1.3.6.1.2.1.7.5.1.1.0.0.0.0.123"), new IpAddress("127.0.0.1")));
             return pdu;
         }, te -> {
@@ -268,12 +284,16 @@ class TestTrap {
             Assertions.assertEquals(3.87028163190784E14, dodValues.get("2.1.4.20.1.9.0"));
             Assertions.assertEquals(4, dodValues.get("2.1.4.20.1.10.0"));
             Assertions.assertEquals(5L, dodValues.get("2.1.4.20.1.11.0"));
+            Assertions.assertEquals(6L, dodValues.get("2.1.4.20.1.12.0"));
+            Assertions.assertEquals(7L, dodValues.get("2.1.4.20.1.13.0"));
+            Assertions.assertEquals(8L, dodValues.get("2.1.4.20.1.14.0"));
             @SuppressWarnings("unchecked")
             Map<String, Object> udpLocalAddress = (Map<String, Object>) e.get("udpLocalAddress");
             @SuppressWarnings("unchecked")
             Map<String, Object> index = (Map<String, Object>) udpLocalAddress.get("index");
             Assertions.assertEquals(123, index.get("udpLocalPort"));
             Assertions.assertEquals(localhost, udpLocalAddress.get("value"));
+            Assertions.assertEquals("v2c", e.getConnectionContext().getProperty("snmpVersion").orElse(null));
         });
     }
 
@@ -291,12 +311,13 @@ class TestTrap {
         }, te -> {
 
         }, e -> {
-            Assertions.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
+            Assertions.assertEquals(Duration.ofMillis(100), e.get("time_stamp"));
             Assertions.assertEquals("warmStart", e.get("generic_trap"));
             Assertions.assertEquals("enterprises.232", e.get("enterprise"));
             Assertions.assertNull(e.get("specific_trap"));
             Assertions.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
             Assertions.assertEquals(addr, e.get("agent_addr"));
+            Assertions.assertEquals("v1", e.getConnectionContext().getProperty("snmpVersion").orElse(null));
         });
     }
 
@@ -314,12 +335,73 @@ class TestTrap {
         }, te -> {
 
         }, e -> {
-            Assertions.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
+            Assertions.assertEquals(Duration.ofMillis(100), e.get("time_stamp"));
             Assertions.assertNull(e.get("generic_trap"));
             Assertions.assertEquals("enterprises.232", e.get("enterprise"));
             Assertions.assertEquals("enterprises.232 = 6013", e.get("specific_trap"));
             Assertions.assertEquals(addr, e.get("agent_addr"));
         });
+    }
+
+    @Test
+    void testtrapv1GenericWithTarget() throws IOException {
+        InetAddress addr = InetAddress.getByName("0.0.0.0");
+        VariablePath target = VariablePath.of("snmp");
+        doTest(target, () -> {
+            PDUv1 pdu = new PDUv1();
+            pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
+            pdu.setAgentAddress(new IpAddress());
+            pdu.setGenericTrap(1);
+            pdu.setTimestamp(10);
+            pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1"), new OctetString("lldpRemTablesChange")));
+            return pdu;
+        }, te -> {
+
+        }, e -> {
+            Assertions.assertNull(e.get("time_stamp"));
+            Assertions.assertNull(e.get("generic_trap"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> snmp = (Map<String, Object>) e.get("snmp");
+            Assertions.assertNotNull(snmp);
+            Assertions.assertEquals(Duration.ofMillis(100), snmp.get("time_stamp"));
+            Assertions.assertEquals("warmStart", snmp.get("generic_trap"));
+            Assertions.assertEquals("enterprises.232", snmp.get("enterprise"));
+            Assertions.assertNull(snmp.get("specific_trap"));
+            Assertions.assertEquals("lldpRemTablesChange", snmp.get("snmpTrapOID"));
+            Assertions.assertEquals(addr, snmp.get("agent_addr"));
+        });
+    }
+
+    @Test
+    void testInvalidTrap() throws IOException {
+        PriorityBlockingQueue receiver = new PriorityBlockingQueue();
+        SnmpTrap.Builder builder = SnmpTrap.getBuilder();
+        builder.setPort(0);
+        builder.setEventsFactory(factory);
+
+        try (SnmpTrap r = builder.build()) {
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
+            Map<String, Object> props = new HashMap<>();
+            props.put("mibdirs", new Object[]{"/usr/share/snmp/mibs"});
+            Assertions.assertTrue(r.configure(new Properties(props)));
+            r.start();
+
+            TransportMapping<UdpAddress> mapping = new DefaultUdpTransportMapping();
+            UdpAddress addr = (UdpAddress) UdpAddress.parse("127.0.0.1/162");
+            CommandResponderEvent<UdpAddress> trapEvent = new CommandResponderEvent<>(new MessageDispatcherImpl(), mapping, addr, 0, 0, null, 0, null,
+                    null, 0, null);
+            // No PDU is set on the trap event, processing it must raise a RuntimeException.
+
+            r.processPdu(trapEvent);
+
+            Assertions.assertNull(receiver.poll());
+            Assertions.assertEquals(1L, Stats.getMetric(Receiver.class, "error", Meter.class).getCount());
+            ReceivedExceptionDescription red = Stats.getReceiverError().stream().findAny().orElse(null);
+            Assertions.assertNotNull(red);
+            Assertions.assertEquals(r.getReceiverName(), red.receiver());
+            r.stopReceiving();
+        }
     }
 
     @Test
