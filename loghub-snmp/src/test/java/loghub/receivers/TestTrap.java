@@ -17,9 +17,9 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.CommunityTarget;
 import org.snmp4j.MessageDispatcher;
@@ -61,13 +61,13 @@ import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 import loghub.security.ssl.ClientAuthentication;
 
-public class TestTrap {
+class TestTrap {
 
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
-    @BeforeClass
-    public static void configure() {
+    @BeforeAll
+    static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.SnmpTrap", "loghub.receivers", "org.snmp4j");
@@ -87,7 +87,7 @@ public class TestTrap {
             r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
             Map<String, Object> props = new HashMap<>();
             props.put("mibdirs", new Object[]{"/usr/share/snmp/mibs"});
-            Assert.assertTrue(r.configure(new Properties(props)));
+            Assertions.assertTrue(r.configure(new Properties(props)));
             r.start();
 
             TransportMapping<UdpAddress> mapping = new DefaultUdpTransportMapping();
@@ -100,8 +100,8 @@ public class TestTrap {
 
             r.processPdu(trapEvent);
             Event e = receiver.poll();
-            Assert.assertNotNull(e);
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertNotNull(e);
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             checkEvent.accept(e);
             r.stopReceiving();
         }
@@ -131,7 +131,7 @@ public class TestTrap {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
             Stats.registerReceiver(r);
-            Assert.assertTrue(r.configure(props));
+            Assertions.assertTrue(r.configure(props));
             r.start();
 
             InetSocketAddress isa = InetSocketAddress.createUnresolved("127.0.0.1", 1161);
@@ -144,14 +144,14 @@ public class TestTrap {
             snmpTarget.setTimeout(100);
             snmp.send(pdu, snmpTarget);
             Event e = receiver.poll(100, TimeUnit.MILLISECONDS);
-            Assert.assertNotNull(e);
+            Assertions.assertNotNull(e);
             long statBytes = Stats.getMetric(Receiver.class, "bytes", Meter.class).getCount();
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assertions.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             if (pdu.getType() == PDU.NOTIFICATION) {
-                Assert.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
-                Assert.assertTrue(statBytes > 100 && statBytes < 110);
+                Assertions.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
+                Assertions.assertTrue(statBytes > 100 && statBytes < 110);
             } else if (pdu.getType() == PDU.V1TRAP) {
-                Assert.assertEquals(41, statBytes);
+                Assertions.assertEquals(41, statBytes);
             }
             r.stopReceiving();
         }
@@ -178,27 +178,27 @@ public class TestTrap {
     }
 
     @Test
-    public void testNetworkTrapv1Tcp() throws IOException, InterruptedException {
+    void testNetworkTrapv1Tcp() throws IOException, InterruptedException {
         sendPdu(SnmpTrap.PROTOCOL.tcp, getv1trap());
     }
 
     @Test
-    public void testNetworkTrapv1Udp() throws IOException, InterruptedException {
+    void testNetworkTrapv1Udp() throws IOException, InterruptedException {
         sendPdu(SnmpTrap.PROTOCOL.udp, getv1trap());
     }
 
     @Test
-    public void testNetworkTrapv2Tcp() throws IOException, InterruptedException {
+    void testNetworkTrapv2Tcp() throws IOException, InterruptedException {
         sendPdu(SnmpTrap.PROTOCOL.tcp, getv2trap());
     }
 
     @Test
-    public void testNetworkTrapv2Udp() throws IOException, InterruptedException {
+    void testNetworkTrapv2Udp() throws IOException, InterruptedException {
         sendPdu(SnmpTrap.PROTOCOL.udp, getv2trap());
     }
 
     @Test
-    public void testbig() throws IOException {
+    void testbig() throws IOException {
         doTest(() -> {
             PDU pdu = new PDU();
             pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.4.1.1.8.207185300.2.15079"), new OctetString("vnet7")));
@@ -211,24 +211,24 @@ public class TestTrap {
         }, te -> {
 
         }, e -> {
-            Assert.assertEquals(3, e.size());
+            Assertions.assertEquals(3, e.size());
             @SuppressWarnings("unchecked")
             Map<String,?> iso = (Map<String, ?>) e.get("iso");
-            Assert.assertEquals("vnet7", iso.get("0.8802.1.1.2.1.4.1.1.8.207185300.2.15079"));
-            Assert.assertEquals("localhost", iso.get("0.8802.1.1.2.1.4.1.1.9.207185300.2.15079"));
-            Assert.assertEquals("eth0", iso.get("0.8802.1.1.2.1.3.7.1.4.2"));
+            Assertions.assertEquals("vnet7", iso.get("0.8802.1.1.2.1.4.1.1.8.207185300.2.15079"));
+            Assertions.assertEquals("localhost", iso.get("0.8802.1.1.2.1.4.1.1.9.207185300.2.15079"));
+            Assertions.assertEquals("eth0", iso.get("0.8802.1.1.2.1.3.7.1.4.2"));
 
             @SuppressWarnings("unchecked")
             Map<String,?> enterprises = (Map<String, ?>) e.get("enterprises");
-            Assert.assertEquals(1, enterprises.get("9586.100.5.2.3.1.4"));
-            Assert.assertEquals("LOGHUB", enterprises.get("9586.100.5.1.2.0"));
+            Assertions.assertEquals(1, enterprises.get("9586.100.5.2.3.1.4"));
+            Assertions.assertEquals("LOGHUB", enterprises.get("9586.100.5.1.2.0"));
 
-            Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
+            Assertions.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
         });
     }
 
     @Test
-    public void testTrapv2() throws IOException {
+    void testTrapv2() throws IOException {
         InetAddress localhost = InetAddress.getByName("127.0.0.1");
         doTest(() -> {
             PDU pdu = new PDU();
@@ -252,33 +252,33 @@ public class TestTrap {
             te.setMessageProcessingModel(MessageProcessingModel.MPv2c);
             te.setSecurityName("loghub".getBytes());
         }, e -> {
-            Assert.assertNull(e.get("specific_trap"));
-            Assert.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
-            Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
+            Assertions.assertNull(e.get("specific_trap"));
+            Assertions.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
+            Assertions.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
             @SuppressWarnings("unchecked")
             Map<String, Object> dodValues = (Map<String, Object>) e.get("dod");
-            Assert.assertEquals("1", dodValues.get("2.1.4.20.1.1.0"));
-            Assert.assertEquals("2", dodValues.get("2.1.4.20.1.2.0"));
-            Assert.assertEquals("3", dodValues.get("2.1.4.20.1.3.0"));
-            Assert.assertNull(dodValues.get("2.1.4.20.1.4.0"));
-            Assert.assertEquals("enterprises", dodValues.get("2.1.4.20.1.5.0"));
-            Assert.assertEquals(localhost, dodValues.get("2.1.4.20.1.6.0"));
-            Assert.assertEquals(Duration.ofMillis(1110), dodValues.get("2.1.4.20.1.7.0"));
-            Assert.assertEquals(123.0f, dodValues.get("2.1.4.20.1.8.0"));
-            Assert.assertEquals(3.87028163190784E14, dodValues.get("2.1.4.20.1.9.0"));
-            Assert.assertEquals(4, dodValues.get("2.1.4.20.1.10.0"));
-            Assert.assertEquals(5L, dodValues.get("2.1.4.20.1.11.0"));
+            Assertions.assertEquals("1", dodValues.get("2.1.4.20.1.1.0"));
+            Assertions.assertEquals("2", dodValues.get("2.1.4.20.1.2.0"));
+            Assertions.assertEquals("3", dodValues.get("2.1.4.20.1.3.0"));
+            Assertions.assertNull(dodValues.get("2.1.4.20.1.4.0"));
+            Assertions.assertEquals("enterprises", dodValues.get("2.1.4.20.1.5.0"));
+            Assertions.assertEquals(localhost, dodValues.get("2.1.4.20.1.6.0"));
+            Assertions.assertEquals(Duration.ofMillis(1110), dodValues.get("2.1.4.20.1.7.0"));
+            Assertions.assertEquals(123.0f, dodValues.get("2.1.4.20.1.8.0"));
+            Assertions.assertEquals(3.87028163190784E14, dodValues.get("2.1.4.20.1.9.0"));
+            Assertions.assertEquals(4, dodValues.get("2.1.4.20.1.10.0"));
+            Assertions.assertEquals(5L, dodValues.get("2.1.4.20.1.11.0"));
             @SuppressWarnings("unchecked")
             Map<String, Object> udpLocalAddress = (Map<String, Object>) e.get("udpLocalAddress");
             @SuppressWarnings("unchecked")
             Map<String, Object> index = (Map<String, Object>) udpLocalAddress.get("index");
-            Assert.assertEquals(123, index.get("udpLocalPort"));
-            Assert.assertEquals(localhost, udpLocalAddress.get("value"));
+            Assertions.assertEquals(123, index.get("udpLocalPort"));
+            Assertions.assertEquals(localhost, udpLocalAddress.get("value"));
         });
     }
 
     @Test
-    public void testtrapv1Generic() throws IOException {
+    void testtrapv1Generic() throws IOException {
         InetAddress addr = InetAddress.getByName("0.0.0.0");
         doTest(() -> {
             PDUv1 pdu = new PDUv1();
@@ -291,17 +291,17 @@ public class TestTrap {
         }, te -> {
 
         }, e -> {
-            Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
-            Assert.assertEquals("warmStart", e.get("generic_trap"));
-            Assert.assertEquals("enterprises.232", e.get("enterprise"));
-            Assert.assertNull(e.get("specific_trap"));
-            Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
-            Assert.assertEquals(addr, e.get("agent_addr"));
+            Assertions.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
+            Assertions.assertEquals("warmStart", e.get("generic_trap"));
+            Assertions.assertEquals("enterprises.232", e.get("enterprise"));
+            Assertions.assertNull(e.get("specific_trap"));
+            Assertions.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
+            Assertions.assertEquals(addr, e.get("agent_addr"));
         });
     }
 
     @Test
-    public void testtrapv1Specific() throws IOException {
+    void testtrapv1Specific() throws IOException {
         InetAddress addr = InetAddress.getByName("0.0.0.0");
         doTest(() -> {
             PDUv1 pdu = new PDUv1();
@@ -314,16 +314,16 @@ public class TestTrap {
         }, te -> {
 
         }, e -> {
-            Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
-            Assert.assertNull(e.get("generic_trap"));
-            Assert.assertEquals("enterprises.232", e.get("enterprise"));
-            Assert.assertEquals("enterprises.232 = 6013", e.get("specific_trap"));
-            Assert.assertEquals(addr, e.get("agent_addr"));
+            Assertions.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
+            Assertions.assertNull(e.get("generic_trap"));
+            Assertions.assertEquals("enterprises.232", e.get("enterprise"));
+            Assertions.assertEquals("enterprises.232 = 6013", e.get("specific_trap"));
+            Assertions.assertEquals(addr, e.get("agent_addr"));
         });
     }
 
     @Test
-    public void test_loghub_receivers_SnmpTrap() throws IntrospectionException, ReflectiveOperationException {
+    void test_loghub_receivers_SnmpTrap() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.SnmpTrap"
                 , BeanChecks.BeanInfo.build("port", Integer.TYPE)
                 , BeanChecks.BeanInfo.build("protocol", SnmpTrap.PROTOCOL.class)
