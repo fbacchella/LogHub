@@ -336,9 +336,9 @@ class TestTrap {
 
         }, e -> {
             Assertions.assertEquals(Duration.ofMillis(100), e.get("time_stamp"));
-            Assertions.assertNull(e.get("generic_trap"));
+            Assertions.assertEquals("enterpriseSpecific", e.get("generic_trap"));
             Assertions.assertEquals("enterprises.232", e.get("enterprise"));
-            Assertions.assertEquals("enterprises.232 = 6013", e.get("specific_trap"));
+            Assertions.assertEquals("6013", e.get("specific_trap"));
             Assertions.assertEquals(addr, e.get("agent_addr"));
         });
     }

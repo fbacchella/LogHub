@@ -264,11 +264,14 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                 String enterprise = (String) convertVar(pduv1.getEnterprise());
                 eventMap.put("enterprise", enterprise);
                 eventMap.put("agent_addr", pduv1.getAgentAddress().getInetAddress());
-                if (pduv1.getGenericTrap() != PDUv1.ENTERPRISE_SPECIFIC) {
-                    eventMap.put("generic_trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
-                } else {
-                    String resolved = formatter.get().format(pduv1.getEnterprise(), new Integer32(pduv1.getSpecificTrap()), true);
-                    eventMap.put("specific_trap", resolved);
+                eventMap.put("generic_trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
+                int specific = pduv1.getSpecificTrap();
+                if (specific != 0) {
+                    String formatted = formatter.get().store.format(pduv1.getEnterprise(), new Integer32(specific));
+                    if (formatted == null) {
+                        formatted = Integer.toString(specific);
+                    }
+                    eventMap.put("specific_trap", formatted);
                 }
                 eventMap.put("time_stamp", ticksToDuration(pduv1.getTimestamp()));
             }
